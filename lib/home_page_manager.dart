@@ -17,6 +17,7 @@ import 'package:printing/printing.dart';
 import 'package:tabbed_view/tabbed_view.dart';
 
 import 'package:label_manager/core/app.dart';
+import 'package:label_manager/core/app_menu_controller.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/brand.dart';
@@ -48,6 +49,7 @@ import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/models/label_column_save.dart';
 import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';
+import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/models/update_item.dart';
 import 'package:label_manager/models/update_item_column_content.dart';
@@ -187,6 +189,7 @@ Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
 
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
+  final AppMenuController appMenuController;
   final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
@@ -195,6 +198,7 @@ class HomePageManager extends StatefulWidget {
 
   const HomePageManager({
     super.key,
+    required this.appMenuController,
     required this.selectedBrand,
     required this.onBrandChanged,
     required this.selectedLabelSize,
@@ -406,7 +410,38 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (!mounted) {
       return;
     }
+    _syncAppMenuWorkState();
     setState(() {});
+  }
+
+  void _handleLabelPrintChanged() {
+    if (!mounted) return;
+    _syncAppMenuWorkState();
+  }
+
+  void _attachAppMenuCommands() {
+    widget.appMenuController.attach(
+      owner: this,
+      handlers: {
+        AppMenuCommandId.manageScale: _openScaleConnectSettings,
+        AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
+        AppMenuCommandId.scaleOutputPrinterSettings:
+            _openScaleOutputPrinterSettings,
+      },
+    );
+    _syncAppMenuWorkState();
+  }
+
+  void _syncAppMenuWorkState() {
+    widget.appMenuController.updateWorkState(
+      hasScaleOutputLabelSize: _effectiveLabelSize != null,
+      busyCommands: {
+        if (_labelPrintSessionController.busy)
+          AppMenuCommandId.labelPrintSettings,
+        if (_scaleOutputSessionController.busy)
+          AppMenuCommandId.scaleOutputPrinterSettings,
+      },
+    );
   }
 
   void _logItemDraftCancelDebug(String event, {int? traceId}) {
@@ -940,7 +975,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     super.initState();
     _currentLabelSize = widget.selectedLabelSize;
     _tabController = _createTabController();
+    _labelPrintSessionController.addListener(_handleLabelPrintChanged);
     _scaleOutputSessionController.addListener(_handleScaleOutputChanged);
+    _attachAppMenuCommands();
     HardwareKeyboard.instance.addHandler(_handleTabShortcutKeyEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -951,9 +988,14 @@ class _HomePageManagerState extends State<HomePageManager> {
   @override
   void didUpdateWidget(covariant HomePageManager oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.appMenuController, widget.appMenuController)) {
+      oldWidget.appMenuController.detach(this);
+      _attachAppMenuCommands();
+    }
     if (oldWidget.selectedLabelSize?.labelSizeId !=
         widget.selectedLabelSize?.labelSizeId) {
       _currentLabelSize = widget.selectedLabelSize;
+      _syncAppMenuWorkState();
     }
     if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId) {
       if (_suppressNextBrandDidUpdateLabelLoad &&
@@ -4140,6 +4182,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleTabShortcutKeyEvent);
+    widget.appMenuController.detach(this);
     final readyCompleter = _itemManagerReadyCompleter;
     if (readyCompleter != null && !readyCompleter.isCompleted) {
       readyCompleter.complete();
@@ -4151,6 +4194,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _closeLabelPrintProgressDialog();
     _closeScaleOutputProgressDialog();
     unawaited(_scaleConnectionService.disconnect());
+    _labelPrintSessionController.removeListener(_handleLabelPrintChanged);
     _labelPrintSessionController.dispose();
     _scaleOutputSessionController.removeListener(_handleScaleOutputChanged);
     _scaleOutputSessionController.dispose();

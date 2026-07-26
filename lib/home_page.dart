@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/app_menu_controller.dart';
 import 'core/lifecycle.dart';
 
 import 'package:label_manager/core/app.dart';
@@ -12,6 +13,7 @@ import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/db_connection_service.dart';
 import 'package:label_manager/database/db_server_connect_info.dart';
+import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/models/market.dart';
@@ -24,6 +26,7 @@ import 'home_page_manager.dart';
 import 'page_login/startup_dialog.dart';
 import 'page_login/startup_db_helper.dart';
 import 'utils/log_context.dart';
+import 'widgets/app_menu_bar.dart';
 
 // 사용자 로그인 및 앱 시작: 기본 프린터 설정 + 사용자 정보 입력
 class HomePage extends StatefulWidget {
@@ -36,6 +39,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final StartupDbHelper _db = StartupDbHelper();
+  late final AppMenuController _appMenuController;
   LifecycleCallbacks? _lifecycleCallbacks;
   Future<void>? _disconnectLogoutFuture;
   bool _disconnectCleanupDone = false;
@@ -51,6 +55,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
+    _appMenuController = AppMenuController();
+    _appMenuController.attach(
+      owner: this,
+      handlers: {
+        AppMenuCommandId.login: _openLogin,
+        AppMenuCommandId.logout: () => _onLogout(false),
+        AppMenuCommandId.exit: _requestExit,
+      },
+    );
 
     _lifecycleCallbacks = LifecycleCallbacks(
       onResumed: () async {
@@ -112,6 +126,7 @@ class _HomePageState extends State<HomePage> {
 
   void _onLogin() {
     if (!mounted) return;
+    _appMenuController.updateSession(userGrade: User.instance?.grade);
     if (!_loggedIn) {
       setState(() {
         _loggedIn = true;
@@ -141,6 +156,17 @@ class _HomePageState extends State<HomePage> {
 
     if (!await _confirmDiscardItemDraft('로그아웃')) return;
     return _doLogout(isDisconnect);
+  }
+
+  Future<void> _openLogin() => DbClient.instance.isConnected
+      ? _showStartupDialog()
+      : _loginToServerDB();
+
+  Future<void> _requestExit() async {
+    final exitAllowed = await LifecycleManager.instance.notifyExitRequested();
+    if (!exitAllowed) return;
+    await Future.delayed(const Duration(milliseconds: 120));
+    await SystemNavigator.pop();
   }
 
   Future<bool> _confirmDiscardItemDraft(String action) async {
@@ -174,6 +200,7 @@ class _HomePageState extends State<HomePage> {
     Customer.instance = null;
     Cooperator.instance = null;
     AutoLoginGuard.instance.reset();
+    _appMenuController.updateSession(userGrade: null);
 
     if (isDisconnect == true) {
       DbConnectionService.instance.cancelReconnect();
@@ -228,6 +255,8 @@ class _HomePageState extends State<HomePage> {
       LifecycleManager.instance.removeObserver(lifecycleCallbacks);
       _lifecycleCallbacks = null;
     }
+    _appMenuController.detach(this);
+    _appMenuController.dispose();
     _searchCtrl.dispose();
     super.dispose();
     debugLog(END);
@@ -239,18 +268,21 @@ class _HomePageState extends State<HomePage> {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        // 데스크톱의 창 닫기와 동일한 로직으로 종료 처리
-        final exitAllowed = await LifecycleManager.instance
-            .notifyExitRequested();
-        if (!exitAllowed) return;
-        // 짧은 딜레이로 정리(예: DB연결 해제) 누락 완화
-        await Future.delayed(const Duration(milliseconds: 120));
-        await SystemNavigator.pop(); // 앱 완전 종료
+        await _requestExit();
       },
       child: Scaffold(
         appBar: AppBar(
           notificationPredicate: (_) => false,
-          title: Text('$APP_TITLE v$appVersion'),
+          title: AnimatedBuilder(
+            animation: _appMenuController,
+            builder: (context, child) => AppMenuBar(
+              title: Text('$APP_TITLE v$appVersion'),
+              commandStates: _appMenuController.commandStates,
+              onCommandSelected: (id) {
+                unawaited(_appMenuController.execute(id));
+              },
+            ),
+          ),
           centerTitle: false,
           actions: [
             const DbConnectionStatusIcon(),
@@ -264,9 +296,7 @@ class _HomePageState extends State<HomePage> {
               IconButton(
                 icon: const Icon(Icons.login),
                 tooltip: '로그인',
-                onPressed: () => DbClient.instance.isConnected
-                    ? _showStartupDialog()
-                    : _loginToServerDB(),
+                onPressed: _openLogin,
               ),
             // IconButton(
             //   icon: const Icon(Icons.exit_to_app),
@@ -278,6 +308,7 @@ class _HomePageState extends State<HomePage> {
         ),
         body: _loggedIn
             ? HomePageManager(
+              appMenuController: _appMenuController,
                 selectedBrand: _selectedBrand,
                 onBrandChanged: (v) {
                   setState(() => _selectedBrand = v);
