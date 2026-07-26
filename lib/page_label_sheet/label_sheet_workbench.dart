@@ -40,13 +40,20 @@ const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
 
 class LabelSheetZoomController extends ValueNotifier<int> {
-  LabelSheetZoomController({int initialPercent = labelSheetDefaultZoomPercent})
-    : super(
+  LabelSheetZoomController({
+    int initialPercent = labelSheetDefaultZoomPercent,
+    this.minPercent = labelSheetMinZoomPercent,
+    this.maxPercent = labelSheetMaxZoomPercent,
+  }) : assert(minPercent <= maxPercent),
+       super(
         initialPercent.clamp(
-          labelSheetMinZoomPercent,
-          labelSheetMaxZoomPercent,
+          minPercent,
+          maxPercent,
         ),
       );
+
+  final int minPercent;
+  final int maxPercent;
 
   ValueChanged<int>? _setZoomPercent;
   bool _initialAutoFitApplied = false;
@@ -63,7 +70,7 @@ class LabelSheetZoomController extends ValueNotifier<int> {
       callback(percent);
       return;
     }
-    value = percent.clamp(labelSheetMinZoomPercent, labelSheetMaxZoomPercent);
+    value = percent.clamp(minPercent, maxPercent);
   }
 
   void step(int deltaPercent) => setZoomPercent(value + deltaPercent);
@@ -2235,8 +2242,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
     final zoomRatio =
         externalController.value.clamp(
-          labelSheetMinZoomPercent,
-          labelSheetMaxZoomPercent,
+          externalController.minPercent,
+          externalController.maxPercent,
         ) /
         100;
     if (workbook.sheets[activeIndex].zoomRatio == zoomRatio) {
@@ -2749,11 +2756,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _setLabelSheetZoomPercent(int percent) {
-    final clamped = percent.clamp(
-      labelSheetMinZoomPercent,
-      labelSheetMaxZoomPercent,
-    );
     final externalController = widget.zoomController;
+    final clamped = percent.clamp(
+      externalController?.minPercent ?? labelSheetMinZoomPercent,
+      externalController?.maxPercent ?? labelSheetMaxZoomPercent,
+    );
     if (externalController != null && externalController.value != clamped) {
       externalController.value = clamped;
     }
@@ -2778,8 +2785,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final externalController = widget.zoomController;
     if (externalController != null) {
       final percent = externalController.value.clamp(
-        labelSheetMinZoomPercent,
-        labelSheetMaxZoomPercent,
+        externalController.minPercent,
+        externalController.maxPercent,
       );
       _zoomPercent = percent;
       if (_zoomController.text != '$percent') {
@@ -2811,8 +2818,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final externalController = widget.zoomController;
     if (externalController == null) return;
     final percent = externalController.value.clamp(
-      labelSheetMinZoomPercent,
-      labelSheetMaxZoomPercent,
+      externalController.minPercent,
+      externalController.maxPercent,
     );
     _zoomPercent = percent;
     _zoomController.text = '$percent';

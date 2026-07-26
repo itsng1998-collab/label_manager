@@ -77,6 +77,7 @@ import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
+import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/page_home/print_history_dialog.dart';
@@ -387,6 +388,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _printHistoryLifecycleParticipant;
   OverlayEntry? _contentSaveHistoryOverlayEntry;
   LifecycleParticipant? _contentSaveHistoryLifecycleParticipant;
+  OverlayEntry? _commonLabelHistoryOverlayEntry;
+  LifecycleParticipant? _commonLabelHistoryLifecycleParticipant;
   OverlayEntry? _loginHistoryOverlayEntry;
   LifecycleParticipant? _loginHistoryLifecycleParticipant;
   OverlayEntry? _labelPrintProgressOverlayEntry;
@@ -490,6 +493,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             _openScaleOutputPrinterSettings,
         AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
         AppMenuCommandId.viewContentHistory: _openContentSaveHistoryDialog,
+        AppMenuCommandId.viewCommonLabelHistory: _openCommonLabelHistoryDialog,
         AppMenuCommandId.viewLoginHistory: _openLoginHistoryDialog,
       },
     );
@@ -3014,6 +3018,49 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  void _closeCommonLabelHistoryDialog() {
+    _commonLabelHistoryOverlayEntry?.remove();
+    _commonLabelHistoryOverlayEntry = null;
+    final participant = _commonLabelHistoryLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _commonLabelHistoryLifecycleParticipant = null;
+    }
+  }
+
+  void _openCommonLabelHistoryDialog() {
+    if (_commonLabelHistoryOverlayEntry != null) return;
+    final user = User.instance;
+    final cooperator = Cooperator.instance;
+    final customer = Customer.instance;
+    if (user == null || cooperator == null || customer == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: BlockingModelessDialogFrame(
+          title: '공용라벨 수정 이력 보기',
+          width: 1420,
+          height: 820,
+          onClose: _closeCommonLabelHistoryDialog,
+          child: CommonLabelHistoryDialogContent(
+            userGrade: user.grade,
+            initialCooperator: cooperator,
+            initialCustomer: customer,
+          ),
+        ),
+      ),
+    );
+    _commonLabelHistoryOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: () => const LifecycleExitSnapshot(),
+      close: _closeCommonLabelHistoryDialog,
+    );
+    _commonLabelHistoryLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _openContentSaveHistoryDialog() {
     if (_contentSaveHistoryOverlayEntry != null) return;
     final user = User.instance;
@@ -4420,6 +4467,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelColumnEditOverlayEntry = null;
     _closePrintHistoryDialog();
     _closeContentSaveHistoryDialog();
+    _closeCommonLabelHistoryDialog();
     _closeLoginHistoryDialog();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
