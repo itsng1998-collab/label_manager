@@ -238,9 +238,9 @@
 - clean 상태에는 일반 로그아웃 확인창을 새로 추가하지 않고 바로 기존 로그아웃을 진행한다. 확인은 저장하지 않은 작업을 폐기할 때만 표시한다.
 - `_doLogout()` 전에 공용 lifecycle guard로 활성 lifecycle participant와 `HomePageManager`의 exit snapshot을 함께 확인한다. 기존 프린터·저울 설정 modal route가 열려 있으면 설정창을 먼저 닫도록 로그아웃을 차단한다. 라벨 발행, 저울 발행·연결, 품목·자동갱신 저장 같은 `writeBusy`는 로그아웃을 거부하고 해당 owner의 차단 사유를 한 번 안내한다. 품목·자동갱신·저울출력 또는 신규 dialog의 active editing은 자동 확정하거나 폐기하지 않고 먼저 편집 완료 또는 취소를 요구한다.
 - 신규 dialog와 품목·자동갱신·공용라벨 중 하나 이상이 dirty면 영향받는 작업명을 한 번의 폐기 확인에 합산한다. 승인 시 각 owner의 폐기 callback을 한 번씩 실행하고, 화면별 확인창을 연속으로 띄우거나 일부 상태만 확인하고 나머지를 우회하지 않는다.
-- lifecycle guard를 통과한 명시적 로그아웃은 현재 로그인 상태이고 master-key가 아니며 원래 관리자 `ConnectOrigin`이 없을 때만 현재 사용자·거래처 값으로 `BM_LOGIN_LOG`에 `LOGOUT`을 한 번 기록한다. 관리자 `Connect` 중인 명시적 로그아웃과 master-key 로그아웃은 기록하지 않는다. 이력 기록을 시도한 뒤 사용자·지점·거래처·협력업체 context, master-key, `IsFirstConnectByAdmin`, 두 관리자 연결 flag와 원래 관리자를 초기화하고 main view를 숨기고 reset한다.
+- lifecycle guard를 통과한 명시적 로그아웃은 현재 로그인 상태이고 master-key가 아니며 원래 관리자 `ConnectOrigin`이 없을 때만 현재 사용자·거래처 값으로 `BM_LOGIN_LOG`에 `LOGOUT`을 한 번 기록한다. 관리자 `Connect` 중인 명시적 로그아웃과 master-key 로그아웃은 기록하지 않는다. 이력 기록을 시도한 뒤 사용자·지점·거래처·협력업체 context, master-key, 두 관리자 연결 flag와 원래 관리자를 초기화하고 main view를 숨기고 reset한다. `IsFirstConnectByAdmin`은 활성 레거시처럼 명시적 로그아웃이나 재로그인에서 초기화하지 않고 프로세스가 종료될 때까지 유지하며 앱 재시작 때만 기본 `false`로 시작한다.
 - `LOGOUT` 저장 오류는 한 번 전달하되 로그아웃과 session·화면 초기화를 중단하거나 자동 재시도하지 않는다. 이력에 필요한 값을 session 초기화 뒤에 다시 읽거나 관리자 접속 이력을 대신 기록하지 않는다.
-- 검증: 로그인 상태에는 AppBar 고정 로그아웃 아이콘만 표시한다. clean 로그아웃은 추가 확인 없이 진행되고, busy/activeEditing은 차단되며, dirty일 때만 폐기 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회이고 이력 성공·실패 뒤 session과 main view 초기화가 각각 한 번 실행되는지 확인한다.
+- 검증: 로그인 상태에는 AppBar 고정 로그아웃 아이콘만 표시한다. clean 로그아웃은 추가 확인 없이 진행되고, busy/activeEditing은 차단되며, dirty일 때만 폐기 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회이고 이력 성공·실패 뒤 session과 main view 초기화가 각각 한 번 실행되는지 확인한다. `IsFirstConnectByAdmin`은 로그아웃·재로그인 뒤에도 유지되고 앱 프로세스를 새로 시작할 때만 `false`인지 확인한다.
 
 ### 5.1.3 협력업체 관리 (`IDM_COOP_MANAGE`)
 
@@ -268,7 +268,7 @@
 - 협력업체 selector를 변경하면 해당 협력업체의 거래처 목록만 DAO 반환 순서로 다시 조회하고 기존 행 선택을 해제한다. 첫 거래처 자동 선택이나 별도 빈 상태 fallback을 추가하지 않는다.
 - 선택 거래처 `Connect`는 레거시 `CMarketDAO::SelectByCustID` 반환 순서의 첫 지점과 그 지점 사용자 반환 순서의 첫 `RICH_USER_GRADE=2` 사용자를 대상으로 한다. 별도 정렬·사용자 선택 UI, 관리 사용자 자동 생성이나 다른 등급·지점 대체 fallback을 추가하지 않는다.
 - 첫 반환 지점 또는 그 지점의 grade 2 사용자가 없으면 context·연결 플래그·화면을 변경하기 전에 전체 Connect를 중단하고 오류를 한 번 전달한다. 레거시의 빈 배열 접근·assertion과 grade 2 부재 시 마지막 사용자 선택 결함은 복제하지 않는다.
-- 대상이 확정되면 원래 관리자 계정을 최초 한 번만 보존한다. 현재 상태가 `IsSystemAdmin` 또는 `IsAdminConnect`이면 `(IsAdminConnect, IsCoopAdminConnect)=(true, false)`, `IsCoopAdmin` 또는 `IsCoopAdminConnect`이면 `(false, true)`로 설정한다. 이후 대상 사용자와 해당 지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다.
+- 대상이 확정되면 원래 관리자 계정을 최초 한 번만 보존한다. 현재 상태가 `IsSystemAdmin` 또는 `IsAdminConnect`이면 `(IsAdminConnect, IsCoopAdminConnect)=(true, false)`, `IsCoopAdmin` 또는 `IsCoopAdminConnect`이면 `(false, true)`로 설정하며 `IsFirstConnectByAdmin`은 변경하지 않는다. 이어 기존 main view를 reset하고 대상 사용자·해당 지점·거래처·협력업체 context로 전환한 뒤 로그인 상태를 유지한다. 관리자 접속 이력은 일반 로그인 이력 `BM_LOGIN_LOG`가 아니라 기존 `BM_ADMIN_ACCESS_LOG`에 단일 INSERT한다. `ACCESS_USER_ID`는 최초 보존한 원 관리자 ID, `ACCESS_TARGET_USER_ID`는 대상 사용자 ID, `ACCESS_TARGET_CUSTOMER`는 대상 거래처 ID를 사용하고, `ACCESS_INNER_IP`는 레거시 `GetIP()`에 대응하는 현재 client 내부 IP, `ACCESS_OUTER_IP`는 `CONNECTIONPROPERTY('client_net_address')`, `ACCESS_DATETIME`은 `GETDATE()`로 저장한다. 이 INSERT가 성공한 뒤 main view를 initialize하고 기존 브랜드 설정 control에 focus를 두며, INSERT 오류는 그대로 전달하고 다른 이력 table 대체나 retry를 추가하지 않는다.
 - 기존 `Customer` model을 우선 사용하고 CRUD가 없을 때만 DAO API를 추가한다.
 - 추가·수정 입력은 선택 협력업체에 속한 거래처 이름만 편집하고 레거시 `CCustAddModifyDlg`의 최대 50자만 적용한다. 빈 값·이름 중복 검증은 추가하지 않으며 기존 DB 제약 오류는 그대로 전달한다.
 - 추가 command는 항상 사용할 수 있다. 삭제·Connect command는 선택이 없어도 실행할 수 있으나 각각 DML·context 변경 없이 선택 요청 안내를 한 번 표시한다. 별도 수정 button·context command를 추가하지 않고 유효 행 더블클릭만 수정 진입점으로 사용한다.
@@ -314,7 +314,7 @@
 - 사용자 이름 부분 일치 검색은 현재 선택 행 다음부터 찾고 끝에 도달하면 처음부터 한 번 이어서 검색하는 레거시 흐름을 포팅한다.
 - 삭제는 별도 시스템 비밀번호 gate 없이 레거시의 사용자 삭제 확인을 한 번 표시한 뒤 선택 사용자 한 건만 삭제한다.
 - 사용자 목록은 레거시 `CUserDAO`처럼 거래처 ID, 지점 ID 순서를 유지하고 이름·사용자 ID 정렬을 추가하지 않는다.
-- 선택 사용자의 `Connect`는 원래 관리자 계정을 최초 한 번만 보존한다. 현재 상태가 `IsSystemAdmin` 또는 `IsAdminConnect`이면 `(IsAdminConnect, IsCoopAdminConnect)=(true, true)`, 그 외 허용 상태인 `IsCoopAdmin` 또는 `IsCoopAdminConnect`이면 `(false, true)`로 설정한다. 선택 사용자와 해당 지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다. 거래처 Connect와 플래그 계산을 하나의 공용 mapping으로 합치지 않는다.
+- 선택 사용자의 `Connect`는 원래 관리자 계정을 최초 한 번만 보존한다. 현재 상태가 `IsSystemAdmin` 또는 `IsAdminConnect`이면 `(IsAdminConnect, IsCoopAdminConnect)=(true, true)`, 그 외 허용 상태인 `IsCoopAdmin` 또는 `IsCoopAdminConnect`이면 `(false, true)`로 설정하며 `IsFirstConnectByAdmin`은 변경하지 않는다. 이어 기존 main view reset, 선택 사용자와 해당 지점·거래처·협력업체 context 전환, 5.1.4와 같은 `BM_ADMIN_ACCESS_LOG` 필드의 단일 INSERT, main view initialize와 브랜드 설정 control focus 순서로 실행한다. INSERT 오류는 그대로 전달하고 `BM_LOGIN_LOG` 대체나 retry를 추가하지 않는다. 거래처 Connect와 플래그 계산을 하나의 공용 mapping으로 합치지 않는다.
 - 거래처·사용자 `Connect` 외에 일반적인 사용자 전환, 임의 권한 상승 또는 별도 impersonation 이력 UI로 확장하지 않는다.
 - 로그인 `User.instance`와 `UserDAO.selectByUserId`는 session 로그인 mapping으로 유지한다. 사용자 관리 목록·CRUD는 별도 `ManagedUser` row/codec을 사용해 DB의 실제 `RICH_USER_GRADE`를 그대로 보존하고 로그인 전용 `_effectiveGrade`나 `clientUserTestOverrideId`를 적용하지 않는다. `UserGrade` enum은 공용으로 재사용한다.
 - 비밀번호는 레거시 `CUserDAO`와 같이 입력 문자열을 변환하지 않고 기존 `BM_USER.RICH_PWD`에 그대로 조회·저장한다. hash·암호화·별도 credential table이나 migration을 추가하지 않는다.
@@ -628,7 +628,7 @@
 
 - 레거시에는 `IsAdminConnect`, `IsCoopAdminConnect`, `IsFirstConnectByAdmin`가 있다.
 - 현 프로젝트에 대응 상태와 신뢰 가능한 source가 없으면 `UserGrade`만으로 허용 범위를 넓히지 않는다.
-- 거래처·사용자 관리의 `Connect`를 위해 별도 session model에 원래 관리자, `IsAdminConnect`, `IsCoopAdminConnect`, `IsFirstConnectByAdmin`에 대응하는 상태를 둔다. 로그인 이력 조건을 위한 master-key 로그인 상태도 같은 session 수명으로 보존하되 권한 flag나 `IsFirstConnectByAdmin`으로 사용하지 않는다. 최초 로그인과 두 `Connect` owning command만 각 대응 상태를 설정하며 로그아웃은 이력 기록을 시도한 뒤 모두 초기화한다.
+- 거래처·사용자 관리의 `Connect`를 위해 로그인 subtree 밖의 프로세스 수명 app-scope session model에 원래 관리자, `IsAdminConnect`, `IsCoopAdminConnect`, `IsFirstConnectByAdmin`에 대응하는 상태를 둔다. 로그인 이력 조건을 위한 master-key 로그인 상태도 같은 model에 보존하되 권한 flag나 `IsFirstConnectByAdmin`으로 사용하지 않는다. 최초 로그인만 해당 조건에서 `IsFirstConnectByAdmin=true`를 설정하고 두 `Connect` owning command는 이 값을 설정하거나 초기화하지 않는다. 로그아웃은 이력 기록을 시도한 뒤 master-key, 두 관리자 연결 flag와 원래 관리자를 초기화하되 `IsFirstConnectByAdmin`은 프로세스 종료까지 유지하며 앱 프로세스를 새로 시작할 때만 `false`로 시작한다.
 - 중첩 `Connect`에서는 원래 관리자를 덮어쓰지 않고 레거시 `GetConnectOrigin() == nullptr` 조건과 같이 최초 원본을 유지한다. 연결 후 권한 policy는 이 session model의 신뢰 가능한 상태만 사용한다.
 - query parameter, 사용자 ID 문자열, UI checkbox만으로 관리자 연결 상태를 위조하지 않는다.
 
@@ -761,7 +761,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - floating preview `OverlayRoute`만 표시된 상태에서는 기존 Home 전역 F-key가 오차단되지 않음.
 - widget test viewport `1200×800`과 `600×720`에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있고, production 분기는 이 두 폭을 하드코딩하지 않음.
 - clean 로그아웃/종료에는 일반 확인창이 없고, 기존 프린터·저울 설정 modal route와 신규 dialog·기존 메인 탭의 busy/activeEditing은 먼저 차단되며 모든 dirty는 한 번의 통합 확인으로 처리되고 clean·읽기 전용 overlay도 guard 통과 뒤 닫힘.
-- 일반·master-key·`IsFirstConnectByAdmin` 로그인의 session 상태와 `LOGIN` 기록 조건, 일반·master-key·관리자 `Connect`의 명시적 로그아웃 및 앱 종료별 `LOGOUT` 기록 조건이 활성 레거시와 일치함. 앱 종료 `LOGOUT`은 현재 session 값을 snapshot해 DB·session 정리 전에 시도하고, 이력 저장 실패는 상태 전환을 취소하거나 자동 재시도하지 않음.
+- 일반·master-key·`IsFirstConnectByAdmin` 로그인의 session 상태와 `LOGIN` 기록 조건, 일반·master-key·관리자 `Connect`의 명시적 로그아웃 및 앱 종료별 `LOGOUT` 기록 조건이 활성 레거시와 일치함. `IsFirstConnectByAdmin`은 로그아웃·재로그인에서 유지되고 앱 재시작에서만 초기화됨. 앱 종료 `LOGOUT`은 현재 session 값을 snapshot해 DB·session 정리 전에 시도하고, 이력 저장 실패는 상태 전환을 취소하거나 자동 재시도하지 않음.
 - 업데이트 메시지의 실제 등급별 대상 우선순위와 `UN_STATE`가 일치하고, 사용자 선택 0건이 더 넓은 대상으로 확대되지 않음.
 - 업데이트 메시지의 startup 표시 component와 메뉴 DB 저장 owner가 분리되고 관리자 no-op control이 `UN_VERSION`·로컬 억제 상태를 변경하지 않음.
 - wide/narrow widget test 통과.
@@ -803,7 +803,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 협력업체·거래처·지점 입력에는 레거시에 없는 필수값·중복 검증이 없고 거래처 이름만 50자 제한을 유지하며 사용자 비밀번호는 기존 `RICH_PWD` 문자열을 변환 없이 저장함.
 - 협력업체·거래처·지점 삭제의 시스템 비밀번호 gate와 사용자 삭제의 일반 확인이 서로 확대되지 않고 구분됨.
 - 지점 추가·삭제가 기존 품목의 `ItemOfMarket` 연관 행을 같은 transaction에서 생성·삭제함.
-- 거래처·사용자 `Connect`가 서로 다른 레거시 연결 플래그 mapping을 유지하고 원래 관리자를 한 번 보존하며, 거래처 Connect 대상 부재 시 상태 변경 전에 중단하고 확정된 대상의 업무 context 전환·관리자 접속 로그만 수행함.
+- 거래처·사용자 `Connect`가 서로 다른 레거시 연결 플래그 mapping을 유지하고 원래 관리자를 한 번 보존하며 `IsFirstConnectByAdmin`을 변경하지 않음. 거래처 Connect 대상 부재 시 상태 변경 전에 중단하고, 확정된 대상에는 `main view reset → 업무 context 전환 → BM_ADMIN_ACCESS_LOG INSERT → main view initialize` 순서와 레거시 필드만 적용함.
 - 관리자 복사의 일반 label size·브랜드 분기, 실제 삭제·복사 범위, 브랜드 복사 단일 server-side batch와 선택적 품목 프로시저 계약을 구현 전에 확인하고, runtime metadata 재조회 없이 호출하며 commit 성공 후 dialog close·owner 갱신 순서가 레거시 범위와 일치함.
 - 다중 DML transaction commit/rollback 테스트 통과.
 - 저장 후 해당 목록과 개별 command에 명시된 app cache만 갱신됨.
@@ -850,7 +850,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 레거시 handler와 legacy command ID 대응 관계.
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
 - 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, `품목별 정보 편집`·`전자저울 관리`·`검색출력모드`·`검색출력 설정`·`업데이트 메시지`의 `loggedIn`, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
-- 로그인·로그아웃 focused test에서 `SYSTEM` 직접·시스템 비밀번호와 시스템 관리자 자기 비밀번호는 `IsFirstConnectByAdmin`이지만 master-key가 아니고, 비시스템 사용자의 레거시 직접 비밀번호만 master-key인지 검증한다. 일반·`IsFirstConnectByAdmin` 로그인은 `LOGIN` 1회, master-key 로그인은 0회인지 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회, 일반·관리자 `Connect` 중 앱 종료는 1회, master-key 종료는 0회인지 확인한다. 앱 종료 이력은 session 값을 먼저 snapshot하고 DB 연결 해제·session 초기화 전에 저장을 시도하며, 오류 1회 뒤에도 로그아웃·종료 정리를 계속한다. 자동 재시도와 종료 요청·detached 중복 기록은 0회인지 검증한다.
+- 로그인·로그아웃 focused test에서 `SYSTEM` 직접·시스템 비밀번호와 시스템 관리자 자기 비밀번호는 `IsFirstConnectByAdmin`이지만 master-key가 아니고, 비시스템 사용자의 레거시 직접 비밀번호만 master-key인지 검증한다. 일반·`IsFirstConnectByAdmin` 로그인은 `LOGIN` 1회, master-key 로그인은 0회인지 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회, 일반·관리자 `Connect` 중 앱 종료는 1회, master-key 종료는 0회인지 확인한다. 로그아웃은 master-key·두 관리자 연결 flag·원래 관리자를 초기화하지만 `IsFirstConnectByAdmin`은 같은 app-scope session model의 재로그인 뒤에도 유지하고 앱 프로세스를 새로 시작할 때만 `false`로 시작하는지 검증한다. 앱 종료 이력은 session 값을 먼저 snapshot하고 DB 연결 해제·session 초기화 전에 저장을 시도하며, 오류 1회 뒤에도 로그아웃·종료 정리를 계속한다. 자동 재시도와 종료 요청·detached 중복 기록은 0회인지 검증한다.
 - 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 저울 설정 command는 발행 busy·연결됨·연결 처리 중에도 활성이고 진입 시 기존·진행 중 연결을 종료하며 늦은 연결 결과를 폐기하는지, persisted 초기값과 레거시 통신값 전체를 손실 없이 표시·전달하는지 확인한다. 시험 연결 성공·실패와 수신 중량, 통신값 변경 시 시험 연결 종료·상태 초기화, 적용의 여섯 값 저장·controller 갱신, 취소와 모든 닫기 경로의 저장 0회·시험 연결 종료·연결 해제 owner 복원을 검증한다. 자동발행은 `ST`·양수 중량에서 5초 timer 하나만 예약하고 연결 유지 시 기존 발행 command 1회, 연결 해제 시 발행 0회이며 retry·추가 debounce가 없는지 확인한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증하고, persisted 초기값·저장 helper·session controller가 서로 섞이지 않으며 취소 시 저장·반영 0회인지 확인한다.
 - 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 로그인 지점·메인 선택 label size 목록, dialog 내부 selector 부재와 브랜드·label size 미선택 시 DAO 0회·빈 목록·저장 비활성, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신·committed 기준·dirty 해제와 dialog·행 선택·scroll 유지, 저장 command가 활성일 때 Enter 저장, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
 - 영양성분 형식 focused test에서 manager의 선택 전 추가·수정·삭제 활성, Enter와 좌표 무관 sheet 더블클릭의 수정 command, 미선택 수정 안내와 삭제 `연관 경고·확인 → 선택 검사 → DML 0건` 순서를 검증한다. 형식명 필수와 구성 행 1개 이상만 적용하고 빈 구성 성분명은 허용하며, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 미재번호, parent/detail transaction과 형식 삭제 연관 삭제를 확인한다. 저장 button과 입력 dialog Enter 모두 저장하고 같은 신규·수정 상태가 유지되며 신규 저장을 다시 실행할 수 있는지, manager `Refresh()` 후에는 선택이 해제되는지 검증한다. trim, 행별 성분명 필수·중복 검증, 정렬 command나 자동 수정 mode 전환을 추가하지 않는다.
@@ -864,7 +864,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 협력업체·거래처·지점 관리 focused test에서 삭제 전 공용 시스템 비밀번호 계산과 각 1회의 확인을 검증하고, 사용자·영양성분 삭제에는 이 gate가 추가되지 않는지 확인한다.
 - 협력업체·거래처·지점 관리 focused test에서 협력업체 ID·이름과 거래처·지점 이름의 빈 값·중복 검증을 새로 추가하지 않고 거래처 이름에만 50자 제한을 적용하는지 확인한다. 협력업체 관리는 ID·이름 추가/수정과 목록 refresh, 기존 FK cascade를 사용하는 단일 삭제를 검증하며 저장 후 로그인 session context reload나 강제 로그아웃은 검증 대상에 추가하지 않는다.
 - 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.
-- 거래처·사용자 관리 focused test에서 원래 관리자를 한 번만 보존하고 거래처 Connect의 `(true, false)`/`(false, true)`와 사용자 Connect의 `(true, true)`/`(false, true)` mapping을 각각 검증한다. 거래처 Connect는 첫 반환 지점의 첫 grade 2 사용자를 선택하고 지점 또는 대상 사용자가 없으면 연결 플래그·context·화면 초기화·접속 로그가 모두 0건인지 확인한다. 성공 시에만 사용자·지점·거래처·협력업체 context와 관리자 접속 로그를 한 번 반영한다.
+- 거래처·사용자 관리 focused test에서 원래 관리자를 한 번만 보존하고 거래처 Connect의 `(true, false)`/`(false, true)`와 사용자 Connect의 `(true, true)`/`(false, true)` mapping을 각각 검증하며 두 Connect가 `IsFirstConnectByAdmin`을 변경하지 않는지 확인한다. 거래처 Connect는 첫 반환 지점의 첫 grade 2 사용자를 선택하고 지점 또는 대상 사용자가 없으면 연결 플래그·context·화면 초기화·접속 로그가 모두 0건인지 확인한다. 성공 시 두 경로 모두 `main view reset → 사용자·지점·거래처·협력업체 context 전환 → BM_ADMIN_ACCESS_LOG INSERT → main view initialize·브랜드 설정 focus`를 한 번씩 실행한다. INSERT는 `ACCESS_USER_ID=최초 원 관리자`, `ACCESS_TARGET_USER_ID=대상 사용자`, `ACCESS_TARGET_CUSTOMER=대상 거래처`, client 내부 IP, `CONNECTIONPROPERTY('client_net_address')`, `GETDATE()`만 사용하며 `BM_LOGIN_LOG` 대체·retry가 없는지 검증한다.
 - 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다. 관리 row의 grade와 `RICH_PWD` 문자열은 DB 값을 변환 없이 decoding·저장하며 로그인 전용 `clientUserTestOverrideId`가 적용되지 않는지 확인한다.
 - 관리자 복사 focused test에서 시스템 관리자만 협력업체를 변경하고 두 복사 분기가 사용하는 selector와 checkbox event 순서를 검증한다. 일반 label size 복사의 기존 column 삭제 범위, 대상 ID·이름 유지와 유효 `RICH_FORM_SHEET`·column 복사, 브랜드 복사의 `returnsRows=true`인 단일 `DbTransactionStatement` 안 `OUTPUT INSERTED`·table variable 기반 브랜드·전체 label size ID mapping을 확인한다. 내부 transaction 제어문, `writeData`/`writeDataWithParams` 직접 실행, 동적 statement callback, `SelectLastInsert`, XML payload가 없는지 검증한다. 데이터 손실 경고 취소와 대상 첫 지점 부재는 DML 0건인지 확인한다. 세 프로시저의 존재·parameter 계약은 구현 전 schema 확인 대상으로 고정하고, runtime에는 metadata 조회 없이 첫 지점으로 세 프로시저를 정해진 순서·parameter로 직접 호출하며 호출 오류를 전달하는지 검증한다. 성공 시 commit 뒤 dialog를 먼저 닫고 기존 owner reload/clear를 한 번씩 실행하며, post-commit refresh 실패는 dialog를 재개방하거나 rollback·retry하지 않는지 확인한다. 레거시가 실행·복사하지 않는 연관 table test를 추가하지 않는다.
 - 업데이트 메시지 focused test에서 `loggedIn` 표시와 비로그인 숨김, 현재 사용자별 단일 row 조회, 실제 등급별 편집 범위와 시스템 관리자의 `선택 사용자 → 전체 협력업체 → 현재 협력업체`, 협력업체 관리자의 `선택 사용자 → 현재 협력업체` 우선순위를 검증한다. 선택 목록은 현재 협력업체의 사용자 ID·거래처명을 거래처명 순서로 표시하고 마지막 행을 포함한 모든 표시 행을 선택 대상으로 처리한다. 다중 선택은 하나의 transaction이며 checkbox 해제 시 ID가 비워지고 선택 mode 0건은 DML 없이 중단되는지 확인한다. 시스템 관리자의 전체 `UN_STATE=2`·현재 협력업체 `UN_STATE=0`, 협력업체 관리자의 현재 협력업체 `UN_STATE=0`, 일반 사용자의 자기 `UN_STATE` 0/1·`UN_TIME`만 갱신과 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
