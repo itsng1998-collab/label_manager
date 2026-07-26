@@ -261,6 +261,7 @@ END CATCH
   - 목록, 추가, 협력업체 ID·이름 수정, 삭제를 제공하는 `BlockingModelessDialog` 기반 관리 dialog를 구현한다.
   - 추가·수정은 별도 입력 dialog의 적용/취소 단위로 수행하고, 적용 성공 시 즉시 저장한 뒤 목록을 갱신한다. 목록 전체의 전역 저장/취소 footer는 두지 않는다.
   - 신규 CRUD가 필요하면 `CooperatorDAO`를 최소 확장한다.
+- 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 레거시 `CCoopAddModifyDlg`는 협력업체 ID·이름의 빈 값과 중복을 검사하지 않으므로 신규 필수값·중복 검증을 추가하지 않는다. 기존 DB 제약으로 거부되면 해당 오류를 그대로 전달한다.
 - 삭제는 레거시처럼 시스템 비밀번호 확인 후 종속 거래처 삭제 경고를 한 번 표시하고 실행한다. 시스템 비밀번호는 현재 `startup_dialog.dart`의 `_getSystemPassword()`와 같은 `월 * 3 + 일` 4자리 계산을 작은 공용 helper로 추출해 재사용하며 다른 삭제 command로 확대하지 않는다.
 - 레거시 `CCoopDAO::Delete`는 별도 종속성 검사를 하지 않고 기존 FK cascade에 의존한다. 실제 schema의 기존 cascade만 사용하고 앱에서 별도 사전 검사나 수동 연관 삭제를 추가하지 않는다. `DELETE FROM BM_COOPERATORWHERE`가 되는 레거시 SQL의 공백 누락은 복제하지 않는다.
@@ -278,6 +279,7 @@ END CATCH
 - 대상이 확정되면 원래 관리자 계정을 최초 한 번만 보존한다. 현재 상태가 `IsSystemAdmin` 또는 `IsAdminConnect`이면 `(IsAdminConnect, IsCoopAdminConnect)=(true, false)`, `IsCoopAdmin` 또는 `IsCoopAdminConnect`이면 `(false, true)`로 설정한다. 이후 대상 사용자와 해당 지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다.
 - 기존 `Customer` model을 우선 사용하고 CRUD가 없을 때만 DAO API를 추가한다.
 - 추가·수정 입력은 선택 협력업체에 속한 거래처 이름만 편집하고 레거시 `CCustAddModifyDlg`의 최대 50자만 적용한다. 빈 값·이름 중복 검증은 추가하지 않으며 기존 DB 제약 오류는 그대로 전달한다.
+- 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 삭제는 레거시처럼 시스템 비밀번호 확인 후 삭제 경고를 한 번 표시하고 `BM_CUSTOMER` 한 건을 삭제한다. 실제 schema의 기존 FK cascade만 사용하고 앱에서 별도 종속성 사전 검사나 수동 연관 삭제를 추가하지 않는다.
 - `BM_CUSTOMER` 실제 schema를 확인한다. 레거시 `CCustomerDAO` 조회에는 `ORDER BY`와 이름 중복 검증이 없으므로 Flutter에서 이름 정렬·중복 제한을 추가하지 않고 DAO 반환 순서를 유지한다.
 - 협력업체 관리와 하나의 generic CRUD dialog로 합치지 않는다. 공용 table shell 정도만 재사용한다.
@@ -290,6 +292,7 @@ END CATCH
 - command 접근 권한과 selector 변경 권한을 구분한다. dialog는 현재 로그인 context의 협력업체·거래처로 초기화한다. 레거시 `CMarketManagerDlg::OnInitDialog`와 같이 `IsManager`이면 두 selector를 모두 비활성화하고, `IsCoopAdmin`이면 협력업체만 비활성화하며, `IsSystemAdmin`, `IsAdminConnect`, `IsCoopAdminConnect`이면 두 selector를 모두 활성화한다. 현재 command visibility에서는 `MANAGER_USER`를 숨기므로 `IsManager` 분기를 도달시키기 위해 권한을 넓히지 않는다.
 - 기존 `Market` model/조회 API를 확장해 거래처별 지점 이름 CRUD를 구현한다.
 - 레거시 `CMarketAddModifyDlg`는 지점 이름의 빈 값과 중복을 검사하지 않으므로 신규 필수값·중복 검증을 추가하지 않는다. 기존 DB 제약으로 거부되면 해당 오류를 그대로 전달한다.
+- 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 추가는 `BM_MARKET`에 지점을 저장하고 같은 transaction에서 생성된 지점 ID를 받은 뒤, 해당 거래처의 모든 기존 품목에 대응하는 `ItemOfMarket` 행을 일괄 생성한다. 레거시의 전역 `SelectLastOneRecord()`를 복제하지 않는다.
 - 수정은 선택 지점 이름만 갱신한다.
 - 삭제는 레거시처럼 시스템 비밀번호 확인 후 해당 지점의 사용자·품목 매핑 삭제 경고를 한 번 표시한다. 하나의 transaction에서 `ItemOfMarket`을 지점 ID로 먼저 삭제한 뒤 `BM_MARKET` 한 건을 삭제한다.
@@ -307,6 +310,7 @@ END CATCH
   - 생성·수정 가능한 사용자 등급은 `CLIENT_USER`와 `MANAGER_USER`뿐이며 신규 기본값은 `CLIENT_USER`다. `SYSTEM_ADMIN_USER`와 `COOP_ADMIN_USER` 생성 UI를 추가하지 않는다.
 - 목록은 거래처, 지점, 사용자 ID, 비밀번호, 이름, 등급을 표시한다. `IsFirstConnectByAdmin`이 아니면 레거시처럼 사용자 ID와 비밀번호 column을 숨기며 별도 마스킹·보기 전환 UI를 추가하지 않는다.
 - 추가·수정 입력은 사용자 ID, 비밀번호, 비밀번호 확인, 이름, 등급으로 제한한다. 모든 값을 필수로 검사하고 비밀번호와 확인값 일치, 사용자 ID 중복을 레거시처럼 검증한다. 수정 시 기존 사용자 ID와 같은 값은 허용한다.
+- 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 사용자 이름 부분 일치 검색은 현재 선택 행 다음부터 찾고 끝에 도달하면 처음부터 한 번 이어서 검색하는 레거시 흐름을 포팅한다.
 - 삭제는 별도 시스템 비밀번호 gate 없이 레거시의 사용자 삭제 확인을 한 번 표시한 뒤 선택 사용자 한 건만 삭제한다.
 - 사용자 목록은 레거시 `CUserDAO`처럼 거래처 ID, 지점 ID 순서를 유지하고 이름·사용자 ID 정렬을 추가하지 않는다.
@@ -440,6 +444,7 @@ END CATCH
 - 줄간격, 개별 label size, margin의 세부 입력은 각 사용 여부가 켜진 행에서만 편집 가능하게 한다. 판매 시작일, 원가, 할인 관련 field처럼 레거시 dialog에서 숨긴 field를 이번 command에 추가하지 않는다.
 - 기존 `ItemOfMarket`과 `ItemOfMarketDAO`를 재사용하거나 최소 확장한다. 저장은 현재 목록의 변경값을 레거시 `CItemOfMarketDAO::UpdateBatch`에 대응하는 하나의 batch/transaction으로 반영하고, 성공 후 현재 품목·출력 session이 사용하는 `ItemOfMarket` 목록만 갱신한다.
 - dialog가 dirty이면 닫기·로그아웃·종료의 기존 통합 폐기 확인에 포함하고, 저장 중에는 닫기와 중복 저장을 차단한다.
+- 사용자 확정에 따라 저장과 필요한 `ItemOfMarket` 목록 갱신이 성공하면 현재 목록을 committed 기준으로 반영해 dirty·write-busy를 해제하고 dialog와 현재 행 선택·scroll 상태를 유지한다. 이 화면에 공통 성공 후 overlay 제거 규칙을 적용하지 않으며 자동으로 다른 context를 조회하지 않는다.
 
 ### 5.3.2 영양성분 형식추가 (`IDM_NEW_NUTTYPE`)
 
@@ -452,6 +457,7 @@ END CATCH
 - 현재 label column/barcode 모델에 억지로 포함하지 않는다.
 - 신규·수정의 형식 parent와 detail 저장도 하나의 transaction으로 처리한다. `MAX(RICH_NUTTYPE_ID)`로 방금 삽입한 parent를 추측하지 않고 현재 SQL Server 2017과 compatibility level 100에서 지원하는 동일 transaction의 생성 ID 반환을 사용한다.
 - 신규·수정 입력 dialog는 저장 성공 후에도 레거시처럼 같은 입력 상태로 열린 채 유지하고 사용자가 직접 닫을 때 manager 목록으로 돌아가 reload한다. 신규 상태에서 저장 command를 다시 실행해 같은 내용이 추가되는 동작을 별도 중복 방지나 자동 수정 전환으로 바꾸지 않는다.
+- dialog-level Enter도 레거시 `OnOK()`와 같이 저장 command를 실행하고 dialog를 유지한다.
 
 ### 5.3.3 영양성분표 추가 (`IDM_NEW_NUTBOX`)
 
@@ -461,6 +467,7 @@ END CATCH
 - 추가·수정 입력은 영양성분 형식, 표 명칭, RTF 내용, 폭만 제공한다. 신규 입력은 형식을 자동 선택하지 않고 수정 입력만 저장된 형식을 선택한다. 명칭과 0이 아닌 폭, 형식 선택을 필수로 검증하고 별도 영양성분 schema나 field를 추가하지 않는다.
 - 추가·수정은 `RICH_NUTBOX_TYPE`, `RICH_NUTBOX_NAME`, `RICH_NUTBOX_DATA`, `RICH_NUTBOX_WIDTH`만 저장한다. 삭제 전에는 일반 삭제 확인을 한 번 표시하고, 확인하면 선택한 `RICH_NUTBOX_ID` 한 건만 처리한다. 형식 삭제의 연관 경고나 별도 종속성 검사를 확대 적용하지 않는다.
 - 신규·수정 입력 dialog는 저장 성공 후에도 레거시처럼 같은 입력 상태로 열린 채 유지하고 사용자가 직접 닫을 때 manager 목록으로 돌아가 reload한다. 신규 상태에서 저장 command를 다시 실행해 같은 내용이 추가되는 동작을 별도 중복 방지나 자동 수정 전환으로 바꾸지 않는다.
+- dialog-level Enter도 레거시 `OnOK()`와 같이 저장 command를 실행하고 dialog를 유지한다.
 - 수정 입력 dialog를 닫고 목록을 reload하면 수정 전에 선택한 행 위치를 다시 선택하고 해당 RTF read-only preview를 복원한다. 추가·삭제 후에는 선택이나 preview를 임의 복원하지 않는다.
 - RTF 편집·읽기 전용 preview는 현 프로젝트의 기존 RTF renderer/helper를 우선 재사용한다. `RICH_NUTBOX_DATA`를 FortuneSheet workbook으로 변환하거나 renderer 재사용을 위해 별도 저장 형식을 추가하지 않는다.
 - 형식 관리와 공용 dialog/table shell은 재사용할 수 있으나 영양성분표 row model, DAO와 입력 draft는 형식 관리의 parent/detail 저장 책임과 섞지 않는다.
@@ -523,6 +530,7 @@ END CATCH
 - 사용자 선택 mode가 아닐 때 시스템 관리자는 `전체 협력업체`가 켜지면 전체 `BM_UPDATE_NOTICE` row의 `UN_MSG`, `UN_STATE=2`, `UN_TIME=GETDATE()`를 갱신하고, 꺼지면 현재 협력업체 row의 `UN_MSG`, `UN_STATE=0`, `UN_TIME=GETDATE()`를 갱신한다. 협력업체 관리자도 현재 협력업체 row의 `UN_MSG`, `UN_STATE=0`, `UN_TIME=GETDATE()`만 갱신한다. 일반 사용자는 현재 사용자 row의 `UN_STATE`를 `다시 보지 않기` checkbox에 따라 1 또는 0으로 바꾸고 `UN_TIME=GETDATE()`만 갱신하며 `UN_MSG`는 수정하지 않는다.
 - 기능 권한은 실제 사용자 등급으로 결정하며 `IsAdminConnect`, `IsCoopAdminConnect`, `IsFirstConnectByAdmin`만으로 관리자 편집 기능을 부여하지 않는다.
 - startup dialog의 private UI를 복제하지 말고 공용 notice content/component로 추출해 시작 화면과 메뉴 command가 같은 표시·편집 경로를 사용한다.
+- dialog-level Enter는 레거시 default 저장 button과 같이 등급별 저장 command를 실행하고 성공하면 dialog를 닫는다.
 - 기존 `BM_UPDATE_NOTICE`의 `UN_MSG`, `UN_STATE`, `UN_TIME`, 사용자·협력업체 대상 범위만 사용하고 migration을 추가하지 않는다.
 - 업데이트 다운로드/자동 설치를 이번 command에 임의 추가하지 않는다.
 
@@ -618,7 +626,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 즉시 적용형·단순 설정형 dialog와 기존 owning dialog는 현재 동작에 지속적인 footer가 없으면 억지로 추가하지 않는다.
 - dialog를 열면 현재 작업의 첫 번째 주요 입력이나 table에 초기 focus를 두고, 비활성 control을 건너뛰며 마우스 없이 주요 입력과 command를 이동할 수 있게 한다. 화면마다 동일한 고정 Tab 영역 순서를 강제하지 않는다.
 - Esc는 현재 focus를 가진 child에 실제 취소할 상태가 있을 때만 그 상태를 먼저 취소한다. 활성 셀 편집이나 비어 있지 않은 다중 선택이 Esc를 처리하면 dialog를 닫지 않고, 처리할 상태가 없으면 dialog 닫기 요청으로 이어진다. 일반 단일 행 선택은 별도 취소 단계로 간주하지 않는다.
-- 사용자가 해당 dialog만 직접 닫을 때는 clean 상태를 즉시 닫고 그 dialog가 dirty일 때만 폐기 확인을 거친다. 로그아웃·메뉴 종료·OS 종료는 dialog별 확인창을 띄우지 않고 공용 lifecycle guard의 전체 dirty 통합 확인을 사용한다. Enter는 활성 셀 편집 확정에 사용하며 dialog 전체 저장 command를 실행하지 않는다.
+- 사용자가 해당 dialog만 직접 닫을 때는 clean 상태를 즉시 닫고 그 dialog가 dirty일 때만 폐기 확인을 거친다. 로그아웃·메뉴 종료·OS 종료는 dialog별 확인창을 띄우지 않고 공용 lifecycle guard의 전체 dirty 통합 확인을 사용한다. dialog-level Enter는 현재 focus child가 셀·입력 편집으로 먼저 소비하지 않았고 개별 command에 예외가 명시되지 않았을 때 dialog 전체 저장 command를 실행하지 않는다.
+- 화면별 Enter 예외는 활성 레거시 동작만 따른다. 협력업체·거래처·지점·사용자 추가/수정 입력은 적용 command를 실행하고 검증을 통과하면 입력 dialog를 닫아 parent 저장·목록 갱신으로 돌아간다. 품목별 정보 편집은 저장 command가 활성일 때 저장하고 dialog를 유지하며, 영양성분 형식·표 입력은 저장 후에도 dialog를 유지한다. 업데이트 메시지는 등급별 저장 후 dialog를 닫고, 사용자 관리 검색 입력은 이름 검색을 실행한다. 검색출력 설정은 5.3.11의 적용 후 유지 계약을 따른다. 네 관리 목록과 관리자 복사에서 child가 소비하지 않은 Enter는 수정·복사·닫기를 실행하지 않는다. 이 예외를 다른 dialog로 확대하지 않는다.
 - dialog를 닫으면 가능한 경우 이를 연 AppBar control로 focus를 돌린다. 공용 wrapper 확장은 실제로 여러 dialog에서 같은 처리가 중복될 때 수행한다.
 - dirty, write-busy 또는 active editing처럼 실제 종료 차단 상태가 있는 신규 dialog owner만 exit snapshot을 `LifecycleManager.notifyExitRequested()` 흐름에 제공한다. dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
 - 읽기 전용 dialog는 종료용 dirty/write-busy 상태를 추가하지 않고 닫은 뒤 늦은 조회 결과를 폐기한다. 공용 lifecycle guard는 신규 dialog와 `HomePageManager` snapshot을 함께 평가하고 통합 dirty 확인이 끝난 뒤 열린 overlay를 정리한다. HomePage나 AppBar가 manager의 private 상태를 각각 복제하거나 별도 확인창을 만들지 않는다.
@@ -630,6 +639,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 중첩 확인창이나 picker를 닫으면 가능한 경우 이를 연 control로 focus를 복원한다.
 - commit 전 DML/validation 단계의 확정 실패는 dialog와 draft를 유지하고 오류를 한 번 전달한다. `DbCommitOutcomeUnknown`과 commit 성공 후 reload 실패는 1.3의 결과별 계약을 적용해 같은 draft를 재저장하지 못하게 한다.
 - commit과 필요한 reload가 모두 성공하면 committed 상태를 반영한 뒤 overlay를 제거하고 controller, listener, focus node를 dispose한다.
+- 5.3.1 품목별 정보 편집은 사용자 확정과 레거시 동작에 따라 저장 성공 후 committed 기준과 dirty·write-busy만 갱신하고 dialog와 현재 목록 상태를 유지한다. 이 화면에 공통 성공 후 overlay 제거 규칙을 적용하지 않는다.
 - 단, 5.3.2 영양성분 형식과 5.3.3 영양성분표의 신규·수정 입력 dialog는 사용자 확정과 레거시 동작에 따라 저장 성공 후에도 같은 입력 상태로 열린 채 유지한다. 이 두 화면에 공통 성공 후 overlay 제거 규칙, 자동 draft 초기화, 신규에서 수정 mode로의 자동 전환이나 중복 저장 차단을 적용하지 않는다.
 - 5.3.11 검색출력 설정도 사용자 확정과 레거시 동작에 따라 적용 성공 후 committed 기준과 dirty만 갱신하고 dialog를 유지하며 Enter로 적용 command를 실행한다. 변경이 없는 재적용도 허용하고 이 화면에만 공통 성공 후 overlay 제거와 Enter 비저장 규칙을 적용하지 않는다.
 
@@ -659,6 +669,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 삭제는 개별 command에 명시된 비밀번호 gate, 확인 문구와 연관 삭제 범위만 따른다. 공통 사전 종속성 검사나 추가 확인 단계를 만들지 않는다.
 - 저장 성공 후 해당 목록과 개별 command에 명시된 app cache만 reload한다.
 - 각 dialog의 owning controller가 해당 overlay와 open/close command를 관리한다.
+- 협력업체·거래처·지점·사용자 관리의 유효 행 더블클릭만 선택 후 수정 입력 dialog를 열고 header·빈 영역은 무시한다. 다른 관리·조회 table에 더블클릭 수정 규칙을 공통 적용하지 않는다.
 
 ### 7.4 조회 dialog
 
@@ -747,6 +758,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 완료 기준:
 - CRUD 및 selector 권한이 레거시와 일치.
+- 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭 수정과 manager 목록 Enter 무동작, 각 추가/수정 입력의 Enter 적용이 레거시와 일치함.
 - 협력업체·거래처·지점 입력에는 레거시에 없는 필수값·중복 검증이 없고 거래처 이름만 50자 제한을 유지하며 사용자 비밀번호는 기존 `RICH_PWD` 문자열을 변환 없이 저장함.
 - 협력업체·거래처·지점 삭제의 시스템 비밀번호 gate와 사용자 삭제의 일반 확인이 서로 확대되지 않고 구분됨.
 - 지점 추가·삭제가 기존 품목의 `ItemOfMarket` 연관 행을 같은 transaction에서 생성·삭제함.
@@ -770,7 +782,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 검색/치환의 초기 filter·두 진입점과 실제 등급별 쓰기 UI, 검색출력의 빈 입력·0건 결과 흐름이 레거시 범위와 일치함.
 - 검색출력 설정의 현재 context·DB 값 초기화와 미적용 draft 폐기 확인 검증 통과.
 - 검색출력 설정의 label size 순서, 전체 `CColumnDAO::UpdateBatch` DML과 transaction, 적용 후 dialog 유지·dirty 해제·Enter 적용이 레거시 및 사용자 확정과 일치함.
-- 품목별 정보 편집은 현재 로그인 지점·메인 선택 label size만 사용하고 미선택 시 빈 상태이며, 영양성분 keyword는 삭제 후 재번호하지 않음.
+- 품목별 정보 편집은 현재 로그인 지점·메인 선택 label size만 사용하고 미선택 시 빈 상태이며, 저장·Enter 후 committed 기준·dirty를 갱신한 채 dialog를 유지함. 영양성분 keyword는 삭제 후 재번호하지 않음.
 - 영양성분 형식·표의 삭제 확인, 저장 후 입력 dialog 유지, 영양성분표 신규 형식 미선택과 수정 후 선택·preview 복원이 레거시와 일치함.
 
 ### Phase 5. 숨김 command 최종 검증
@@ -794,11 +806,12 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
 - 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, `품목별 정보 편집`·`전자저울 관리`·`검색출력모드`·`검색출력 설정`·`업데이트 메시지`의 `loggedIn`, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
 - 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증한다.
-- 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 로그인 지점·메인 선택 label size 목록, dialog 내부 selector 부재와 브랜드·label size 미선택 시 DAO 0회·빈 목록·저장 비활성, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
-- 영양성분 형식 focused test에서 형식명 필수, 구성 행 1개 이상, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 재번호하지 않는 동작, parent/detail transaction과 형식 삭제의 연관 경고 1회·연관 삭제를 검증한다. 저장 성공 후 입력 dialog와 같은 신규·수정 상태가 유지되고 신규 저장을 다시 실행할 수 있는지 확인하며 정렬 command, 별도 중복 검증, 자동 수정 mode 전환을 추가하지 않는다.
-- 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 신규 형식 미선택·수정 시 저장 형식 선택, 명칭·폭·형식 검증, 일반 삭제 확인 1회와 선택 행 RTF read-only preview를 검증한다. 저장 성공 후 입력 dialog와 같은 신규·수정 상태가 유지되는지, 수정 dialog를 닫은 뒤에만 기존 행 선택·preview가 복원되고 추가·삭제 후에는 복원되지 않는지 확인한다.
+- 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 로그인 지점·메인 선택 label size 목록, dialog 내부 selector 부재와 브랜드·label size 미선택 시 DAO 0회·빈 목록·저장 비활성, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신·committed 기준·dirty 해제와 dialog·행 선택·scroll 유지, 저장 command가 활성일 때 Enter 저장, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
+- 영양성분 형식 focused test에서 형식명 필수, 구성 행 1개 이상, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 재번호하지 않는 동작, parent/detail transaction과 형식 삭제의 연관 경고 1회·연관 삭제를 검증한다. 저장 button과 dialog-level Enter 모두 저장하고 입력 dialog와 같은 신규·수정 상태가 유지되며 신규 저장을 다시 실행할 수 있는지 확인한다. 정렬 command, 별도 중복 검증, 자동 수정 mode 전환을 추가하지 않는다.
+- 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 신규 형식 미선택·수정 시 저장 형식 선택, 명칭·폭·형식 검증, 일반 삭제 확인 1회와 선택 행 RTF read-only preview를 검증한다. 저장 button과 dialog-level Enter 모두 저장하고 입력 dialog와 같은 신규·수정 상태가 유지되는지, 수정 dialog를 닫은 뒤에만 기존 행 선택·preview가 복원되고 추가·삭제 후에는 복원되지 않는지 확인한다.
 - 검색출력 mode focused test에서 `F12`와 menu toggle이 같은 controller state를 사용하고 tab/button 상태가 전환되는지 검증한다. 빈 입력은 조회·발행 0건, 검색 결과 0건은 발행 0건과 각 오류 1회인지 확인하고, 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건만 기존 pipeline으로 즉시 발행하며 모든 처리 시도 후 입력을 비우는지 검증한다.
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다. 지점 관리는 현재 로그인 협력업체·거래처 초기값과 `IsManager`의 두 selector 잠금, `IsCoopAdmin`의 협력업체만 잠금, `IsSystemAdmin`·`IsAdminConnect`·`IsCoopAdminConnect`의 두 selector 활성화를 확인하되 `MANAGER_USER` command 접근을 허용하지 않는다.
+- 관리 dialog focused test에서 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭이 선택 후 수정 입력을 열고 header·빈 영역은 무시하는지 확인한다. 네 manager 목록과 관리자 복사의 dialog-level Enter는 무동작이고, 각 추가/수정 입력은 Enter로 적용해 검증 성공 시 닫힌 뒤 parent 저장·목록 갱신으로 이어지는지 검증한다. 사용자 관리 검색 입력의 Enter는 이름 검색만 실행한다.
 - 협력업체·거래처·지점 관리 focused test에서 삭제 전 공용 시스템 비밀번호 계산과 각 1회의 확인을 검증하고, 사용자·영양성분 삭제에는 이 gate가 추가되지 않는지 확인한다.
 - 협력업체·거래처·지점 관리 focused test에서 협력업체 ID·이름과 거래처·지점 이름의 빈 값·중복 검증을 새로 추가하지 않고 거래처 이름에만 50자 제한을 적용하는지 확인한다. 협력업체 관리는 ID·이름 추가/수정과 목록 refresh, 기존 FK cascade를 사용하는 단일 삭제를 검증하며 저장 후 로그인 session context reload나 강제 로그아웃은 검증 대상에 추가하지 않는다.
 - 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.
@@ -806,6 +819,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다. 관리 row의 grade와 `RICH_PWD` 문자열은 DB 값을 변환 없이 decoding·저장하며 로그인 전용 `clientUserTestOverrideId`가 적용되지 않는지 확인한다.
 - 관리자 복사 focused test에서 시스템 관리자만 협력업체를 변경하고 두 복사 분기가 사용하는 selector와 checkbox event 순서를 검증한다. 일반 label size 복사의 기존 column 삭제 범위, 대상 ID·이름 유지와 유효 `RICH_FORM_SHEET`·column 복사, 브랜드 복사의 단일 `DbTransactionStatement` 안 `OUTPUT INSERTED`·table variable 기반 브랜드·전체 label size ID mapping을 확인한다. 내부 transaction 제어문, 동적 statement callback, `SelectLastInsert`, XML payload가 없는지 검증한다. 데이터 손실 경고 취소와 대상 첫 지점·프로시저 capability 실패는 DML 0건인지, `품목까지 복사`는 첫 지점으로 세 프로시저를 정해진 순서·parameter로 호출하는지, 성공 후 기존 owner reload/clear가 한 번씩 실행되는지 검증한다. 레거시가 실행·복사하지 않는 연관 table test를 추가하지 않는다.
 - 업데이트 메시지 focused test에서 `loggedIn` 표시와 비로그인 숨김, 현재 사용자별 단일 row 조회, 실제 등급별 편집 범위와 대상 우선순위를 검증한다. 선택 사용자는 현재 협력업체 범위이고 다중 선택은 하나의 transaction이며, checkbox 해제 시 ID가 비워지고 선택 mode 0건은 DML 없이 중단되는지 확인한다. 시스템 관리자의 전체 `UN_STATE=2`·현재 협력업체 `UN_STATE=0`, 협력업체 관리자의 현재 협력업체 `UN_STATE=0`, 일반 사용자의 자기 `UN_STATE` 0/1·`UN_TIME`만 갱신과 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
+- 업데이트 메시지 focused test에서 저장 button과 dialog-level Enter가 같은 등급별 저장 command를 한 번 실행하고 성공 후 dialog를 닫는지 검증한다.
 - 검색·치환 focused test에서 기본 `품명`, 브랜드·label size filter 해제·비활성, 검색어와 활성 selector 필수 조건, AppBar의 무자동 조회와 기존 메인 검색값의 1회 자동 조회를 검증한다. 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 실제 등급이 non-editable일 때 쓰기 UI 숨김·검색/이동 유지, 변경 행 저장을 확인한다. 품목편집 이동은 현재 선택 행 1건을 사용하고, 출력 이동은 체크 1건 이상·동일 브랜드/label size를 요구해 첫 체크 context와 전체 체크 ID를 사용하며, 두 이동은 미저장 변경을 확인·저장 없이 폐기하는지 검증한다. 주석 처리된 `추가 주원료` 검색은 inventory에 추가하지 않는다.
 - 발행내역 focused test에서 현재 협력업체·거래처와 `품명` 초기값, 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 표시 범위를 검증한다. 선택 협력업체가 query에 쓰이지 않고 거래처 `[전체 보기]`의 내역·총 누계·기간 합계가 전 협력업체 범위인지, 특정 거래처의 `품명`·`사용자ID`만 거래처 ID를 결합하는지 확인한다. `품명` 빈 값의 `LIKE '%%'`, `사용자ID` 빈 값 완전 일치, `거래처` 입력의 selector 표시명 초기화·빈 값 대체와 이름 완전 일치를 검증한다. 총 누계·기간·단일 거래처 label size 합계가 별도 query이며 검색 종류·검색어를 적용하지 않는지 확인한다. 상세는 같은 column 순서의 저장값·출력값 두 표와 다른 출력값 행 강조만 검증한다. 출력 경로 구분이나 pagination이 없는 것은 별도 기능 test로 확대하지 않고 query/model 계약에서 확인한다.
 - 사용자 접속 이력 focused test에서 현재 협력업체·거래처 초기값, 시스템 관리자의 두 selector 표시·변경, 협력업체 관리자의 협력업체 selector·label 숨김과 거래처 selector만 표시·변경, 그 외 사용자의 두 selector·관련 label 숨김과 현재 거래처 조회를 검증한다. 기간·거래처 조건과 레거시 결과 column decoding, 0건에서 빈 table과 `검색결과가 없습니다!` 안내 1회를 확인한다.
