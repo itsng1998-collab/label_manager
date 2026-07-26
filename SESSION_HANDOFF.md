@@ -7,7 +7,22 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반과 Phase 2 `사용자 접속 이력 보기`, `발행내역 보기`, `데이터내용 이력 보기`, `공용라벨 수정 이력 보기`를 커밋했다. Phase 2의 남은 기능은 `발행 통계 조회`다.
+- Phase 2 발행 통계 UI 진행 중: [lib/page_home/status_print_dialog.dart]에 오늘~오늘·무자동 조회, 권한별 selector cascade, 브랜드·label size·검색 column filter, 화면 합산 요약행과 실제 row 상세 overlay를 구현하고 [test/status_print_dialog_test.dart]로 검증한다. 이후 [lib/home_page_manager.dart]에는 `viewPrintStatistics` blocking modeless owner와 clean lifecycle만 연결한다.
+- 수정 예정 파일/목적: [lib/page_home/status_print_dialog.dart] 신규 UI, [test/status_print_dialog_test.dart] focused widget test, [lib/home_page_manager.dart] import·overlay/lifecycle·handler·open/close/dispose, [SESSION_HANDOFF.md] 단계별 상태 기록. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않고 commit하지 않는다.
+- 검증 실행 예정: 첫 UI 편집 직후 `flutter test test/status_print_dialog_test.dart test/status_print_test.dart`, owner 연결 후 `flutter test test/status_print_dialog_test.dart test/status_print_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart`, 이어서 targeted analyze와 diagnostics를 실행한다.
+- 발행 통계 UI 편집 완료: [lib/page_home/status_print_dialog.dart]에 로그인 context 초기화, 시스템 관리자 전용 협력업체·거래처 cascade, 브랜드·label size `[전체 보기]`, DAO 순서 유지 label/검색 column 결합, 기본 주원료·부분 일치, 화면 합산 요약행 2개와 삭제 색상, 실제 row status ID 상세 overlay를 구현했다.
+- 발행 통계 테스트 추가/검증: [test/status_print_dialog_test.dart] 3건과 기존 [test/status_print_test.dart] 4건이 무자동 조회, 시스템 관리자 cascade·선택 거래처, 기본 주원료·부분 일치, 검색 column 순서 보존 중복 제거, 일반 사용자 고정 거래처, 0건 요약·무안내, Enter 1회, 요약/삭제 색상과 실제 row만 상세를 검증하며 `7 passed`다.
+- 발행 통계 owner 연결 완료: [lib/home_page_manager.dart]가 정확한 `AppMenuCommandId.viewPrintStatistics`를 `1480×780` blocking modeless overlay에 연결하고 중복 open을 막으며 clean lifecycle participant를 닫기·dispose에서 해제한다. 대형 파일 전체 포맷은 수행하지 않았다.
+- 발행 통계 owner 회귀 검증 완료: 신규 UI/model과 [test/app_menu_controller_test.dart], [test/lifecycle_test.dart]를 함께 실행해 `14 passed`다. 신규 [lib/page_home/status_print_dialog.dart], [test/status_print_dialog_test.dart]만 Dart formatter를 적용했다.
+- 최종 검증 실행 예정: `flutter analyze lib/page_home/status_print_dialog.dart lib/home_page_manager.dart lib/models/status_print.dart test/status_print_dialog_test.dart test/status_print_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart`를 실행하고, 같은 파일 diagnostics 및 `git diff --check`와 변경 파일 분리를 확인한다.
+- Phase 2 발행 통계 UI 완료: 텍스트 필드 Enter가 dialog shortcut과 중복되지 않고 조회를 1회만 추가하는 assertion까지 포함해 최종 focused/controller/lifecycle suite `14 passed`. 대상 source/test/문서 diagnostics는 모두 0건이다.
+- 발행 통계 요약행 배치 교정/재검증: 요약 label을 레거시처럼 첫 결과 column(발행일 위치), count를 두 번째 column에 표시하고 품목명 column은 비우도록 수정해 widget test로 고정했다. VS Code test API가 수정 직후 11건만 발견해 누락 import를 교정한 뒤 `flutter test test/status_print_dialog_test.dart test/status_print_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart`를 직접 실행했고 `14 passed`다.
+- 최종 analyze 결과: 신규 발행 통계 source/test 항목은 0건이고 [lib/home_page_manager.dart]의 기존 unused 경고 `_applyAutoItemUpdateStagedRows`, local `columns` 2건만 남아 범위 밖으로 유지했다. `git diff --check` 통과, staged 파일 없음, commit하지 않았다.
+- 최종 변경 파일: [lib/page_home/status_print_dialog.dart], [test/status_print_dialog_test.dart], [lib/home_page_manager.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 수정·stage하지 않았다.
+- 발행 통계 UI stage 검증 완료: 신규 파일 포맷 후 focused/model/controller/lifecycle suite `14 passed`, `git diff --cached --check` 통과. staged 목록은 [lib/page_home/status_print_dialog.dart], [lib/home_page_manager.dart], [test/status_print_dialog_test.dart] 세 파일뿐이며 handoff와 기존 사용자 변경 3개는 제외했다.
+- 발행 통계 UI 커밋: `3bc9d63` (`발행 통계 조회 화면 구현`). DAO 커밋 `5fed1fd`와 함께 Phase 2 발행 통계 완료. 원격 push는 수행하지 않았다.
+- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반과 Phase 2의 `사용자 접속 이력`, `발행내역`, `데이터내용 이력`, `공용라벨 수정 이력`, `발행 통계 조회`를 모두 구현·검증·커밋했다. 다음은 Phase 3 `협력업체 관리`다.
+- Phase 3 다음 시작점: `협력업체 관리`의 활성 레거시 resource→handler→dialog/model→DAO와 현재 Flutter `Cooperator` schema/owner를 조사해 read/list와 draft 저장 책임부터 확정한다.
 - 현재 구현 현황: 공용라벨 이력 read model/DAO에 숨김 log ID, before/after RTF와 sheet payload, non-empty sheet 우선 fallback을 추가했다. 조회는 레거시와 같은 log+brand join, `RICH_MOD_DATE BETWEEN`, log table의 선택 거래처 조건이며 `ORDER BY`를 추가하지 않는다.
 - 공용라벨 이력 첫 검증 완료: [test/common_label_history_test.dart] 2건이 codec, sheet 우선/RTF fallback, 숨김 log ID, 날짜·거래처·무정렬 SQL을 검증하며 통과했다. `flutter analyze lib/models/common_label_history.dart test/common_label_history_test.dart` → `No issues found`. 인접 확인 중 고객 조건 alias 차이를 발견해 `A.RICH_CUSTOMER_ID`로 바로잡고 동일 focused 검증을 재실행한다.
 - 공용라벨 이력 DAO 재검증 완료: 고객 조건을 레거시와 같은 `A.RICH_CUSTOMER_ID`로 교정한 뒤 focused test 2건과 targeted analyze를 다시 통과했다.
