@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 31차 감사의 업데이트 메시지 공용 표시·DB 저장 경계와 대상 지정, 검색출력 mode 수명·조회 후보, 검색출력 설정 column 순서를 활성 레거시와 사용자 확정 기준으로 병합한다.
+- 사용자 확정: 검색출력 mode는 로그아웃 후 재로그인해도 프로세스 종료 전까지 유지한다. 업데이트 메시지는 관리자에게 저장되지 않는 version 편집과 `다시 보지 않기` control도 레거시 화면처럼 표시하되 저장하지 않는다. 사용자 선택의 마지막 행 누락 결함은 복제하지 않고 표시된 모든 행을 대상으로 처리한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.9~5.3.11, Phase 1·4와 focused test에서 startup 공지와 메뉴 DB 상태의 소유 경계, 등급별 대상 우선순위·no-op UI·사용자 선택 범위, 프로세스 수명 mode 복원, 레거시 검색 join·column 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 업데이트 메시지 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.9에 공용 표시 component와 startup 로컬 억제·메뉴 DB owner 분리, 등급별 대상 우선순위, 사용자 선택 전체 행, 광고·쇼핑몰과 관리자 no-op UI를 반영했다.
+- 검색출력·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.10~5.3.11, Phase 1·4와 focused test에 프로세스 수명 mode·재로그인 UI 복원, 레거시 content join·첫 group, `RICH_COLUMN_ORDER ASC`를 동기화했다.
+- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다.
+- 검증 실행 예정: [doc/app_menu_porting.txt]의 31차 필수 계약 17개와 이전 공지 공용 편집·불완전 대상·`HomePageManager` mode 수명·품명 직접 조회 문구 제거를 PowerShell 표적 검사로 확인한다. 이어서 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: 31차 필수 계약 `17/17`, 이전 모순·포괄 문구 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 공지 상태의 `BM_UPDATE_NOTICE` 저장 경계와 사용자 선택용 계층 조회 분리도 표적 재검사를 통과했다.
+- diff 검토 완료: 변경은 업데이트 메시지의 공용 표시·메뉴 저장 경계와 사용자 확정 UI·대상 지정, 검색출력 mode 수명·조회 join, 검색출력 설정 순서 및 관련 Phase·focused test에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 27 insertions, 12 deletions다.
 - 완료: [doc/app_menu_porting.txt] 30차 감사의 전자저울 관리 범위·연결 진입·통신값·persisted 초기값과 프린터 설정 owner·저장 scope를 활성 레거시 및 현 Flutter owning method 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 전자저울 관리는 활성 레거시의 연결 시험·수신 중량 표시·자동발행까지 포팅하고, 연결 중 진입하면 기존 연결을 자동 해제한다. 저울 발행 또는 연결 처리 중에도 AppBar command는 레거시처럼 활성 상태를 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.5~5.3.6과 focused test에서 저울 설정 진입·시험 연결 lifecycle, 레거시 통신값 전체, persisted 초기값, 자동발행 동작과 두 프린터 command의 실제 session controller·저장소·취소/적용 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
