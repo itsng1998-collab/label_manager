@@ -7,13 +7,14 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0 command inventory·policy 구현은 완료했고 targeted analyze와 로컬 커밋 후 Phase 1 AppBar shell로 진행한다.
+- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0 command inventory·policy 구현과 검증·커밋을 완료했고 Phase 1 AppBar shell과 기존 owning command 연결로 진행한다.
 - 현재 구현 현황: Phase 0 `app_menu` command model·policy가 추가됐다. 기존 HomePage AppBar에는 아직 서버 상태와 로그인/로그아웃만 있으며 문서상 활성 관리·조회·설정 dialog 대부분은 미구현이고 기존 owning 설정·탭 기능만 일부 존재한다.
 - 편집 완료: [lib/models/app_menu_command.dart]에 26개 안정 ID, 레거시 순서 section, 검색출력 submenu, F12, popup 소유권과 legacy 숨김 metadata를 추가했다. [lib/core/app_menu_policy.dart]에 비로그인 차단, 등급·신뢰 가능한 세션 플래그 경계, busy/context 차단과 저울출력 label size 사유를 계산하는 순수 policy를 추가했다.
 - 테스트 추가: [test/app_menu_command_test.dart]에 legacy ID test fixture와 inventory 계약 4건, [test/app_menu_policy_test.dart]에 비로그인·등급·세션 flag·`tester01`·숨김·프린터·작업 상태·editable 계약 9건을 추가했다. runtime metadata에는 legacy ID를 넣지 않았다.
 - 검증 완료: focused test `13 passed, 0 failed`; 새 source/test 4개 VS Code diagnostics 0건. 포맷 후 같은 focused test를 다시 실행해 `13 passed, 0 failed`를 확인했다.
 - 검증 완료: `flutter analyze lib/models/app_menu_command.dart lib/core/app_menu_policy.dart test/app_menu_command_test.dart test/app_menu_policy_test.dart` → `No issues found`.
 - stage/commit 대상: [lib/models/app_menu_command.dart], [lib/core/app_menu_policy.dart], [test/app_menu_command_test.dart], [test/app_menu_policy_test.dart], [SESSION_HANDOFF.md]만 포함한다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
+- 커밋: `7651f6b` (`앱 메뉴 Phase 0 명령 정책 구현`). 다음 시작점은 `HomePage`/`HomePageManager`의 기존 owning method와 controller attach pattern을 확인해 AppBar shell이 command ID만 전달하도록 연결하는 것이다.
 - 완료: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소하고 검증했다.
 - 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
