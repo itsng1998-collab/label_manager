@@ -115,7 +115,7 @@
 - 팝업 내부에는 전체 한글 명령명을 기본으로 표시한다. command 아이콘은 의미를 즉시 구분하는 데 실제로 도움이 되는 경우에만 선택적으로 사용하고, 모든 항목에 일괄 적용하지 않는다.
 - popup 표시명은 현재 앱의 command button처럼 간결한 한글 기본 `label`을 그대로 사용한다. dialog를 연다는 이유만으로 `...`를 붙이거나 별도 metadata를 추가하지 않는다.
 - 실제 활성 전역 shortcut이 해당 AppBar command를 실행할 때만 명령명 문자열에 합치지 않고 popup 오른쪽의 고정 보조 영역에 `F12` 같은 `shortcutLabel`을 표시한다. `검색출력모드`의 `F12`에 적용하고 semantics에는 기본 명령명과 shortcut을 함께 제공한다. 레거시 `F1`은 `OnEditItemInfo`가 아니라 기존 `품목관리` 탭 이동이므로 `품목별 정보 편집` command에 표시하거나 연결하지 않는다.
-- separator는 레거시 메뉴의 command group 경계를 유지한다.
+- separator는 레거시 메뉴의 command group 경계를 유지하되 경계 양쪽에 현재 visible command가 있을 때만 표시한다. 권한이나 `legacyInactive`·`legacyUnreachable` policy로 command가 숨겨진 뒤 선행·후행·연속 separator를 남기거나 빈 구간을 표시하지 않는다. 경계를 새로 만들거나 command 순서를 바꾸지 않는다.
 - 위험 command의 확인은 팝업 메뉴가 아니라 해당 화면의 저장/삭제 command 시점에 수행한다.
 
 ### 3.2 반응형 기준
@@ -124,12 +124,13 @@
 - 그룹 3개, 서버 상태, 로그인/로그아웃이 겹치지 않는 폭에서는 그룹 아이콘을 각각 표시한다.
 - 폭이 부족하면 그룹 버튼을 먼저 `more_vert` 하나로 합친다.
 - 통합 overflow의 첫 단계에는 현재 표시할 command가 있는 `파일/관리`, `조회/이력`, `설정` 그룹만 표시하고, 그룹을 선택하면 해당 command의 2단계 submenu 또는 panel을 연다. 전체 command를 하나의 긴 평면 목록으로 합치지 않는다.
+- 레거시 `설정 > 검색출력 > 검색출력모드/설정` 계층은 넓은 설정 popup과 좁은 통합 overflow의 설정 단계에서 그대로 유지한다. 두 command를 설정 command 목록에 평면 배치하지 않으며, 확인된 이 하위 그룹을 위해 임의 depth를 지원하는 범용 menu tree를 추가하지 않는다.
 - 그룹 submenu/panel은 화면의 사용 가능 높이로 clamp하고 필요한 경우 세로 scroll을 제공한다. 키보드 focus 항목이 viewport 밖으로 이동하면 자동으로 reveal한다.
 - 서버 상태와 로그인/로그아웃은 항상 오른쪽 끝에 남긴다.
 - 메뉴를 합친 뒤에도 폭이 부족하면 title은 `maxLines: 1`, `softWrap: false`, `TextOverflow.ellipsis`로 줄인다. 서버 상태와 현재 로그인/로그아웃 command를 title보다 먼저 숨기거나 줄이지 않는다.
 - 좁은 작업 영역에서는 AppBar collapse와 title ellipsis로 주요 command에 접근할 수 있어야 하며 서버 상태와 로그인/로그아웃 command를 숨기지 않는다. native minimum이나 window lifecycle 변경은 이 메뉴 포팅 범위에 포함하지 않는다.
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
-- Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행한다. 통합 overflow에서는 오른쪽/Enter로 그룹에 진입하고 왼쪽/Esc로 한 단계 돌아가며, 첫 단계의 Esc는 메뉴를 닫는다.
+- Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행한다. 통합 overflow에서는 오른쪽/Enter로 그룹에 진입하고 왼쪽/Esc로 한 단계 돌아가며, 첫 단계의 Esc는 메뉴를 닫는다. `검색출력`에서는 오른쪽/Enter로 확인된 하위 단계에 진입하고 왼쪽/Esc로 설정 단계에 돌아간다.
 - Esc 또는 바깥 클릭으로 메뉴만 닫으면 원래 그룹 아이콘에 focus를 복원한다. command가 top-level dialog를 열면 그룹 focus 복원을 보류하고 dialog의 초기 control로 focus를 넘긴다.
 - AppBar menu, modal dialog, `BlockingModelessDialog`, `DbReconnectOverlay`처럼 배경 입력을 막는 surface가 하나라도 보이는 동안 Home의 전역 F1/F2/F3/F5/F12 command를 실행하지 않는다. 여러 차단 surface가 겹치면 마지막 surface가 닫힐 때까지 차단을 유지한다.
 - `PreviewFloatingWindow`처럼 배경 작업을 허용하는 non-modal preview는 단축키 차단 surface로 간주하지 않는다. 차단 상태의 구현은 현재 route/overlay 구조에 맞는 가장 작은 방식으로 하며 특정 observer, identity set 또는 lease 자료구조를 필수로 하지 않는다.
@@ -164,6 +165,7 @@
   - `AppMenuGroup`: file, search, settings.
   - `AppMenuCommandId`: Flutter에서 사용자가 실행하는 owning action별 안정 ID.
   - runtime command 값에는 포팅 추적만을 위한 legacy command ID를 넣지 않는다. 레거시 handler와 ID 대응 관계는 inventory test fixture에 보존한다.
+  - inventory에는 레거시에서 확인된 `설정 > 검색출력`과 두 child command의 관계만 보존한다. 임의 depth의 범용 menu tree metadata로 확장하지 않는다.
   - command metadata는 기본 `label`, optional icon, optional `shortcutLabel`을 포함한다. shortcut 보조 영역은 이 metadata로 렌더링하며 command별 widget 문자열로 중복하지 않는다.
   - `AppMenuCommandState`: visible, enabled, disabledReason.
   - DB나 BuildContext를 참조하지 않는 순수 값 타입.
@@ -342,12 +344,12 @@
 
 - 현행 `PopScope`와 `LifecycleManager.notifyExitRequested()` 경로를 command API로 추출해 재사용한다.
 - `SystemNavigator.pop()`을 메뉴에서 직접 중복 호출하지 않는다.
-- 메뉴 종료와 OS 창 닫기는 같은 command에서 `활성 lifecycle participant와 HomePageManager snapshot 수집 → 기존 프린터·저울 설정 modal route·write-busy·active editing 차단 → 전체 dirty 통합 확인과 승인된 폐기 callback 실행 → 활성 overlay participant close callback 실행 → DB 정리 → 실제 종료` 순서로 처리한다.
+- 메뉴 종료와 OS 창 닫기는 같은 command에서 `활성 lifecycle participant와 HomePageManager snapshot 수집 → 기존 프린터·저울 설정 modal route·write-busy·active editing 차단 → 전체 dirty 통합 확인과 승인된 폐기 callback 실행 → 활성 overlay participant close callback 실행 → 종료 이력에 필요한 현재 session 값 snapshot → LOGOUT 기록 시도 → session·DB 정리 → 실제 종료` 순서로 처리한다.
 - 기존 프린터·저울 설정 modal route가 열려 있으면 자동으로 닫거나 draft를 dirty 확인에 합치지 않고, 설정창을 먼저 닫도록 안내한 뒤 종료를 중단한다.
 - 활성 신규 dialog와 기존 메인 탭 중 하나라도 write-busy이면 종료를 거부한다. active editing은 자동 확정하거나 폐기하지 않고 종료를 중단해 먼저 편집 완료 또는 취소를 요구한다.
 - 차단 상태가 없으면 신규 dialog와 품목·자동갱신·공용라벨의 dirty를 한 번의 폐기 확인에 합산한다. 취소하면 어떤 상태도 변경하지 않고, 승인하면 각 dirty owner의 폐기 callback을 정확히 한 번 실행한다.
 - 모든 owner가 clean이면 일반 확인창을 추가하지 않는다. 메뉴 종료와 OS 창 닫기는 같은 차단 사유, 통합 폐기 확인, DB 정리 순서를 사용한다.
-- 실제 종료 시 현재 로그인 상태이고 master-key가 아니면 원래 관리자 `ConnectOrigin` 유무와 관계없이 현재 사용자·거래처 값으로 `BM_LOGIN_LOG`에 `LOGOUT`을 한 번 기록한다. 따라서 관리자 `Connect` 중 명시적 로그아웃의 미기록 규칙을 앱 종료에 적용하지 않는다. 이력 오류는 한 번 전달하되 DB·session 정리와 종료를 중단하거나 자동 재시도하지 않으며, 종료 요청과 detached callback에서 같은 이력을 중복 기록하지 않는다.
+- 실제 종료 시 snapshot한 상태가 로그인이고 master-key가 아니면 원래 관리자 `ConnectOrigin` 유무와 관계없이 snapshot한 현재 사용자·거래처 값으로 DB 연결 해제 전에 `BM_LOGIN_LOG`에 `LOGOUT`을 한 번 기록한다. 따라서 관리자 `Connect` 중 명시적 로그아웃의 미기록 규칙을 앱 종료에 적용하지 않는다. 이력 오류는 한 번 전달하되 session·DB 정리와 종료를 중단하거나 자동 재시도하지 않으며, 종료 요청과 detached callback에서 같은 이력을 중복 기록하지 않는다.
 
 ## 5.2 조회/이력 그룹
 
@@ -728,13 +730,14 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 ### Phase 0. inventory와 command contract 고정
 
-1. 파일/검색/설정의 Flutter owning action마다 `AppMenuCommandId`, group, label, optional icon, optional `shortcutLabel`, permission, `legacyInactive`, `legacyUnreachable`을 순수 table로 작성한다.
+1. 파일/검색/설정의 Flutter owning action마다 `AppMenuCommandId`, group, label, optional icon, optional `shortcutLabel`, permission, `legacyInactive`, `legacyUnreachable`을 순수 table로 작성하고, 검색출력 두 command의 확인된 parent/child 관계를 함께 보존한다.
 2. 모든 command의 레거시 handler, legacy command ID 대응 관계와 현 구현 상태는 포팅 대조용 test fixture로 고정한다. 하나의 legacy ID에서 분리된 여러 Flutter command는 서로 다른 안정 ID를 갖는다.
 3. 권한 matrix unit test를 먼저 작성한다.
 4. 아직 기능이 없는 command도 ID를 예약하되 실제 menu에는 기능 완료 시점에만 연결한다.
 
 완료 기준:
 - 파일/검색/설정 command 누락 없음.
+- 레거시 `설정 > 검색출력 > 검색출력모드/설정` 계층과 visible command 사이 separator 경계가 inventory·rendering test로 고정됨.
 - 권한별 visible/enabled 상태와 `legacyInactive`/`legacyUnreachable` 숨김이 테스트로 고정됨.
 
 ### Phase 1. AppBar shell과 기존 기능 연결
@@ -758,7 +761,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - floating preview `OverlayRoute`만 표시된 상태에서는 기존 Home 전역 F-key가 오차단되지 않음.
 - widget test viewport `1200×800`과 `600×720`에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있고, production 분기는 이 두 폭을 하드코딩하지 않음.
 - clean 로그아웃/종료에는 일반 확인창이 없고, 기존 프린터·저울 설정 modal route와 신규 dialog·기존 메인 탭의 busy/activeEditing은 먼저 차단되며 모든 dirty는 한 번의 통합 확인으로 처리되고 clean·읽기 전용 overlay도 guard 통과 뒤 닫힘.
-- 일반·master-key·`IsFirstConnectByAdmin` 로그인의 session 상태와 `LOGIN` 기록 조건, 일반·master-key·관리자 `Connect`의 명시적 로그아웃 및 앱 종료별 `LOGOUT` 기록 조건이 활성 레거시와 일치함. 이력 저장 실패는 상태 전환을 취소하거나 자동 재시도하지 않음.
+- 일반·master-key·`IsFirstConnectByAdmin` 로그인의 session 상태와 `LOGIN` 기록 조건, 일반·master-key·관리자 `Connect`의 명시적 로그아웃 및 앱 종료별 `LOGOUT` 기록 조건이 활성 레거시와 일치함. 앱 종료 `LOGOUT`은 현재 session 값을 snapshot해 DB·session 정리 전에 시도하고, 이력 저장 실패는 상태 전환을 취소하거나 자동 재시도하지 않음.
 - 업데이트 메시지의 실제 등급별 대상 우선순위와 `UN_STATE`가 일치하고, 사용자 선택 0건이 더 넓은 대상으로 확대되지 않음.
 - 업데이트 메시지의 startup 표시 component와 메뉴 DB 저장 owner가 분리되고 관리자 no-op control이 `UN_VERSION`·로컬 억제 상태를 변경하지 않음.
 - wide/narrow widget test 통과.
@@ -847,7 +850,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 레거시 handler와 legacy command ID 대응 관계.
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
 - 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, `품목별 정보 편집`·`전자저울 관리`·`검색출력모드`·`검색출력 설정`·`업데이트 메시지`의 `loggedIn`, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
-- 로그인·로그아웃 focused test에서 `SYSTEM` 직접·시스템 비밀번호와 시스템 관리자 자기 비밀번호는 `IsFirstConnectByAdmin`이지만 master-key가 아니고, 비시스템 사용자의 레거시 직접 비밀번호만 master-key인지 검증한다. 일반·`IsFirstConnectByAdmin` 로그인은 `LOGIN` 1회, master-key 로그인은 0회인지 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회, 일반·관리자 `Connect` 중 앱 종료는 1회, master-key 종료는 0회인지 확인한다. 이력 저장은 session 초기화 전 값을 사용하고 오류 1회 뒤에도 로그인 초기화 또는 로그아웃·종료 정리를 계속하며, 자동 재시도와 종료 요청·detached 중복 기록은 0회인지 검증한다.
+- 로그인·로그아웃 focused test에서 `SYSTEM` 직접·시스템 비밀번호와 시스템 관리자 자기 비밀번호는 `IsFirstConnectByAdmin`이지만 master-key가 아니고, 비시스템 사용자의 레거시 직접 비밀번호만 master-key인지 검증한다. 일반·`IsFirstConnectByAdmin` 로그인은 `LOGIN` 1회, master-key 로그인은 0회인지 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회, 일반·관리자 `Connect` 중 앱 종료는 1회, master-key 종료는 0회인지 확인한다. 앱 종료 이력은 session 값을 먼저 snapshot하고 DB 연결 해제·session 초기화 전에 저장을 시도하며, 오류 1회 뒤에도 로그아웃·종료 정리를 계속한다. 자동 재시도와 종료 요청·detached 중복 기록은 0회인지 검증한다.
 - 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 저울 설정 command는 발행 busy·연결됨·연결 처리 중에도 활성이고 진입 시 기존·진행 중 연결을 종료하며 늦은 연결 결과를 폐기하는지, persisted 초기값과 레거시 통신값 전체를 손실 없이 표시·전달하는지 확인한다. 시험 연결 성공·실패와 수신 중량, 통신값 변경 시 시험 연결 종료·상태 초기화, 적용의 여섯 값 저장·controller 갱신, 취소와 모든 닫기 경로의 저장 0회·시험 연결 종료·연결 해제 owner 복원을 검증한다. 자동발행은 `ST`·양수 중량에서 5초 timer 하나만 예약하고 연결 유지 시 기존 발행 command 1회, 연결 해제 시 발행 0회이며 retry·추가 debounce가 없는지 확인한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증하고, persisted 초기값·저장 helper·session controller가 서로 섞이지 않으며 취소 시 저장·반영 0회인지 확인한다.
 - 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 로그인 지점·메인 선택 label size 목록, dialog 내부 selector 부재와 브랜드·label size 미선택 시 DAO 0회·빈 목록·저장 비활성, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신·committed 기준·dirty 해제와 dialog·행 선택·scroll 유지, 저장 command가 활성일 때 Enter 저장, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
 - 영양성분 형식 focused test에서 manager의 선택 전 추가·수정·삭제 활성, Enter와 좌표 무관 sheet 더블클릭의 수정 command, 미선택 수정 안내와 삭제 `연관 경고·확인 → 선택 검사 → DML 0건` 순서를 검증한다. 형식명 필수와 구성 행 1개 이상만 적용하고 빈 구성 성분명은 허용하며, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 미재번호, parent/detail transaction과 형식 삭제 연관 삭제를 확인한다. 저장 button과 입력 dialog Enter 모두 저장하고 같은 신규·수정 상태가 유지되며 신규 저장을 다시 실행할 수 있는지, manager `Refresh()` 후에는 선택이 해제되는지 검증한다. trim, 행별 성분명 필수·중복 검증, 정렬 command나 자동 수정 mode 전환을 추가하지 않는다.
@@ -885,14 +888,14 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - `test/app_menu_bar_test.dart`
   - `1200×800` viewport의 그룹 아이콘 3개.
   - `600×720` viewport의 overflow 1개와 서버 상태·로그인/로그아웃 command 유지.
-  - overflow 첫 단계의 그룹 3개와 2단계 command submenu/panel, 좌우키 진입·복귀와 단계별 Esc.
+  - overflow 첫 단계의 그룹 3개와 2단계 command submenu/panel, 설정 안 `검색출력`의 확인된 하위 단계와 각 단계의 좌우키 진입·복귀·Esc.
   - 두 고정 viewport에서 높이 clamp, scroll, title ellipsis와 주요 command 접근성. production 전환 임계값을 `1200`이나 `600`으로 하드코딩하지 않음.
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
   - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, 메뉴 취소 시 그룹 focus 복원과 dialog 실행 시 내부 초기 focus 인계.
   - 메뉴가 열린 동안 `HardwareKeyboard` 화면 전역 F1/F2/F3/F5/F12 command 차단, 닫힌 뒤 기존 단축키 복원.
   - popup을 닫은 뒤 owning command가 한 번 실행되고 dialog command는 내부 focus로 인계됨.
   - 비로그인·저권한 상태에서 종료만 남아도 `파일/관리`가 중립적인 `Icons.menu`로 표시.
-  - separator와 command label.
+  - 레거시 separator 경계와 command label. visibility 적용 뒤에는 양쪽에 visible command가 있는 경계만 표시하고 선행·후행·연속 separator가 없음.
   - popup이 command의 간결한 한글 기본 label을 그대로 표시함.
   - `검색출력모드`의 `F12`만 명령명과 분리된 오른쪽 보조 영역 및 semantics에 표시되고, 기존 품목관리 탭 shortcut인 `F1`은 `품목별 정보 편집`에 표시·연결되지 않음.
   - 권한 부족·`legacyInactive`·`legacyUnreachable` command 숨김과 transient dirty/busy command의 inline disabled reason 표시. 문구를 실제로 줄이는 renderer만 전체 tooltip을, 기본 text semantics가 부족한 custom renderer만 별도 semantics를 검증한다.
@@ -929,7 +932,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - [ ] command ID/label/group과 optional icon/`shortcutLabel` 등록.
 - [ ] 해당 command의 권한·로그인·`legacyInactive`·`legacyUnreachable` 또는 busy/dirty 조건 확인.
 - [ ] 기존 기능이면 owning command 재사용.
-- [ ] 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
+- [ ] production 노출 대상인 활성 command가 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
 - [ ] 기존 핵심 탭 이동 외에 별도 route page, 신규 메인 탭, native child window를 추가하지 않음.
 - [ ] 신규 dialog를 여는 command는 주요 입력, Esc, 오류와 종료 흐름이 공용 계약을 따르고, 편집·저장이 있는 경우에만 실제 dirty/write-busy/active editing 상태를 처리함.
 - [ ] 관리 목록 또는 조회 결과에 반복 행 table이 있는 command는 공용 `FortuneTable`을 사용함.
@@ -984,7 +987,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 - AppBar에는 폭에 따라 그룹 아이콘 3개 또는 overflow 메뉴 1개가 표시된다.
 - 기존 desktop window 초기화 동작을 변경하지 않고 widget test viewport `1200×800`과 `600×720`에서 AppBar와 핵심 탭의 주요 command에 접근할 수 있다. production의 expanded/overflow 전환은 이 숫자를 상수로 사용하지 않고 실제 제공 폭으로 계산한다.
-- 통합 overflow는 3개 그룹의 2단계 구조와 화면 높이 clamp·scroll·키보드 reveal을 제공한다.
+- 통합 overflow는 3개 그룹의 기본 2단계 구조와 설정 안 검색출력의 확인된 하위 단계, 화면 높이 clamp·scroll·키보드 reveal을 제공한다.
+- 넓은 설정 popup과 좁은 overflow의 설정 단계는 레거시 `검색출력 > 검색출력모드/설정` 하위 계층을 유지하고, visibility 적용 뒤 separator는 visible command가 있는 기존 경계 사이에만 표시된다.
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
 - AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하다. 메뉴만 취소하면 원래 trigger에 focus가 복원되고 top-level dialog를 실행하면 dialog 내부로 focus가 인계된다.
 - AppBar menu는 간결한 한글 기본 label을 표시하고 실제 활성 shortcut을 오른쪽 보조 영역과 semantics에 표시한다.
@@ -993,7 +997,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.
-- 미구현 기능은 실제 `BlockingModelessDialog` 기반 화면, model/DAO, DB 계약과 테스트를 갖는다.
+- production 노출 대상인 활성 command 중 미구현 기능은 실제 `BlockingModelessDialog` 기반 화면, model/DAO, DB 계약과 테스트를 갖는다.
 - 기존 핵심 탭 이동과 기존 owning 설정 dialog를 제외한 신규 관리·편집·조회 화면은 공용 차단형 overlay dialog로 일관되게 열린다.
 - 신규 AppBar dialog는 owning controller가 동일 dialog 중복 실행과 close를 관리하고 열린 동안 lifecycle participant를 등록한다. 실제 편집·저장 상태가 있을 때만 non-empty exit snapshot을 제공하되 clean·읽기 전용 participant도 종료 후 overlay 정리를 위한 close callback을 제공한다. 종료 요청의 snapshot·폐기·close callback 수집 외에 서로 다른 dialog를 위한 전역 coordinator는 추가하지 않는다.
 - 로그아웃·메뉴 종료·OS 창 닫기는 활성 lifecycle participant와 기존 메인 탭의 exit snapshot을 함께 평가한다. 기존 프린터·저울 설정 modal route가 열려 있으면 설정창을 먼저 닫도록 종료를 차단한다. 읽기 전용 dialog는 guard 통과 뒤 닫고 늦은 결과를 폐기하며, write-busy와 activeEditing은 dirty 확인 전에 종료를 막고 모든 dirty 상태는 한 번의 통합 확인으로 처리한다. clean 상태에는 일반 확인창을 추가하지 않는다.

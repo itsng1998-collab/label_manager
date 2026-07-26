@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 34차 감사의 앱 종료 이력 순서, 레거시 검색출력 하위 메뉴, visibility 적용 후 separator와 활성 command 완료 범위를 권장안으로 병합하고 검증했다.
+- 사용자 확인: 추가 확인 사항 없음. 종료 이력은 DB 연결과 session 값이 살아 있을 때 기록해야 하고, 검색출력 계층은 활성 레거시 [LabelManager.rc]의 `설정 > 검색출력 > 검색출력모드/설정` 구조로 확정한다. separator는 기존 경계만 유지하며 숨김 command 때문에 빈 경계를 표시하지 않고, hidden command 내부 구현은 기존 제외 계약을 유지한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 3.1·3.2와 widget test에 검색출력 하위 메뉴·단계별 키보드 이동 및 visible command 사이 separator를 명시하고, 5.1.8·Phase 1·종료 test에 session snapshot과 `LOGOUT` 기록을 DB·session 정리보다 앞에 둔다. 체크리스트·최종 완료의 미구현 기능은 production 노출 대상 활성 command로 한정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검증 실행 예정: 각 문서 편집 직후 `git diff --check`를 실행한다. 이어서 34차 필수 계약과 이전 모호 문구 제거를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- 메뉴 계약 편집 완료: [doc/app_menu_porting.txt] 3.1·3.2와 command inventory에 visible command 사이 기존 separator 경계, 레거시 `설정 > 검색출력 > 검색출력모드/설정` 계층, 단계별 키보드 복귀와 범용 menu tree 미추가를 반영했다. 수정 직후 표적 검사 `4/4`와 `git diff --check`가 통과했다.
+- 종료 계약 편집 완료: [doc/app_menu_porting.txt] 5.1.8에서 현재 session 값을 snapshot하고 DB 연결 해제·session 초기화 전에 `LOGOUT`을 시도하도록 순서를 고정했다. 수정 직후 표적 검사 `2/2`, 이전 순서 잔존 `0`과 `git diff --check`가 통과했다.
+- Phase·테스트·완료 계약 편집 완료: [doc/app_menu_porting.txt] Phase 0·1, focused/widget test, 명령별 체크리스트와 최종 완료 상태에 검색출력 계층·separator·종료 이력 순서를 동기화하고 미구현 기능 범위를 production 노출 대상 활성 command로 한정했다. 표적 검사 `8/8`과 `git diff --check`가 통과했다.
+- 검증 완료: 34차 필수 계약 `11/11`, 이전 모호 문구 잔존 `0`이며 최종 overflow를 기본 2단계와 검색출력의 확인된 추가 하위 단계로 구분했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 종료 `LOGOUT`의 session snapshot·DB 정리 전 기록, 레거시 검색출력 하위 계층·키보드 이동, visibility 이후 separator와 active command 완료 범위에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 26 insertions, 12 deletions다.
 - 완료: [doc/app_menu_porting.txt] 33차 감사의 신규 transaction 실행 경로와 AppBar 반응형 검증 viewport를 권장안 및 사용자 확정 기준으로 병합하고 검증했다.
 - 사용자 확정: AppBar widget test의 넓은 대표 viewport는 `1200×800`, 좁은 대표 viewport는 `600×720`으로 사용한다. native minimum이나 window lifecycle은 변경하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 1.3, 3.2, 관리자 복사, Phase 1과 DAO/widget/완료 계약에서 신규 다중 DML을 `DbClient.transaction(List<DbTransactionStatement>)` 단일 경로로 고정하고 내부 transaction 제어문을 금지하며, 두 viewport를 전환 임계값이 아닌 test 입력값으로 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
