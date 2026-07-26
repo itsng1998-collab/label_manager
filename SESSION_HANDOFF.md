@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 관리자 복사의 구현 전 프로시저 schema gate·runtime 직접 호출, commit 후 dialog close·owner refresh 및 검색출력 parent/child 표시명에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 17 insertions, 7 deletions다.
+- 기능 문서 커밋 완료: `a95f194` (`앱 메뉴 35차 관리자 복사 계약 명확화`). 원격 push는 수행하지 않았다.
 - 완료: [doc/app_menu_porting.txt] 34차 감사의 앱 종료 이력 순서, 레거시 검색출력 하위 메뉴, visibility 적용 후 separator와 활성 command 완료 범위를 권장안으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. 종료 이력은 DB 연결과 session 값이 살아 있을 때 기록해야 하고, 검색출력 계층은 활성 레거시 [LabelManager.rc]의 `설정 > 검색출력 > 검색출력모드/설정` 구조로 확정한다. separator는 기존 경계만 유지하며 숨김 command 때문에 빈 경계를 표시하지 않고, hidden command 내부 구현은 기존 제외 계약을 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 3.1·3.2와 widget test에 검색출력 하위 메뉴·단계별 키보드 이동 및 visible command 사이 separator를 명시하고, 5.1.8·Phase 1·종료 test에 session snapshot과 `LOGOUT` 기록을 DB·session 정리보다 앞에 둔다. 체크리스트·최종 완료의 미구현 기능은 production 노출 대상 활성 command로 한정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
