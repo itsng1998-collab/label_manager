@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 25차 감사의 네 조회 dialog Enter, 날짜 오름차순, 접속·저장 상태 mapping과 발행내역·통계 행 배경색 계약을 활성 레거시 기준으로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 25차 감사의 네 조회 dialog Enter, 날짜 오름차순, 접속·저장 상태 mapping과 발행내역·통계 행 배경색 계약을 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확인: 25차 네 권장안은 활성 레거시 코드가 모두 결정하므로 별도 사용자 선택 없이 레거시 값을 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.2~5.2.4·5.2.6, 7.1·7.4와 focused test에서 조회 Enter 동작, 날짜 오름차순과 동일 시각 2차 정렬 금지, 상태 한글 mapping, 레거시 행 배경색을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 조회 본문 편집 완료: [doc/app_menu_porting.txt] 네 조회의 화면별 Enter, 각 날짜·시각 `ASC`와 동일 시각 무정렬, 접속·저장 상태 한글 mapping, 발행내역 상세와 발행 통계 요약·삭제 행의 레거시 배경색을 5.2.2~5.2.4·5.2.6에 반영했다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 25차 네 권장안과 관련 7.1·7.4·focused test에 한정됐고 24차 계약과 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 28 insertions, 9 deletions다.
+- commit 완료: `a72ae14` (`앱 메뉴 25차 조회 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 24차 감사의 품목별 정보 저장 후 dialog 유지, 화면별 Enter matrix, 관리 목록 더블클릭 수정 진입 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 품목별 정보 편집은 저장 성공 후 레거시처럼 dialog를 유지하고, Enter는 관리 입력·품목별 정보·영양성분·업데이트 메시지·사용자 검색·검색출력 설정의 화면별 레거시 동작을 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 5.3.1~5.3.3·5.3.9·5.3.11, 7.1과 관련 Phase·focused test에서 관리 목록 더블클릭, 품목별 정보 committed 상태·dialog 유지, 화면별 Enter 예외와 무동작 범위를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
