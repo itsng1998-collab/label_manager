@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 30차 감사의 전자저울 관리 범위·연결 진입·통신값·persisted 초기값과 프린터 설정 owner·저장 scope를 활성 레거시 및 현 Flutter owning method 기준으로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 30차 감사의 전자저울 관리 범위·연결 진입·통신값·persisted 초기값과 프린터 설정 owner·저장 scope를 활성 레거시 및 현 Flutter owning method 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 전자저울 관리는 활성 레거시의 연결 시험·수신 중량 표시·자동발행까지 포팅하고, 연결 중 진입하면 기존 연결을 자동 해제한다. 저울 발행 또는 연결 처리 중에도 AppBar command는 레거시처럼 활성 상태를 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.5~5.3.6과 focused test에서 저울 설정 진입·시험 연결 lifecycle, 레거시 통신값 전체, persisted 초기값, 자동발행 동작과 두 프린터 command의 실제 session controller·저장소·취소/적용 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 설정 본문 편집 완료: [doc/app_menu_porting.txt] 5.3.5에 처리 중 command 활성·자동 연결 종료, persisted 초기값, 레거시 통신값 전체, 시험 연결·취소/적용 lifecycle과 `ST` 양수 중량 5초 자동발행을 반영했다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 전자저울 설정의 활성 레거시 범위·사용자 확정 lifecycle과 두 프린터 설정의 실제 owner·저장 scope 및 관련 Phase 1·focused test에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 23 insertions, 6 deletions다.
+- commit 완료: `4e2c3dd` (`앱 메뉴 30차 저울 프린터 설정 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 29차 감사의 영양성분 형식·표 manager command 상태, Enter·더블클릭 수정 진입, refresh 선택 상태와 입력 validation 범위를 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 영양성분 형식·표 manager의 수정·삭제는 선택 전에도 활성화하고, 삭제는 확인 승인 후 선택 여부를 검사하는 레거시 순서를 유지한다. 선택 기반 비활성화나 확인 순서 개선을 추가하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.2~5.3.3, 7.1, Phase 4와 focused test에서 manager Enter·더블클릭 수정 진입, 미선택 안내와 삭제 `확인 → 선택 검사 → DML`, 형식 refresh 후 선택 해제, 빈 구성 성분명·빈 RTF 허용과 영양성분표 검증 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
