@@ -286,7 +286,7 @@ END CATCH
 - 레거시 기준: `OnMarketManage` → `CMarketManagerDlg`.
 - 권한: 6.1의 `managerCommand`.
 - 현재 레거시 구현은 `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect` 중 하나만 활성이고 `MANAGER_USER`는 제외하므로 이를 visibility policy test로 고정한다.
-- command 접근 권한과 selector 변경 권한을 구분한다. 레거시 `CMarketManagerDlg::OnInitDialog`와 같이 `IsCoopAdmin`이면 협력업체 selector를 비활성화하며, 허용된 나머지 상태의 selector 동작도 해당 dialog 구현을 그대로 따른다.
+- command 접근 권한과 selector 변경 권한을 구분한다. dialog는 현재 로그인 context의 협력업체·거래처로 초기화한다. 레거시 `CMarketManagerDlg::OnInitDialog`와 같이 `IsManager`이면 두 selector를 모두 비활성화하고, `IsCoopAdmin`이면 협력업체만 비활성화하며, `IsSystemAdmin`, `IsAdminConnect`, `IsCoopAdminConnect`이면 두 selector를 모두 활성화한다. 현재 command visibility에서는 `MANAGER_USER`를 숨기므로 `IsManager` 분기를 도달시키기 위해 권한을 넓히지 않는다.
 - 기존 `Market` model/조회 API를 확장해 거래처별 지점 이름 CRUD를 구현한다.
 - 추가는 `BM_MARKET`에 지점을 저장하고 같은 transaction에서 생성된 지점 ID를 받은 뒤, 해당 거래처의 모든 기존 품목에 대응하는 `ItemOfMarket` 행을 일괄 생성한다. 레거시의 전역 `SelectLastOneRecord()`를 복제하지 않는다.
 - 수정은 선택 지점 이름만 갱신한다.
@@ -353,6 +353,8 @@ END CATCH
 - 검색 범위는 현재 거래처의 품목으로 제한하고 선택적으로 브랜드, 브랜드의 label size 순서로 좁힌다. `CItemDetailDAO`의 품명·주원료 부분 일치 조회 범위를 사용한다.
 - 결과 column은 브랜드, label size, 품명, 주원료로 제한한다. 선택 품목의 개별 주원료 변경, 선택 행 일괄 치환, 변경된 품목 저장과 기존 품목편집/출력 이동 command를 포팅한다.
 - 검색 결과 table에서 대상 행을 선택하고 일괄 치환한 변경값을 같은 table에 반영해 저장 전에 확인할 수 있게 한다. 레거시의 일괄 치환 확인과 최종 저장 확인을 유지하고 별도 preview dialog나 대상 건수 panel을 추가하지 않는다.
+- `품목편집 이동`은 현재 선택 행 1건의 브랜드·label size·품목 ID를 사용한다. `출력 이동`은 체크 품목이 1건 이상이어야 하며 모두 같은 브랜드·label size일 때만 첫 체크 품목의 브랜드·label size와 전체 체크 품목 ID를 사용한다. 조건을 만족하지 않으면 dialog와 현재 선택·변경값을 유지하고 이동하지 않는다.
+- 두 이동 command는 변경된 치환 내용을 자동 저장하지 않는다. 사용자 확정과 레거시 동작대로 미저장 치환 내용은 별도 폐기 확인 없이 버리고 dialog를 닫은 뒤 이동한다. 이 동작은 두 이동 command에만 적용하는 7.1 dirty 확인의 명시적 예외이며 일반 닫기·로그아웃·종료까지 확대하지 않는다.
 - 변경된 행의 저장은 하나의 transaction으로 처리한다.
 - 조회는 기존 `CItemDetailDAO`, 저장은 변경된 품목에 대응하는 기존 `CItemDAO` 책임으로 제한한다.
 - 전체 DB 문자열을 임의로 검색하거나 범위를 확장하지 않는다.
@@ -406,7 +408,7 @@ END CATCH
 - 레거시 기준: `OnStatusPrint` → `CStatusPrintDlg`, `CStatusPrintModel`.
 - 권한: 6.1의 `loggedIn`.
 - 현행 `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA` 저장 계약은 `label_print_persistence.dart`에서 확인한다.
-- 조회는 레거시 `CStatusPrintModel::Search`가 호출하는 `CStatusPrintDAO::SelectDLG` 흐름으로 고정한다. filter는 기간, 권한별 거래처, 브랜드, label size, 품목명, 검색 column·값과 완전/부분 일치 조건만 포팅한다.
+- 조회는 레거시 `CStatusPrintModel::Search`가 호출하는 `CStatusPrintDAO::SelectDLG` 흐름으로 고정한다. filter는 기간, 권한별 거래처, 브랜드, label size, 품목명, 검색 column·값과 완전/부분 일치 조건만 포팅한다. 완전 일치는 `=`, 부분 일치는 `LIKE`를 사용하고 dialog 기본값은 레거시의 `Include=true`, `Batch=false`와 같은 부분 일치다.
 - 시스템 관리자만 협력업체·거래처 selector를 표시하고 변경할 수 있다. 그 외 로그인 사용자는 협력업체 selector를 숨기고 거래처를 현재 로그인 값으로 고정한다.
 - 결과는 발행일, `RICH_PRINT_COUNT`, 품목명, 선택 검색 column의 값, 브랜드와 label size만 표시한다. 사용자 ID·이름·등급과 거래처 column은 레거시 활성 화면에서 주석 처리됐으므로 표시하지 않는다.
 - 결과 첫 두 요약행에는 조회된 `RICH_PRINT_COUNT`를 화면에서 합산한 `[총 발행 매수]`와 `RICH_ID_CHANGE_DELETE_DATE`가 있는 결과만 합산한 `[삭제된 품목 매수]`를 표시하고, 삭제된 품목 결과 행은 별도 상태로 구분한다. `SelectPrintCountSum` 계열 DAO나 별도 SQL aggregate를 추가하지 않는다.
@@ -458,6 +460,7 @@ END CATCH
 
 ### 5.3.5 전자저울 관리 (`IDM_SETUP_SCALE`)
 
+- 권한: 6.1의 `loggedIn`.
 - 기존 저울출력의 `showScaleConnectSettingsDialog`, `DbScaleConnectInfoHelper`, `_openScaleConnectSettings()` owning method를 재사용한다.
 - `HomePageManager` controller에 공개 command API를 노출하고, 이 API가 기존 private `_openScaleConnectSettings()`에 위임한다. private method를 외부에서 직접 호출할 수 있게 변경하거나 내용을 AppBar controller에 복제하지 않는다.
 - 저울 연결 중에는 기존 정책대로 먼저 연결 해제를 요구한다.
@@ -505,6 +508,7 @@ END CATCH
 
 ### 5.3.10 검색출력모드 (`IDM_SEARCH_PRINT_MODE`)
 
+- 권한: 6.1의 `loggedIn`.
 - 레거시처럼 `F12`와 menu command가 같은 bool mode를 toggle한다. mode가 켜지면 메인 tab을 비활성화하고 기존 검색 button label을 `발행`으로, 꺼지면 `검색`으로 복원한다.
 - mode가 꺼진 상태의 검색 button은 기존 검색·치환 흐름을 유지한다. mode가 켜진 상태에서는 현재 label size 안에서 품명 완전 일치 또는 `RICH_SEARCH_PRINT=1`인 column 내용 완전 일치로 조회한다.
 - 일치 결과가 여러 건이어도 별도 선택·중복 경고·정렬을 추가하지 않고 레거시처럼 DB가 반환한 첫 행의 품목 1건을 기존 라벨출력 pipeline으로 즉시 발행한다. 발행 요청 후 검색 입력을 비운다.
@@ -515,8 +519,11 @@ END CATCH
 
 ### 5.3.11 검색출력 설정 (`IDM_SEARCH_PRINT_SETUP`)
 
+- 권한: 6.1의 `loggedIn`.
 - 레거시 `CSearchPrintSetupDlg`와 같이 브랜드, 브랜드의 label size, 해당 label size의 column 목록을 표시한다.
+- dialog를 열면 현재 브랜드와 현재 label size를 우선 선택하고 해당 label size column의 DB `RICH_SEARCH_PRINT` 값을 checkbox draft에 그대로 반영한다. 브랜드를 변경하면 그 브랜드의 첫 label size를 선택하고 해당 DB 값을 다시 표시한다. 별도 최근 선택이나 사용자별 초기값을 추가하지 않는다.
 - 설정값은 각 column의 기존 `RICH_SEARCH_PRINT` 선택뿐이다. 개별 선택, 전체 선택, 전체 해제와 적용 command를 제공하고 기존 `CColumnDAO::UpdateBatch`에 대응하는 column 저장 API를 사용한다.
+- 적용 전 checkbox draft가 변경된 상태에서 브랜드·label size를 전환하거나 dialog를 닫으면 7.1의 공용 dirty 폐기 확인을 한 번 사용한다. 승인하면 변경을 저장하지 않고 버린 뒤 대상 selector의 DB 값으로 다시 초기화하거나 dialog를 닫고, 취소하면 현재 selector와 draft를 유지한다. selector 전환 시 자동 적용·자동 저장을 추가하지 않는다.
 - 별도 검색 문구, 자동 발행 조건, 사용자별 설정이나 신규 설정 table을 추가하지 않는다.
 - 기존 schema/config가 없으면 migration으로 대체하지 않는다.
 - 설정 저장 commit 실패 시 dialog 입력 상태를 유지하고 오류를 전달한다.
@@ -629,7 +636,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 ### 7.4 조회 dialog
 
 - 조회 결과는 read-only `FortuneTable`로 표시하고, filter, 명시적 조회 button, 건수와 합계는 레거시 동작과 해당 데이터에 필요한 항목만 제공한다. 자동 조회에는 불필요한 조회 button을 추가하지 않고 일반 이력에는 의미 없는 합계를 만들지 않는다.
-- 최초 자동 조회 여부와 기본 기간은 레거시를 따른다.
+- 발행내역, 사용자 접속 이력, 데이터내용 이력, 발행 통계는 dialog를 열 때 selector와 date filter만 초기화하고 최초 자동 조회를 실행하지 않는다. 화면별 명시적 조회 command를 기다리며 기본 기간은 레거시 date control 초기값을 따른다.
 - 조회 중 중복 요청만 막고 일반적인 자동 retry는 추가하지 않는다.
 - 조회 중에도 닫기 command를 사용할 수 있어야 하며 닫힌 dialog에 늦은 결과를 적용하지 않는다. 실제 취소 가능한 조회에만 별도 `조회 취소` command를 제공한다.
 - 빈 결과는 정상 상태로 표시하고 오류와 구분한다.
@@ -691,6 +698,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 완료 기준:
 - 조회 기능에 DML이 없음.
 - 레거시 filter/column/권한 테스트 통과.
+- 네 조회 dialog가 filter만 초기화하고 최초 자동 조회 없이 명시적 조회를 기다림.
 - 큰 결과에서도 UI overflow/중복 조회 없음.
 
 ### Phase 3. 계층형 관리 기능
@@ -727,7 +735,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 완료 기준:
 - schema 미확인 기능을 임의 구현하지 않음.
 - mode/settings/data 저장 책임이 분리됨.
-- 검색/치환 결과 table의 변경값 확인, 레거시 확인 흐름과 transaction 검증 통과.
+- 검색/치환 결과 table의 변경값 확인, 이동별 선택 source·미저장 변경 폐기, 레거시 확인 흐름과 transaction 검증 통과.
+- 검색출력 설정의 현재 context·DB 값 초기화와 미적용 draft 폐기 확인 검증 통과.
 
 ### Phase 5. 숨김 command 최종 검증
 
@@ -748,13 +757,13 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 포팅 대조용 inventory fixture test
   - 레거시 handler와 legacy command ID 대응 관계.
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
-- 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, `품목별 정보 편집`과 `업데이트 메시지`의 `loggedIn`, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
+- 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, `품목별 정보 편집`·`전자저울 관리`·`검색출력모드`·`검색출력 설정`·`업데이트 메시지`의 `loggedIn`, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
 - 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증한다.
 - 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 지점·label size 목록, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
 - 영양성분 형식 focused test에서 형식명 필수, 구성 행 1개 이상, 순차 keyword 자동 부여, parent/detail transaction과 형식 삭제의 연관 삭제를 검증한다. 정렬 command나 별도 중복 검증은 추가하지 않는다.
 - 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 명칭·폭·형식 검증과 선택 행 RTF read-only preview를 검증한다.
 - 검색출력 mode focused test에서 `F12`와 menu toggle이 같은 controller state를 사용하고, tab/button 상태가 전환되며 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건만 기존 pipeline으로 즉시 발행한 뒤 입력을 비우는지 검증한다.
-- 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다.
+- 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다. 지점 관리는 현재 로그인 협력업체·거래처 초기값과 `IsManager`의 두 selector 잠금, `IsCoopAdmin`의 협력업체만 잠금, `IsSystemAdmin`·`IsAdminConnect`·`IsCoopAdminConnect`의 두 selector 활성화를 확인하되 `MANAGER_USER` command 접근을 허용하지 않는다.
 - 협력업체·거래처·지점 관리 focused test에서 삭제 전 공용 시스템 비밀번호 계산과 각 1회의 확인을 검증하고, 사용자·영양성분 삭제에는 이 gate가 추가되지 않는지 확인한다.
 - 협력업체 관리 focused test에서 ID·이름 추가/수정과 목록 refresh, 기존 FK cascade를 사용하는 단일 삭제를 검증한다. 저장 후 로그인 session context reload나 강제 로그아웃은 검증 대상에 추가하지 않는다.
 - 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.
@@ -762,13 +771,14 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다. 관리 row의 grade는 DB 값을 그대로 decoding하며 로그인 전용 `clientUserTestOverrideId`가 적용되지 않는지 확인한다.
 - 관리자 복사 focused test에서 시스템 관리자만 협력업체를 변경하고 두 복사 분기가 사용하는 selector와 checkbox event 순서를 검증한다. 일반 label size 복사의 기존 column 삭제 범위, 대상 ID·이름 유지와 유효 `RICH_FORM_SHEET`·column 복사, 브랜드 복사의 단일 `DbTransactionStatement` 안 `OUTPUT INSERTED`·table variable 기반 브랜드·전체 label size ID mapping을 확인한다. 내부 transaction 제어문, 동적 statement callback, `SelectLastInsert`, XML payload가 없는지 검증한다. 데이터 손실 경고 취소와 대상 첫 지점·프로시저 capability 실패는 DML 0건인지, `품목까지 복사`는 첫 지점으로 세 프로시저를 정해진 순서·parameter로 호출하는지, 성공 후 기존 owner reload/clear가 한 번씩 실행되는지 검증한다. 레거시가 실행·복사하지 않는 연관 table test를 추가하지 않는다.
 - 업데이트 메시지 focused test에서 `loggedIn` 표시와 비로그인 숨김, 현재 사용자별 단일 row 조회, 시스템·협력업체 관리자 편집 범위, 일반 사용자 읽기 전용·다시 보지 않기와 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
-- 검색·치환 focused test에서 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 변경 행 저장을 검증한다. 주석 처리된 `추가 주원료` 검색은 inventory에 추가하지 않는다.
+- 검색·치환 focused test에서 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 변경 행 저장을 검증한다. 품목편집 이동은 현재 선택 행 1건을 사용하고, 출력 이동은 체크 1건 이상·동일 브랜드/label size를 요구해 첫 체크 context와 전체 체크 ID를 사용하며, 두 이동은 미저장 변경을 확인·저장 없이 폐기하는지 검증한다. 주석 처리된 `추가 주원료` 검색은 inventory에 추가하지 않는다.
 - 발행내역 focused test에서 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 범위, `BM_RICH_PRINT_LOG`의 기간·거래처 조건과 `품명` 부분 일치, `사용자ID`·`거래처` 완전 일치, 총 누계·기간·label size 합계와 상세 decoding을 검증한다. 출력 경로 구분이나 pagination이 없는 것은 별도 기능 test로 확대하지 않고 query/model 계약에서 확인한다.
 - 사용자 접속 이력 focused test에서 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 범위, 기간·거래처 조건과 레거시 결과 column decoding을 검증한다.
 - 데이터내용 이력 focused test에서 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회, 그 외 사용자의 현재 거래처 조회를 구분해 검증한다. 행 더블클릭 상세는 `CONTENT_COLUMNS`와 `CONTENTS`를 줄바꿈으로 분리해 짧은 쪽 개수까지만 index pairing하고 before/after 보정을 추가하지 않는지 확인한다.
-- 발행 통계 focused test에서 시스템 관리자만 협력업체·거래처 selector를 변경하는 권한, `SelectDLG`의 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건과 활성 결과 column을 검증한다. 조회 결과의 `RICH_PRINT_COUNT`로 총 발행 매수·삭제 품목 매수를 계산하고 삭제 행을 구분하며, 행 더블클릭 상세가 품명·주원료와 column 이름·저장일·값만 표시하는지 확인한다. 사용자 등급 decoding/filter나 `SelectPrintCountSum` 계열 합계 query test를 추가하지 않는다.
-- 검색출력 설정 focused test에서 브랜드·label size별 column의 `RICH_SEARCH_PRINT` 개별 선택·전체 선택·전체 해제와 적용만 검증한다.
-- command policy test에서 발행내역, 사용자 접속 이력, 데이터내용 이력, 발행 통계, 품목별 정보 편집과 업데이트 메시지가 `loggedIn`이고 비로그인에는 숨겨지는지 검증한다.
+- 발행 통계 focused test에서 시스템 관리자만 협력업체·거래처 selector를 변경하는 권한, `SelectDLG`의 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건, 부분 일치 기본값과 활성 결과 column을 검증한다. 조회 결과의 `RICH_PRINT_COUNT`로 총 발행 매수·삭제 품목 매수를 계산하고 삭제 행을 구분하며, 행 더블클릭 상세가 품명·주원료와 column 이름·저장일·값만 표시하는지 확인한다. 사용자 등급 decoding/filter나 `SelectPrintCountSum` 계열 합계 query test를 추가하지 않는다.
+- 검색출력 설정 focused test에서 현재 브랜드·label size와 DB `RICH_SEARCH_PRINT` 초기값, 브랜드 변경 시 첫 label size 선택, column의 개별 선택·전체 선택·전체 해제와 적용을 검증한다. 미적용 draft가 있는 selector 전환·닫기는 공용 폐기 확인을 한 번 사용하고 취소 시 현재 상태를 유지하며 승인 시 자동 저장 없이 대상 DB 값으로 초기화하거나 닫는지 확인한다.
+- 네 조회 dialog focused test에서 selector와 date filter 초기화만으로 DAO 조회가 실행되지 않고 명시적 조회 command에서 최초 호출되는지 확인한다.
+- command policy test에서 발행내역, 사용자 접속 이력, 데이터내용 이력, 발행 통계, 품목별 정보 편집, 전자저울 관리, 검색출력모드, 검색출력 설정과 업데이트 메시지가 `loggedIn`이고 비로그인에는 숨겨지는지 검증한다.
 - 단축키 차단 helper를 별도로 추가한 경우 차단 surface 활성/중첩/종료와 non-modal preview 제외 결과만 검증한다. route identity나 lease 내부 구조는 테스트 계약으로 고정하지 않는다.
 - 각 신규 model/DAO codec test.
 - 공용 `DbClient.transaction`의 `BEGIN TRANSACTION`, `COMMIT`, 가능한 rollback, 원래 오류 보존과 `DbCommitOutcomeUnknown` 변환은 기존 `test/db_transaction_test.dart`와 `test/db_client_test.dart`에서 한 번 검증한다. 신규 DAO test에서 이 제어 SQL 문자열을 중복 검사하지 않는다.
