@@ -16,6 +16,7 @@ void main() {
     WidgetTester tester, {
     required Size size,
     ValueChanged<AppMenuCommandId>? onSelected,
+    ValueChanged<bool>? onMenuOpenChanged,
     Map<AppMenuCommandId, AppMenuCommandState>? states,
   }) async {
     tester.view.devicePixelRatio = 1;
@@ -34,6 +35,7 @@ void main() {
               ),
               commandStates: states ?? visibleStates,
               onCommandSelected: onSelected ?? (_) {},
+              onMenuOpenChanged: onMenuOpenChanged,
             ),
             actions: [
               IconButton(
@@ -90,10 +92,12 @@ void main() {
     tester,
   ) async {
     final selected = <AppMenuCommandId>[];
+    final menuStates = <bool>[];
     await pumpMenu(
       tester,
       size: const Size(1200, 800),
       onSelected: selected.add,
+      onMenuOpenChanged: menuStates.add,
     );
 
     await tester.tap(
@@ -108,6 +112,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(selected, [AppMenuCommandId.labelPrintSettings]);
+    expect(menuStates, [true, false]);
   });
 
   testWidgets('narrow overflow preserves group then command navigation', (

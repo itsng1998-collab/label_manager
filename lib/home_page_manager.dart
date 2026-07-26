@@ -18,6 +18,7 @@ import 'package:tabbed_view/tabbed_view.dart';
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/app_menu_controller.dart';
+import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/brand.dart';
@@ -2851,7 +2852,14 @@ class _HomePageManagerState extends State<HomePageManager> {
         key == LogicalKeyboardKey.f1 ||
         key == LogicalKeyboardKey.f2 ||
         key == LogicalKeyboardKey.f3 ||
-        key == LogicalKeyboardKey.f5;
+      key == LogicalKeyboardKey.f5 ||
+      key == LogicalKeyboardKey.f12;
+    if (isHomeTabShortcutKey &&
+      (AppShortcutBlocker.instance.isBlocked ||
+        ModalRoute.of(context)?.isCurrent == false)) {
+      debugLog('home shortcut blocked key=$key blockingSurface=true');
+      return true;
+    }
     final keyboard = HardwareKeyboard.instance;
     if (key == LogicalKeyboardKey.f5 &&
         !keyboard.isAltPressed &&

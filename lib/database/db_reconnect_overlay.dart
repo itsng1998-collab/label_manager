@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/database/db_connection_status.dart';
 import 'package:label_manager/database/db_connection_service.dart';
@@ -52,13 +53,14 @@ class _DbReconnectOverlayState extends State<DbReconnectOverlay> {
                 final shouldShow = !_cancelledUntilRestored && ((up == false) || reconnecting);
                 if (!shouldShow) return const SizedBox.shrink();
                 return Positioned.fill(
-                  child: IgnorePointer(
-                    ignoring: false,
-                    child: Stack(
-                      children: [
-                        const ModalBarrier(dismissible: false, color: Colors.black38),
-                        Center(
-                          child: Material(
+                  child: AppShortcutBlockingScope(
+                    child: IgnorePointer(
+                      ignoring: false,
+                      child: Stack(
+                        children: [
+                          const ModalBarrier(dismissible: false, color: Colors.black38),
+                          Center(
+                            child: Material(
                             elevation: 8,
                             color: Colors.white,
                             shape: RoundedRectangleBorder(
@@ -104,8 +106,9 @@ class _DbReconnectOverlayState extends State<DbReconnectOverlay> {
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );

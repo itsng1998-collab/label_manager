@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/app_menu_controller.dart';
+import 'core/app_shortcut_blocker.dart';
 import 'core/lifecycle.dart';
 
 import 'package:label_manager/core/app.dart';
@@ -39,6 +40,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final StartupDbHelper _db = StartupDbHelper();
+  final Object _appMenuShortcutBlockerOwner = Object();
   late final AppMenuController _appMenuController;
   LifecycleCallbacks? _lifecycleCallbacks;
   Future<void>? _disconnectLogoutFuture;
@@ -257,6 +259,7 @@ class _HomePageState extends State<HomePage> {
     }
     _appMenuController.detach(this);
     _appMenuController.dispose();
+    AppShortcutBlocker.instance.deactivate(_appMenuShortcutBlockerOwner);
     _searchCtrl.dispose();
     super.dispose();
     debugLog(END);
@@ -280,6 +283,17 @@ class _HomePageState extends State<HomePage> {
               commandStates: _appMenuController.commandStates,
               onCommandSelected: (id) {
                 unawaited(_appMenuController.execute(id));
+              },
+              onMenuOpenChanged: (open) {
+                if (open) {
+                  AppShortcutBlocker.instance.activate(
+                    _appMenuShortcutBlockerOwner,
+                  );
+                } else {
+                  AppShortcutBlocker.instance.deactivate(
+                    _appMenuShortcutBlockerOwner,
+                  );
+                }
               },
             ),
           ),

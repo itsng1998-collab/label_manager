@@ -8,6 +8,7 @@ class AppMenuBar extends StatelessWidget {
     required this.commandStates,
     required this.onCommandSelected,
     this.searchPrintModeActive = false,
+    this.onMenuOpenChanged,
   });
 
   static const double _minimumTitleWidth = 400;
@@ -18,6 +19,7 @@ class AppMenuBar extends StatelessWidget {
   final Map<AppMenuCommandId, AppMenuCommandState> commandStates;
   final ValueChanged<AppMenuCommandId> onCommandSelected;
   final bool searchPrintModeActive;
+  final ValueChanged<bool>? onMenuOpenChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +58,8 @@ class AppMenuBar extends StatelessWidget {
   Widget _buildGroupAnchor(AppMenuGroup group) {
     final presentation = _groupPresentation(group);
     return MenuAnchor(
+      onOpen: () => onMenuOpenChanged?.call(true),
+      onClose: () => onMenuOpenChanged?.call(false),
       menuChildren: _buildCommandMenu(group),
       builder: (context, controller, child) => IconButton(
         key: ValueKey('app-menu-group-${group.name}'),
@@ -68,6 +72,8 @@ class AppMenuBar extends StatelessWidget {
 
   Widget _buildOverflowAnchor(List<AppMenuGroup> visibleGroups) {
     return MenuAnchor(
+      onOpen: () => onMenuOpenChanged?.call(true),
+      onClose: () => onMenuOpenChanged?.call(false),
       menuChildren: [
         for (final group in visibleGroups)
           SubmenuButton(

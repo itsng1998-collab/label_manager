@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 int _blockingModelessOverlayDialogSequence = 0;
@@ -73,17 +74,19 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
         'blockingOverlayDialog#$dialogId build '
         'overlayContext=${overlayContext.runtimeType}',
       );
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          ModalBarrier(dismissible: false, color: barrierColor),
-          Center(
-            child: Material(
-              type: MaterialType.transparency,
-              child: builder(overlayContext, close),
+      return AppShortcutBlockingScope(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ModalBarrier(dismissible: false, color: barrierColor),
+            Center(
+              child: Material(
+                type: MaterialType.transparency,
+                child: builder(overlayContext, close),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     },
   );
@@ -120,17 +123,19 @@ class _BlockingModelessDialogState extends State<BlockingModelessDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return FocusScope(
-      node: _scopeNode,
-      child: Focus(
-        focusNode: _focusNode,
-        onKeyEvent: _handleKeyEvent,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ModalBarrier(dismissible: false, color: widget.barrierColor),
-            widget.child,
-          ],
+    return AppShortcutBlockingScope(
+      child: FocusScope(
+        node: _scopeNode,
+        child: Focus(
+          focusNode: _focusNode,
+          onKeyEvent: _handleKeyEvent,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ModalBarrier(dismissible: false, color: widget.barrierColor),
+              widget.child,
+            ],
+          ),
         ),
       ),
     );
