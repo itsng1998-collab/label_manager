@@ -77,6 +77,7 @@ import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
+import 'package:label_manager/page_home/content_save_history_dialog.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/page_home/print_history_dialog.dart';
 import 'package:label_manager/page_login/login_history_page.dart';
@@ -384,6 +385,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
   LifecycleParticipant? _printHistoryLifecycleParticipant;
+  OverlayEntry? _contentSaveHistoryOverlayEntry;
+  LifecycleParticipant? _contentSaveHistoryLifecycleParticipant;
   OverlayEntry? _loginHistoryOverlayEntry;
   LifecycleParticipant? _loginHistoryLifecycleParticipant;
   OverlayEntry? _labelPrintProgressOverlayEntry;
@@ -486,6 +489,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.scaleOutputPrinterSettings:
             _openScaleOutputPrinterSettings,
         AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
+        AppMenuCommandId.viewContentHistory: _openContentSaveHistoryDialog,
         AppMenuCommandId.viewLoginHistory: _openLoginHistoryDialog,
       },
     );
@@ -3000,6 +3004,49 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  void _closeContentSaveHistoryDialog() {
+    _contentSaveHistoryOverlayEntry?.remove();
+    _contentSaveHistoryOverlayEntry = null;
+    final participant = _contentSaveHistoryLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _contentSaveHistoryLifecycleParticipant = null;
+    }
+  }
+
+  void _openContentSaveHistoryDialog() {
+    if (_contentSaveHistoryOverlayEntry != null) return;
+    final user = User.instance;
+    final cooperator = Cooperator.instance;
+    final customer = Customer.instance;
+    if (user == null || cooperator == null || customer == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: BlockingModelessDialogFrame(
+          title: '데이터내용 이력 조회',
+          width: 1120,
+          height: 720,
+          onClose: _closeContentSaveHistoryDialog,
+          child: ContentSaveHistoryDialogContent(
+            userGrade: user.grade,
+            initialCooperator: cooperator,
+            initialCustomer: customer,
+          ),
+        ),
+      ),
+    );
+    _contentSaveHistoryOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: () => const LifecycleExitSnapshot(),
+      close: _closeContentSaveHistoryDialog,
+    );
+    _contentSaveHistoryLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _openPrintHistoryDialog() {
     if (_printHistoryOverlayEntry != null) return;
     final user = User.instance;
@@ -4372,6 +4419,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelColumnEditOverlayEntry?.remove();
     _labelColumnEditOverlayEntry = null;
     _closePrintHistoryDialog();
+    _closeContentSaveHistoryDialog();
     _closeLoginHistoryDialog();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
