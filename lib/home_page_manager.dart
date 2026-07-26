@@ -76,6 +76,7 @@ import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
+import 'package:label_manager/page_home/cooperator_manager_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -373,6 +374,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _labelColumnEditCommandBusy = false;
   final ItemElementCommitQueue _itemElementCommitQueue =
       ItemElementCommitQueue();
+  final CooperatorManagerController _cooperatorManagerController =
+      CooperatorManagerController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -383,6 +386,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       'item-draft-cancel-debug-v1';
 
   OverlayEntry? _brandSettingsOverlayEntry;
+  OverlayEntry? _cooperatorManagerOverlayEntry;
+  LifecycleParticipant? _cooperatorManagerLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -490,6 +495,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     widget.appMenuController.attach(
       owner: this,
       handlers: {
+        AppMenuCommandId.manageCooperators: _openCooperatorManagerDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3002,6 +3008,50 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  void _closeCooperatorManagerDialog() {
+    _cooperatorManagerOverlayEntry?.remove();
+    _cooperatorManagerOverlayEntry = null;
+    final participant = _cooperatorManagerLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _cooperatorManagerLifecycleParticipant = null;
+    }
+  }
+
+  void _openCooperatorManagerDialog() {
+    if (_cooperatorManagerOverlayEntry != null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _cooperatorManagerController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '협력업체 관리',
+            width: 760,
+            height: 620,
+            onClose: _closeCooperatorManagerDialog,
+            closeEnabled:
+                !_cooperatorManagerController.activeEditing &&
+                !_cooperatorManagerController.writeBusy,
+            child: child!,
+          ),
+          child: CooperatorManagerDialogContent(
+            controller: _cooperatorManagerController,
+          ),
+        ),
+      ),
+    );
+    _cooperatorManagerOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _cooperatorManagerController.snapshot,
+      close: _closeCooperatorManagerDialog,
+    );
+    _cooperatorManagerLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _closePrintHistoryDialog() {
     _printHistoryOverlayEntry?.remove();
     _printHistoryOverlayEntry = null;
@@ -4517,6 +4567,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _closeCommonLabelHistoryDialog();
     _closeStatusPrintDialog();
     _closeLoginHistoryDialog();
+    _closeCooperatorManagerDialog();
+    _cooperatorManagerController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }

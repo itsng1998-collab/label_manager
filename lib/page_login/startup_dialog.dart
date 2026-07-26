@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
+import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/database/db_connection_status.dart';
 import 'package:label_manager/database/db_result_utils.dart';
@@ -529,9 +530,7 @@ class _LoginPanelState extends State<_LoginPanel> {
   }
 
   String _getSystemPassword([DateTime? now]) {
-    final t = now ?? DateTime.now();
-    final int value = t.month * 3 + t.day;
-    return value.toString().padLeft(4, '0');
+    return systemPasswordForDate(now);
   }
 
   Future<void> _onLoginButtonPressed(String inputPwd) async {

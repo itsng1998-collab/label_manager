@@ -65,6 +65,23 @@ class CooperatorDAO extends DAO {
           LTRIM(RTRIM(CONVERT(NVARCHAR(30),@cooperatorId)))
   ''';
 
+  static const String InsertSql = '''
+    INSERT INTO BM_COOPERATOR (RICH_COOP_ID, RICH_NAME)
+    VALUES (@cooperatorId, @name)
+  ''';
+
+  static const String UpdateSql = '''
+    UPDATE BM_COOPERATOR
+       SET RICH_COOP_ID=@cooperatorId,
+           RICH_NAME=@name
+     WHERE RICH_COOP_ID=@oldCooperatorId
+  ''';
+
+  static const String DeleteSql = '''
+    DELETE FROM BM_COOPERATOR
+     WHERE RICH_COOP_ID=@cooperatorId
+  ''';
+
   static Future<List<Cooperator>> selectAll() async {
     debugLog(START);
     try {
@@ -97,6 +114,51 @@ class CooperatorDAO extends DAO {
     catch (e) {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
+    }
+  }
+
+  static Future<void> insert(Cooperator cooperator) async {
+    try {
+      final result = await DbClient.instance.writeDataWithParams(InsertSql, {
+        'cooperatorId': cooperator.id,
+        'name': cooperator.name,
+      });
+      if (DAO.affectedRows(result) <= 0) {
+        throw Exception('${runtimeLogTag()} Insert failed for cooperatorId:${cooperator.id}');
+      }
+    } catch (_) {
+      rethrow;
+    }
+  }
+
+  static Future<void> update(
+    String oldCooperatorId,
+    Cooperator cooperator,
+  ) async {
+    try {
+      final result = await DbClient.instance.writeDataWithParams(UpdateSql, {
+        'oldCooperatorId': oldCooperatorId,
+        'cooperatorId': cooperator.id,
+        'name': cooperator.name,
+      });
+      if (DAO.affectedRows(result) <= 0) {
+        throw Exception('${runtimeLogTag()} Update failed for cooperatorId:$oldCooperatorId');
+      }
+    } catch (_) {
+      rethrow;
+    }
+  }
+
+  static Future<void> delete(String cooperatorId) async {
+    try {
+      final result = await DbClient.instance.writeDataWithParams(DeleteSql, {
+        'cooperatorId': cooperatorId,
+      });
+      if (DAO.affectedRows(result) <= 0) {
+        throw Exception('${runtimeLogTag()} Delete failed for cooperatorId:$cooperatorId');
+      }
+    } catch (_) {
+      rethrow;
     }
   }
 }

@@ -21,6 +21,43 @@ import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  testWidgets('row double tap only reports a valid data row', (tester) async {
+    final activated = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 240,
+            child: FortuneTable<String>(
+              rows: const ['협력업체 A'],
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'name',
+                  header: '이름',
+                  text: (value) => value,
+                ),
+              ],
+              onRowDoubleTap: (row, index) => activated.add('$index:$row'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('이름'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('이름'));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(activated, isEmpty);
+
+    await tester.tap(find.text('협력업체 A'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('협력업체 A'));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(activated, ['0:협력업체 A']);
+  });
+
   test('settings operation gate ignores concurrent operations', () async {
     final gate = SettingsOperationGate();
     final completer = Completer<void>();

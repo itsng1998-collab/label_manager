@@ -251,6 +251,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.editingController,
     this.scrollController,
     this.onRowSelected,
+    this.onRowDoubleTap,
     this.onSelectionFocusChanged,
     this.onCellActivated,
     this.onRowSecondaryTapDown,
@@ -284,6 +285,7 @@ class FortuneTable<T> extends StatefulWidget {
   final FortuneTableEditingController? editingController;
   final FortuneTableScrollController? scrollController;
   final void Function(T row, int index)? onRowSelected;
+  final void Function(T row, int index)? onRowDoubleTap;
   final void Function(T row, int index)? onSelectionFocusChanged;
   final void Function(T row, int rowIndex, String columnId)? onCellActivated;
   final void Function(T row, int index, TapDownDetails details)?
@@ -1046,45 +1048,61 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           unawaited(_queueTextEditingCommit());
         }
       },
-      child: Container(
-        width: width,
-        decoration: BoxDecoration(
-          color: color,
-          border: const Border(
-            right: BorderSide(color: _bodySeparatorColor),
-            bottom: BorderSide(color: _bodySeparatorColor),
-          ),
-        ),
-        alignment: column.isCheckbox ? Alignment.center : Alignment.centerLeft,
-        padding: column.isCheckbox
-            ? EdgeInsets.zero
-            : _editingRowIndex == rowIndex &&
-                  _editingColumnIndex == columnIndex
-            ? EdgeInsets.zero
-            : const EdgeInsets.symmetric(horizontal: 8),
-        child: column.isCheckbox
-            ? _FortuneTableCheckbox(
-              key: ValueKey('fortune_table_checkbox_${column.id}_$rowIndex'),
-              value:
-                  column.checkboxController?.isChecked(column.id, rowIndex) ??
-                  column.checkboxValueAt?.call(row, rowIndex) ??
-                  column.checkboxValue?.call(row) ??
-                  false,
-              onChanged: (value) {
-                column.checkboxController?.setChecked(
-                  column.id,
-                  rowIndex,
-                  value,
-                );
-                final onCheckboxChangedAt = column.onCheckboxChangedAt;
-                if (onCheckboxChangedAt != null) {
-                  onCheckboxChangedAt(row, rowIndex, value);
-                } else {
-                  column.onCheckboxChanged?.call(row, value);
-                }
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onDoubleTap: widget.onRowDoubleTap == null
+            ? null
+            : () {
+                _selectRow(row, rowIndex);
+                widget.onRowDoubleTap!(row, rowIndex);
               },
-              )
-            : _buildTextCell(row, rowIndex, columnIndex, column, color),
+        child: Container(
+          width: width,
+          decoration: BoxDecoration(
+            color: color,
+            border: const Border(
+              right: BorderSide(color: _bodySeparatorColor),
+              bottom: BorderSide(color: _bodySeparatorColor),
+            ),
+          ),
+          alignment: column.isCheckbox
+              ? Alignment.center
+              : Alignment.centerLeft,
+          padding: column.isCheckbox
+              ? EdgeInsets.zero
+              : _editingRowIndex == rowIndex &&
+                    _editingColumnIndex == columnIndex
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: 8),
+          child: column.isCheckbox
+              ? _FortuneTableCheckbox(
+                  key: ValueKey(
+                    'fortune_table_checkbox_${column.id}_$rowIndex',
+                  ),
+                  value:
+                      column.checkboxController?.isChecked(
+                        column.id,
+                        rowIndex,
+                      ) ??
+                      column.checkboxValueAt?.call(row, rowIndex) ??
+                      column.checkboxValue?.call(row) ??
+                      false,
+                  onChanged: (value) {
+                    column.checkboxController?.setChecked(
+                      column.id,
+                      rowIndex,
+                      value,
+                    );
+                    final onCheckboxChangedAt = column.onCheckboxChangedAt;
+                    if (onCheckboxChangedAt != null) {
+                      onCheckboxChangedAt(row, rowIndex, value);
+                    } else {
+                      column.onCheckboxChanged?.call(row, value);
+                    }
+                  },
+                )
+              : _buildTextCell(row, rowIndex, columnIndex, column, color),
+        ),
       ),
     );
   }
