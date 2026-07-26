@@ -24,7 +24,7 @@ enum LoginCondition {
 class LoginLog {
  	final int logId;
 	final String userId;
-	final UserGrade userGrade;
+  final String userGrade;
 	final String programVersion;
 	final int customerId;
 	final String customerName;
@@ -53,7 +53,7 @@ class LoginLog {
     return LoginLog(
       logId:              i('LOG_ID'),
       userId:             s('USER_ID'),
-      userGrade:          UserGrade.fromCode(i('USER_GRADE')),
+      userGrade:          s('USER_GRADE'),
       programVersion:     s('PROGRAM_VERSION'),
       customerId:         i('CUSTOMER_ID'),
       customerName:       s('CUSTOMER_NAME'),
@@ -67,9 +67,29 @@ class LoginLog {
 
 class LoginLogDAO extends DAO {
   static const String SelectSql = '''
+    SELECT
+      COALESCE(CONVERT(NVARCHAR(20), LOGIN_LOG_ID), N'') AS LOG_ID,
+      COALESCE(CONVERT(NVARCHAR(30), USER_ID COLLATE ${DAO.CP949}), N'') AS USER_ID,
+      COALESCE(CONVERT(NVARCHAR(30), USER_GRADE COLLATE ${DAO.CP949}), N'') AS USER_GRADE,
+      COALESCE(CONVERT(NVARCHAR(50), PROGRAM_VERSION COLLATE ${DAO.CP949}), N'') AS PROGRAM_VERSION,
+      COALESCE(CONVERT(NVARCHAR(20), CUST_ID), N'') AS CUSTOMER_ID,
+      COALESCE(CONVERT(NVARCHAR(50), CUST_NAME COLLATE ${DAO.CP949}), N'') AS CUSTOMER_NAME,
+      COALESCE(CONVERT(NVARCHAR(30), LOGIN_DATE, 120), N'') AS LOGIN_DATE,
+      COALESCE(CONVERT(NVARCHAR(8), LOGIN_DATE_YYYYMMDD COLLATE ${DAO.CP949}), N'') AS LOGIN_DATE_YYYYMMDD,
+      COALESCE(CONVERT(NVARCHAR(100), LOGIN_IP COLLATE ${DAO.CP949}), N'') AS LOGIN_IP,
+      COALESCE(CONVERT(NVARCHAR(20), LOGIN_CONDITION), N'') AS LOGIN_CONDITION
+    FROM BM_LOGIN_LOG
   ''';
 
   static const String WhereSqlLogId = '''
+    WHERE LOGIN_LOG_ID=@logId
+  ''';
+
+  static const String BetweenDatesAndCustomerSql = '''
+    $SelectSql
+    WHERE LOGIN_DATE_YYYYMMDD BETWEEN @startDate AND @endDate
+      AND CUST_ID=@customerId
+    ORDER BY LOGIN_DATE ASC
   ''';
 
   static const String InsertSql = '''
@@ -99,6 +119,29 @@ class LoginLogDAO extends DAO {
       return LoginLog.fromMap(map!);
     }
     catch (e) {
+      throw Exception('${runtimeLogTag()} $e');
+    }
+  }
+
+  static Future<List<LoginLog>> selectBetweenDatesAndCustomer({
+    required String startDate,
+    required String endDate,
+    required int customerId,
+  }) async {
+    try {
+      final result = await DbClient.instance.getDataWithParams(
+        BetweenDatesAndCustomerSql,
+        {
+          'startDate': startDate,
+          'endDate': endDate,
+          'customerId': customerId,
+        },
+      );
+      return DAO.getRowsFromResult(result)
+          .whereType<Map>()
+          .map((row) => LoginLog.fromMap(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+    } catch (e) {
       throw Exception('${runtimeLogTag()} $e');
     }
   }
