@@ -139,11 +139,11 @@
 
 ### 3.3 권한 표시 방식
 
-- 레거시 MainFrm의 비활성 표시를 그대로 복제하지 않고 현재 Flutter 앱의 권한 UX를 따른다.
+- 레거시 MainFrm의 비활성 표시를 그대로 복제하지 않고 현재 Flutter 앱의 권한 UX를 따른다. 이는 AppBar menu 표시 방식만의 의도적 차이이며 command 권한·실행 조건·기능 범위를 넓히는 근거로 사용하지 않는다.
 - 현재 로그인 상태나 사용자 등급 policy에서 표시 대상이 아닌 command는 `visible=false`로 메뉴에서 숨긴다. 로그인/로그아웃 또는 사용자 변경 시 policy를 다시 계산한다.
 - dirty, busy, 필수 선택 누락처럼 현재 상태를 해결하면 실행할 수 있는 command만 표시한 채 비활성화한다.
-- 비활성 popup item은 명령명 아래 또는 오른쪽에 짧은 `disabledReason`을 직접 표시한다. hover에 의존하는 tooltip을 유일한 안내로 사용하지 않는다.
-- `disabledReason`은 현재 품목관리 popup처럼 읽을 수 있는 길이로 직접 표시하며 필요한 경우 두 줄까지 허용한다. 실제 공간 때문에 문구를 줄일 때만 tooltip으로 전체 내용을 보조하고, 기본 text semantics로 정보가 전달되지 않는 custom renderer에만 별도 semantics label을 추가한다.
+- 비활성 popup item의 `disabledReason`은 개별 command 본문이 필수 context 누락처럼 사용자가 해결해야 할 사유를 명시한 경우에만 명령명 아래 또는 오른쪽에 짧게 표시한다. 일반 dirty·busy·권한 상태마다 설명 문구를 새로 만들지 않는다.
+- 명시된 `disabledReason`은 현재 품목관리 popup처럼 읽을 수 있는 길이로 직접 표시하며 필요한 경우 두 줄까지 허용한다. 실제 공간 때문에 문구를 줄일 때만 tooltip으로 전체 내용을 보조하고, 기본 text semantics로 정보가 전달되지 않는 custom renderer에만 별도 semantics label을 추가한다.
 - `legacyInactive`와 `legacyUnreachable` command는 inventory와 숨김 policy만 유지한다. `legacyInactive`는 레거시가 명시적으로 비활성화한 command, `legacyUnreachable`은 메뉴 리소스에서 활성 handler까지 도달하는 경로가 확인되지 않은 command에 사용한다. 별도 활성화 요구나 실제 도달 경로가 확인될 때 기능 범위와 노출 policy를 함께 검토한다.
 - 그룹 안에 표시할 command가 하나도 없으면 빈 그룹 아이콘도 숨긴다.
 - 로그인/로그아웃 command는 inventory와 controller에 유지하되 `파일/관리` popup에는 렌더링하지 않는다. 현재 상태에 맞는 AppBar 오른쪽 고정 아이콘 하나만 표시한다.
@@ -167,7 +167,7 @@
   - runtime command 값에는 포팅 추적만을 위한 legacy command ID를 넣지 않는다. 레거시 handler와 ID 대응 관계는 inventory test fixture에 보존한다.
   - inventory에는 레거시에서 확인된 `설정 > 검색출력`과 두 child command의 관계만 보존한다. 임의 depth의 범용 menu tree metadata로 확장하지 않는다.
   - command metadata는 기본 `label`, optional icon, optional `shortcutLabel`을 포함한다. shortcut 보조 영역은 이 metadata로 렌더링하며 command별 widget 문자열로 중복하지 않는다.
-  - `AppMenuCommandState`: visible, enabled, disabledReason.
+  - `AppMenuCommandState`: visible, enabled, optional disabledReason.
   - DB나 BuildContext를 참조하지 않는 순수 값 타입.
 - `lib/core/app_menu_policy.dart`
   - 로그인 상태, `UserGrade`, 현재 작업 상태로 command 상태를 계산하는 순수 policy.
@@ -211,8 +211,8 @@
 - 읽기 전용 이력 조회까지 일괄 차단하지 않는다.
 - 저장 command busy 중 DB를 다시 갱신하거나 같은 데이터를 수정하는 command만 비활성화한다.
 - 로그인 상태/등급/`legacyInactive`/`legacyUnreachable`처럼 현재 policy에서 표시 대상이 아닌 command는 `visible=false`로 처리하고 disabled reason을 만들지 않는다.
-- 편집 중, command busy, 필수 context 누락은 서로 다른 disabled reason으로 계산한다.
-- disabled reason은 테스트 가능한 순수 policy 결과로 유지하고 popup item 안의 보조 문구로 직접 안내한다. tooltip은 전체 문구 보조에만 사용하고 별도 경고 dialog를 띄우지 않는다.
+- 편집 중, command busy, 필수 context 누락은 서로 다른 command state 원인으로 계산하되, `disabledReason`은 개별 command 계약이 명시한 필수 context 누락에만 제공한다.
+- 명시된 disabled reason은 테스트 가능한 순수 policy 결과로 유지하고 popup item 안의 보조 문구로 직접 안내한다. tooltip은 실제 공간 때문에 줄인 문구의 보조에만 사용하고 별도 경고 dialog를 띄우지 않는다.
 
 ## 5. 레거시 메뉴 inventory와 포팅 계약
 
@@ -665,13 +665,13 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 즉시 적용형·단순 설정형 dialog와 기존 owning dialog는 현재 동작에 지속적인 footer가 없으면 억지로 추가하지 않는다.
 - dialog를 열면 현재 작업의 첫 번째 주요 입력이나 table에 초기 focus를 두고, 비활성 control을 건너뛰며 마우스 없이 주요 입력과 command를 이동할 수 있게 한다. 화면마다 동일한 고정 Tab 영역 순서를 강제하지 않는다.
 - Esc는 현재 focus를 가진 child에 실제 취소할 상태가 있을 때만 그 상태를 먼저 취소한다. 활성 셀 편집, dropdown, picker처럼 child가 Esc를 직접 처리하면 dialog를 닫지 않고, 처리할 상태가 없으면 dialog 닫기 요청으로 이어진다. 일반 단일 행 선택과 checkbox 다중 선택은 별도 Esc 취소 단계로 간주하지 않는다.
-- 사용자가 해당 dialog만 직접 닫을 때는 clean 상태를 즉시 닫고 그 dialog가 dirty일 때만 폐기 확인을 거친다. 로그아웃·메뉴 종료·OS 종료는 dialog별 확인창을 띄우지 않고 공용 lifecycle guard의 전체 dirty 통합 확인을 사용한다. dialog-level Enter는 현재 focus child가 셀·입력 편집으로 먼저 소비하지 않았고 개별 command에 예외가 명시되지 않았을 때 dialog 전체 저장 command를 실행하지 않는다.
+- 개별 기능 본문이 draft와 dirty 상태를 명시한 dialog를 사용자가 직접 닫을 때만 clean 상태를 즉시 닫고 dirty이면 폐기 확인을 거친다. 그 밖의 dialog에 닫기 확인이나 dirty 상태를 추측으로 추가하지 않는다. 로그아웃·메뉴 종료·OS 종료는 실제 dirty owner별 확인창을 띄우지 않고 공용 lifecycle guard의 전체 dirty 통합 확인을 사용한다. dialog-level Enter는 현재 focus child가 셀·입력 편집으로 먼저 소비하지 않았고 개별 command에 예외가 명시되지 않았을 때 dialog 전체 저장 command를 실행하지 않는다.
 - 화면별 Enter 예외는 활성 레거시 동작만 따른다. 협력업체·거래처·지점·사용자 추가/수정 입력은 적용 command를 실행하고 검증을 통과하면 입력 dialog를 닫아 parent 저장·목록 갱신으로 돌아간다. 품목별 정보 편집은 저장 command가 활성일 때 저장하고 dialog를 유지하며, 영양성분 형식·표 입력은 저장 후에도 dialog를 유지한다. 영양성분 형식·표 manager 목록의 Enter는 현재 선택에 대한 수정 command를 실행하고 미선택이면 안내만 표시한다. 업데이트 메시지는 등급별 저장 후 dialog를 닫고, 사용자 관리 검색 입력은 이름 검색을 실행한다. 검색·치환은 검색 입력의 Enter만 검색하고 다른 control의 Enter는 무동작이다. 발행내역과 발행 통계는 현재 filter로 조회하고 사용자 접속 이력과 데이터내용 이력은 조회·닫기를 실행하지 않는다. 검색출력 설정은 5.3.11의 적용 후 유지 계약을 따른다. 네 계층형 관리 목록과 관리자 복사에서 child가 소비하지 않은 Enter는 수정·복사·닫기를 실행하지 않는다. 이 예외를 다른 dialog로 확대하지 않는다.
 - dialog를 닫으면 가능한 경우 이를 연 AppBar control로 focus를 돌린다. 공용 wrapper 확장은 실제로 여러 dialog에서 같은 처리가 중복될 때 수행한다.
 - 모든 활성 신규 dialog owner는 종료 전용 lifecycle participant로 등록하되 dirty, write-busy 또는 active editing이 있을 때만 non-empty exit snapshot을 제공한다. clean·읽기 전용 participant도 close callback 수집을 위해 등록을 유지하고, dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
 - 읽기 전용 dialog는 종료용 dirty/write-busy 상태를 추가하지 않고 닫은 뒤 늦은 조회 결과를 폐기한다. 공용 lifecycle guard는 활성 participant와 `HomePageManager` snapshot을 함께 평가하고 통합 dirty 확인이 끝난 뒤 수집한 overlay close callback을 실행한다. HomePage나 AppBar가 manager의 private 상태를 각각 복제하거나 별도 확인창을 만들지 않는다.
 - 저장·삭제 transaction busy 중에는 중복 실행과 닫기를 비활성화한다.
-- footer가 없는 즉시 적용형·단순 설정형 dialog는 busy를 시작한 control 가까이에 작업 성격에 맞는 spinner 또는 짧은 상태 문구를 표시하고 관련 입력과 command만 비활성화한다. 장시간 저장처럼 상태 설명이 필요한 경우에만 spinner와 문구를 함께 표시하며, 진행 표시 없이 닫기만 비활성화해 화면이 멈춘 것처럼 보이게 하지 않는다.
+- footer가 없는 즉시 적용형·단순 설정형 dialog는 기존 owning 화면에 busy 표시가 있으면 그대로 재사용한다. 신규 dialog는 실제 대기로 현재 상태가 불명확해지는 작업에만 busy를 시작한 control 가까이에 spinner 또는 짧은 상태 문구 중 하나를 최소로 표시하고 관련 입력과 command만 비활성화한다. 모든 저장·조회에 진행 표시나 공용 busy widget을 일괄 추가하지 않는다.
 - 읽기 전용 조회 busy 중에도 닫기 경로를 유지한다. 실제 조회 취소 API가 있을 때만 `조회 취소` command를 표시한다. 취소할 수 없는 DB Future는 dialog를 닫은 뒤 늦게 도착한 결과만 폐기하며 자동 retry나 복구 저장소를 추가하지 않는다.
 - dialog 안에서 확인·경고나 date/time picker를 열 때는 root overlay의 현재 차단창 위에 삽입되는 `showBlockingModelessOverlayDialog` 경로를 사용한다. 같은 picker 구성이 반복될 때만 공용 helper로 추출한다.
 - dropdown처럼 별도 overlay surface가 필요한 control은 현재 `_ModelessDropdownField`/`_DialogDropdown` 패턴을 재사용하고 dialog 위 표시와 화면 경계 clamp를 보장한다. 같은 구현이 두 화면 이상에서 중복될 때 공용 control로 추출한다.
@@ -908,7 +908,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 레거시 separator 경계와 command label. visibility 적용 뒤에는 양쪽에 visible command가 있는 경계만 표시하고 선행·후행·연속 separator가 없음.
   - popup이 command의 간결한 한글 기본 label을 그대로 표시함.
   - `검색출력모드`의 `F12`만 명령명과 분리된 오른쪽 보조 영역 및 semantics에 표시되고, 기존 품목관리 탭 shortcut인 `F1`은 `품목별 정보 편집`에 표시·연결되지 않음.
-  - 권한 부족·`legacyInactive`·`legacyUnreachable` command 숨김과 transient dirty/busy command의 inline disabled reason 표시. 문구를 실제로 줄이는 renderer만 전체 tooltip을, 기본 text semantics가 부족한 custom renderer만 별도 semantics를 검증한다.
+  - 권한 부족·`legacyInactive`·`legacyUnreachable` command 숨김이 command 권한·기능 범위를 넓히지 않고, 개별 계약이 명시한 필수 context 누락 command에만 inline disabled reason을 표시함. 문구를 실제로 줄이는 renderer만 전체 tooltip을, 기본 text semantics가 부족한 custom renderer만 별도 semantics를 검증한다.
   - 로그인/로그아웃 command는 inventory에 존재하지만 `파일/관리` popup에는 렌더링되지 않고 현재 상태의 AppBar 고정 아이콘 하나만 표시.
   - 대표 command를 통해 별도 command ID·label 렌더링과 주입된 검색출력 mode 상태에 맞는 checkmark 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
@@ -973,7 +973,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - shortcut을 command label 문자열에 직접 합치거나, 차단 surface가 보이는 동안 화면 전역 `HardwareKeyboard` command를 실행하지 않는다.
 - AppBar popup을 닫기 전에 dialog·탭 이동·toggle·종료 command를 시작하거나 command를 중복 실행하지 않는다.
 - 좁은 폭을 지원하려고 서버 상태·로그인 command를 숨기지 않는다.
-- 비활성 popup item의 실행 불가 사유를 hover tooltip으로만 제공하지 않는다.
+- 개별 command 계약이 명시한 비활성 사유를 hover tooltip으로만 제공하지 않는다.
 - 지원하지 않는 CRUD command를 비활성 toolbar/rail button으로 표시하지 않는다.
 - 같은 footer 구조가 반복되기 전에 새 공용 footer widget을 선행 추가하지 않는다.
 - 즉시 적용형·단순 설정형 또는 기존 owning dialog에 footer를 억지로 추가하지 않는다.

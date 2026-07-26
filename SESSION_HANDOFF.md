@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 40차 재감사에서 레거시보다 넓게 읽히는 공통 폐기 확인·busy 표시·`disabledReason` 계약을 개별 화면 또는 기존 owner가 실제 상태를 정의한 범위로 축소한다.
+- 사용자 확정: 권장안대로 지시서를 정리한다. 권한 밖 command 숨김은 현재 Flutter 메뉴 표시 방식의 의도적 차이로만 유지하고 command 권한·기능 범위를 확대하지 않는다. 개별 본문에서 dirty를 정의하지 않은 dialog에 폐기 확인을 추가하지 않고, 모든 busy·비활성 command에 상태 문구나 `disabledReason`을 일괄 생성하지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 3.3·4.3·7.1·AppBar widget test에서 권한 숨김의 한계, 개별 dirty 계약, 기존 busy 표시 우선, 명시된 필수 context만의 `disabledReason`을 동기화한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 40차 한정 계약과 이전 포괄 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- 공통 UX 범위 편집 완료: [doc/app_menu_porting.txt] 3.3·4.3에서 권한 숨김을 표시 방식 차이로 한정하고 `disabledReason`을 개별 command가 명시한 필수 context 누락에만 제공하도록 했다. 7.1에서는 개별 본문이 dirty를 정의한 dialog만 직접 닫기 폐기 확인을 사용하고, 기존 owner의 busy 표시를 우선하며 신규 dialog의 실제 대기가 불명확한 작업에만 최소 진행 표시를 사용하도록 축소했다.
+- 테스트 계약 편집 완료: AppBar widget test와 금지 사항에서 일반 dirty·busy 상태의 inline 사유를 요구하지 않고 개별 계약이 명시한 필수 context 누락만 검증하도록 동기화했다. 프린터 설정의 label size `disabledReason` 등 기존 개별 계약은 유지했다.
+- 첫 편집 검증 완료: [SESSION_HANDOFF.md] 진행 기록과 [doc/app_menu_porting.txt] 공통 UX 편집 직후 `git diff --check`가 각각 통과했다.
+- 검증 완료: 40차 한정 계약 `9/9`, 이전 포괄 `disabledReason`·직접 닫기 폐기 확인·busy 표시 문구 잔존 `0`, 프린터 label size 개별 `disabledReason` 유지, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- diff 검토 완료: 변경은 3.3 권한 표시 한계, 4.3 선택적 `disabledReason`, 7.1 개별 dirty·최소 busy 표시, AppBar widget test와 금지 사항 동기화에만 한정됐다. 개별 기능의 권한·저장·Enter·transaction 계약은 변경하지 않았고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 20 insertions, 10 deletions다.
 - 완료: [doc/app_menu_porting.txt] 39차 감사에서 확인한 검색·치환 검색 입력 Enter와 발행 통계 활성 조회의 `RICH_PRINT_DATE` 정렬 계약을 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. `CSearchAndReplaceDlg::PreTranslateMessage`와 `CStatusPrintModel::Search → CStatusPrintDAO::SelectDLG` 활성 경로로 두 동작이 확정되며, 다른 control Enter나 미사용 DAO 정렬까지 확대하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.1·7.1·검색·치환 focused test에 검색 입력 Enter의 검색 1회와 그 밖의 Enter 무동작을 명시한다. 5.2.6·7.4·발행 통계 focused test의 잘못된 `RICH_DATETIME ASC`를 활성 `SelectDLG`의 `ORDER BY RICH_PRINT_DATE`로 수정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
