@@ -476,6 +476,10 @@ class _HomePageState extends State<HomePage> {
                     User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                   AdminConnectSession.instance.isAdminConnect,
                 onCustomerAdminConnect: _connectToCustomer,
+                marketCooperatorSelectionEnabled:
+                  User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
+                  AdminConnectSession.instance.isAdminConnect ||
+                  AdminConnectSession.instance.isCoopAdminConnect,
                 selectedBrand: _selectedBrand,
                 onBrandChanged: (v) {
                   setState(() => _selectedBrand = v);

@@ -1,0 +1,193 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/models/market.dart';
+import 'package:label_manager/page_home/market_manager_dialog.dart';
+
+void main() {
+  const marketA = Market(marketId: 1, customerId: 10, name: 'A 지점');
+
+  test('manager lifecycle blocks child and write work', () {
+    final controller = MarketManagerController();
+    expect(controller.snapshot().blockingReason, isNull);
+    controller.setActiveEditing(true);
+    expect(controller.snapshot().blockingReason, contains('입력'));
+    controller.setActiveEditing(false);
+    controller.setWriteBusy(true);
+    expect(controller.snapshot().blockingReason, contains('작업'));
+    controller.dispose();
+    controller.setWriteBusy(false);
+  });
+
+  testWidgets(
+    'cooperator change clears customer and commands without fallback',
+    (tester) async {
+      final marketScopes = <int>[];
+      await _pumpManager(
+        tester,
+        selectionEnabled: true,
+        loadMarkets: (customerId) async {
+          marketScopes.add(customerId);
+          return const [marketA];
+        },
+      );
+
+      await tester.tap(find.byKey(const ValueKey('marketCooperatorSelector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('B').last);
+      await tester.pumpAndSettle();
+
+      expect(marketScopes, [10]);
+      expect(find.text('A 지점'), findsNothing);
+      final add = tester.widget<IconButton>(
+        find.byKey(const ValueKey('marketAddButton')),
+      );
+      final delete = tester.widget<IconButton>(
+        find.byKey(const ValueKey('marketDeleteButton')),
+      );
+      expect(add.onPressed, isNull);
+      expect(delete.onPressed, isNull);
+    },
+  );
+
+  testWidgets('explicit customer selection enables empty-name add and reload', (
+    tester,
+  ) async {
+    final inserted = <Market>[];
+    var loads = 0;
+    await _pumpManager(
+      tester,
+      selectionEnabled: true,
+      loadMarkets: (_) async {
+        loads += 1;
+        return const [];
+      },
+      insert: (market) async {
+        inserted.add(market);
+        return 20;
+      },
+    );
+    await tester.tap(find.byKey(const ValueKey('marketCooperatorSelector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('B').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('marketCustomerSelector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('B 거래처').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('marketAddButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+
+    expect(inserted, hasLength(1));
+    expect(inserted.single.customerId, 20);
+    expect(inserted.single.name, isEmpty);
+    expect(loads, 3);
+  });
+
+  testWidgets('valid row double tap updates and delete uses one warning', (
+    tester,
+  ) async {
+    final updated = <Market>[];
+    final deleted = <int>[];
+    await _pumpManager(
+      tester,
+      selectionEnabled: false,
+      loadMarkets: (_) async => const [marketA],
+      update: (market) async => updated.add(market),
+      delete: (marketId) async => deleted.add(marketId),
+    );
+
+    await _doubleTap(tester, find.text('A 지점'));
+    await tester.enterText(
+      find.byKey(const ValueKey('marketNameField')),
+      '수정 지점',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(updated.single.name, '수정 지점');
+
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('A 지점'));
+    await tester.tap(find.byKey(const ValueKey('marketDeleteButton')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('marketSystemPasswordField')),
+      '1234',
+    );
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('모든 ID가 삭제됩니다'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(deleted, [1]);
+  });
+}
+
+Future<void> _pumpManager(
+  WidgetTester tester, {
+  required bool selectionEnabled,
+  required Future<List<Market>?> Function(int customerId) loadMarkets,
+  Future<int> Function(Market market)? insert,
+  Future<void> Function(Market market)? update,
+  Future<void> Function(int marketId)? delete,
+}) async {
+  final controller = MarketManagerController();
+  addTearDown(controller.dispose);
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 900,
+          height: 660,
+          child: MarketManagerDialogContent(
+            controller: controller,
+            initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
+            initialCustomer: const Customer(
+              customerId: 10,
+              cooperatorId: 'A',
+              customerName: 'A 거래처',
+            ),
+            cooperatorSelectionEnabled: selectionEnabled,
+            loadCooperators: () async => const [
+              Cooperator(id: 'A', name: 'A 업체'),
+              Cooperator(id: 'B', name: 'B 업체'),
+            ],
+            loadCustomers: (cooperatorId) async => cooperatorId == 'A'
+                ? const [
+                    Customer(
+                      customerId: 10,
+                      cooperatorId: 'A',
+                      customerName: 'A 거래처',
+                    ),
+                  ]
+                : const [
+                    Customer(
+                      customerId: 20,
+                      cooperatorId: 'B',
+                      customerName: 'B 거래처',
+                    ),
+                  ],
+            loadMarkets: loadMarkets,
+            insert: insert ?? (market) async => 1,
+            update: update ?? (market) async {},
+            delete: delete ?? (marketId) async {},
+            systemPassword: ([now]) => '1234',
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
+  await tester.tap(finder);
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.tap(finder);
+  await tester.pump(const Duration(milliseconds: 350));
+}
