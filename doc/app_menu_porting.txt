@@ -258,12 +258,13 @@ END CATCH
 - 권한: 6.1의 `systemAdminCommand`.
 - 구현 지시:
   - 기존 `Cooperator` model/조회 API를 먼저 확인한다.
-  - 목록, 추가, 이름 수정, 삭제를 제공하는 `BlockingModelessDialog` 기반 관리 dialog를 구현한다.
+  - 목록, 추가, 협력업체 ID·이름 수정, 삭제를 제공하는 `BlockingModelessDialog` 기반 관리 dialog를 구현한다.
   - 추가·수정은 별도 입력 dialog의 적용/취소 단위로 수행하고, 적용 성공 시 즉시 저장한 뒤 목록을 갱신한다. 목록 전체의 전역 저장/취소 footer는 두지 않는다.
   - 신규 CRUD가 필요하면 `CooperatorDAO`를 최소 확장한다.
-  - 삭제 종속성은 레거시 DAO가 검사하는 기존 조건만 적용한다.
+- 삭제는 레거시처럼 시스템 비밀번호 확인 후 종속 거래처 삭제 경고를 한 번 표시하고 실행한다. 시스템 비밀번호는 현재 `startup_dialog.dart`의 `_getSystemPassword()`와 같은 `월 * 3 + 일` 4자리 계산을 작은 공용 helper로 추출해 재사용하며 다른 삭제 command로 확대하지 않는다.
+- 레거시 `CCoopDAO::Delete`는 별도 종속성 검사를 하지 않고 기존 FK cascade에 의존한다. 실제 schema의 기존 cascade만 사용하고 앱에서 별도 사전 검사나 수동 연관 삭제를 추가하지 않는다. `DELETE FROM BM_COOPERATORWHERE`가 되는 레거시 SQL의 공백 누락은 복제하지 않는다.
 - DB gate: `BM_COOPERATOR` 실제 컬럼과 레거시 SQL을 확인하기 전 DML SQL을 작성하지 않는다.
-- 저장 후 로그인 세션의 현재 협력업체가 영향을 받으면 필요한 cache만 명시적으로 reload한다.
+- 저장 후 관리 dialog 목록만 다시 조회한다. 현재 로그인 협력업체를 수정해도 session context 자동 reload나 강제 로그아웃을 추가하지 않는다.
 
 ### 5.1.4 거래처 관리 (`IDM_CUST_MANAGE`)
 
@@ -274,7 +275,9 @@ END CATCH
 - 선택 거래처 `Connect`를 포팅한다. 레거시와 같이 원래 관리자 계정을 한 번 보존하고 현재 관리자 종류에 맞는 `IsAdminConnect`/`IsCoopAdminConnect`를 설정한 뒤, 선택 거래처의 사용자·지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다.
 - `Connect`에 사용할 지점과 사용자 선택은 레거시 `CCustManagerDlg::Connect` 범위를 그대로 따른다. 관리 사용자를 자동 생성하거나 다른 등급으로 대체하는 fallback, 임의 사용자 선택 UI를 추가하지 않는다.
 - 기존 `Customer` model을 우선 사용하고 CRUD가 없을 때만 DAO API를 추가한다.
-- `BM_CUSTOMER` 실제 schema와 레거시 DAO의 정렬/중복/삭제 조건을 그대로 따른다.
+- 추가·수정 입력은 선택 협력업체에 속한 거래처 이름만 편집한다.
+- 삭제는 레거시처럼 시스템 비밀번호 확인 후 삭제 경고를 한 번 표시하고 `BM_CUSTOMER` 한 건을 삭제한다. 실제 schema의 기존 FK cascade만 사용하고 앱에서 별도 종속성 사전 검사나 수동 연관 삭제를 추가하지 않는다.
+- `BM_CUSTOMER` 실제 schema와 레거시 DAO의 정렬·중복 조건을 그대로 따른다.
 - 협력업체 관리와 하나의 generic CRUD dialog로 합치지 않는다. 공용 table shell 정도만 재사용한다.
 
 ### 5.1.5 지점 관리 (`IDM_MARKET_MANAGE`)
@@ -283,8 +286,11 @@ END CATCH
 - 권한: 6.1의 `managerCommand`.
 - 현재 레거시 구현은 `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect` 중 하나만 활성이고 `MANAGER_USER`는 제외하므로 이를 visibility policy test로 고정한다.
 - command 접근 권한과 selector 변경 권한을 구분한다. 레거시 `CMarketManagerDlg::OnInitDialog`와 같이 `IsCoopAdmin`이면 협력업체 selector를 비활성화하며, 허용된 나머지 상태의 selector 동작도 해당 dialog 구현을 그대로 따른다.
-- 기존 `Market` model/조회 API를 확장해 거래처별 지점 CRUD를 구현한다.
-- 현재 로그인 지점 삭제/변경처럼 세션을 무효화할 수 있는 동작은 레거시 확인 없이 자동 로그아웃 같은 보완을 추가하지 않는다. 해당 동작이 레거시에 있으면 그대로 포팅한다.
+- 기존 `Market` model/조회 API를 확장해 거래처별 지점 이름 CRUD를 구현한다.
+- 추가는 `BM_MARKET`에 지점을 저장하고 같은 transaction에서 생성된 지점 ID를 받은 뒤, 해당 거래처의 모든 기존 품목에 대응하는 `ItemOfMarket` 행을 일괄 생성한다. 레거시의 전역 `SelectLastOneRecord()`를 복제하지 않는다.
+- 수정은 선택 지점 이름만 갱신한다.
+- 삭제는 레거시처럼 시스템 비밀번호 확인 후 해당 지점의 사용자·품목 매핑 삭제 경고를 한 번 표시한다. 하나의 transaction에서 `ItemOfMarket`을 지점 ID로 먼저 삭제한 뒤 `BM_MARKET` 한 건을 삭제한다.
+- 현재 로그인 지점을 수정·삭제해도 session context 자동 reload나 강제 로그아웃을 추가하지 않는다.
 
 ### 5.1.6 사용자 관리 (`IDM_USER_MANAGE`)
 
@@ -296,6 +302,10 @@ END CATCH
   - 거래처 selector와 전체 표시: `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect` 중 하나.
   - 지점 selector: 위 조건 또는 `IsManager`. 다만 현재 command visibility에서는 `MANAGER_USER`를 숨기므로 도달하지 않는 상태를 별도 예외 UI로 만들지 않는다.
   - 생성·수정 가능한 사용자 등급은 `CLIENT_USER`와 `MANAGER_USER`뿐이며 신규 기본값은 `CLIENT_USER`다. `SYSTEM_ADMIN_USER`와 `COOP_ADMIN_USER` 생성 UI를 추가하지 않는다.
+- 목록은 거래처, 지점, 사용자 ID, 비밀번호, 이름, 등급을 표시한다. `IsFirstConnectByAdmin`이 아니면 레거시처럼 사용자 ID와 비밀번호 column을 숨기며 별도 마스킹·보기 전환 UI를 추가하지 않는다.
+- 추가·수정 입력은 사용자 ID, 비밀번호, 비밀번호 확인, 이름, 등급으로 제한한다. 모든 값을 필수로 검사하고 비밀번호와 확인값 일치, 사용자 ID 중복을 레거시처럼 검증한다. 수정 시 기존 사용자 ID와 같은 값은 허용한다.
+- 사용자 이름 부분 일치 검색은 현재 선택 행 다음부터 찾고 끝에 도달하면 처음부터 한 번 이어서 검색하는 레거시 흐름을 포팅한다.
+- 삭제는 별도 시스템 비밀번호 gate 없이 레거시의 사용자 삭제 확인을 한 번 표시한 뒤 선택 사용자 한 건만 삭제한다.
 - 선택 사용자의 `Connect`를 포팅한다. 원래 관리자 계정을 한 번 보존하고 레거시 조건대로 `IsAdminConnect`/`IsCoopAdminConnect`를 설정한 뒤, 선택 사용자와 해당 지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다.
 - 거래처·사용자 `Connect` 외에 일반적인 사용자 전환, 임의 권한 상승 또는 별도 impersonation 이력 UI로 확장하지 않는다.
 - 기존 `User`/`UserDAO` 조회와 로그인 mapping을 재사용한다.
@@ -346,6 +356,7 @@ END CATCH
 - 권한: 6.1의 `loggedIn`.
 - 레거시 `CPrintLogDAO`와 현행 `label_print_persistence.dart`가 함께 사용하는 기존 `BM_RICH_PRINT_LOG`를 조회 source로 고정해 read model과 DAO를 작성한다. `BM_RICH_STATUS`와 `BM_RICH_STATUS_DATA`는 5.2.6 발행 통계 책임으로 유지한다.
 - filter는 기간, 권한별 협력업체/거래처 범위와 검색 종류 `품명`·`사용자ID`·`거래처`로 제한한다. 품명은 부분 일치, 사용자 ID와 거래처는 완전 일치를 사용하며 다른 filter를 추가하지 않는다.
+- selector 범위는 레거시처럼 시스템 관리자는 협력업체·거래처를 변경할 수 있고, 협력업체 관리자는 현재 협력업체 안의 거래처만 변경할 수 있으며, 그 외 사용자는 현재 로그인 거래처로 고정한다.
 - 결과는 레거시의 거래처, 브랜드, label size, 품명, 발행 수량, 사용자 ID·이름·등급, 발행 시각, 프린터, 서식 크기와 margin/push 값을 표시한다.
 - 총 누계, 기간 합계와 단일 거래처 결과의 label size별 합계를 포팅한다. 결과 행 상세는 `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`의 레거시 저장값/출력값 비교 범위만 표시한다.
 - 전체 조회 결과를 read-only `FortuneTable`로 표시하며 pagination UI나 별도 paging API를 추가하지 않는다.
@@ -359,6 +370,7 @@ END CATCH
 - 해당 파일의 demo row와 page shell을 제거하고 AppBar owning command가 여는 `BlockingModelessDialogFrame`용 content widget으로 전환한다. 기존 `BM_LOGIN_LOG`를 조회하는 DAO API를 구현하고 결과는 read-only `FortuneTable`로 표시한다.
 - `LoginLogDAO`를 조회까지 확장하거나 조회 책임이 다르면 `LoginHistoryDAO`를 작성한다.
 - 조회 filter는 레거시 `CLoginLogDlg`와 같이 기간과 권한별 협력업체/거래처 범위만 포팅한다. 지점과 사용자는 filter로 추가하지 않는다.
+- selector 범위는 시스템 관리자는 협력업체·거래처를 변경할 수 있고, 협력업체 관리자는 협력업체를 현재 값으로 고정한 채 거래처만 변경할 수 있으며, 그 외 사용자는 현재 로그인 거래처로 고정한다.
 - 사용자 ID·등급, 로그인 시각·상태·IP, 거래처와 프로그램 버전은 레거시 결과 column으로만 표시한다.
 - 별도 route, `Scaffold`, `AppBar`, 장식용 `Card`, `DataTable`을 유지하지 않는다. 날짜 선택은 기존 `showBlockingModelessOverlayDialog` 경로로 현재 차단형 dialog 위에 표시하며, 같은 구성이 둘 이상에서 반복될 때만 공용 date picker helper로 추출한다.
 - locale 표시 형식은 현 `DateFormat`을 사용하되 DB 저장 문자열 형식은 변경하지 않는다.
@@ -368,7 +380,9 @@ END CATCH
 - 레거시 기준: `OnContentSaveLog` → `CContentSaveLogDlg`와 model/DAO.
 - 권한: 6.1의 `loggedIn`.
 - 기존 `BM_CONTENT_SAVE_LOG`를 조회 source로 사용한다.
-- 조회 filter는 레거시와 같이 기간과 권한별 협력업체/거래처 범위만 포팅한다. 품목, label size, column, 사용자와 변경 시각을 filter로 추가하지 않는다.
+- 조회 filter는 레거시와 같이 기간과 거래처 범위만 포팅한다. 품목, label size, column, 사용자와 변경 시각을 filter로 추가하지 않는다.
+- 시스템 관리자는 협력업체·거래처 selector를 표시하고 선택 거래처로 조회한다. 협력업체 selector 변경 handler가 비어 있어 거래처 목록이 갱신되지 않는 레거시 동작도 그대로 유지한다.
+- 협력업체 관리자는 협력업체 selector를 숨기고 거래처 selector를 표시하지만, 조회는 선택값을 사용하지 않고 현재 로그인 거래처로 고정한다. 그 외 사용자는 두 selector를 숨기고 현재 로그인 거래처로 조회한다. 무효 selector를 정상 연결하거나 조회 범위를 넓히지 않는다.
 - 사용자 ID·등급, 품목명, label size, 저장 시각·IP와 신규/수정 상태는 결과 column으로 표시한다. 레거시의 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`를 표시하며 별도 before/after 비교 field나 UI를 추가하지 않는다.
 - 현재 프로젝트의 저장 로그 table이 없거나 기존 schema가 다르면 migration으로 해결하지 않는다. blocker로 기록한다.
 - 조회 전용 DAO와 row model만 작성하며 원본 업무 데이터를 변경하지 않는다.
@@ -385,6 +399,7 @@ END CATCH
 - 권한: 6.1의 `loggedIn`.
 - 현행 `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA` 저장 계약은 `label_print_persistence.dart`에서 확인한다.
 - 조회 filter는 레거시 활성 조회 흐름의 기간, 권한별 거래처, 브랜드, label size, 품목명, 검색 column·값과 완전/부분 일치 조건만 포팅한다.
+- 시스템 관리자만 협력업체·거래처 selector를 표시하고 변경할 수 있다. 그 외 로그인 사용자는 협력업체 selector를 숨기고 거래처를 현재 로그인 값으로 고정한다.
 - 사용자 등급은 결과 field로만 표시하며 filter로 추가하지 않는다. 발행 수량은 각 결과의 `RICH_PRINT_COUNT`를 표시하고, 활성 조회 흐름에서 사용하지 않는 `SelectPrintCountSum` 계열 합계 기능이나 별도 SQL aggregate를 추가하지 않는다.
 - 통계 조회는 저장 이력 생성과 분리하며 조회 시 원본 데이터를 갱신하지 않는다.
 
@@ -595,8 +610,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 `BlockingModelessDialogFrame.footer`에 필요한 상태와 `취소`/`저장` 또는 `취소`/`적용`을 배치한다. 공용 footer widget은 같은 구조가 반복될 때만 추가한다.
 - 즉시 적용형·단순 설정형 관리 dialog는 footer 없이 title bar 닫기와 본문 command만 사용할 수 있다.
 - 추가/수정은 draft에서 수행하고 저장/취소를 명시한다.
-- 삭제는 레거시 확인 문구와 종속성 검사를 따른다.
-- 저장 성공 후 해당 목록과 필요한 app cache만 reload한다.
+- 삭제는 개별 command에 명시된 비밀번호 gate, 확인 문구와 연관 삭제 범위만 따른다. 공통 사전 종속성 검사나 추가 확인 단계를 만들지 않는다.
+- 저장 성공 후 해당 목록과 개별 command에 명시된 app cache만 reload한다.
 - 각 dialog의 owning controller가 해당 overlay와 open/close command를 관리한다.
 
 ### 7.4 조회 dialog
@@ -682,9 +697,11 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 완료 기준:
 - CRUD 및 selector 권한이 레거시와 일치.
+- 협력업체·거래처·지점 삭제의 시스템 비밀번호 gate와 사용자 삭제의 일반 확인이 서로 확대되지 않고 구분됨.
+- 지점 추가·삭제가 기존 품목의 `ItemOfMarket` 연관 행을 같은 transaction에서 생성·삭제함.
 - 거래처·사용자 `Connect`가 원래 관리자와 연결 상태를 보존하고 업무 context 전환·관리자 접속 로그를 레거시 범위로 수행함.
 - 다중 DML transaction commit/rollback 테스트 통과.
-- 현재 app cache가 필요한 범위만 갱신됨.
+- 저장 후 해당 목록과 개별 command에 명시된 app cache만 갱신됨.
 
 ### Phase 4. 설정 데이터 관리
 
@@ -725,13 +742,17 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 명칭·폭·형식 검증과 선택 행 RTF read-only preview를 검증한다.
 - 검색출력 mode focused test에서 `F12`와 menu toggle이 같은 controller state를 사용하고, tab/button 상태가 전환되며 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건만 기존 pipeline으로 즉시 발행한 뒤 입력을 비우는지 검증한다.
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다.
+- 협력업체·거래처·지점 관리 focused test에서 삭제 전 공용 시스템 비밀번호 계산과 각 1회의 확인을 검증하고, 사용자·영양성분 삭제에는 이 gate가 추가되지 않는지 확인한다.
+- 협력업체 관리 focused test에서 ID·이름 추가/수정과 목록 refresh, 기존 FK cascade를 사용하는 단일 삭제를 검증한다. 저장 후 로그인 session context reload나 강제 로그아웃은 검증 대상에 추가하지 않는다.
+- 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.
 - 거래처·사용자 관리 focused test에서 선택 대상 `Connect`가 원래 관리자를 한 번만 보존하고 레거시 조건의 연결 상태와 사용자·지점·거래처·협력업체 context를 설정하며 관리자 접속 로그를 한 번 저장하는지 검증한다. 임의 경로에서는 연결 상태를 만들지 않는다.
-- 사용자 관리 focused test에서 생성·수정 등급은 `CLIENT_USER`·`MANAGER_USER`만 표시되고 신규 기본값이 `CLIENT_USER`인지 검증한다.
+- 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다.
 - 업데이트 메시지 focused test에서 현재 사용자별 단일 row 조회, 시스템·협력업체 관리자 편집 범위, 일반 사용자 읽기 전용·다시 보지 않기와 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
 - 검색·치환 focused test에서 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 변경 행 저장을 검증한다. 주석 처리된 `추가 주원료` 검색은 inventory에 추가하지 않는다.
-- 발행내역 focused test에서 `BM_RICH_PRINT_LOG`의 기간·권한별 거래처 범위와 `품명` 부분 일치, `사용자ID`·`거래처` 완전 일치, 총 누계·기간·label size 합계와 상세 decoding을 검증한다. 출력 경로 구분이나 pagination이 없는 것은 별도 기능 test로 확대하지 않고 query/model 계약에서 확인한다.
-- 사용자 접속 이력과 데이터내용 이력 DAO focused test에서 기간과 권한별 협력업체/거래처 조건, 레거시 결과 column decoding을 검증한다. 데이터내용 이력의 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`만 사용한다.
-- 발행 통계 DAO focused test에서 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건과 결과의 사용자 등급·`RICH_PRINT_COUNT` decoding을 검증한다. 사용자 등급 filter나 별도 합계 query test를 추가하지 않는다.
+- 발행내역 focused test에서 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 범위, `BM_RICH_PRINT_LOG`의 기간·거래처 조건과 `품명` 부분 일치, `사용자ID`·`거래처` 완전 일치, 총 누계·기간·label size 합계와 상세 decoding을 검증한다. 출력 경로 구분이나 pagination이 없는 것은 별도 기능 test로 확대하지 않고 query/model 계약에서 확인한다.
+- 사용자 접속 이력 focused test에서 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 범위, 기간·거래처 조건과 레거시 결과 column decoding을 검증한다.
+- 데이터내용 이력 focused test에서 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회, 그 외 사용자의 현재 거래처 조회를 구분해 검증한다. 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`만 사용한다.
+- 발행 통계 DAO focused test에서 시스템 관리자만 협력업체·거래처 selector를 변경하는 권한, 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건과 결과의 사용자 등급·`RICH_PRINT_COUNT` decoding을 검증한다. 사용자 등급 filter나 별도 합계 query test를 추가하지 않는다.
 - 검색출력 설정 focused test에서 브랜드·label size별 column의 `RICH_SEARCH_PRINT` 개별 선택·전체 선택·전체 해제와 적용만 검증한다.
 - command policy test에서 발행내역, 사용자 접속 이력, 데이터내용 이력과 발행 통계가 `loggedIn`이고 비로그인에는 숨겨지는지 검증한다.
 - 단축키 차단 helper를 별도로 추가한 경우 차단 surface 활성/중첩/종료와 non-modal preview 제외 결과만 검증한다. route identity나 lease 내부 구조는 테스트 계약으로 고정하지 않는다.

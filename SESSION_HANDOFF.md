@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt]의 협력업체·거래처·지점·사용자 관리와 조회별 selector 계약을 레거시 활성 코드로 고정한다.
+- 사용자 확정: 협력업체 수정 후 로그인 session context는 레거시처럼 자동 reload·강제 로그아웃하지 않고 관리 목록만 갱신한다. 데이터내용 이력은 시스템 관리자의 무효 협력업체 selector와 협력업체 관리자의 조회에 반영되지 않는 거래처 selector까지 레거시 UI·조회 동작 그대로 유지한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.3~5.1.6, 5.2.2~5.2.4, 5.2.6과 관련 Phase/test 계약을 실제 수정 field·삭제 gate·지점 연관 행·사용자 검증·조회별 selector 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
+- 관리 command 계약 편집 완료: 협력업체 ID·이름 수정과 목록만 refresh, 협력업체·거래처·지점 삭제의 공용 시스템 비밀번호 계산 및 각 1회 확인, 기존 FK cascade 범위, 지점 추가·삭제의 `ItemOfMarket` 연관 행 transaction을 고정했다. 사용자 관리는 실제 입력 field·필수/비밀번호/ID 중복 검증, ID·비밀번호 column 노출, 이름 순환 검색과 일반 삭제 확인으로 명확히 했다.
+- 조회 selector 계약 편집 완료: 발행내역·사용자 접속 이력·발행 통계의 등급별 협력업체/거래처 selector 범위를 각각 분리했다. 데이터내용 이력은 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회를 사용자 확정대로 유지했다.
+- Phase·테스트 계약 편집 완료: Phase 3 완료 기준과 관리·조회 focused test에 세 삭제 gate, 지점 연관 행, 사용자 검증, command별 selector matrix를 반영하고 공통 관리 지침의 임의 cache reload·종속성 사전 검사를 금지했다.
+- 검증 실행 예정: 이전 이름 전용 수정·session cache reload·조건부 지점 session 처리·포괄형 조회 selector 문구 제거와 새 레거시 계약 반영을 PowerShell 표적 검사로 확인하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: PowerShell 표적 검사에서 제거 대상 4건과 필수 계약 10건을 모두 확인했고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`와 두 문서 diagnostics가 통과했다. 전체 diff에서 레거시 범위 밖 보완이나 계약 충돌이 없음을 확인했다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 품목별 정보 편집, 영양성분 형식·영양성분표, 고정 항목 관리, 검색출력모드 계약을 레거시 활성 코드와 사용자 확정 범위로 고정했다.
 - 사용자 확정: `품목별 정보 편집`은 단순 품목관리 탭 이동이 아니라 레거시 품목별 출력 보정값을 일괄 편집하는 전용 관리 dialog로 포팅한다. 검색출력모드는 중복 일치 시에도 레거시처럼 DB가 반환한 첫 행 1건을 즉시 발행한다. 고정 항목 관리는 메뉴 리소스 ID와 message map ID 불일치로 도달 경로가 확인되지 않았으므로 `legacyUnreachable`로 기록하고 production 메뉴에서 숨긴다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.3.1~5.3.4, 5.3.10과 관련 Phase/test/완료 계약을 실제 레거시 field·검증·CRUD·preview·검색출력 동작 및 사용자 확정 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
