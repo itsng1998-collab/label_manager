@@ -7,6 +7,8 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- Phase 3 사용자 관리 진행: 활성 `CUserManagerModel`/`CUserAddModifyDlg`/`CUserDAO`를 대조해 selector/show-all cascade, 필수·비밀번호 일치·ID 중복 검증, CLIENT/MANAGER 등급, 이름 순환 검색과 사용자 Connect mapping을 확정했다. 로그인 override와 분리한 [lib/models/managed_user.dart] codec/조회/CRUD 및 focused test를 먼저 추가한다.
+- Phase 3 사용자 관리 DAO 검증/커밋: [test/managed_user_test.dart] `3 passed`, targeted analyzer 0건. 기능 커밋 `b4b8eb9` (`사용자 관리 DAO 구현`), 원격 push 없음. 다음은 별도 사용자 manager dialog의 selector/show-all state와 입력 validation을 구현하고, 이후 사용자 전용 `(true,true)/(false,true)` Connect mapping을 HomePage owner에 연결한다.
 - Phase 3 지점 관리 완료: 생성 ID를 `OUTPUT INSERTED`로 잡아 기존 품목 mapping을 만드는 추가 transaction, 이름 수정, mapping→지점 삭제 transaction, 권한별 협력업체·거래처 cascade, 무검증 50자 child draft와 lifecycle을 구현했다. 다른 거래처 fallback·전역 last-row 조회·session reload는 추가하지 않았다. focused suite `35 passed`, 신규 diagnostics 0건, 기능 커밋 `7a5f6d8` (`지점 관리 기능 구현`), 원격 push 없음.
 - 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반, Phase 2 전체, Phase 3 `협력업체 관리`·`거래처 관리`·`지점 관리`까지 구현·검증·커밋했다. 다음은 Phase 3 `사용자 관리`다.
 - Phase 3 거래처 관리 완료: 실제 schema의 ID·협력업체·이름만 사용하는 CRUD, 권한별 협력업체 selector, 50자 child draft, 삭제 gate, 첫 지점·첫 grade 2 Connect와 단일 접속 로그, process-scope 원 관리자/Connect/first-admin/master-key session을 구현했다. migration·ETC·수동 연관 삭제·빈 값/중복 검증·정렬/fallback은 추가하지 않았다. focused suite `32 passed`, 신규 analyzer 항목 0건, 기능 커밋 `93d4aad` (`거래처 관리 기능 구현`), 원격 push 없음.
