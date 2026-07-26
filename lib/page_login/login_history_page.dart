@@ -5,6 +5,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/login_log.dart';
 import 'package:label_manager/models/user.dart';
+import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 typedef LoginHistoryQuery = Future<List<LoginLog>> Function({
@@ -125,32 +126,10 @@ class _LoginHistoryDialogContentState
 
   Future<void> _pickDate({required bool start}) async {
     final initial = start ? _startDate : _endDate;
-    final picked = await showBlockingModelessOverlayDialog<DateTime>(
+    final picked = await showBlockingDatePicker(
       context: context,
-      builder: (overlayContext, close) {
-        var selected = initial;
-        return StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: Text(start ? '시작일' : '종료일'),
-            content: SizedBox(
-              width: 320,
-              height: 340,
-              child: CalendarDatePicker(
-                initialDate: initial,
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100, 12, 31),
-                onDateChanged: (value) {
-                  setDialogState(() => selected = value);
-                },
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => close(null), child: const Text('취소')),
-              FilledButton(onPressed: () => close(selected), child: const Text('확인')),
-            ],
-          ),
-        );
-      },
+      title: start ? '시작일' : '종료일',
+      initialDate: initial,
     );
     if (picked == null || !mounted) return;
     setState(() {

@@ -78,6 +78,7 @@ import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/page_home/print_history_dialog.dart';
 import 'package:label_manager/page_login/login_history_page.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
@@ -381,6 +382,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
+  OverlayEntry? _printHistoryOverlayEntry;
+  LifecycleParticipant? _printHistoryLifecycleParticipant;
   OverlayEntry? _loginHistoryOverlayEntry;
   LifecycleParticipant? _loginHistoryLifecycleParticipant;
   OverlayEntry? _labelPrintProgressOverlayEntry;
@@ -482,6 +485,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
             _openScaleOutputPrinterSettings,
+        AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
         AppMenuCommandId.viewLoginHistory: _openLoginHistoryDialog,
       },
     );
@@ -2986,6 +2990,49 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  void _closePrintHistoryDialog() {
+    _printHistoryOverlayEntry?.remove();
+    _printHistoryOverlayEntry = null;
+    final participant = _printHistoryLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _printHistoryLifecycleParticipant = null;
+    }
+  }
+
+  void _openPrintHistoryDialog() {
+    if (_printHistoryOverlayEntry != null) return;
+    final user = User.instance;
+    final cooperator = Cooperator.instance;
+    final customer = Customer.instance;
+    if (user == null || cooperator == null || customer == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: BlockingModelessDialogFrame(
+          title: '발행내역 보기',
+          width: 1320,
+          height: 760,
+          onClose: _closePrintHistoryDialog,
+          child: PrintHistoryDialogContent(
+            userGrade: user.grade,
+            initialCooperator: cooperator,
+            initialCustomer: customer,
+          ),
+        ),
+      ),
+    );
+    _printHistoryOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: () => const LifecycleExitSnapshot(),
+      close: _closePrintHistoryDialog,
+    );
+    _printHistoryLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _openLoginHistoryDialog() {
     if (_loginHistoryOverlayEntry != null) return;
     final user = User.instance;
@@ -4324,6 +4371,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelSettingsOverlayEntry = null;
     _labelColumnEditOverlayEntry?.remove();
     _labelColumnEditOverlayEntry = null;
+    _closePrintHistoryDialog();
     _closeLoginHistoryDialog();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
