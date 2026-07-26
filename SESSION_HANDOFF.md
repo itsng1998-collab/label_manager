@@ -7,11 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반, Phase 2 전체, Phase 3 `협력업체 관리`와 `거래처 관리`까지 구현·검증·커밋했다. 다음은 Phase 3 `지점 관리`다.
+- Phase 3 지점 관리 완료: 생성 ID를 `OUTPUT INSERTED`로 잡아 기존 품목 mapping을 만드는 추가 transaction, 이름 수정, mapping→지점 삭제 transaction, 권한별 협력업체·거래처 cascade, 무검증 50자 child draft와 lifecycle을 구현했다. 다른 거래처 fallback·전역 last-row 조회·session reload는 추가하지 않았다. focused suite `35 passed`, 신규 diagnostics 0건, 기능 커밋 `7a5f6d8` (`지점 관리 기능 구현`), 원격 push 없음.
+- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반, Phase 2 전체, Phase 3 `협력업체 관리`·`거래처 관리`·`지점 관리`까지 구현·검증·커밋했다. 다음은 Phase 3 `사용자 관리`다.
 - Phase 3 거래처 관리 완료: 실제 schema의 ID·협력업체·이름만 사용하는 CRUD, 권한별 협력업체 selector, 50자 child draft, 삭제 gate, 첫 지점·첫 grade 2 Connect와 단일 접속 로그, process-scope 원 관리자/Connect/first-admin/master-key session을 구현했다. migration·ETC·수동 연관 삭제·빈 값/중복 검증·정렬/fallback은 추가하지 않았다. focused suite `32 passed`, 신규 analyzer 항목 0건, 기능 커밋 `93d4aad` (`거래처 관리 기능 구현`), 원격 push 없음.
 - Phase 3 협력업체 관리 완료: 실제 `BM_COOPERATOR`의 `RICH_COOP_ID`, `RICH_NAME` 두 column만 사용하는 parameterized CRUD, 공용 시스템 비밀번호, FortuneTable 유효 행 더블클릭, child draft와 parent 저장/reload, 삭제 gate, command owner와 activeEditing/writeBusy lifecycle을 구현했다. 빈 값·중복 validation, 수동 연관 삭제, session reload/logout은 추가하지 않았다.
 - 협력업체 관리 검증/커밋: DAO/UI/table/menu/policy/controller/lifecycle 관련 suite `84 passed`, 신규 analyzer 항목 0건이고 기존 HomePageManager unused 경고 2건만 유지했다. 기능 커밋 `30154ab` (`협력업체 관리 기능 구현`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 stage하지 않았다.
-- Phase 3 다음 시작점: `지점 관리`의 활성 레거시 resource→dialog/model→DAO와 실제 `BM_MARKET` schema를 대조해 CRUD field, 권한별 selector 범위와 삭제 gate를 먼저 확정한다.
+- Phase 3 다음 시작점: `사용자 관리`의 활성 레거시 `CUserManagerDlg`/model/DAO와 실제 `BM_USER` schema를 대조해 로그인 mapping과 분리된 `ManagedUser` codec/CRUD, selector 범위와 Connect mapping을 먼저 확정한다.
 - 현재 구현 현황: 공용라벨 이력 read model/DAO에 숨김 log ID, before/after RTF와 sheet payload, non-empty sheet 우선 fallback을 추가했다. 조회는 레거시와 같은 log+brand join, `RICH_MOD_DATE BETWEEN`, log table의 선택 거래처 조건이며 `ORDER BY`를 추가하지 않는다.
 - 공용라벨 이력 첫 검증 완료: [test/common_label_history_test.dart] 2건이 codec, sheet 우선/RTF fallback, 숨김 log ID, 날짜·거래처·무정렬 SQL을 검증하며 통과했다. `flutter analyze lib/models/common_label_history.dart test/common_label_history_test.dart` → `No issues found`. 인접 확인 중 고객 조건 alias 차이를 발견해 `A.RICH_CUSTOMER_ID`로 바로잡고 동일 focused 검증을 재실행한다.
 - 공용라벨 이력 DAO 재검증 완료: 고객 조건을 레거시와 같은 `A.RICH_CUSTOMER_ID`로 교정한 뒤 focused test 2건과 targeted analyze를 다시 통과했다.
