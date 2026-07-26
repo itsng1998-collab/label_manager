@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 39차 감사에서 확인한 검색·치환 검색 입력 Enter와 발행 통계 활성 조회의 `RICH_PRINT_DATE` 정렬 계약을 활성 레거시 기준으로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 39차 감사에서 확인한 검색·치환 검색 입력 Enter와 발행 통계 활성 조회의 `RICH_PRINT_DATE` 정렬 계약을 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. `CSearchAndReplaceDlg::PreTranslateMessage`와 `CStatusPrintModel::Search → CStatusPrintDAO::SelectDLG` 활성 경로로 두 동작이 확정되며, 다른 control Enter나 미사용 DAO 정렬까지 확대하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.1·7.1·검색·치환 focused test에 검색 입력 Enter의 검색 1회와 그 밖의 Enter 무동작을 명시한다. 5.2.6·7.4·발행 통계 focused test의 잘못된 `RICH_DATETIME ASC`를 활성 `SelectDLG`의 `ORDER BY RICH_PRINT_DATE`로 수정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 39차 필수 계약과 발행 통계 이전 정렬 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 5.2.1 검색 입력 Enter, 5.2.6 활성 `RICH_PRINT_DATE` 정렬, 7.1·7.4 공통 계약과 두 focused test에만 한정됐다. 발행내역의 `RICH_DATETIME ASC`는 유지하고 다른 control Enter·미사용 DAO 경로·관리자 복사 등 범위 밖 후보는 포함하지 않았다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 16 insertions, 5 deletions다.
+- 기능 문서 커밋 완료: `c5f530a` (`앱 메뉴 39차 검색 통계 계약 명확화`). 원격 push는 수행하지 않았다.
 - 완료: [doc/app_menu_porting.txt] 38차 감사에서 `INACTIVE` resource 플래그와 달리 MFC command UI 갱신으로 활성화되는 `공용라벨 수정 이력 보기`를 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. `IDM_COMMON_LABEL_LOG`에는 `ON_COMMAND`와 실제 dialog가 있고 별도 `ON_UPDATE_COMMAND_UI`가 없어 메뉴가 열릴 때 자동 활성화되며, 거래게시판처럼 명시적으로 비활성화하는 handler가 없다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.5를 `legacyInactive` 제외에서 `loggedIn` 읽기 전용 조회로 전환하고 기간·selector·결과·전후 preview·확대·Enter·무정렬 계약을 명시한다. Phase 2·5, focused/policy test와 완료 범위를 동기화하고 현 `RICH_FORM_SHEET`·`RICH_ALTER_FORM_SHEET` 우선/fallback 적재를 기존 helper에 연결한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
