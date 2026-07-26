@@ -7,6 +7,19 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 20차 감사의 관리 입력·비밀번호 저장, 검색·치환 초기값·내부 쓰기 권한·진입점, 조회 초기 filter, 업데이트 메시지 대상, 검색출력 빈 입력 계약을 사용자 확정 및 레거시 활성 코드로 병합한다.
+- 사용자 확정: 업데이트 메시지의 사용자 선택 checkbox를 해제하면 선택 ID를 비우고, 사용자 선택 mode에서 0명이면 전체 또는 현재 협력업체 대상으로 확대하지 않고 DML 전에 저장을 중단한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 5.2.1~5.2.6, 5.3.9~5.3.10, 7.4와 관련 Phase·focused test에서 레거시 입력 검증, raw `RICH_PWD`, 검색 초기값·권한·진입점, 조회 기본 selector/date, 공지 대상 우선순위·transaction, 검색출력 빈 값·0건 처리를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 관리 계약 편집 완료: [doc/app_menu_porting.txt] 협력업체·거래처·지점의 레거시 빈 값·중복 검증 부재와 거래처 이름 50자 제한, 사용자 `RICH_PWD` 무변환 저장을 고정했다.
+- 검색·조회 계약 편집 완료: [doc/app_menu_porting.txt] 검색·치환의 기본 `품명`, filter 초기 상태·필수 선택·두 진입점·실제 등급별 쓰기 UI를 명시했다. 네 조회 dialog의 현재 context·command별 selector와 현재 로컬 날짜 초기값, 검색출력 빈 입력·0건·입력 초기화 흐름을 확정했다.
+- 업데이트 메시지 계약 편집 완료: [doc/app_menu_porting.txt] 실제 등급별 선택 사용자·전체·현재 협력업체·현재 사용자 대상 우선순위와 `UN_STATE`·`UN_TIME`, 선택 사용자 transaction, 사용자 확정 0건 차단을 고정했다.
+- Phase·테스트 계약 편집 완료: Phase 1~4 완료 기준과 관리·검색·조회·공지·검색출력 focused test에 같은 20차 계약을 반영했다.
+- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
+- 레거시 재확인: `UpdateNoticeDlg.cpp`에서 시스템·협력업체 관리자의 선택 사용자·전체·현재 협력업체 분기는 `UN_MSG`, 등급별 `UN_STATE`, `UN_TIME=GETDATE()`를 함께 갱신하고 일반 사용자만 자기 `UN_STATE`·`UN_TIME`을 갱신한다. `MainWindowDlg.cpp`는 검색출력 호출이 빈 입력·0건·조회 오류로 반환돼도 입력을 비우므로 본문과 focused test를 정확한 column·초기화 범위로 보강했다.
+- 검증 완료: [doc/app_menu_porting.txt]의 20차 필수 계약 15개 반영과 이전 조사형 문구 2개 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 20차 여섯 권장안과 사용자 확정, 관련 Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 44 insertions, 15 deletions다.
 - 완료: [doc/app_menu_porting.txt] 19차 감사의 검색·치환 이동, 검색출력 설정 draft, 발행 통계 기본 일치 방식, 지점 selector, 설정 command 권한, 조회 최초 실행 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 검색·치환에서 품목편집/출력 이동 시 미저장 치환 내용은 레거시처럼 확인 없이 폐기하고 자동 저장하지 않는다. 출력 이동은 체크 품목 1건 이상을 요구하고 모두 같은 브랜드·label size일 때 첫 체크 품목 context를 사용한다. 검색출력 설정의 미적용 checkbox 변경은 selector 전환·닫기 전에 공용 dirty 폐기 확인을 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.5, 5.2.1, 5.2.6, 5.3.5, 5.3.10~5.3.11, 7.4와 관련 Phase·focused test에서 레거시 선택 source·초기값·기본 mode·selector matrix·`loggedIn` 권한·최초 수동 조회를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
