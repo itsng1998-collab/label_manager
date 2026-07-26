@@ -261,12 +261,13 @@ END CATCH
   - 목록, 추가, 협력업체 ID·이름 수정, 삭제를 제공하는 `BlockingModelessDialog` 기반 관리 dialog를 구현한다.
   - 추가·수정은 별도 입력 dialog의 적용/취소 단위로 수행하고, 적용 성공 시 즉시 저장한 뒤 목록을 갱신한다. 목록 전체의 전역 저장/취소 footer는 두지 않는다.
   - 신규 CRUD가 필요하면 `CooperatorDAO`를 최소 확장한다.
+- 추가 command는 항상 사용할 수 있고 삭제 command는 선택이 없어도 실행할 수 있으나, 미선택이면 DML 없이 `삭제할 행을 먼저 선택해주세요!!`에 대응하는 짧은 안내를 한 번 표시한다. 별도 수정 button·context command를 추가하지 않고 유효 행 더블클릭만 수정 진입점으로 사용한다.
 - 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 레거시 `CCoopAddModifyDlg`는 협력업체 ID·이름의 빈 값과 중복을 검사하지 않으므로 신규 필수값·중복 검증을 추가하지 않는다. 기존 DB 제약으로 거부되면 해당 오류를 그대로 전달한다.
 - 삭제는 레거시처럼 시스템 비밀번호 확인 후 종속 거래처 삭제 경고를 한 번 표시하고 실행한다. 시스템 비밀번호는 현재 `startup_dialog.dart`의 `_getSystemPassword()`와 같은 `월 * 3 + 일` 4자리 계산을 작은 공용 helper로 추출해 재사용하며 다른 삭제 command로 확대하지 않는다.
 - 레거시 `CCoopDAO::Delete`는 별도 종속성 검사를 하지 않고 기존 FK cascade에 의존한다. 실제 schema의 기존 cascade만 사용하고 앱에서 별도 사전 검사나 수동 연관 삭제를 추가하지 않는다. `DELETE FROM BM_COOPERATORWHERE`가 되는 레거시 SQL의 공백 누락은 복제하지 않는다.
 - DB gate: `BM_COOPERATOR` 실제 컬럼과 레거시 SQL을 확인하기 전 DML SQL을 작성하지 않는다.
-- 저장 후 관리 dialog 목록만 다시 조회한다. 현재 로그인 협력업체를 수정해도 session context 자동 reload나 강제 로그아웃을 추가하지 않는다.
+- 추가·수정·삭제의 child/parent 저장 경계와 취소·실패·성공 후 상태는 7.3의 네 관리 dialog 전용 lifecycle을 따른다. 저장 성공 후 관리 dialog 목록만 다시 조회하고 선택을 해제한다. 현재 로그인 협력업체를 수정해도 session context 자동 reload나 강제 로그아웃을 추가하지 않는다.
 
 ### 5.1.4 거래처 관리 (`IDM_CUST_MANAGE`)
 
@@ -274,14 +275,17 @@ END CATCH
 - 권한: 6.1의 `adminCommand`.
 - 협력업체 선택에 종속된 거래처 목록과 CRUD를 포팅한다.
 - command 접근 권한과 selector 변경 권한을 구분한다. 협력업체 selector는 레거시와 같이 `IsSystemAdmin` 또는 `IsAdminConnect`일 때만 활성화하고, 그 외 허용 사용자는 현재 로그인 context의 협력업체를 표시하되 변경하지 못하게 한다.
+- 협력업체 selector를 변경하면 해당 협력업체의 거래처 목록만 DAO 반환 순서로 다시 조회하고 기존 행 선택을 해제한다. 첫 거래처 자동 선택이나 별도 빈 상태 fallback을 추가하지 않는다.
 - 선택 거래처 `Connect`는 레거시 `CMarketDAO::SelectByCustID` 반환 순서의 첫 지점과 그 지점 사용자 반환 순서의 첫 `RICH_USER_GRADE=2` 사용자를 대상으로 한다. 별도 정렬·사용자 선택 UI, 관리 사용자 자동 생성이나 다른 등급·지점 대체 fallback을 추가하지 않는다.
 - 첫 반환 지점 또는 그 지점의 grade 2 사용자가 없으면 context·연결 플래그·화면을 변경하기 전에 전체 Connect를 중단하고 오류를 한 번 전달한다. 레거시의 빈 배열 접근·assertion과 grade 2 부재 시 마지막 사용자 선택 결함은 복제하지 않는다.
 - 대상이 확정되면 원래 관리자 계정을 최초 한 번만 보존한다. 현재 상태가 `IsSystemAdmin` 또는 `IsAdminConnect`이면 `(IsAdminConnect, IsCoopAdminConnect)=(true, false)`, `IsCoopAdmin` 또는 `IsCoopAdminConnect`이면 `(false, true)`로 설정한다. 이후 대상 사용자와 해당 지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다.
 - 기존 `Customer` model을 우선 사용하고 CRUD가 없을 때만 DAO API를 추가한다.
 - 추가·수정 입력은 선택 협력업체에 속한 거래처 이름만 편집하고 레거시 `CCustAddModifyDlg`의 최대 50자만 적용한다. 빈 값·이름 중복 검증은 추가하지 않으며 기존 DB 제약 오류는 그대로 전달한다.
+- 추가 command는 항상 사용할 수 있다. 삭제·Connect command는 선택이 없어도 실행할 수 있으나 각각 DML·context 변경 없이 선택 요청 안내를 한 번 표시한다. 별도 수정 button·context command를 추가하지 않고 유효 행 더블클릭만 수정 진입점으로 사용한다.
 - 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 삭제는 레거시처럼 시스템 비밀번호 확인 후 삭제 경고를 한 번 표시하고 `BM_CUSTOMER` 한 건을 삭제한다. 실제 schema의 기존 FK cascade만 사용하고 앱에서 별도 종속성 사전 검사나 수동 연관 삭제를 추가하지 않는다.
 - `BM_CUSTOMER` 실제 schema를 확인한다. 레거시 `CCustomerDAO` 조회에는 `ORDER BY`와 이름 중복 검증이 없으므로 Flutter에서 이름 정렬·중복 제한을 추가하지 않고 DAO 반환 순서를 유지한다.
+- 추가·수정·삭제의 child/parent 저장 경계와 취소·실패·성공 후 상태는 7.3의 네 관리 dialog 전용 lifecycle을 따른다. 저장 성공 후 현재 협력업체의 거래처 목록을 다시 조회하고 선택을 해제하며 선택·scroll을 복원하지 않는다.
 - 협력업체 관리와 하나의 generic CRUD dialog로 합치지 않는다. 공용 table shell 정도만 재사용한다.
 
 ### 5.1.5 지점 관리 (`IDM_MARKET_MANAGE`)
@@ -290,12 +294,15 @@ END CATCH
 - 권한: 6.1의 `managerCommand`.
 - 현재 레거시 구현은 `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect` 중 하나만 활성이고 `MANAGER_USER`는 제외하므로 이를 visibility policy test로 고정한다.
 - command 접근 권한과 selector 변경 권한을 구분한다. dialog는 현재 로그인 context의 협력업체·거래처로 초기화한다. 레거시 `CMarketManagerDlg::OnInitDialog`와 같이 `IsManager`이면 두 selector를 모두 비활성화하고, `IsCoopAdmin`이면 협력업체만 비활성화하며, `IsSystemAdmin`, `IsAdminConnect`, `IsCoopAdminConnect`이면 두 selector를 모두 활성화한다. 현재 command visibility에서는 `MANAGER_USER`를 숨기므로 `IsManager` 분기를 도달시키기 위해 권한을 넓히지 않는다.
+- 협력업체 selector를 변경하면 해당 거래처 목록을 DAO 반환 순서로 다시 조회하되 첫 거래처를 자동 선택하지 않는다. 현재 거래처·지점 목록을 비우고 추가·삭제 command를 비활성화한다. 사용자가 거래처를 선택하면 해당 지점 목록을 다시 조회하고 추가·삭제 command를 활성화한다. 다른 거래처 fallback이나 이전 거래처 복원을 추가하지 않는다.
 - 기존 `Market` model/조회 API를 확장해 거래처별 지점 이름 CRUD를 구현한다.
 - 레거시 `CMarketAddModifyDlg`는 지점 이름의 빈 값과 중복을 검사하지 않으므로 신규 필수값·중복 검증을 추가하지 않는다. 기존 DB 제약으로 거부되면 해당 오류를 그대로 전달한다.
+- 유효 거래처가 있을 때만 추가·삭제 command를 활성화한다. 삭제 command는 유효 거래처 안에서 행 선택이 없어도 실행할 수 있으나 DML 없이 선택 요청 안내를 한 번 표시한다. 별도 수정 button·context command를 추가하지 않고 유효 행 더블클릭만 수정 진입점으로 사용한다.
 - 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 추가는 `BM_MARKET`에 지점을 저장하고 같은 transaction에서 생성된 지점 ID를 받은 뒤, 해당 거래처의 모든 기존 품목에 대응하는 `ItemOfMarket` 행을 일괄 생성한다. 레거시의 전역 `SelectLastOneRecord()`를 복제하지 않는다.
 - 수정은 선택 지점 이름만 갱신한다.
 - 삭제는 레거시처럼 시스템 비밀번호 확인 후 해당 지점의 사용자·품목 매핑 삭제 경고를 한 번 표시한다. 하나의 transaction에서 `ItemOfMarket`을 지점 ID로 먼저 삭제한 뒤 `BM_MARKET` 한 건을 삭제한다.
+- 추가·수정·삭제의 child/parent 저장 경계와 취소·실패·성공 후 상태는 7.3의 네 관리 dialog 전용 lifecycle을 따른다. transaction commit과 필요한 목록 reload가 성공한 뒤에만 성공 안내를 표시하고 선택을 해제한다. 레거시의 commit 전 reload·성공 안내 순서는 복제하지 않는다.
 - 현재 로그인 지점을 수정·삭제해도 session context 자동 reload나 강제 로그아웃을 추가하지 않는다.
 
 ### 5.1.6 사용자 관리 (`IDM_USER_MANAGE`)
@@ -308,8 +315,11 @@ END CATCH
   - 거래처 selector와 전체 표시: `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect` 중 하나.
   - 지점 selector: 위 조건 또는 `IsManager`. 다만 현재 command visibility에서는 `MANAGER_USER`를 숨기므로 도달하지 않는 상태를 별도 예외 UI로 만들지 않는다.
   - 생성·수정 가능한 사용자 등급은 `CLIENT_USER`와 `MANAGER_USER`뿐이며 신규 기본값은 `CLIENT_USER`다. `SYSTEM_ADMIN_USER`와 `COOP_ADMIN_USER` 생성 UI를 추가하지 않는다.
+- 협력업체 selector를 변경하면 거래처 목록을 다시 조회하고 지점·사용자 목록을 비우며 거래처 selector만 활성화한다. 거래처를 선택하면 지점 목록을 조회하고, 지점이 있으면 DAO 반환 순서의 첫 지점을 선택해 사용자 목록을 조회하며 추가를 활성화한다. 지점이 없으면 사용자 목록을 비우고 추가를 비활성화한다. 지점을 직접 선택하면 해당 사용자 목록을 조회한다.
+- `전체 표시`를 켜면 현재 협력업체 전체 사용자를 조회하고 거래처·지점 selector와 추가 command를 비활성화한다. 끄면 현재 지점이 있을 때 해당 사용자 목록과 추가를 복원하고, 현재 지점이 없으면 빈 목록과 추가 비활성 상태를 유지한다. 첫 거래처 fallback이나 별도 지점 생성 유도를 추가하지 않는다.
 - 목록은 거래처, 지점, 사용자 ID, 비밀번호, 이름, 등급을 표시한다. `IsFirstConnectByAdmin`이 아니면 레거시처럼 사용자 ID와 비밀번호 column을 숨기며 별도 마스킹·보기 전환 UI를 추가하지 않는다.
 - 추가·수정 입력은 사용자 ID, 비밀번호, 비밀번호 확인, 이름, 등급으로 제한한다. 모든 값을 필수로 검사하고 비밀번호와 확인값 일치, 사용자 ID 중복을 레거시처럼 검증한다. 수정 시 기존 사용자 ID와 같은 값은 허용한다.
+- 유효 지점이 있고 `전체 표시`가 꺼졌을 때만 추가 command를 활성화한다. 삭제·Connect command는 유효 사용자 행을 선택했을 때만 활성화하고 목록 reload나 selector 변경으로 선택이 해제되면 함께 비활성화한다. 별도 수정 button·context command를 추가하지 않고 유효 행 더블클릭만 수정 진입점으로 사용한다.
 - 목록의 유효 행을 더블클릭하면 해당 행을 선택한 뒤 수정 입력 dialog를 열고 header·빈 영역 더블클릭은 무시한다.
 - 사용자 이름 부분 일치 검색은 현재 선택 행 다음부터 찾고 끝에 도달하면 처음부터 한 번 이어서 검색하는 레거시 흐름을 포팅한다.
 - 삭제는 별도 시스템 비밀번호 gate 없이 레거시의 사용자 삭제 확인을 한 번 표시한 뒤 선택 사용자 한 건만 삭제한다.
@@ -318,6 +328,7 @@ END CATCH
 - 거래처·사용자 `Connect` 외에 일반적인 사용자 전환, 임의 권한 상승 또는 별도 impersonation 이력 UI로 확장하지 않는다.
 - 로그인 `User.instance`와 `UserDAO.selectByUserId`는 session 로그인 mapping으로 유지한다. 사용자 관리 목록·CRUD는 별도 `ManagedUser` row/codec을 사용해 DB의 실제 `RICH_USER_GRADE`를 그대로 보존하고 로그인 전용 `_effectiveGrade`나 `clientUserTestOverrideId`를 적용하지 않는다. `UserGrade` enum은 공용으로 재사용한다.
 - 비밀번호는 레거시 `CUserDAO`와 같이 입력 문자열을 변환하지 않고 기존 `BM_USER.RICH_PWD`에 그대로 조회·저장한다. hash·암호화·별도 credential table이나 migration을 추가하지 않는다.
+- 추가·수정·삭제의 child/parent 저장 경계와 취소·실패·성공 후 상태는 7.3의 네 관리 dialog 전용 lifecycle을 따른다. 저장 성공 후 현재 범위의 사용자 목록을 다시 조회하고 선택을 해제하며 선택·scroll을 복원하지 않는다. 레거시 model의 오래된 row index나 Connect 활성 상태를 유지하지 않는다.
 - 현재 로그인 사용자의 권한이 변경돼도 자동 반영/강제 로그아웃을 추측으로 추가하지 않는다.
 
 ### 5.1.7 관리자 복사 (`IDM_ADMIN_COPY`)
@@ -651,6 +662,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - dropdown처럼 별도 overlay surface가 필요한 control은 현재 `_ModelessDropdownField`/`_DialogDropdown` 패턴을 재사용하고 dialog 위 표시와 화면 경계 clamp를 보장한다. 같은 구현이 두 화면 이상에서 중복될 때 공용 control로 추출한다.
 - 중첩 확인창이나 picker를 닫으면 가능한 경우 이를 연 control로 focus를 복원한다.
 - commit 전 DML/validation 단계의 확정 실패는 dialog와 draft를 유지하고 오류를 한 번 전달한다. `DbCommitOutcomeUnknown`과 commit 성공 후 reload 실패는 1.3의 결과별 계약을 적용해 같은 draft를 재저장하지 못하게 한다.
+- 단, 5.1.3~5.1.6의 추가·수정 입력은 사용자 확정과 활성 레거시 동작에 따라 적용 시 child dialog를 먼저 닫고 parent validation·DML을 실행한다. parent validation·DML이 실패하면 manager와 기존 목록을 유지하고 오류를 한 번 전달하되 child를 자동 재개방하거나 draft를 복구하지 않는다. 이 예외를 다른 입력 dialog로 확대하지 않는다.
 - commit과 필요한 reload가 모두 성공하면 committed 상태를 반영한 뒤 overlay를 제거하고 controller, listener, focus node를 dispose한다.
 - 5.3.1 품목별 정보 편집은 사용자 확정과 레거시 동작에 따라 저장 성공 후 committed 기준과 dirty·write-busy만 갱신하고 dialog와 현재 목록 상태를 유지한다. 이 화면에 공통 성공 후 overlay 제거 규칙을 적용하지 않는다.
 - 단, 5.3.2 영양성분 형식과 5.3.3 영양성분표의 신규·수정 입력 dialog는 사용자 확정과 레거시 동작에 따라 저장 성공 후에도 같은 입력 상태로 열린 채 유지한다. 이 두 화면에 공통 성공 후 overlay 제거 규칙, 자동 draft 초기화, 신규에서 수정 mode로의 자동 전환이나 중복 저장 차단을 적용하지 않는다.
@@ -679,6 +691,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 `BlockingModelessDialogFrame.footer`에 필요한 상태와 `취소`/`저장` 또는 `취소`/`적용`을 배치한다. 공용 footer widget은 같은 구조가 반복될 때만 추가한다.
 - 즉시 적용형·단순 설정형 관리 dialog는 footer 없이 title bar 닫기와 본문 command만 사용할 수 있다.
 - 추가/수정은 draft에서 수행하고 저장/취소를 명시한다.
+- 협력업체·거래처·지점·사용자 추가/수정 child dialog는 UI draft와 입력 검증만 소유하고 DAO·SQL을 호출하지 않는다. 취소하면 child만 닫고 parent DML·reload·성공 안내를 모두 실행하지 않는다. 적용하면 child를 닫고 반환된 draft로 parent/controller가 필요한 validation을 수행한 뒤 본체 DML을 최대 한 번 실행한다.
+- 네 관리 dialog는 parent 저장과 필요한 transaction이 성공한 뒤 현재 범위 목록을 DAO 반환 순서로 다시 조회하고 성공 안내를 한 번 표시한다. reload 후 행 선택을 해제하고 선택·scroll을 복원하지 않으며 command 상태는 각 본문의 context·selection 규칙으로 다시 계산한다. 지점 관리도 commit 전에 reload하거나 성공 안내를 표시하지 않는다.
 - 삭제는 개별 command에 명시된 비밀번호 gate, 확인 문구와 연관 삭제 범위만 따른다. 공통 사전 종속성 검사나 추가 확인 단계를 만들지 않는다.
 - 저장 성공 후 해당 목록과 개별 command에 명시된 app cache만 reload한다.
 - 각 dialog의 owning controller가 해당 overlay와 open/close command를 관리한다.
@@ -773,7 +787,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 완료 기준:
 - CRUD 및 selector 권한이 레거시와 일치.
-- 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭 수정과 manager 목록 Enter 무동작, 각 추가/수정 입력의 Enter 적용이 레거시와 일치함.
+- 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭만 수정 진입점이고 manager 목록 Enter 무동작, 각 추가/수정 입력의 Enter 적용·child 종료 후 parent 저장과 취소 DML 0건이 레거시 및 사용자 확정과 일치함.
+- 네 관리의 성공 reload 후 선택 해제와 화면별 command 상태 재계산, 거래처·지점·사용자 selector cascade 및 사용자 `전체 표시` command 상태가 레거시와 일치함.
 - 협력업체·거래처·지점 입력에는 레거시에 없는 필수값·중복 검증이 없고 거래처 이름만 50자 제한을 유지하며 사용자 비밀번호는 기존 `RICH_PWD` 문자열을 변환 없이 저장함.
 - 협력업체·거래처·지점 삭제의 시스템 비밀번호 gate와 사용자 삭제의 일반 확인이 서로 확대되지 않고 구분됨.
 - 지점 추가·삭제가 기존 품목의 `ItemOfMarket` 연관 행을 같은 transaction에서 생성·삭제함.
@@ -827,6 +842,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 검색출력 mode focused test에서 `F12`와 menu toggle이 같은 controller state를 사용하고 tab/button 상태가 전환되는지 검증한다. 빈 입력은 조회·발행 0건, 검색 결과 0건은 발행 0건과 각 오류 1회인지 확인하고, 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건만 기존 pipeline으로 즉시 발행하며 모든 처리 시도 후 입력을 비우는지 검증한다.
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다. 지점 관리는 현재 로그인 협력업체·거래처 초기값과 `IsManager`의 두 selector 잠금, `IsCoopAdmin`의 협력업체만 잠금, `IsSystemAdmin`·`IsAdminConnect`·`IsCoopAdminConnect`의 두 selector 활성화를 확인하되 `MANAGER_USER` command 접근을 허용하지 않는다.
 - 관리 dialog focused test에서 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭이 선택 후 수정 입력을 열고 header·빈 영역은 무시하는지 확인한다. 네 manager 목록과 관리자 복사의 dialog-level Enter는 무동작이고, 각 추가/수정 입력은 Enter로 적용해 검증 성공 시 닫힌 뒤 parent 저장·목록 갱신으로 이어지는지 검증한다. 사용자 관리 검색 입력의 Enter는 이름 검색만 실행한다.
+- 관리 dialog focused test에서 네 child 입력의 취소는 parent validation·DML·reload·성공 안내 0회인지, 적용은 child 종료 후 필요한 parent validation과 본체 DML 최대 1회인지 확인한다. parent validation·DML 실패는 manager·기존 목록 유지, 오류 1회, child 재개방·draft 복구 0회이고 성공 때만 reload·선택 해제·화면별 command 상태 재계산·성공 안내 1회인지 검증한다. 지점 transaction은 commit 전에 reload·성공 안내를 실행하지 않는다.
+- 관리 dialog focused test에서 별도 수정 button·context command가 없고 협력업체·거래처의 추가 상시 사용, 거래처 삭제·Connect의 미선택 안내, 지점의 거래처 context별 추가·삭제 활성과 미선택 삭제 안내를 검증한다. 사용자 관리는 유효 지점·`전체 표시`에 따른 추가 활성과 선택별 삭제·Connect 활성, reload 후 오래된 row index·Connect 상태 제거를 확인한다.
+- 관리 dialog focused test에서 거래처 관리의 협력업체 변경은 거래처 reload·선택 해제, 지점 관리의 협력업체 변경은 거래처 재조회 후 자동 선택 없이 지점 clear·추가/삭제 비활성, 거래처 선택은 지점 reload·command 활성인지 검증한다. 사용자 관리의 협력업체 변경은 거래처만 남기고 지점·사용자 clear, 거래처 변경은 첫 반환 지점·사용자 조회 또는 지점 없음의 빈 목록·추가 비활성, `전체 표시` on/off는 현재 협력업체·지점 범위와 selector·추가 상태를 각각 적용하는지 확인한다.
 - 협력업체·거래처·지점 관리 focused test에서 삭제 전 공용 시스템 비밀번호 계산과 각 1회의 확인을 검증하고, 사용자·영양성분 삭제에는 이 gate가 추가되지 않는지 확인한다.
 - 협력업체·거래처·지점 관리 focused test에서 협력업체 ID·이름과 거래처·지점 이름의 빈 값·중복 검증을 새로 추가하지 않고 거래처 이름에만 50자 제한을 적용하는지 확인한다. 협력업체 관리는 ID·이름 추가/수정과 목록 refresh, 기존 FK cascade를 사용하는 단일 삭제를 검증하며 저장 후 로그인 session context reload나 강제 로그아웃은 검증 대상에 추가하지 않는다.
 - 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.

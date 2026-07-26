@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 27차 감사의 네 관리 child/parent 저장 책임, 취소·실패 lifecycle, 성공 refresh 선택 해제, selector cascade와 command 활성 조건을 활성 레거시 기준으로 병합한다.
+- 사용자 확정: 협력업체·거래처·지점·사용자 입력은 적용 시 child를 먼저 닫고 parent validation/DML 실패 시 manager와 기존 목록만 유지하며 오류를 한 번 전달한다. child를 재개방하거나 draft를 복구하지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 7.1·7.3과 Phase 3·focused test에서 child draft/parent DAO 경계, 취소 DML 0건, 실패 시 child 종료·draft 폐기 예외, 성공 reload·선택 해제, 화면별 selector cascade·CRUD command 상태와 수정 진입점을 명확히 한다. 지점 transaction의 commit 전 refresh·성공 안내 결함은 복제하지 않는다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 관리 본문 편집 완료: [doc/app_menu_porting.txt] 네 관리의 화면별 selector cascade, 추가·삭제·Connect 활성/미선택 안내와 유효 행 더블클릭 전용 수정 진입점, 성공 reload·선택 해제를 5.1.3~5.1.6에 반영했다.
+- lifecycle·테스트 계약 편집 완료: [doc/app_menu_porting.txt] child draft/parent DAO 경계, 취소 parent 작업 0회, 사용자 확정 실패 시 child 종료·draft 폐기 예외, 성공 후 화면별 command 상태 재계산과 지점 commit 전 refresh 금지를 7.1·7.3, Phase 3·focused test에 반영했다.
+- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과. [doc/app_menu_porting.txt]의 27차 필수 계약 9개와 포괄 command 비활성 문구 제거를 PowerShell 표적 검사로 확인했다.
+- 검증 실행 예정: 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 화면별 command 계약 충돌·stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 사용자 중복 확인 조회와 본체 DML을 구분하고 부정확한 parent DAO 1회·포괄 command 비활성 문구가 남지 않았음을 확인했다.
+- diff 검토 완료: 사용자 확정 실패 lifecycle 예외는 5.1.3~5.1.6 추가·수정에만 한정되고, 협력업체·거래처·지점의 미선택 안내형 command와 사용자 관리의 선택 기반 비활성화가 충돌 없이 분리됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 30 insertions, 2 deletions다.
 - 완료: [doc/app_menu_porting.txt] 26차 감사의 네 조회 날짜 key 양끝 포함, 발행내역 합계행 순서·색상·0건 유지, 발행 통계 0건 요약과 상세 결과 row 직접 mapping 계약을 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확인: 26차 네 권장안은 활성 레거시와 기존 결함 비복제 원칙으로 모두 결정되므로 별도 사용자 선택 없이 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.2~5.2.4·5.2.6, 7.4와 focused test에서 `YYYYMMDD BETWEEN` 양끝 포함·역전 범위 무보정, 발행내역 합계행 배치·색상·0건 상태, 발행 통계 0건 요약과 실제 결과 row model/ID 직접 mapping을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
