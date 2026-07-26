@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 신규 AppBar transaction 단일 경로·관리자 복사·관련 DAO test 책임과 `1200×800`·`600×720` widget test viewport 계약에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 23 insertions, 30 deletions다.
+- commit 완료: `1e849d5` (`앱 메뉴 33차 트랜잭션 반응형 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 32차 감사의 공통 종료 participant/snapshot 경계, 기존 프린터·저울 설정 modal route 종료 처리, 저장 성공 후 dialog 유지 범위와 Esc 동작을 레거시 및 사용자 확정 기준으로 병합하고 검증했다.
 - 사용자 확정: 기존 프린터·저울 설정 modal route가 열린 상태에서 OS 종료 요청이 오면 설정창을 먼저 닫도록 종료를 차단한다. route draft를 통합 dirty에 포함하거나 차단형 overlay로 재포장하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 4.2, 5.1.2·5.1.8, 7.1·7.3, Phase 1과 focused/widget/완료 계약에서 활성 lifecycle participant와 optional exit snapshot을 분리하고, clean·읽기 전용 overlay 정리, 기존 프린터·저울 설정 modal route 종료 차단, 네 관리 parent 유지, 레거시 Esc 닫기를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
