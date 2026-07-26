@@ -7,6 +7,18 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 18차 감사에서 확인한 shortcut, Connect, transaction 실행 경로, command 권한과 과도한 rowcount·정렬 지시를 레거시 활성 코드와 현 DB API 범위로 고정한다.
+- 사용자 확정: 거래처 Connect 대상의 첫 반환 지점 또는 해당 지점 grade 2 사용자가 없으면 context·연결 플래그·화면을 변경하기 전에 전체 Connect를 중단하고 오류를 전달한다. `품목별 정보 편집`은 레거시 `OnEditItemInfo`처럼 로그인 사용자 전체에 표시한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]에서 `품목별 정보 편집`의 잘못된 F1 shortcut을 제거하고, 거래처·사용자 Connect별 플래그와 거래처 Connect 대상 선택, 관리자 브랜드 복사의 단일 server-side statement, `품목별 정보 편집`·`업데이트 메시지`의 `loggedIn` policy, command별 rowcount 0건 허용 범위, 관리 목록의 레거시 DAO 반환 순서, 후속 도움말의 비범위 문구를 명확히 한다. 관련 Phase·focused test·최종 상태도 같은 계약으로 정리한다.
+- 편집 완료: [doc/app_menu_porting.txt] AppBar shortcut 계약에서 `품목별 정보 편집` F1 mapping을 제거하고 F1을 기존 품목관리 탭 전용으로 고정했다. 거래처·사용자 Connect별 연결 플래그 mapping과 거래처 대상 부재 사전 중단, 관리자 브랜드 복사의 단일 `DbTransactionStatement`·`OUTPUT INSERTED` ID mapping을 명시했다.
+- 편집 완료: [doc/app_menu_porting.txt] `품목별 정보 편집`·`업데이트 메시지`를 `loggedIn`으로 고정하고, 정확히 1건을 요구하는 본체 DML만 rowcount 실패로 처리하며 선택적 연관 DML 0건은 허용하도록 좁혔다. 관리 목록 초기 순서와 중복은 레거시 DAO 범위로 제한하고 도움말 구현 문구를 후속 요청 조건으로 변경했다.
+- 테스트 계약 편집 완료: Phase 3과 focused/widget test에 Connect mapping·사전 중단, 관리자 복사 단일 batch, 두 `loggedIn` policy, 선택적 DML 0건 허용과 `품목별 정보 편집` F1 미표시를 반영했다.
+- 검증 완료: 각 [doc/app_menu_porting.txt] 편집 직후 `git diff --check -- doc/app_menu_porting.txt` 통과.
+- 검증 완료: 이전 모호 문구 6종 제거와 F1 미연결, Connect별 mapping·대상 부재, 단일 server-side batch, 선택적 DML 0건 허용, 두 `loggedIn` policy, 후속 도움말 필수 문구 11종의 표적 검사 통과. 첫 검사는 후속형 새 문장에 포함된 도움말 부분 문자열을 이전 문구로 오인해 실패했고 줄 시작 기준으로 바로잡은 재검사는 통과했다.
+- 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 전체 diff는 18차 권장안과 관련 Phase·focused/widget test에 한정됐고 공용 transaction API 확장이나 현재 범위의 도움말 구현 지시는 없다.
+- 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. `git status --short`에서 두 대상 문서와 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]만 확인했다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서만이며 변경 규모는 37 insertions, 22 deletions다.
 - 완료: [doc/app_menu_porting.txt] 17차 관리자 복사 계약을 레거시 활성 동작과 사용자 확정 범위로 병합하고 검증·commit했다.
 - 사용자 확정: 데이터 손실 경고 취소 시 column·label size·품목 복사를 모두 중단한다. `품목까지 복사` 대상 거래처에 지점이 없으면 생성·대체 없이 전체 복사를 중단하고 오류를 전달한다. `브랜드 복사` checkbox는 명시적 mode로 개선하지 않고 레거시의 selector event 순서 의존 상태를 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7, Phase 3 완료 기준과 focused test에서 권한별 협력업체 selector, 일반 label size 복사와 브랜드 복사 분기, 실제 삭제·복사 DAO/프로시저, 현재 유효 `RICH_FORM_SHEET` payload, 생성 ID 반환, 성공 후 owner reload/clear를 명확히 하고 불필요한 XML 지시를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
