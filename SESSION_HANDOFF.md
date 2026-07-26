@@ -7,8 +7,19 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반과 Phase 2 `사용자 접속 이력 보기` DAO를 커밋했고, 해당 command의 실제 blocking dialog UI·selector DAO·owner 연결을 완료해 커밋 직전이다.
-- 현재 구현 현황: AppBar command inventory·policy·반응형 shell·owner controller·shortcut blocker·종료 lifecycle이 연결됐다. 조회 기능은 `사용자 접속 이력 보기`가 최초 실제 dialog까지 구현됐고 Phase 2의 나머지 조회 기능은 미구현이다.
+- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반과 Phase 2 `사용자 접속 이력 보기`, `발행내역 보기`, `데이터내용 이력 보기`, `공용라벨 수정 이력 보기`를 커밋했다. Phase 2의 남은 기능은 `발행 통계 조회`다.
+- 현재 구현 현황: 공용라벨 이력 read model/DAO에 숨김 log ID, before/after RTF와 sheet payload, non-empty sheet 우선 fallback을 추가했다. 조회는 레거시와 같은 log+brand join, `RICH_MOD_DATE BETWEEN`, log table의 선택 거래처 조건이며 `ORDER BY`를 추가하지 않는다.
+- 공용라벨 이력 첫 검증 완료: [test/common_label_history_test.dart] 2건이 codec, sheet 우선/RTF fallback, 숨김 log ID, 날짜·거래처·무정렬 SQL을 검증하며 통과했다. `flutter analyze lib/models/common_label_history.dart test/common_label_history_test.dart` → `No issues found`. 인접 확인 중 고객 조건 alias 차이를 발견해 `A.RICH_CUSTOMER_ID`로 바로잡고 동일 focused 검증을 재실행한다.
+- 공용라벨 이력 DAO 재검증 완료: 고객 조건을 레거시와 같은 `A.RICH_CUSTOMER_ID`로 교정한 뒤 focused test 2건과 targeted analyze를 다시 통과했다.
+- 공용라벨 zoom 기반 편집/검증 완료: [lib/page_label_sheet/label_sheet_workbench.dart]의 `LabelSheetZoomController`에 인스턴스별 min/max를 추가하되 기본 10~400은 유지했다. [test/label_sheet_zoom_controller_test.dart] 2건과 targeted analyze가 통과했으며 공용라벨 dialog만 20~500을 사용한다.
+- 공용라벨 zoom 통합 보정/검증 완료: 외부 controller의 workbook 동기화·초기화도 인스턴스 min/max를 사용하도록 보정했다. VS Code test API가 신규 widget test를 0건으로 반환해 `flutter test test/label_sheet_zoom_controller_test.dart`로 직접 실행했고, 실제 `LabelSheetWorkbench` 부착 상태에서 500% 유지 포함 `3 passed`; targeted analyze도 `No issues found`다.
+- 공용라벨 이력 UI 편집 완료: [lib/page_home/common_label_history_dialog.dart]에 권한별 selector와 시스템 관리자 협력업체→거래처 cascade, 최초 자동 조회 없는 날짜·거래처 조회, 빈 결과 무안내 table, 실제 row 선택의 전후 payload 병렬 preview, 독립 20~500% zoom을 추가했다. sheet는 기존 decode/normalize, RTF는 기존 `labelSheetWorkbookWithRtf` 경로를 사용한다.
+- 공용라벨 이력 UI 검증 완료: [test/common_label_history_dialog_test.dart] 2건이 시스템 관리자 selector cascade·선택 거래처 조회·전후 preview 적재, 일반 사용자 selector 숨김·무자동 조회·빈 결과 무안내를 검증하며 통과했다. 관련 targeted analyze → `No issues found`.
+- 공용라벨 이력 owner 연결 완료: [lib/home_page_manager.dart]가 `viewCommonLabelHistory` command를 `1420×820` blocking modeless overlay에 연결하고 clean lifecycle participant를 닫기·dispose에서 해제한다.
+- 공용라벨 이력 최종 검증 완료: model/UI/zoom/controller/lifecycle focused suite `14 passed`; touched Dart 7개 diagnostics는 모두 0건이다.
+- 공용라벨 이력 기능 stage 대상: [lib/models/common_label_history.dart], [lib/page_home/common_label_history_dialog.dart], [lib/page_label_sheet/label_sheet_workbench.dart], [lib/home_page_manager.dart], [test/common_label_history_test.dart], [test/common_label_history_dialog_test.dart], [test/label_sheet_zoom_controller_test.dart]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]와 [SESSION_HANDOFF.md]는 기능 커밋 stage에서 제외한다.
+- 공용라벨 이력 기능 stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 Dart 7개뿐이며 handoff와 기존 사용자 변경 3개는 포함하지 않았다.
+- 공용라벨 이력 기능 커밋: `62ca02e` (`공용라벨 수정 이력 조회 구현`). 원격 push는 수행하지 않았다. 다음 시작점은 지시서 Phase 2 순서의 `발행 통계 조회`이며 활성 레거시 `CStatusPrintModel::Search → CStatusPrintDAO::SelectDLG`와 현 `BM_RICH_STATUS` persistence schema를 대조해 read model/DAO부터 구현한다.
 - 편집 완료: [lib/models/app_menu_command.dart]에 26개 안정 ID, 레거시 순서 section, 검색출력 submenu, F12, popup 소유권과 legacy 숨김 metadata를 추가했다. [lib/core/app_menu_policy.dart]에 비로그인 차단, 등급·신뢰 가능한 세션 플래그 경계, busy/context 차단과 저울출력 label size 사유를 계산하는 순수 policy를 추가했다.
 - 테스트 추가: [test/app_menu_command_test.dart]에 legacy ID test fixture와 inventory 계약 4건, [test/app_menu_policy_test.dart]에 비로그인·등급·세션 flag·`tester01`·숨김·프린터·작업 상태·editable 계약 9건을 추가했다. runtime metadata에는 legacy ID를 넣지 않았다.
 - 검증 완료: focused test `13 passed, 0 failed`; 새 source/test 4개 VS Code diagnostics 0건. 포맷 후 같은 focused test를 다시 실행해 `13 passed, 0 failed`를 확인했다.
