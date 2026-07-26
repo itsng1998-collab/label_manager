@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 28차 감사의 master-key 로그인 상태와 로그인·로그아웃 이력 기록 matrix·실패 처리를 활성 레거시 기준으로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 28차 감사의 master-key 로그인 상태와 로그인·로그아웃 이력 기록 matrix·실패 처리를 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 비시스템 사용자의 직접 비밀번호 로그인과 master-key 이력 미기록 상태를 이번 AppBar 로그인 command 계약에 포함한다. `IsFirstConnectByAdmin` 및 관리자 `Connect` 상태와 합치지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.1~5.1.2, 6.2, Phase 1과 focused test에서 일반·master-key·관리자 Connect·앱 종료별 `LOGIN`/`LOGOUT` 기록 조건, session 초기화 전 기록, 이력 저장 실패 시 상태 전환 유지와 자동 재시도 금지를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 로그인·로그아웃 본문 편집 완료: [doc/app_menu_porting.txt]에 `SYSTEM`·시스템 관리자 `IsFirstConnectByAdmin`과 비시스템 직접 비밀번호 master-key를 분리하고, 로그인·명시적 로그아웃·앱 종료별 이력 기록 조건과 오류 후 상태 전환 유지·중복 기록 금지를 반영했다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 로그인 방식별 session 상태, 로그인·명시적 로그아웃·앱 종료 이력 matrix와 관련 Phase 1·focused test에만 한정됐고 기존 lifecycle·관리 CRUD 계약과 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 20 insertions, 2 deletions다.
+- commit 완료: `2bd3ea4` (`앱 메뉴 28차 로그인 이력 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 27차 감사의 네 관리 child/parent 저장 책임, 취소·실패 lifecycle, 성공 refresh 선택 해제, selector cascade와 command 활성 조건을 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 협력업체·거래처·지점·사용자 입력은 적용 시 child를 먼저 닫고 parent validation/DML 실패 시 manager와 기존 목록만 유지하며 오류를 한 번 전달한다. child를 재개방하거나 draft를 복구하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 7.1·7.3과 Phase 3·focused test에서 child draft/parent DAO 경계, 취소 DML 0건, 실패 시 child 종료·draft 폐기 예외, 성공 reload·선택 해제, 화면별 selector cascade·CRUD command 상태와 수정 진입점을 명확히 한다. 지점 transaction의 commit 전 refresh·성공 안내 결함은 복제하지 않는다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
