@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 37차 감사에서 확인한 영양성분 형식 입력의 `기존내용 참조`와 영양성분표 입력의 선택 형식 구성 미리보기 계약을 활성 레거시 기준으로 병합한다.
+- 사용자 확인: 추가 확인 사항 없음. 두 UI는 활성 레거시 dialog와 event handler로 동작이 확정되며, 저장 field나 신규 기능으로 확장하지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.2에 신규·수정 입력의 미선택 `기존내용 참조` selector와 선택 시 `RICH_NUTCOL_ID` 순 구성 교체를 명시한다. 5.3.3에는 형식 선택에 따른 keyword·성분명 read-only 구성 미리보기를 저장 field와 분리해 명시하고, 두 focused test를 동기화한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검증 실행 예정: 첫 편집 직후와 본문 편집 직후 `git diff --check`를 실행한다. 이어서 37차 필수 계약과 확장 금지 문구를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- 영양성분 형식 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.2와 focused test에 미선택 `기존내용 참조`, `RICH_NUTTYPE_ID` 순 목록, 선택 형식의 `RICH_NUTCOL_ID` 순 draft 구성 교체와 형식명·저장 대상·mode·DB 불변, 자동 저장·병합·복사 기능 금지를 반영했다.
+- 영양성분표 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.3과 focused test에 형식 미선택 시 빈 구성, 선택·수정 초기화 시 keyword·성분명 `RICH_NUTCOL_ID` 순 read-only sheet 표시와 저장·편집·정렬·복사 기능 금지를 반영했다. selector 목록에는 활성 레거시에 없는 정렬 조건을 추가하지 않았다.
+- 첫 편집 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 편집 직후 `git diff --check`가 통과했다.
+- 검증 완료: 37차 필수 계약 `11/11`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- diff 검토 완료: 변경은 5.3.2·5.3.3의 활성 레거시 보조 UI와 두 focused test에만 한정됐다. `기존내용 참조`는 draft 구성만 교체하고 영양성분표 구성 sheet는 기존 네 저장 field와 분리된 read-only 표시다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 14 insertions, 2 deletions다.
 - 완료: [doc/app_menu_porting.txt] 36차 감사의 `IsFirstConnectByAdmin` 수명과 거래처·사용자 `Connect` 관리자 접속 이력 계약을 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확정: `IsFirstConnectByAdmin`은 명시적 로그아웃에서 초기화하지 않고 프로세스가 종료될 때까지 유지한다. 앱 재시작 때만 기본 `false`로 시작하는 활성 레거시 동작을 사용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.2·6.2·Phase/test에서 `IsFirstConnectByAdmin`의 프로세스 수명을 고정한다. 5.1.4·5.1.6과 Phase/test에는 두 `Connect`가 `BM_LOGIN_LOG`가 아닌 `BM_ADMIN_ACCESS_LOG`에 원 관리자·대상 사용자·대상 거래처·내외부 IP·시각을 기록하는 범위와 `ResetMainView → context 전환 → 이력 INSERT → InitializeMainView` 순서를 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
