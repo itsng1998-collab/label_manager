@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 22차 감사의 사용자 접속 이력 selector 가시성, 이력 조회 빈 결과, 영양성분 삭제 확인, 입력 dialog 저장 lifecycle, 영양성분표 초기 선택·수정 후 preview 복원 계약을 병합한다.
+- 사용자 확정: 영양성분 형식·표 입력 dialog는 저장 성공 후 레거시처럼 열린 상태를 유지하고, 사용자 접속·데이터내용 이력 조회 0건은 빈 table과 함께 `검색결과가 없습니다!` 안내를 한 번 표시한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.3~5.2.4, 5.3.2~5.3.3, 7.1·7.3~7.4와 관련 Phase·focused test에서 22차 화면별 예외와 레거시 selector·삭제 확인·목록 상태 계약을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 조회 계약 편집 완료: [doc/app_menu_porting.txt] 사용자 접속 이력의 등급별 selector 표시·숨김과 사용자 접속·데이터내용 이력 0건의 빈 table·안내 1회 예외를 본문, 7.4, Phase 2와 focused test에 반영했다.
+- 영양성분 계약 편집 완료: [doc/app_menu_porting.txt] 형식·표 삭제 확인, 저장 후 입력 dialog 유지와 반복 신규 저장, 영양성분표 신규 형식 미선택·수정 후 행 선택 및 RTF preview 복원을 본문, 7.1, Phase 4와 focused test에 반영했다.
+- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
+- 검증 실행 예정: 22차 필수 계약과 이전 포괄 규칙의 화면별 예외 반영을 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: [doc/app_menu_porting.txt]의 22차 필수 계약 8개 반영과 대체 대상 포괄 selector 문구 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 22차 여섯 권장안과 사용자 확정, 관련 공통 규칙·Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 27 insertions, 9 deletions다.
 - 완료: [doc/app_menu_porting.txt] 21차 감사의 발행내역 조회 범위·검색 입력·합계·상세, 품목별 정보 편집 context, 영양성분 keyword 번호 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 발행내역의 거래처 `[전체 보기]`는 선택 협력업체나 사용자 등급으로 범위를 제한하지 않고 레거시처럼 전 협력업체의 `BM_RICH_PRINT_LOG` 내역과 합계를 조회한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.2, 5.3.1~5.3.2와 관련 Phase·focused test에서 발행내역의 selector와 실제 query 범위 분리, 검색 종류별 빈 입력, 별도 합계 query, 저장값·출력값 상세 비교, 품목별 정보 편집 source·미선택 상태, 영양성분 keyword 삭제 후 번호 규칙을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
