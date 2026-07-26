@@ -308,8 +308,7 @@ END CATCH
 - 삭제는 별도 시스템 비밀번호 gate 없이 레거시의 사용자 삭제 확인을 한 번 표시한 뒤 선택 사용자 한 건만 삭제한다.
 - 선택 사용자의 `Connect`를 포팅한다. 원래 관리자 계정을 한 번 보존하고 레거시 조건대로 `IsAdminConnect`/`IsCoopAdminConnect`를 설정한 뒤, 선택 사용자와 해당 지점·거래처·협력업체 context로 전환하고 기존 관리자 접속 로그를 저장해 메인 화면을 다시 초기화한다.
 - 거래처·사용자 `Connect` 외에 일반적인 사용자 전환, 임의 권한 상승 또는 별도 impersonation 이력 UI로 확장하지 않는다.
-- 기존 `User`/`UserDAO` 조회와 로그인 mapping을 재사용한다.
-- 관리용 row/draft가 로그인 `User.instance`와 다른 책임이면 별도 `ManagedUser` model을 작성한다.
+- 로그인 `User.instance`와 `UserDAO.selectByUserId`는 session 로그인 mapping으로 유지한다. 사용자 관리 목록·CRUD는 별도 `ManagedUser` row/codec을 사용해 DB의 실제 `RICH_USER_GRADE`를 그대로 보존하고 로그인 전용 `_effectiveGrade`나 `clientUserTestOverrideId`를 적용하지 않는다. `UserGrade` enum은 공용으로 재사용한다.
 - 비밀번호 저장 형식은 레거시 DB 형식을 확인해 그대로 사용한다. 임의 hash migration을 수행하지 않는다.
 - 현재 로그인 사용자의 권한이 변경돼도 자동 반영/강제 로그아웃을 추측으로 추가하지 않는다.
 
@@ -383,7 +382,7 @@ END CATCH
 - 조회 filter는 레거시와 같이 기간과 거래처 범위만 포팅한다. 품목, label size, column, 사용자와 변경 시각을 filter로 추가하지 않는다.
 - 시스템 관리자는 협력업체·거래처 selector를 표시하고 선택 거래처로 조회한다. 협력업체 selector 변경 handler가 비어 있어 거래처 목록이 갱신되지 않는 레거시 동작도 그대로 유지한다.
 - 협력업체 관리자는 협력업체 selector를 숨기고 거래처 selector를 표시하지만, 조회는 선택값을 사용하지 않고 현재 로그인 거래처로 고정한다. 그 외 사용자는 두 selector를 숨기고 현재 로그인 거래처로 조회한다. 무효 selector를 정상 연결하거나 조회 범위를 넓히지 않는다.
-- 사용자 ID·등급, 품목명, label size, 저장 시각·IP와 신규/수정 상태는 결과 column으로 표시한다. 레거시의 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`를 표시하며 별도 before/after 비교 field나 UI를 추가하지 않는다.
+- 사용자 ID·등급, 품목명, label size, 저장 시각·IP와 신규/수정 상태는 결과 column으로 표시한다. 결과 행을 더블클릭하면 `CONTENT_COLUMNS`와 `CONTENTS`를 각각 줄바꿈으로 분리하고 같은 index끼리 짝지어 둘 중 짧은 개수까지만 표시하는 read-only 상세 overlay를 연다. 누락값 보정이나 별도 before/after 비교 field·UI를 추가하지 않는다.
 - 현재 프로젝트의 저장 로그 table이 없거나 기존 schema가 다르면 migration으로 해결하지 않는다. blocker로 기록한다.
 - 조회 전용 DAO와 row model만 작성하며 원본 업무 데이터를 변경하지 않는다.
 
@@ -398,9 +397,11 @@ END CATCH
 - 레거시 기준: `OnStatusPrint` → `CStatusPrintDlg`, `CStatusPrintModel`.
 - 권한: 6.1의 `loggedIn`.
 - 현행 `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA` 저장 계약은 `label_print_persistence.dart`에서 확인한다.
-- 조회 filter는 레거시 활성 조회 흐름의 기간, 권한별 거래처, 브랜드, label size, 품목명, 검색 column·값과 완전/부분 일치 조건만 포팅한다.
+- 조회는 레거시 `CStatusPrintModel::Search`가 호출하는 `CStatusPrintDAO::SelectDLG` 흐름으로 고정한다. filter는 기간, 권한별 거래처, 브랜드, label size, 품목명, 검색 column·값과 완전/부분 일치 조건만 포팅한다.
 - 시스템 관리자만 협력업체·거래처 selector를 표시하고 변경할 수 있다. 그 외 로그인 사용자는 협력업체 selector를 숨기고 거래처를 현재 로그인 값으로 고정한다.
-- 사용자 등급은 결과 field로만 표시하며 filter로 추가하지 않는다. 발행 수량은 각 결과의 `RICH_PRINT_COUNT`를 표시하고, 활성 조회 흐름에서 사용하지 않는 `SelectPrintCountSum` 계열 합계 기능이나 별도 SQL aggregate를 추가하지 않는다.
+- 결과는 발행일, `RICH_PRINT_COUNT`, 품목명, 선택 검색 column의 값, 브랜드와 label size만 표시한다. 사용자 ID·이름·등급과 거래처 column은 레거시 활성 화면에서 주석 처리됐으므로 표시하지 않는다.
+- 결과 첫 두 요약행에는 조회된 `RICH_PRINT_COUNT`를 화면에서 합산한 `[총 발행 매수]`와 `RICH_ID_CHANGE_DELETE_DATE`가 있는 결과만 합산한 `[삭제된 품목 매수]`를 표시하고, 삭제된 품목 결과 행은 별도 상태로 구분한다. `SelectPrintCountSum` 계열 DAO나 별도 SQL aggregate를 추가하지 않는다.
+- 결과 행을 더블클릭하면 status ID로 레거시 상세 데이터를 조회해 품명·주원료와 각 column의 이름·저장일·값을 read-only 상세 overlay에 표시한다. 사용자 정보나 별도 통계 항목을 상세에 추가하지 않는다.
 - 통계 조회는 저장 이력 생성과 분리하며 조회 시 원본 데이터를 갱신하지 않는다.
 
 ## 5.3 설정 그룹
@@ -456,14 +457,14 @@ END CATCH
 ### 5.3.6 프린터 설정 (`IDM_SETUP_PRINT`)
 
 - 현재 라벨출력과 저울출력에는 서로 다른 session/settings context가 있다.
-- 레거시 전역 프린터 설정과 현 화면별 설정의 차이를 확인해 command 동작을 확정한다.
+- 레거시 단일 `IDM_SETUP_PRINT`는 provenance로만 유지하고, 이미 확정한 1→2 mapping에 따라 현 화면별 기존 owning method를 각각 연결한다. 레거시 전역 설정 dialog나 새 공용 설정 동작을 추가하지 않는다.
 - AppBar `설정` popup에서는 하나의 문맥 의존적인 `프린터 설정` 항목으로 합치지 않고 `라벨출력 프린터 설정`과 `저울출력 프린터 설정`을 명시적인 두 command로 표시한다.
 - 두 Flutter command는 각각 안정적인 command ID와 label을 가진다. 두 command와 레거시 `IDM_SETUP_PRINT`의 대응 관계는 포팅 inventory test fixture에 기록한다.
   - `라벨출력 프린터 설정` 공개 command는 기존 private `_openLabelPrintSettings()` owning method에 위임한다.
   - `저울출력 프린터 설정` 공개 command는 기존 private `_openScaleOutputPrinterSettings()` owning method에 위임한다.
 - private owning method를 public으로 바꾸거나 설정 dialog 실행 내용을 AppBar controller에 복제하지 않는다.
 - 현재 탭에 따라 같은 menu item의 의미나 label을 바꾸지 않고, 다른 탭에서 라벨출력 설정으로 자동 기본화하지 않는다.
-- 필요한 label size나 session context가 없으면 해당 command를 비활성화하고 popup에 짧은 `disabledReason`을 표시한다.
+- 두 command는 로그인 상태에서만 표시하고 각각 기존 라벨출력·저울출력 owner가 busy일 때 비활성화한다. `라벨출력 프린터 설정`에는 label size·저울 연결·현재 탭 조건을 추가하지 않는다. `저울출력 프린터 설정`은 `_effectiveLabelSize`가 없을 때만 추가로 비활성화하고 label size 선택이 필요하다는 짧은 `disabledReason`을 표시한다. 저울 연결 여부나 `useScale`을 추가 조건으로 만들지 않는다.
 - 설정 저장은 기존 `LabelPrintSettingsController`/DAO를 재사용한다.
 - 별도 전역 printer schema를 만들지 않는다.
 
@@ -736,7 +737,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 레거시 handler와 legacy command ID 대응 관계.
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
 - 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
-- 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다.
+- 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증한다.
 - 품목별 정보 편집 focused test에서 현재 지점·label size 목록, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신, dirty/busy 종료 차단을 검증한다.
 - 영양성분 형식 focused test에서 형식명 필수, 구성 행 1개 이상, 순차 keyword 자동 부여, parent/detail transaction과 형식 삭제의 연관 삭제를 검증한다. 정렬 command나 별도 중복 검증은 추가하지 않는다.
 - 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 명칭·폭·형식 검증과 선택 행 RTF read-only preview를 검증한다.
@@ -746,13 +747,13 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 협력업체 관리 focused test에서 ID·이름 추가/수정과 목록 refresh, 기존 FK cascade를 사용하는 단일 삭제를 검증한다. 저장 후 로그인 session context reload나 강제 로그아웃은 검증 대상에 추가하지 않는다.
 - 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.
 - 거래처·사용자 관리 focused test에서 선택 대상 `Connect`가 원래 관리자를 한 번만 보존하고 레거시 조건의 연결 상태와 사용자·지점·거래처·협력업체 context를 설정하며 관리자 접속 로그를 한 번 저장하는지 검증한다. 임의 경로에서는 연결 상태를 만들지 않는다.
-- 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다.
+- 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다. 관리 row의 grade는 DB 값을 그대로 decoding하며 로그인 전용 `clientUserTestOverrideId`가 적용되지 않는지 확인한다.
 - 업데이트 메시지 focused test에서 현재 사용자별 단일 row 조회, 시스템·협력업체 관리자 편집 범위, 일반 사용자 읽기 전용·다시 보지 않기와 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
 - 검색·치환 focused test에서 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 변경 행 저장을 검증한다. 주석 처리된 `추가 주원료` 검색은 inventory에 추가하지 않는다.
 - 발행내역 focused test에서 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 범위, `BM_RICH_PRINT_LOG`의 기간·거래처 조건과 `품명` 부분 일치, `사용자ID`·`거래처` 완전 일치, 총 누계·기간·label size 합계와 상세 decoding을 검증한다. 출력 경로 구분이나 pagination이 없는 것은 별도 기능 test로 확대하지 않고 query/model 계약에서 확인한다.
 - 사용자 접속 이력 focused test에서 시스템 관리자·협력업체 관리자·그 외 사용자의 selector 범위, 기간·거래처 조건과 레거시 결과 column decoding을 검증한다.
-- 데이터내용 이력 focused test에서 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회, 그 외 사용자의 현재 거래처 조회를 구분해 검증한다. 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`만 사용한다.
-- 발행 통계 DAO focused test에서 시스템 관리자만 협력업체·거래처 selector를 변경하는 권한, 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건과 결과의 사용자 등급·`RICH_PRINT_COUNT` decoding을 검증한다. 사용자 등급 filter나 별도 합계 query test를 추가하지 않는다.
+- 데이터내용 이력 focused test에서 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회, 그 외 사용자의 현재 거래처 조회를 구분해 검증한다. 행 더블클릭 상세는 `CONTENT_COLUMNS`와 `CONTENTS`를 줄바꿈으로 분리해 짧은 쪽 개수까지만 index pairing하고 before/after 보정을 추가하지 않는지 확인한다.
+- 발행 통계 focused test에서 시스템 관리자만 협력업체·거래처 selector를 변경하는 권한, `SelectDLG`의 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건과 활성 결과 column을 검증한다. 조회 결과의 `RICH_PRINT_COUNT`로 총 발행 매수·삭제 품목 매수를 계산하고 삭제 행을 구분하며, 행 더블클릭 상세가 품명·주원료와 column 이름·저장일·값만 표시하는지 확인한다. 사용자 등급 decoding/filter나 `SelectPrintCountSum` 계열 합계 query test를 추가하지 않는다.
 - 검색출력 설정 focused test에서 브랜드·label size별 column의 `RICH_SEARCH_PRINT` 개별 선택·전체 선택·전체 해제와 적용만 검증한다.
 - command policy test에서 발행내역, 사용자 접속 이력, 데이터내용 이력과 발행 통계가 `loggedIn`이고 비로그인에는 숨겨지는지 검증한다.
 - 단축키 차단 helper를 별도로 추가한 경우 차단 surface 활성/중첩/종료와 non-modal preview 제외 결과만 검증한다. route identity나 lease 내부 구조는 테스트 계약으로 고정하지 않는다.
