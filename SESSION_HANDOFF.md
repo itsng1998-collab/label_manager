@@ -7,6 +7,16 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 17차 관리자 복사 계약의 표적 문구·diagnostics와 전체 diff를 검증하고 두 문서만 stage/commit한다.
+- 사용자 확정: 데이터 손실 경고 취소 시 column·label size·품목 복사를 모두 중단한다. `품목까지 복사` 대상 거래처에 지점이 없으면 생성·대체 없이 전체 복사를 중단하고 오류를 전달한다. `브랜드 복사` checkbox는 명시적 mode로 개선하지 않고 레거시의 selector event 순서 의존 상태를 유지한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7, Phase 3 완료 기준과 focused test에서 권한별 협력업체 selector, 일반 label size 복사와 브랜드 복사 분기, 실제 삭제·복사 DAO/프로시저, 현재 유효 `RICH_FORM_SHEET` payload, 생성 ID 반환, 성공 후 owner reload/clear를 명확히 하고 불필요한 XML 지시를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 편집 완료: [doc/app_menu_porting.txt] `관리자 복사`를 일반 label size·브랜드 복사 분기로 나누고 selector event 순서, 실제 DAO/table 범위, 유효 sheet payload, 대상 첫 지점과 세 프로시저, 같은 transaction의 생성 ID, 성공 후 owner reload/clear 계약을 고정했다. Phase 3 완료 기준과 focused test도 같은 범위로 보강했다.
+- 검증 완료: `git diff --check -- doc/app_menu_porting.txt` 통과.
+- 검증 완료: 이전 조사형·XML 문구 3건 제거와 경고 취소·유효 sheet·대상 첫 지점·세 프로시저·owner 갱신 필수 문구 표적 검사 통과. 첫 표적 검사는 실제 focused test 문장과 다른 owner 검사 문자열 때문에 실패했고 검사 문자열을 바로잡은 재검사는 통과했다.
+- 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 두 문서 전체 diff에서 관리자 복사 외 본문 변경과 계약 충돌 없음.
+- 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. `git status --short`에서 두 대상 문서와 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]만 확인했다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. `git diff --cached --name-only`는 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt]만 표시했다.
 - 완료: [doc/app_menu_porting.txt]의 사용자 관리 model, 데이터내용 이력 상세, 발행 통계 결과, 프린터 설정 활성 조건을 레거시 활성 코드와 현 owning method로 고정했다.
 - 사용자 확인: 새 기능 선택 사항은 없다. 프린터 설정 1→2 mapping은 기존 사용자 확정을 유지하고, 나머지는 레거시 코드가 확정하므로 별도 질문 없이 권장안대로 병합한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.6, 5.2.4, 5.2.6, 5.3.6과 관련 focused test에서 로그인 grade 보정과 관리 raw grade 분리, 줄바꿈 상세 pairing, 발행 통계 활성 결과·요약·상세, 두 프린터 command별 최소 활성 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
