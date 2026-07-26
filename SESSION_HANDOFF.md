@@ -17,6 +17,7 @@
 - diff 검토 완료: 변경은 `IsFirstConnectByAdmin`의 프로세스 수명 app-scope 소유권과 두 `Connect`의 기존 `BM_ADMIN_ACCESS_LOG` 필드·실행 순서에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 18 insertions, 9 deletions다.
+- 기능 문서 커밋 완료: `af78c6b` (`앱 메뉴 36차 접속 상태 이력 계약 명확화`). 원격 push는 수행하지 않았다.
 - 완료: [doc/app_menu_porting.txt] 35차 감사의 관리자 복사 프로시저 schema gate, dialog 종료 후 owner refresh 순서와 검색출력 child 표시명을 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. 프로시저 metadata는 구현 전 schema 확인에만 사용하고 runtime 복사에서는 레거시처럼 확인된 세 프로시저를 직접 호출한다. 관리자 복사는 commit 성공 후 dialog를 닫고 `AdminCopyFinish` owner refresh를 실행하며, 검색출력 child 표시명은 레거시 리소스의 `검색출력모드`·`설정`을 사용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7과 focused test에서 runtime capability gate를 제거하고 구현 전 schema blocker와 프로시저 호출 순서·오류 전달만 유지한다. 관리자 복사 성공 순서를 `commit → dialog close → label size 재조회 → owner reload/clear`로 고정하고 post-commit refresh 실패는 1.3 계약을 적용한다. 3.2·widget test에는 검색출력 parent/child 실제 표시명을 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
