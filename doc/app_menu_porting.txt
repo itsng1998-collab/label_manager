@@ -481,20 +481,25 @@ END CATCH
 - 레거시 기준: `OnInsertNewNutTypeDlg` → `CNuttypeManagerDlg`.
 - 권한: 6.1의 `adminCommand`.
 - `BM_RICH_NUTTYPE` 형식 목록과 `BM_RICH_NUTCOLUMN` 구성 행의 추가·수정·삭제를 포팅한다. 형식명은 필수이고 구성 행은 1개 이상이어야 한다.
-- 빈 구성에서 첫 행을 추가하면 keyword는 `N01`이고, 이후 추가는 현재 표시된 마지막 행 keyword의 끝 두 자리 숫자에 1을 더해 `N%02d` 형식으로 부여한다. 행을 삭제해도 남은 keyword를 재번호하지 않으며, 중간 번호를 채우거나 정렬하지 않는다. 모든 행을 삭제한 뒤 다시 추가할 때만 `N01`부터 시작한다. keyword는 사용자가 수정하지 못하게 하고 성분명만 편집한다. 별도 행 정렬 command, 형식명·성분명 중복 검증, 신규 검증 규칙을 추가하지 않는다.
+- manager의 추가·수정·삭제 command는 행 선택과 관계없이 항상 활성화한다. 수정은 선택이 없으면 수정 대상 안내를 표시하고, 삭제는 먼저 연관 영양성분표 삭제 경고와 삭제 확인을 한 번 표시한 뒤 사용자가 승인했을 때 선택 여부를 검사한다. 미선택이면 선택 안내 후 DML을 실행하지 않는다. 선택 기반 비활성화나 선택 검사를 확인창 앞으로 옮기지 않는다.
+- manager 목록에서 child가 먼저 소비하지 않은 Enter는 수정 command를 실행한다. sheet 더블클릭도 좌표와 관계없이 같은 수정 command를 호출하므로 유효 선택이 있으면 수정 입력을 열고 선택이 없으면 수정 대상 안내를 표시한다. manager를 닫거나 신규 입력을 열지 않는다.
+- 빈 구성에서 첫 행을 추가하면 keyword는 `N01`이고, 이후 추가는 현재 표시된 마지막 행 keyword의 끝 두 자리 숫자에 1을 더해 `N%02d` 형식으로 부여한다. 행을 삭제해도 남은 keyword를 재번호하지 않으며, 중간 번호를 채우거나 정렬하지 않는다. 모든 행을 삭제한 뒤 다시 추가할 때만 `N01`부터 시작한다. keyword는 사용자가 수정하지 못하게 하고 성분명만 편집한다. 저장은 형식명 `IsEmpty`와 구성 행 1개 이상만 검사하므로 입력을 trim하거나 각 구성 행의 빈 성분명을 거부하지 않는다. 별도 행 정렬 command, 형식명·성분명 필수·중복 검증이나 신규 validation을 추가하지 않는다.
 - 기존 형식 수정은 parent 이름을 갱신하고 기존 detail을 삭제한 뒤 현재 구성 행을 다시 저장한다. 형식 삭제 전에는 해당 형식을 사용하는 영양성분표가 모두 삭제된다는 경고와 삭제 확인을 한 번 표시하고, 확인하면 `BM_RICH_NUTBOX`, `BM_RICH_NUTCOLUMN`, `BM_RICH_NUTTYPE` 순서의 연관 삭제를 하나의 transaction으로 처리한다. 별도 종속성 검사나 추가 확인을 만들지 않는다.
 - 관련 기존 테이블과 column이 실제 DB에 있는지 확인한 뒤 전용 model/DAO를 작성한다.
 - 현재 label column/barcode 모델에 억지로 포함하지 않는다.
 - 신규·수정의 형식 parent와 detail 저장도 하나의 transaction으로 처리한다. `MAX(RICH_NUTTYPE_ID)`로 방금 삽입한 parent를 추측하지 않고 현재 SQL Server 2017과 compatibility level 100에서 지원하는 동일 transaction의 생성 ID 반환을 사용한다.
 - 신규·수정 입력 dialog는 저장 성공 후에도 레거시처럼 같은 입력 상태로 열린 채 유지하고 사용자가 직접 닫을 때 manager 목록으로 돌아가 reload한다. 신규 상태에서 저장 command를 다시 실행해 같은 내용이 추가되는 동작을 별도 중복 방지나 자동 수정 전환으로 바꾸지 않는다.
 - dialog-level Enter도 레거시 `OnOK()`와 같이 저장 command를 실행하고 dialog를 유지한다.
+- manager 목록은 최초 조회와 신규·수정·삭제 후 `Refresh()`마다 선택을 해제한다. 수정 전 행 위치를 다시 선택하거나 별도 preview 상태를 만들지 않는다.
 
 ### 5.3.3 영양성분표 추가 (`IDM_NEW_NUTBOX`)
 
 - 레거시 기준: `OnInsertNewNutboxDlg` → `CNutBoxManagerDlg`.
 - 권한: 6.1의 `adminCommand`.
 - `BM_RICH_NUTBOX` 목록에 영양성분 형식명과 표 명칭을 표시하고 형식 ID 순서로 조회한다. 선택 행의 `RICH_NUTBOX_DATA` RTF는 목록 옆 읽기 전용 preview로 표시한다.
-- 추가·수정 입력은 영양성분 형식, 표 명칭, RTF 내용, 폭만 제공한다. 신규 입력은 형식을 자동 선택하지 않고 수정 입력만 저장된 형식을 선택한다. 명칭과 0이 아닌 폭, 형식 선택을 필수로 검증하고 별도 영양성분 schema나 field를 추가하지 않는다.
+- manager의 추가·수정·삭제 command는 행 선택과 관계없이 항상 활성화한다. 수정은 선택이 없으면 수정 대상 안내를 표시하고, 삭제는 일반 삭제 확인을 먼저 표시한 뒤 사용자가 승인했을 때 선택 여부를 검사한다. 미선택이면 선택 안내 후 DML을 실행하지 않는다. 선택 기반 비활성화나 선택 검사를 확인창 앞으로 옮기지 않는다.
+- manager 목록에서 child가 먼저 소비하지 않은 Enter는 수정 command를 실행한다. 유효 셀·행 더블클릭도 같은 수정 command를 실행하되 header·빈 영역 더블클릭은 무시한다. 선택이 없는 Enter는 수정 대상 안내만 표시하고 manager를 닫거나 신규 입력을 열지 않는다.
+- 추가·수정 입력은 영양성분 형식, 표 명칭, RTF 내용, 폭만 제공한다. 신규 입력은 활성 형식 selector를 미선택으로 두고 RTF를 빈 상태로 시작하며, 수정 입력만 저장된 형식·명칭·RTF·폭을 불러온다. 저장은 명칭 `IsEmpty` → 폭 `== 0` → 형식 미선택 순서로 첫 오류에서 중단한다. 빈 RTF는 저장할 수 있고 입력 trim, RTF 필수, 폭 양수·범위 검증이나 오류 일괄 수집을 추가하지 않는다. 별도 영양성분 schema나 field를 추가하지 않는다.
 - 추가·수정은 `RICH_NUTBOX_TYPE`, `RICH_NUTBOX_NAME`, `RICH_NUTBOX_DATA`, `RICH_NUTBOX_WIDTH`만 저장한다. 삭제 전에는 일반 삭제 확인을 한 번 표시하고, 확인하면 선택한 `RICH_NUTBOX_ID` 한 건만 처리한다. 형식 삭제의 연관 경고나 별도 종속성 검사를 확대 적용하지 않는다.
 - 신규·수정 입력 dialog는 저장 성공 후에도 레거시처럼 같은 입력 상태로 열린 채 유지하고 사용자가 직접 닫을 때 manager 목록으로 돌아가 reload한다. 신규 상태에서 저장 command를 다시 실행해 같은 내용이 추가되는 동작을 별도 중복 방지나 자동 수정 전환으로 바꾸지 않는다.
 - dialog-level Enter도 레거시 `OnOK()`와 같이 저장 command를 실행하고 dialog를 유지한다.
@@ -657,7 +662,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - dialog를 열면 현재 작업의 첫 번째 주요 입력이나 table에 초기 focus를 두고, 비활성 control을 건너뛰며 마우스 없이 주요 입력과 command를 이동할 수 있게 한다. 화면마다 동일한 고정 Tab 영역 순서를 강제하지 않는다.
 - Esc는 현재 focus를 가진 child에 실제 취소할 상태가 있을 때만 그 상태를 먼저 취소한다. 활성 셀 편집이나 비어 있지 않은 다중 선택이 Esc를 처리하면 dialog를 닫지 않고, 처리할 상태가 없으면 dialog 닫기 요청으로 이어진다. 일반 단일 행 선택은 별도 취소 단계로 간주하지 않는다.
 - 사용자가 해당 dialog만 직접 닫을 때는 clean 상태를 즉시 닫고 그 dialog가 dirty일 때만 폐기 확인을 거친다. 로그아웃·메뉴 종료·OS 종료는 dialog별 확인창을 띄우지 않고 공용 lifecycle guard의 전체 dirty 통합 확인을 사용한다. dialog-level Enter는 현재 focus child가 셀·입력 편집으로 먼저 소비하지 않았고 개별 command에 예외가 명시되지 않았을 때 dialog 전체 저장 command를 실행하지 않는다.
-- 화면별 Enter 예외는 활성 레거시 동작만 따른다. 협력업체·거래처·지점·사용자 추가/수정 입력은 적용 command를 실행하고 검증을 통과하면 입력 dialog를 닫아 parent 저장·목록 갱신으로 돌아간다. 품목별 정보 편집은 저장 command가 활성일 때 저장하고 dialog를 유지하며, 영양성분 형식·표 입력은 저장 후에도 dialog를 유지한다. 업데이트 메시지는 등급별 저장 후 dialog를 닫고, 사용자 관리 검색 입력은 이름 검색을 실행한다. 발행내역과 발행 통계는 현재 filter로 조회하고 사용자 접속 이력과 데이터내용 이력은 조회·닫기를 실행하지 않는다. 검색출력 설정은 5.3.11의 적용 후 유지 계약을 따른다. 네 관리 목록과 관리자 복사에서 child가 소비하지 않은 Enter는 수정·복사·닫기를 실행하지 않는다. 이 예외를 다른 dialog로 확대하지 않는다.
+- 화면별 Enter 예외는 활성 레거시 동작만 따른다. 협력업체·거래처·지점·사용자 추가/수정 입력은 적용 command를 실행하고 검증을 통과하면 입력 dialog를 닫아 parent 저장·목록 갱신으로 돌아간다. 품목별 정보 편집은 저장 command가 활성일 때 저장하고 dialog를 유지하며, 영양성분 형식·표 입력은 저장 후에도 dialog를 유지한다. 영양성분 형식·표 manager 목록의 Enter는 현재 선택에 대한 수정 command를 실행하고 미선택이면 안내만 표시한다. 업데이트 메시지는 등급별 저장 후 dialog를 닫고, 사용자 관리 검색 입력은 이름 검색을 실행한다. 발행내역과 발행 통계는 현재 filter로 조회하고 사용자 접속 이력과 데이터내용 이력은 조회·닫기를 실행하지 않는다. 검색출력 설정은 5.3.11의 적용 후 유지 계약을 따른다. 네 계층형 관리 목록과 관리자 복사에서 child가 소비하지 않은 Enter는 수정·복사·닫기를 실행하지 않는다. 이 예외를 다른 dialog로 확대하지 않는다.
 - dialog를 닫으면 가능한 경우 이를 연 AppBar control로 focus를 돌린다. 공용 wrapper 확장은 실제로 여러 dialog에서 같은 처리가 중복될 때 수행한다.
 - dirty, write-busy 또는 active editing처럼 실제 종료 차단 상태가 있는 신규 dialog owner만 exit snapshot을 `LifecycleManager.notifyExitRequested()` 흐름에 제공한다. dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
 - 읽기 전용 dialog는 종료용 dirty/write-busy 상태를 추가하지 않고 닫은 뒤 늦은 조회 결과를 폐기한다. 공용 lifecycle guard는 신규 dialog와 `HomePageManager` snapshot을 함께 평가하고 통합 dirty 확인이 끝난 뒤 열린 overlay를 정리한다. HomePage나 AppBar가 manager의 private 상태를 각각 복제하거나 별도 확인창을 만들지 않는다.
@@ -820,7 +825,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 검색출력 설정의 현재 context·DB 값 초기화와 미적용 draft 폐기 확인 검증 통과.
 - 검색출력 설정의 label size 순서, 전체 `CColumnDAO::UpdateBatch` DML과 transaction, 적용 후 dialog 유지·dirty 해제·Enter 적용이 레거시 및 사용자 확정과 일치함.
 - 품목별 정보 편집은 현재 로그인 지점·메인 선택 label size만 사용하고 미선택 시 빈 상태이며, 저장·Enter 후 committed 기준·dirty를 갱신한 채 dialog를 유지함. 영양성분 keyword는 삭제 후 재번호하지 않음.
-- 영양성분 형식·표의 삭제 확인, 저장 후 입력 dialog 유지, 영양성분표 신규 형식 미선택과 수정 후 선택·preview 복원이 레거시와 일치함.
+- 영양성분 형식·표 manager의 선택 전 command 활성, Enter·더블클릭 수정 진입과 삭제 확인 후 선택 검사, 형식 refresh 선택 해제, 빈 구성 성분명·빈 RTF 허용, 영양성분표 신규 형식 미선택과 수정 후 선택·preview 복원이 레거시와 일치함.
 
 ### Phase 5. 숨김 command 최종 검증
 
@@ -845,8 +850,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 로그인·로그아웃 focused test에서 `SYSTEM` 직접·시스템 비밀번호와 시스템 관리자 자기 비밀번호는 `IsFirstConnectByAdmin`이지만 master-key가 아니고, 비시스템 사용자의 레거시 직접 비밀번호만 master-key인지 검증한다. 일반·`IsFirstConnectByAdmin` 로그인은 `LOGIN` 1회, master-key 로그인은 0회인지 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회, 일반·관리자 `Connect` 중 앱 종료는 1회, master-key 종료는 0회인지 확인한다. 이력 저장은 session 초기화 전 값을 사용하고 오류 1회 뒤에도 로그인 초기화 또는 로그아웃·종료 정리를 계속하며, 자동 재시도와 종료 요청·detached 중복 기록은 0회인지 검증한다.
 - 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증한다.
 - 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 로그인 지점·메인 선택 label size 목록, dialog 내부 selector 부재와 브랜드·label size 미선택 시 DAO 0회·빈 목록·저장 비활성, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신·committed 기준·dirty 해제와 dialog·행 선택·scroll 유지, 저장 command가 활성일 때 Enter 저장, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
-- 영양성분 형식 focused test에서 형식명 필수, 구성 행 1개 이상, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 재번호하지 않는 동작, parent/detail transaction과 형식 삭제의 연관 경고 1회·연관 삭제를 검증한다. 저장 button과 dialog-level Enter 모두 저장하고 입력 dialog와 같은 신규·수정 상태가 유지되며 신규 저장을 다시 실행할 수 있는지 확인한다. 정렬 command, 별도 중복 검증, 자동 수정 mode 전환을 추가하지 않는다.
-- 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 신규 형식 미선택·수정 시 저장 형식 선택, 명칭·폭·형식 검증, 일반 삭제 확인 1회와 선택 행 RTF read-only preview를 검증한다. 저장 button과 dialog-level Enter 모두 저장하고 입력 dialog와 같은 신규·수정 상태가 유지되는지, 수정 dialog를 닫은 뒤에만 기존 행 선택·preview가 복원되고 추가·삭제 후에는 복원되지 않는지 확인한다.
+- 영양성분 형식 focused test에서 manager의 선택 전 추가·수정·삭제 활성, Enter와 좌표 무관 sheet 더블클릭의 수정 command, 미선택 수정 안내와 삭제 `연관 경고·확인 → 선택 검사 → DML 0건` 순서를 검증한다. 형식명 필수와 구성 행 1개 이상만 적용하고 빈 구성 성분명은 허용하며, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 미재번호, parent/detail transaction과 형식 삭제 연관 삭제를 확인한다. 저장 button과 입력 dialog Enter 모두 저장하고 같은 신규·수정 상태가 유지되며 신규 저장을 다시 실행할 수 있는지, manager `Refresh()` 후에는 선택이 해제되는지 검증한다. trim, 행별 성분명 필수·중복 검증, 정렬 command나 자동 수정 mode 전환을 추가하지 않는다.
+- 영양성분표 focused test에서 manager의 선택 전 추가·수정·삭제 활성, Enter와 유효 셀·행 더블클릭의 수정 command, header·빈 영역 더블클릭 무시, 미선택 수정 안내와 삭제 `확인 → 선택 검사 → DML 0건` 순서를 검증한다. 신규 형식 selector 활성·미선택과 빈 RTF 초기값, 수정 시 저장 형식·명칭·RTF·폭 load, 명칭 → 0이 아닌 폭 → 형식 선택의 순차 검증과 빈 RTF 저장 허용, 네 field CRUD, 일반 삭제와 선택 행 RTF read-only preview를 확인한다. 저장 button과 입력 dialog Enter 모두 저장하고 같은 신규·수정 상태가 유지되는지, 수정 dialog를 닫은 뒤에만 기존 행 선택·preview가 복원되고 추가·삭제 후에는 복원되지 않는지 검증한다. trim, RTF 필수, 폭 양수·범위 검증이나 오류 일괄 수집을 추가하지 않는다.
 - 검색출력 mode focused test에서 `F12`와 menu toggle이 같은 controller state를 사용하고 tab/button 상태가 전환되는지 검증한다. 빈 입력은 조회·발행 0건, 검색 결과 0건은 발행 0건과 각 오류 1회인지 확인하고, 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건만 기존 pipeline으로 즉시 발행하며 모든 처리 시도 후 입력을 비우는지 검증한다.
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다. 지점 관리는 현재 로그인 협력업체·거래처 초기값과 `IsManager`의 두 selector 잠금, `IsCoopAdmin`의 협력업체만 잠금, `IsSystemAdmin`·`IsAdminConnect`·`IsCoopAdminConnect`의 두 selector 활성화를 확인하되 `MANAGER_USER` command 접근을 허용하지 않는다.
 - 관리 dialog focused test에서 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭이 선택 후 수정 입력을 열고 header·빈 영역은 무시하는지 확인한다. 네 manager 목록과 관리자 복사의 dialog-level Enter는 무동작이고, 각 추가/수정 입력은 Enter로 적용해 검증 성공 시 닫힌 뒤 parent 저장·목록 갱신으로 이어지는지 검증한다. 사용자 관리 검색 입력의 Enter는 이름 검색만 실행한다.
