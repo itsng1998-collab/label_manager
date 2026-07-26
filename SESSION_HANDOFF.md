@@ -38,6 +38,7 @@
 - Phase 2 사용자 접속 이력 진행: 활성 레거시 `CLoginLogDAO` 확인 결과 `USER_GRADE`는 표시 문자열이며 조회는 `LOGIN_DATE_YYYYMMDD BETWEEN` + `CUST_ID`, `ORDER BY LOGIN_DATE ASC`다. [lib/models/login_log.dart] codec과 parameterized read DAO를 먼저 수정하고 [test/login_log_test.dart]로 SQL/codec을 고정한다. INSERT 계약은 변경하지 않는다.
 - Phase 2 LoginLog DAO 완료: [lib/models/login_log.dart]의 `userGrade`를 실제 DB 표시 문자열로 수정하고 CP949 변환 SELECT, 날짜 양끝 포함·거래처 ID parameter, `LOGIN_DATE ASC` read API를 추가했다. INSERT와 기존 write 형식은 변경하지 않았다.
 - Phase 2 LoginLog 검증: [test/login_log_test.dart] 2건 `passed`; `flutter analyze lib/models/login_log.dart test/login_log_test.dart` → `No issues found`. stage/commit 대상은 두 파일과 [SESSION_HANDOFF.md]만이다.
+- Phase 2 LoginLog DAO 커밋: `8e308dd` (`사용자 접속 이력 조회 DAO 구현`). 다음 시작점은 [lib/page_login/login_history_page.dart]의 demo `Scaffold/Card/DataTable`을 `LoginHistoryDialogContent` + `FortuneTable`로 교체하고, Cooperator/Customer read 목록 API와 HomePageManager blocking overlay/command handler를 연결하는 것이다.
 - 완료: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소하고 검증했다.
 - 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
