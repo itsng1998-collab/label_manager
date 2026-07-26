@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 18차 감사에서 확인한 shortcut, Connect, transaction 실행 경로, command 권한과 과도한 rowcount·정렬 지시를 레거시 활성 코드와 현 DB API 범위로 고정한다.
+- 완료: [doc/app_menu_porting.txt] 18차 감사의 shortcut, Connect, transaction 실행 경로, command 권한과 rowcount·정렬 범위를 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 거래처 Connect 대상의 첫 반환 지점 또는 해당 지점 grade 2 사용자가 없으면 context·연결 플래그·화면을 변경하기 전에 전체 Connect를 중단하고 오류를 전달한다. `품목별 정보 편집`은 레거시 `OnEditItemInfo`처럼 로그인 사용자 전체에 표시한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]에서 `품목별 정보 편집`의 잘못된 F1 shortcut을 제거하고, 거래처·사용자 Connect별 플래그와 거래처 Connect 대상 선택, 관리자 브랜드 복사의 단일 server-side statement, `품목별 정보 편집`·`업데이트 메시지`의 `loggedIn` policy, command별 rowcount 0건 허용 범위, 관리 목록의 레거시 DAO 반환 순서, 후속 도움말의 비범위 문구를 명확히 한다. 관련 Phase·focused test·최종 상태도 같은 계약으로 정리한다.
 - 편집 완료: [doc/app_menu_porting.txt] AppBar shortcut 계약에서 `품목별 정보 편집` F1 mapping을 제거하고 F1을 기존 품목관리 탭 전용으로 고정했다. 거래처·사용자 Connect별 연결 플래그 mapping과 거래처 대상 부재 사전 중단, 관리자 브랜드 복사의 단일 `DbTransactionStatement`·`OUTPUT INSERTED` ID mapping을 명시했다.
@@ -19,6 +19,7 @@
 - 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. `git status --short`에서 두 대상 문서와 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]만 확인했다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서만이며 변경 규모는 37 insertions, 22 deletions다.
+- commit 완료: `43e63eb` (`앱 메뉴 18차 레거시 계약 모호성 정리`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 17차 관리자 복사 계약을 레거시 활성 동작과 사용자 확정 범위로 병합하고 검증·commit했다.
 - 사용자 확정: 데이터 손실 경고 취소 시 column·label size·품목 복사를 모두 중단한다. `품목까지 복사` 대상 거래처에 지점이 없으면 생성·대체 없이 전체 복사를 중단하고 오류를 전달한다. `브랜드 복사` checkbox는 명시적 mode로 개선하지 않고 레거시의 selector event 순서 의존 상태를 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7, Phase 3 완료 기준과 focused test에서 권한별 협력업체 selector, 일반 label size 복사와 브랜드 복사 분기, 실제 삭제·복사 DAO/프로시저, 현재 유효 `RICH_FORM_SHEET` payload, 생성 ID 반환, 성공 후 owner reload/clear를 명확히 하고 불필요한 XML 지시를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
