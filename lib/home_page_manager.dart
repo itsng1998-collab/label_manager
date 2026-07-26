@@ -20,6 +20,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/app_menu_controller.dart';
 import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
+import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/additional_item.dart';
@@ -195,7 +196,8 @@ class HomePageManager extends StatefulWidget {
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
   final ValueChanged<LabelSize?> onLabelSizeChanged;
-  final ValueChanged<bool>? onItemDraftDirtyChanged;
+  final ValueChanged<LifecycleExitSnapshotProvider?>?
+  onExitSnapshotProviderChanged;
 
   const HomePageManager({
     super.key,
@@ -204,7 +206,7 @@ class HomePageManager extends StatefulWidget {
     required this.onBrandChanged,
     required this.selectedLabelSize,
     required this.onLabelSizeChanged,
-    this.onItemDraftDirtyChanged,
+    this.onExitSnapshotProviderChanged,
   });
 
   @override
@@ -394,7 +396,55 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (dirty == _lastReportedItemDraftDirty) return;
     _lastReportedItemDraftDirty = dirty;
     if (mounted) setState(() {});
-    widget.onItemDraftDirtyChanged?.call(dirty);
+  }
+
+  LifecycleExitSnapshot _createExitSnapshot() {
+    String? blockingReason;
+    if (_labelPrintSessionController.busy ||
+        _itemDraftCommandBusy ||
+        _autoItemUpdateCommandBusy ||
+        _labelColumnEditCommandBusy) {
+      blockingReason = '현재 저장 또는 발행 작업이 끝난 뒤 다시 시도해주세요.';
+    } else if (_scaleOutputSessionController.busy ||
+        _scaleOutputSessionController.connectionState ==
+            ScaleOutputConnectionState.connecting) {
+      blockingReason = '저울 발행 또는 연결 작업이 끝난 뒤 다시 시도해주세요.';
+    } else if (_itemManageController.hasActiveEditing ||
+        _autoItemUpdatePageController.hasActiveEditing ||
+        _scaleOutputPageController.hasActiveEditing) {
+      blockingReason = '현재 셀 편집을 완료하거나 취소한 뒤 다시 시도해주세요.';
+    }
+
+    return LifecycleExitSnapshot(
+      blockingReason: blockingReason,
+      dirtyWorks: [
+        if (_itemDraftController?.isDirty == true)
+          LifecycleDirtyWork(name: '품목관리', discard: _discardItemDraftForExit),
+        if (_autoItemUpdateDraftController?.isDirty == true ||
+            _autoItemUpdateDraftController?.addModeOpen == true)
+          LifecycleDirtyWork(
+            name: '자동품목갱신',
+            discard: _discardAutoItemUpdateDraftForExit,
+          ),
+        if (_commonLabelSheetDirty)
+          LifecycleDirtyWork(
+            name: '공용라벨관리',
+            discard: _discardCommonLabelDraftForExit,
+          ),
+      ],
+    );
+  }
+
+  Future<void> _discardItemDraftForExit() async {
+    _disposeItemDraftController();
+  }
+
+  Future<void> _discardAutoItemUpdateDraftForExit() async {
+    _disposeAutoItemUpdateDraftController();
+  }
+
+  Future<void> _discardCommonLabelDraftForExit() async {
+    _commonLabelSheetDirty = false;
   }
 
   void _handleAutoItemUpdateDraftChanged() {
@@ -979,6 +1029,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelPrintSessionController.addListener(_handleLabelPrintChanged);
     _scaleOutputSessionController.addListener(_handleScaleOutputChanged);
     _attachAppMenuCommands();
+    widget.onExitSnapshotProviderChanged?.call(_createExitSnapshot);
     HardwareKeyboard.instance.addHandler(_handleTabShortcutKeyEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -989,6 +1040,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   @override
   void didUpdateWidget(covariant HomePageManager oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.onExitSnapshotProviderChanged !=
+        widget.onExitSnapshotProviderChanged) {
+      oldWidget.onExitSnapshotProviderChanged?.call(null);
+      widget.onExitSnapshotProviderChanged?.call(_createExitSnapshot);
+    }
     if (!identical(oldWidget.appMenuController, widget.appMenuController)) {
       oldWidget.appMenuController.detach(this);
       _attachAppMenuCommands();
@@ -4191,11 +4247,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleTabShortcutKeyEvent);
     widget.appMenuController.detach(this);
+    widget.onExitSnapshotProviderChanged?.call(null);
     final readyCompleter = _itemManagerReadyCompleter;
     if (readyCompleter != null && !readyCompleter.isCompleted) {
       readyCompleter.complete();
     }
-    widget.onItemDraftDirtyChanged?.call(false);
     _itemDraftController?.removeListener(_handleItemDraftDirtyChanged);
     _itemDraftController?.dispose();
     _autoItemUpdateDraftController?.dispose();

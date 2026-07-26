@@ -48,7 +48,7 @@ class _HomePageState extends State<HomePage> {
   bool _isExiting = false;
   bool _loggedIn = false;
   Future<void>? _loginToServerDbFuture;
-  bool _itemDraftDirty = false;
+  LifecycleExitSnapshotProvider? _exitSnapshotProvider;
   // 선택 상태
   Brand? _selectedBrand;
   LabelSize? _selectedLabelSize;
@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage> {
         await _onLogout(true);
       },
       onExitRequested: () async {
-        if (!await _confirmDiscardItemDraft('앱을 종료')) return false;
+        if (!await _guardExit('앱을 종료')) return false;
         await _onLogout(true);
         return true;
       },
@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
       return future;
     }
 
-    if (!await _confirmDiscardItemDraft('로그아웃')) return;
+    if (!await _guardExit('로그아웃')) return;
     return _doLogout(isDisconnect);
   }
 
@@ -171,27 +171,67 @@ class _HomePageState extends State<HomePage> {
     await SystemNavigator.pop();
   }
 
-  Future<bool> _confirmDiscardItemDraft(String action) async {
-    if (!_itemDraftDirty || !mounted) return true;
-    return await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            title: Text('$action할까요?'),
-            content: const Text('저장하지 않은 품목 변경 내용이 있습니다.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('계속 편집'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(action),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  Future<bool> _guardExit(String action) async {
+    if (!mounted) return false;
+    final ownerSnapshots = <LifecycleExitSnapshot>[];
+    final provider = _exitSnapshotProvider;
+    if (provider != null) {
+      ownerSnapshots.add(await provider());
+    }
+    if (!mounted) return false;
+    ownerSnapshots.addAll([
+      if (ModalRoute.of(context)?.isCurrent == false)
+        const LifecycleExitSnapshot(
+          blockingReason: '열려 있는 설정창을 먼저 닫아주세요.',
+        ),
+    ]);
+    final plan = await LifecycleManager.instance.collectExitPlan(
+      ownerSnapshots: ownerSnapshots,
+    );
+    if (!mounted) return false;
+    if (plan.blockingReasons.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('$action할 수 없습니다.'),
+          content: Text(plan.blockingReasons.join('\n')),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    if (plan.dirtyWorks.isNotEmpty) {
+      final names = plan.dirtyWorks.map((work) => work.name).join(', ');
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('$action할까요?'),
+          content: Text('저장하지 않은 작업이 있습니다: $names'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('계속 편집'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(action),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return false;
+      await plan.discardDirty();
+    }
+    await plan.closeParticipants();
+    return true;
   }
 
   Future<void> _doLogout(bool isDisconnect) async {
@@ -332,8 +372,8 @@ class _HomePageState extends State<HomePage> {
                   setState(() => _selectedLabelSize = v);
                   _onLabelSizeChanged(v);
                 },
-                onItemDraftDirtyChanged: (dirty) {
-                  _itemDraftDirty = dirty;
+                onExitSnapshotProviderChanged: (provider) {
+                  _exitSnapshotProvider = provider;
                 },
               )
             : _buildLoggedOutBackground(),

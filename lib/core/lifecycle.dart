@@ -1,7 +1,66 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 typedef LifecycleCallback = Future<void> Function();
 typedef ExitRequestCallback = Future<bool> Function();
+typedef LifecycleExitAction = FutureOr<void> Function();
+typedef LifecycleExitSnapshotProvider =
+    FutureOr<LifecycleExitSnapshot> Function();
+
+class LifecycleDirtyWork {
+  const LifecycleDirtyWork({required this.name, required this.discard});
+
+  final String name;
+  final LifecycleExitAction discard;
+}
+
+class LifecycleExitSnapshot {
+  const LifecycleExitSnapshot({
+    this.blockingReason,
+    this.dirtyWorks = const [],
+  });
+
+  final String? blockingReason;
+  final List<LifecycleDirtyWork> dirtyWorks;
+}
+
+class LifecycleParticipant {
+  const LifecycleParticipant({required this.snapshot, required this.close});
+
+  final LifecycleExitSnapshotProvider snapshot;
+  final LifecycleExitAction close;
+}
+
+class LifecycleExitPlan {
+  LifecycleExitPlan._({
+    required this.blockingReasons,
+    required this.dirtyWorks,
+    required List<LifecycleExitAction> closeActions,
+  }) : _closeActions = closeActions;
+
+  final List<String> blockingReasons;
+  final List<LifecycleDirtyWork> dirtyWorks;
+  final List<LifecycleExitAction> _closeActions;
+  bool _discarded = false;
+  bool _closed = false;
+
+  Future<void> discardDirty() async {
+    if (_discarded) return;
+    _discarded = true;
+    for (final work in dirtyWorks) {
+      await work.discard();
+    }
+  }
+
+  Future<void> closeParticipants() async {
+    if (_closed) return;
+    _closed = true;
+    for (final close in _closeActions) {
+      await close();
+    }
+  }
+}
 
 /// 콜백 모음: 필요한 이벤트만 선택적으로 전달하면 됩니다.
 class LifecycleCallbacks {
@@ -27,6 +86,7 @@ class LifecycleManager with WidgetsBindingObserver {
 
   bool _initialized = false;
   final Set<LifecycleCallbacks> _observers = <LifecycleCallbacks>{};
+  final Set<LifecycleParticipant> _participants = <LifecycleParticipant>{};
 
   /// WidgetsBinding에 옵저버를 1회만 등록합니다.
   void ensureInitialized() {
@@ -46,6 +106,34 @@ class LifecycleManager with WidgetsBindingObserver {
     _observers.remove(callbacks);
   }
 
+  void addParticipant(LifecycleParticipant participant) {
+    _participants.add(participant);
+  }
+
+  void removeParticipant(LifecycleParticipant participant) {
+    _participants.remove(participant);
+  }
+
+  Future<LifecycleExitPlan> collectExitPlan({
+    Iterable<LifecycleExitSnapshot> ownerSnapshots = const [],
+  }) async {
+    final snapshots = <LifecycleExitSnapshot>[...ownerSnapshots];
+    final participants = List<LifecycleParticipant>.from(_participants);
+    for (final participant in participants) {
+      snapshots.add(await participant.snapshot());
+    }
+    return LifecycleExitPlan._(
+      blockingReasons: [
+        for (final snapshot in snapshots)
+          ?snapshot.blockingReason,
+      ],
+      dirtyWorks: [
+        for (final snapshot in snapshots) ...snapshot.dirtyWorks,
+      ],
+      closeActions: [for (final participant in participants) participant.close],
+    );
+  }
+
   /// 수명 종료 시 매니저를 해제합니다.
   void dispose() {
     if (_initialized) {
@@ -53,6 +141,7 @@ class LifecycleManager with WidgetsBindingObserver {
       _initialized = false;
     }
     _observers.clear();
+    _participants.clear();
   }
 
   @override
