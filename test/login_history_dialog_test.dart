@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/models/login_log.dart';
+import 'package:label_manager/models/user.dart';
+import 'package:label_manager/page_login/login_history_page.dart';
+
+void main() {
+  const initialCooperator = Cooperator(id: 'coop1', name: '협력업체 1');
+  const initialCustomer = Customer(
+    customerId: 10,
+    cooperatorId: 'coop1',
+    customerName: '거래처 1',
+  );
+
+  Future<void> pumpContent(
+    WidgetTester tester, {
+    required UserGrade grade,
+    required LoginHistoryQuery query,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1000,
+            height: 700,
+            child: LoginHistoryDialogContent(
+              userGrade: grade,
+              initialCooperator: initialCooperator,
+              initialCustomer: initialCustomer,
+              query: query,
+              loadCooperators: () async => const [
+                Cooperator(id: 'coop1', name: '협력업체 1'),
+              ],
+              loadCustomers: (_) async => const [
+                Customer(
+                  customerId: 10,
+                  cooperatorId: 'coop1',
+                  customerName: '거래처 1',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('system admin sees both selectors without automatic query', (
+    tester,
+  ) async {
+    var queryCount = 0;
+    await pumpContent(
+      tester,
+      grade: UserGrade.SYSTEM_ADMIN_USER,
+      query: ({required startDate, required endDate, required customerId}) async {
+        queryCount += 1;
+        expect(customerId, 10);
+        return const [
+          LoginLog(
+            logId: 1,
+            userId: 'user01',
+            userGrade: '일반 사용자',
+            programVersion: '1.0.0',
+            customerId: 10,
+            customerName: '거래처 1',
+            loginDate: '2025-01-02 03:04:05',
+            loginDateYYYYMMDD: '20250102',
+            loginIP: '192.168.0.2',
+            loginCondition: LoginCondition.LOGIN,
+          ),
+        ];
+      },
+    );
+
+    expect(find.text('협력업체'), findsOneWidget);
+    expect(find.text('거래처'), findsOneWidget);
+    expect(find.text('조회'), findsOneWidget);
+    expect(queryCount, 0);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('조회'));
+    await tester.pumpAndSettle();
+
+    expect(queryCount, 1);
+    expect(find.text('user01'), findsOneWidget);
+    expect(find.text('로그인'), findsOneWidget);
+  });
+
+  testWidgets('client hides both selectors and keeps query available', (
+    tester,
+  ) async {
+    var queryCount = 0;
+    await pumpContent(
+      tester,
+      grade: UserGrade.CLIENT_USER,
+      query: ({required startDate, required endDate, required customerId}) async {
+        queryCount += 1;
+        return const <LoginLog>[];
+      },
+    );
+
+    expect(find.text('협력업체'), findsNothing);
+    expect(find.text('거래처'), findsNothing);
+    expect(find.text('조회'), findsOneWidget);
+    expect(queryCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+}

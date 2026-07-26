@@ -7,8 +7,8 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0 command inventory·policy 구현과 검증·커밋을 완료했고 Phase 1 AppBar shell과 기존 owning command 연결로 진행한다.
-- 현재 구현 현황: Phase 0 `app_menu` command model·policy가 추가됐다. 기존 HomePage AppBar에는 아직 서버 상태와 로그인/로그아웃만 있으며 문서상 활성 관리·조회·설정 dialog 대부분은 미구현이고 기존 owning 설정·탭 기능만 일부 존재한다.
+- 진행 중: [doc/app_menu_porting.txt] 전체 구현. Phase 0·1 기반과 Phase 2 `사용자 접속 이력 보기` DAO를 커밋했고, 해당 command의 실제 blocking dialog UI·selector DAO·owner 연결을 완료해 커밋 직전이다.
+- 현재 구현 현황: AppBar command inventory·policy·반응형 shell·owner controller·shortcut blocker·종료 lifecycle이 연결됐다. 조회 기능은 `사용자 접속 이력 보기`가 최초 실제 dialog까지 구현됐고 Phase 2의 나머지 조회 기능은 미구현이다.
 - 편집 완료: [lib/models/app_menu_command.dart]에 26개 안정 ID, 레거시 순서 section, 검색출력 submenu, F12, popup 소유권과 legacy 숨김 metadata를 추가했다. [lib/core/app_menu_policy.dart]에 비로그인 차단, 등급·신뢰 가능한 세션 플래그 경계, busy/context 차단과 저울출력 label size 사유를 계산하는 순수 policy를 추가했다.
 - 테스트 추가: [test/app_menu_command_test.dart]에 legacy ID test fixture와 inventory 계약 4건, [test/app_menu_policy_test.dart]에 비로그인·등급·세션 flag·`tester01`·숨김·프린터·작업 상태·editable 계약 9건을 추가했다. runtime metadata에는 legacy ID를 넣지 않았다.
 - 검증 완료: focused test `13 passed, 0 failed`; 새 source/test 4개 VS Code diagnostics 0건. 포맷 후 같은 focused test를 다시 실행해 `13 passed, 0 failed`를 확인했다.
@@ -39,6 +39,12 @@
 - Phase 2 LoginLog DAO 완료: [lib/models/login_log.dart]의 `userGrade`를 실제 DB 표시 문자열로 수정하고 CP949 변환 SELECT, 날짜 양끝 포함·거래처 ID parameter, `LOGIN_DATE ASC` read API를 추가했다. INSERT와 기존 write 형식은 변경하지 않았다.
 - Phase 2 LoginLog 검증: [test/login_log_test.dart] 2건 `passed`; `flutter analyze lib/models/login_log.dart test/login_log_test.dart` → `No issues found`. stage/commit 대상은 두 파일과 [SESSION_HANDOFF.md]만이다.
 - Phase 2 LoginLog DAO 커밋: `8e308dd` (`사용자 접속 이력 조회 DAO 구현`). 다음 시작점은 [lib/page_login/login_history_page.dart]의 demo `Scaffold/Card/DataTable`을 `LoginHistoryDialogContent` + `FortuneTable`로 교체하고, Cooperator/Customer read 목록 API와 HomePageManager blocking overlay/command handler를 연결하는 것이다.
+- Phase 2 사용자 접속 이력 UI 편집 완료: [lib/models/cooperator.dart]에 무정렬 전체 목록 조회, [lib/models/customer.dart]에 협력업체별 무정렬 목록 조회를 추가했다. [lib/page_login/login_history_page.dart]는 demo page·가짜 데이터·최근 4주 자동 조회를 제거하고 오늘~오늘, 등급별 협력업체/거래처 selector, 명시적 조회, read-only `FortuneTable`, 0건 공용 안내를 사용하는 `LoginHistoryDialogContent`로 교체했다.
+- Phase 2 owner 연결 완료: [lib/home_page_manager.dart]가 `viewLoginHistory` command를 `1120×720` blocking modeless overlay에 연결한다. 동일 dialog 중복 open을 막고 clean read-only lifecycle participant를 등록하며 닫기·dispose에서 overlay와 participant를 함께 해제한다.
+- Phase 2 테스트 추가: [test/login_history_filter_dao_test.dart]에서 selector SQL의 무정렬·parameter 계약을 확인한다. [test/login_history_dialog_test.dart]에서 시스템 관리자 selector 2개와 최초 자동 조회 금지, 현재 거래처 ID로 명시적 조회·결과 표시, 일반 사용자 selector 숨김을 확인한다.
+- Phase 2 사용자 접속 이력 UI 검증 완료: 포맷 후 `flutter test test/login_history_dialog_test.dart test/login_history_filter_dao_test.dart test/login_log_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart` → `12 passed`. targeted analyze의 신규 오류는 0건이며 [lib/home_page_manager.dart]의 기존 unused 경고 `_applyAutoItemUpdateStagedRows`, `columns` 2건만 유지했다.
+- Phase 2 사용자 접속 이력 UI stage/commit 대상: [lib/models/cooperator.dart], [lib/models/customer.dart], [lib/page_login/login_history_page.dart], [lib/home_page_manager.dart], [test/login_history_filter_dao_test.dart], [test/login_history_dialog_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
+- Phase 2 사용자 접속 이력 UI stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 7개 파일뿐이며 변경 규모는 501 insertions, 284 deletions다.
 - 완료: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소하고 검증했다.
 - 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.

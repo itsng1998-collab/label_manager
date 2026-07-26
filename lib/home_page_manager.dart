@@ -29,6 +29,7 @@ import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
+import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
@@ -77,6 +78,7 @@ import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/page_login/login_history_page.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_print_settings_dialog.dart';
@@ -379,6 +381,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
+  OverlayEntry? _loginHistoryOverlayEntry;
+  LifecycleParticipant? _loginHistoryLifecycleParticipant;
   OverlayEntry? _labelPrintProgressOverlayEntry;
   OverlayEntry? _scaleOutputProgressOverlayEntry;
   // 브랜드 설정 다이얼로그에서 브랜드를 선택한 후 라벨 시트 로드가 완료될 때까지
@@ -478,6 +482,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
             _openScaleOutputPrinterSettings,
+        AppMenuCommandId.viewLoginHistory: _openLoginHistoryDialog,
       },
     );
     _syncAppMenuWorkState();
@@ -2971,6 +2976,49 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelColumnEditOverlayEntry = null;
   }
 
+  void _closeLoginHistoryDialog() {
+    _loginHistoryOverlayEntry?.remove();
+    _loginHistoryOverlayEntry = null;
+    final participant = _loginHistoryLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _loginHistoryLifecycleParticipant = null;
+    }
+  }
+
+  void _openLoginHistoryDialog() {
+    if (_loginHistoryOverlayEntry != null) return;
+    final user = User.instance;
+    final cooperator = Cooperator.instance;
+    final customer = Customer.instance;
+    if (user == null || cooperator == null || customer == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: BlockingModelessDialogFrame(
+          title: '사용자 접속 이력 보기',
+          width: 1120,
+          height: 720,
+          onClose: _closeLoginHistoryDialog,
+          child: LoginHistoryDialogContent(
+            userGrade: user.grade,
+            initialCooperator: cooperator,
+            initialCustomer: customer,
+          ),
+        ),
+      ),
+    );
+    _loginHistoryOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: () => const LifecycleExitSnapshot(),
+      close: _closeLoginHistoryDialog,
+    );
+    _loginHistoryLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   Future<void> _openDateTypeSetupDialog() async {
     final trace = ItemManagerDebugLog.nextTrace('dateSetup');
     final labelSize = _effectiveLabelSize;
@@ -4276,6 +4324,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelSettingsOverlayEntry = null;
     _labelColumnEditOverlayEntry?.remove();
     _labelColumnEditOverlayEntry = null;
+    _closeLoginHistoryDialog();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }

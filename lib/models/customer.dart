@@ -53,6 +53,32 @@ class CustomerDAO extends DAO {
 	  WHERE RICH_CUSTOMER_ID=@customerId
   ''';
 
+  static const String WhereSqlCooperatorId = '''
+    WHERE LTRIM(RTRIM(CONVERT(NVARCHAR(30),RICH_COOP_ID COLLATE ${DAO.CP949}))) =
+          LTRIM(RTRIM(CONVERT(NVARCHAR(30),@cooperatorId)))
+  ''';
+
+  static Future<List<Customer>> selectByCooperatorId(
+    String cooperatorId,
+  ) async {
+    debugLog('$START, cooperatorId:$cooperatorId');
+    try {
+      final result = await DbClient.instance.getDataWithParams(
+        '$SelectSql $WhereSqlCooperatorId',
+        {'cooperatorId': cooperatorId},
+      );
+      final rows = DAO.getRowsFromResult(result)
+          .whereType<Map>()
+          .map((row) => Customer.fromMap(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      debugLog(END);
+      return rows;
+    } catch (e) {
+      debugLog('$END, $e');
+      throw Exception('${runtimeLogTag()} $e');
+    }
+  }
+
   static Future<Customer?> selectByCustomerId(int customerId) async {
     debugLog('$START, customerId:$customerId');
 

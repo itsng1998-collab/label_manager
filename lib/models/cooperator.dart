@@ -65,6 +65,22 @@ class CooperatorDAO extends DAO {
           LTRIM(RTRIM(CONVERT(NVARCHAR(30),@cooperatorId)))
   ''';
 
+  static Future<List<Cooperator>> selectAll() async {
+    debugLog(START);
+    try {
+      final result = await DbClient.instance.getData(SelectSql);
+      final rows = DAO.getRowsFromResult(result)
+          .whereType<Map>()
+          .map((row) => Cooperator.fromMap(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      debugLog(END);
+      return rows;
+    } catch (e) {
+      debugLog('$END, $e');
+      throw Exception('${runtimeLogTag()} $e');
+    }
+  }
+
   static Future<Cooperator?> selectByCooperatorId(String cooperatorId) async {
     debugLog('$START, cooperatorId:$cooperatorId');
 
