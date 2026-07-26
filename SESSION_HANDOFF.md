@@ -34,6 +34,7 @@
 - Phase 1 lifecycle 완료: [lib/core/lifecycle.dart]에 종료 요청 시 participant snapshot을 한 번 수집하고 dirty discard·participant close를 각각 최대 한 번 실행하는 exit plan을 추가했다. HomePageManager는 기존 write-busy/active editing 차단과 품목관리·자동품목갱신·공용라벨 dirty 및 확인창 없는 discard callback만 노출한다. HomePage의 로그아웃·메뉴 종료·OS 종료는 동일 guard에서 modal route 차단, blocker 1회 안내, dirty 작업명 합산 확인, 승인 시 discard/close 순서로 처리한다.
 - Phase 1 lifecycle 검증: lifecycle test를 3건으로 확장해 snapshot 1회 수집과 discard/close 중복 방지를 확인했고 controller/AppMenuBar 회귀를 합쳐 `12 passed`. targeted analyze 신규 항목은 0건이며 기존 HomePageManager unused 경고 2건만 유지했다.
 - Phase 1 lifecycle stage/commit 대상: [lib/core/lifecycle.dart], [lib/home_page.dart], [lib/home_page_manager.dart], [test/lifecycle_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 3개는 제외한다.
+- Phase 1 lifecycle 커밋: `b28e891` (`앱 메뉴 종료 수명주기 통합`). Phase 1 기반 완료. Phase 2 첫 시작점은 기존 미사용 demo [lib/page_login/login_history_page.dart]와 `LoginLogDAO`를 확인해 사용자 접속 이력 read model/DAO/content를 AppMenuController handler로 연결하는 것이다.
 - 완료: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소하고 검증했다.
 - 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
