@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 33차 감사의 신규 transaction 실행 경로와 AppBar 반응형 검증 viewport를 권장안 및 사용자 확정 기준으로 병합하고 검증했다.
+- 사용자 확정: AppBar widget test의 넓은 대표 viewport는 `1200×800`, 좁은 대표 viewport는 `600×720`으로 사용한다. native minimum이나 window lifecycle은 변경하지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 1.3, 3.2, 관리자 복사, Phase 1과 DAO/widget/완료 계약에서 신규 다중 DML을 `DbClient.transaction(List<DbTransactionStatement>)` 단일 경로로 고정하고 내부 transaction 제어문을 금지하며, 두 viewport를 전환 임계값이 아닌 test 입력값으로 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 33차 필수 계약과 내부 transaction 예시·모호한 대표 폭 문구 제거를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- transaction 원칙 편집 완료: [doc/app_menu_porting.txt] 1.3에서 신규 AppBar 다중 DML·ID mapping·rowcount batch를 `DbTransactionStatement`로 만들어 `DbClient.transaction`에 전달하고, DAO batch 내부 transaction 제어문과 `writeData`/`writeDataWithParams` 직접 실행을 금지했다. 첫 편집 후 `git diff --check`가 통과했다.
+- 관리자 복사·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 관리자 복사, Phase 1, DAO/widget test와 최종 상태에 `returnsRows=true` 단일 statement 경로와 `1200×800`·`600×720` 고정 test viewport, 실제 제공 폭 기반 production 분기를 동기화했다. 첫 편집 후 `git diff --check`가 통과했다.
+- transaction 테스트 책임 편집 완료: 공용 driver가 생성하는 transaction 제어 SQL의 존재·순서 검증과 신규 DAO batch SQL 내부 제어문 부재 검증을 분리했다. 수정 직후 표적 검사 `3/3`과 `git diff --check`가 통과했다.
+- 검증 완료: 33차 필수 계약 `11/11`, 이전 모순·모호 문구와 내부 transaction SQL 예시 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 신규 AppBar transaction 단일 경로·관리자 복사·관련 DAO test 책임과 `1200×800`·`600×720` widget test viewport 계약에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 23 insertions, 30 deletions다.
 - 완료: [doc/app_menu_porting.txt] 32차 감사의 공통 종료 participant/snapshot 경계, 기존 프린터·저울 설정 modal route 종료 처리, 저장 성공 후 dialog 유지 범위와 Esc 동작을 레거시 및 사용자 확정 기준으로 병합하고 검증했다.
 - 사용자 확정: 기존 프린터·저울 설정 modal route가 열린 상태에서 OS 종료 요청이 오면 설정창을 먼저 닫도록 종료를 차단한다. route draft를 통합 dirty에 포함하거나 차단형 overlay로 재포장하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 4.2, 5.1.2·5.1.8, 7.1·7.3, Phase 1과 focused/widget/완료 계약에서 활성 lifecycle participant와 optional exit snapshot을 분리하고, clean·읽기 전용 overlay 정리, 기존 프린터·저울 설정 modal route 종료 차단, 네 관리 parent 유지, 레거시 Esc 닫기를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.

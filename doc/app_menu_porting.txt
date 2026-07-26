@@ -49,28 +49,11 @@
 - 여러 statement를 묶는 기본 경로는 기존 `DbClient.transaction(List<DbTransactionStatement>)`을 사용한다. DAO는 DML statement와 parameter, 결과 decoding만 소유하고 공용 driver가 담당하는 `BEGIN TRANSACTION`, `COMMIT TRANSACTION`, 가능한 rollback을 중복 작성하지 않는다.
 - commit 오류를 성공으로 바꾸거나, 일부 성공을 정상 처리하거나, 자동 재시도하지 않는다.
 - rollback 자체가 실패해도 원래 오류를 숨기지 않는다. 가능한 범위의 rollback을 시도한 뒤 원래 오류를 전달한다.
-- 하나의 server-side SQL batch 안에서 rowcount 검증과 여러 DML을 함께 처리해야 할 때만 저장소의 기존 검증된 아래 pattern을 사용한다. 이 batch를 다시 `DbClient.transaction`의 중첩 transaction으로 감싸지 않는다.
-
-```sql
-SET XACT_ABORT ON;
-SET NOCOUNT ON;
-BEGIN TRY
-  BEGIN TRANSACTION;
-
-  -- 기존 스키마에 대한 필요한 DML만 수행
-
-  COMMIT TRANSACTION;
-  SELECT CAST(1 AS INT) AS RESULT;
-END TRY
-BEGIN CATCH
-  IF @@TRANCOUNT > 0
-    ROLLBACK TRANSACTION;
-  THROW;
-END CATCH
-```
+- 신규 AppBar 기능에서 여러 DML·생성 ID mapping·rowcount 검증을 한 server-side SQL batch에 넣어야 해도 그 batch 하나를 `DbTransactionStatement`로 만들어 `DbClient.transaction`에 전달한다. batch 안에는 업무 DML, table variable, `OUTPUT INSERTED`, `@@ROWCOUNT` 검증과 필요한 `THROW`, 결과 decoding용 최종 `SELECT`만 두고 `BEGIN TRANSACTION`, `COMMIT TRANSACTION`, `ROLLBACK TRANSACTION`을 넣지 않는다.
+- 이 포팅에서는 내부 transaction batch를 `writeData`/`writeDataWithParams`로 직접 실행하거나, 내부 transaction이 있는 batch를 다시 `DbClient.transaction`으로 감싸는 두 경로를 모두 추가하지 않는다. 기존 DAO에 혼재하는 실행 방식은 이번 포팅 범위에서 리팩터링하지 않되 신규 menu DAO가 그 pattern을 복제하지 않는다.
 
 - 선택한 본체 한 건 수정·삭제처럼 개별 command 계약에서 정확히 1건을 요구한 DML만 driver 영향 행 또는 같은 server-side batch의 `@@ROWCOUNT`로 검증한다. 선택적 연관 행 삭제·상태 갱신은 레거시가 행 존재를 보장하지 않으면 0건을 허용하며, 기존 저장 프로시저에 확인되지 않은 rowcount·반환값 계약을 추가하지 않는다.
-- `SQL_NO_DATA(100)` rowcount noise가 가능한 batch는 `SET NOCOUNT ON`과 최종 명시적 `SELECT`를 사용한다.
+- `SQL_NO_DATA(100)` rowcount noise가 가능한 `DbTransactionStatement` batch는 `SET NOCOUNT ON`과 최종 명시적 `SELECT`를 사용한다. 이 경우 `returnsRows=true`로 결과를 받아 DAO가 decoding하며 내부 transaction 제어문은 추가하지 않는다.
 - commit 전 DML/validation 단계의 확정 실패는 UI draft, 변경 전 snapshot, 임시 선택 상태를 유지하고 같은 저장을 다시 시도할 수 있게 한다.
 - `DbCommitOutcomeUnknown`은 저장 실패나 성공으로 단정하지 않는다. 오류를 한 번 전달하고 같은 draft의 저장을 다시 실행하지 못하게 한 뒤 dialog를 닫는다. 사용자가 다시 열어 최신 데이터를 조회하게 하며 별도 읽기 전용 mode나 수동 재조회 command를 추가하지 않는다.
 - commit 성공 후 목록/cache reload만 실패하면 저장된 결과를 UI의 committed 상태로 반영해 dirty를 해제하고 같은 draft의 재저장을 막는다. `저장은 완료됐지만 화면 갱신에 실패했습니다.`를 한 번 안내한 뒤 dialog를 닫고, 다시 열 때 최신 데이터를 조회한다. rollback, 자동 retry, 별도 수동 재조회 command를 추가하지 않는다.
@@ -151,7 +134,7 @@ END CATCH
 - AppBar menu, modal dialog, `BlockingModelessDialog`, `DbReconnectOverlay`처럼 배경 입력을 막는 surface가 하나라도 보이는 동안 Home의 전역 F1/F2/F3/F5/F12 command를 실행하지 않는다. 여러 차단 surface가 겹치면 마지막 surface가 닫힐 때까지 차단을 유지한다.
 - `PreviewFloatingWindow`처럼 배경 작업을 허용하는 non-modal preview는 단축키 차단 surface로 간주하지 않는다. 차단 상태의 구현은 현재 route/overlay 구조에 맞는 가장 작은 방식으로 하며 특정 observer, identity set 또는 lease 자료구조를 필수로 하지 않는다.
 - command를 선택하면 AppBar popup을 닫은 뒤 owning command를 정확히 한 번 실행한다. dialog가 열리면 첫 입력으로 focus를 넘기고, 메뉴만 취소하거나 command가 실행되지 않으면 가능한 경우 원래 menu trigger로 focus를 돌린다.
-- 넓은 폭과 좁은 대표 폭, 긴 버전 문자열에서 AppBar와 핵심 command 접근성을 focused widget test로 확인한다.
+- 반응형 전환 임계값은 `LayoutBuilder`가 실제 제공 폭과 title·action 크기로 계산하며 `1200` 또는 `600`을 production 분기 상수로 사용하지 않는다. focused widget test의 고정 viewport만 넓은 `1200×800`, 좁은 `600×720`으로 사용한다. `1200×800`에서는 그룹 아이콘 3개, `600×720`에서는 통합 overflow 1개와 서버 상태·로그인/로그아웃 유지, 두 viewport와 긴 버전 문자열에서 title ellipsis·핵심 command 접근성을 확인한다.
 
 ### 3.3 권한 표시 방식
 
@@ -349,7 +332,7 @@ END CATCH
 - 원본 label size 서식은 현 `LabelSizeDAO`의 `COALESCE(NULLIF(RICH_FORM_SHEET, ''), RICH_FORM_DATA)` 유효값을 사용하고 대상 `RICH_FORM_SHEET`에 저장한다. 현재 sheet payload를 레거시 `RICH_FORM_DATA`만으로 축소하거나 별도 신규 저장 형식을 만들지 않는다.
 - `품목까지 복사`가 체크되면 대상 거래처의 첫 지점 ID를 레거시처럼 사용해 `proc_copy_item(fromLabelSizeId, toLabelSizeId)`, `proc_copy_item_content(targetFirstMarketId, fromLabelSizeId, toLabelSizeId)`, `proc_copy_item_of_market(targetFirstMarketId, fromLabelSizeId, toLabelSizeId)` 순서로 실행한다. 여러 지점에 반복 적용하지 않는다.
 - `품목까지 복사` 대상 거래처에 지점이 없으면 지점을 생성하거나 다른 context로 대체하지 않고 DML 시작 전에 전체 복사를 중단해 오류를 전달한다. 세 저장 프로시저의 존재와 parameter 계약은 읽기 전용 DB metadata로 먼저 확인하며 없거나 다르면 migration·대체 SQL 없이 blocker로 기록한다.
-- 브랜드 복사는 하나의 DAO 소유 server-side batch statement 안에서 `OUTPUT INSERTED`와 table variable로 생성 brand ID와 원본/대상 label size ID mapping을 유지하고, 해당 ID로 column 복사와 선택적 세 저장 프로시저를 실행한다. 이 batch 하나를 `DbTransactionStatement`로 `DbClient.transaction`에 전달하고 내부 `BEGIN TRANSACTION`/`COMMIT TRANSACTION`을 중복하지 않는다. 앞 statement 결과를 다음 parameter로 연결하기 위한 `DbClient.transaction` callback·동적 statement API를 추가하지 않고, 레거시 `SelectLastInsert()`나 별도 XML payload 경로도 추가하지 않는다.
+- 브랜드 복사는 하나의 DAO 소유 server-side batch statement 안에서 `OUTPUT INSERTED`와 table variable로 생성 brand ID와 원본/대상 label size ID mapping을 유지하고, 해당 ID로 column 복사와 선택적 세 저장 프로시저를 실행한다. 이 batch 하나를 `returnsRows=true`인 `DbTransactionStatement`로 `DbClient.transaction`에 전달하고 내부 `BEGIN TRANSACTION`/`COMMIT TRANSACTION`/`ROLLBACK TRANSACTION`을 넣거나 `writeData`/`writeDataWithParams`로 직접 실행하지 않는다. 앞 statement 결과를 다음 parameter로 연결하기 위한 `DbClient.transaction` callback·동적 statement API를 추가하지 않고, 레거시 `SelectLastInsert()`나 별도 XML payload 경로도 추가하지 않는다.
 - 경고·필수 selector·대상 첫 지점·프로시저 capability 검증을 DML 전에 끝내고, 선택한 복사 분기의 삭제·생성·갱신·column 복사와 선택적 품목 프로시저를 하나의 transaction으로 처리한다.
 - 일부 테이블 복사 성공을 전체 성공으로 표시하지 않는다.
 - commit 전 DML/validation 단계의 확정 실패는 가능한 rollback 후 오류를 그대로 전달하고 선택 상태를 유지한다. `DbCommitOutcomeUnknown`이면 같은 복사를 다시 실행하지 못하게 하고 오류 안내 후 dialog를 닫는다. 다시 열 때 최신 데이터를 조회하며 별도 읽기 전용 mode를 추가하지 않는다.
@@ -773,7 +756,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - AppBar popup을 닫은 뒤 owning command가 한 번만 실행됨.
 - 재연결 차단 UI가 표시되는 동안 전역 F-key와 배경 focus 이동이 차단됨.
 - floating preview `OverlayRoute`만 표시된 상태에서는 기존 Home 전역 F-key가 오차단되지 않음.
-- 넓은 폭과 좁은 대표 폭에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있음.
+- widget test viewport `1200×800`과 `600×720`에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있고, production 분기는 이 두 폭을 하드코딩하지 않음.
 - clean 로그아웃/종료에는 일반 확인창이 없고, 기존 프린터·저울 설정 modal route와 신규 dialog·기존 메인 탭의 busy/activeEditing은 먼저 차단되며 모든 dirty는 한 번의 통합 확인으로 처리되고 clean·읽기 전용 overlay도 guard 통과 뒤 닫힘.
 - 일반·master-key·`IsFirstConnectByAdmin` 로그인의 session 상태와 `LOGIN` 기록 조건, 일반·master-key·관리자 `Connect`의 명시적 로그아웃 및 앱 종료별 `LOGOUT` 기록 조건이 활성 레거시와 일치함. 이력 저장 실패는 상태 전환을 취소하거나 자동 재시도하지 않음.
 - 업데이트 메시지의 실제 등급별 대상 우선순위와 `UN_STATE`가 일치하고, 사용자 선택 0건이 더 넓은 대상으로 확대되지 않음.
@@ -880,7 +863,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 지점 관리 focused test에서 지점 추가와 기존 품목별 `ItemOfMarket` 일괄 생성, 지점 삭제 전 `ItemOfMarket` 삭제의 statement 순서와 transaction을 검증한다.
 - 거래처·사용자 관리 focused test에서 원래 관리자를 한 번만 보존하고 거래처 Connect의 `(true, false)`/`(false, true)`와 사용자 Connect의 `(true, true)`/`(false, true)` mapping을 각각 검증한다. 거래처 Connect는 첫 반환 지점의 첫 grade 2 사용자를 선택하고 지점 또는 대상 사용자가 없으면 연결 플래그·context·화면 초기화·접속 로그가 모두 0건인지 확인한다. 성공 시에만 사용자·지점·거래처·협력업체 context와 관리자 접속 로그를 한 번 반영한다.
 - 사용자 관리 focused test에서 ID·비밀번호·확인·이름 필수, 비밀번호 일치, ID 중복, 생성·수정 등급과 신규 기본값, `IsFirstConnectByAdmin`에 따른 ID·비밀번호 column 표시, 이름 순환 검색과 일반 삭제 확인을 검증한다. 관리 row의 grade와 `RICH_PWD` 문자열은 DB 값을 변환 없이 decoding·저장하며 로그인 전용 `clientUserTestOverrideId`가 적용되지 않는지 확인한다.
-- 관리자 복사 focused test에서 시스템 관리자만 협력업체를 변경하고 두 복사 분기가 사용하는 selector와 checkbox event 순서를 검증한다. 일반 label size 복사의 기존 column 삭제 범위, 대상 ID·이름 유지와 유효 `RICH_FORM_SHEET`·column 복사, 브랜드 복사의 단일 `DbTransactionStatement` 안 `OUTPUT INSERTED`·table variable 기반 브랜드·전체 label size ID mapping을 확인한다. 내부 transaction 제어문, 동적 statement callback, `SelectLastInsert`, XML payload가 없는지 검증한다. 데이터 손실 경고 취소와 대상 첫 지점·프로시저 capability 실패는 DML 0건인지, `품목까지 복사`는 첫 지점으로 세 프로시저를 정해진 순서·parameter로 호출하는지, 성공 후 기존 owner reload/clear가 한 번씩 실행되는지 검증한다. 레거시가 실행·복사하지 않는 연관 table test를 추가하지 않는다.
+- 관리자 복사 focused test에서 시스템 관리자만 협력업체를 변경하고 두 복사 분기가 사용하는 selector와 checkbox event 순서를 검증한다. 일반 label size 복사의 기존 column 삭제 범위, 대상 ID·이름 유지와 유효 `RICH_FORM_SHEET`·column 복사, 브랜드 복사의 `returnsRows=true`인 단일 `DbTransactionStatement` 안 `OUTPUT INSERTED`·table variable 기반 브랜드·전체 label size ID mapping을 확인한다. 내부 transaction 제어문, `writeData`/`writeDataWithParams` 직접 실행, 동적 statement callback, `SelectLastInsert`, XML payload가 없는지 검증한다. 데이터 손실 경고 취소와 대상 첫 지점·프로시저 capability 실패는 DML 0건인지, `품목까지 복사`는 첫 지점으로 세 프로시저를 정해진 순서·parameter로 호출하는지, 성공 후 기존 owner reload/clear가 한 번씩 실행되는지 검증한다. 레거시가 실행·복사하지 않는 연관 table test를 추가하지 않는다.
 - 업데이트 메시지 focused test에서 `loggedIn` 표시와 비로그인 숨김, 현재 사용자별 단일 row 조회, 실제 등급별 편집 범위와 시스템 관리자의 `선택 사용자 → 전체 협력업체 → 현재 협력업체`, 협력업체 관리자의 `선택 사용자 → 현재 협력업체` 우선순위를 검증한다. 선택 목록은 현재 협력업체의 사용자 ID·거래처명을 거래처명 순서로 표시하고 마지막 행을 포함한 모든 표시 행을 선택 대상으로 처리한다. 다중 선택은 하나의 transaction이며 checkbox 해제 시 ID가 비워지고 선택 mode 0건은 DML 없이 중단되는지 확인한다. 시스템 관리자의 전체 `UN_STATE=2`·현재 협력업체 `UN_STATE=0`, 협력업체 관리자의 현재 협력업체 `UN_STATE=0`, 일반 사용자의 자기 `UN_STATE` 0/1·`UN_TIME`만 갱신과 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
 - 업데이트 메시지 focused test에서 startup과 메뉴가 version·공지·광고 배너·쇼핑몰 링크 표시 component만 공유하고 startup의 로그인 panel·로컬 억제 상태와 메뉴 DB owner가 분리되는지 검증한다. 관리자의 editable version·`다시 보지 않기`는 표시하되 저장 시 `UN_VERSION`·로컬 preference DML 0건이고, 일반 사용자의 두 읽기 전용 field·미선택 checkbox 초기값과 현재 사용자 `UN_STATE` 저장만 확인한다. 저장 button과 dialog-level Enter는 같은 등급별 저장 command를 한 번 실행하고 성공 후 dialog를 닫는다.
 - 검색·치환 focused test에서 기본 `품명`, 브랜드·label size filter 해제·비활성, 검색어와 활성 selector 필수 조건, AppBar의 무자동 조회와 기존 메인 검색값의 1회 자동 조회를 검증한다. 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 실제 등급이 non-editable일 때 쓰기 UI 숨김·검색/이동 유지, 변경 행 저장을 확인한다. 품목편집 이동은 현재 선택 행 1건을 사용하고, 출력 이동은 체크 1건 이상·동일 브랜드/label size를 요구해 첫 체크 context와 전체 체크 ID를 사용하며, 두 이동은 미저장 변경을 확인·저장 없이 폐기하는지 검증한다. 주석 처리된 `추가 주원료` 검색은 inventory에 추가하지 않는다.
@@ -893,17 +876,17 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - command policy test에서 발행내역, 사용자 접속 이력, 데이터내용 이력, 발행 통계, 품목별 정보 편집, 전자저울 관리, 검색출력모드, 검색출력 설정과 업데이트 메시지가 `loggedIn`이고 비로그인에는 숨겨지는지 검증한다.
 - 단축키 차단 helper를 별도로 추가한 경우 차단 surface 활성/중첩/종료와 non-modal preview 제외 결과만 검증한다. route identity나 lease 내부 구조는 테스트 계약으로 고정하지 않는다.
 - 각 신규 model/DAO codec test.
-- 공용 `DbClient.transaction`의 `BEGIN TRANSACTION`, `COMMIT`, 가능한 rollback, 원래 오류 보존과 `DbCommitOutcomeUnknown` 변환은 기존 `test/db_transaction_test.dart`와 `test/db_client_test.dart`에서 한 번 검증한다. 신규 DAO test에서 이 제어 SQL 문자열을 중복 검사하지 않는다.
-- 신규 DAO transaction test는 `DbTransactionStatement` 순서, SQL·parameter, command 계약상 정확한 영향 행을 요구하는 본체 DML과 결과 decoding을 확인한다. 선택적 연관 삭제·상태 갱신의 0건을 실패로 만들지 않고, server-side SQL batch가 자체 rowcount 검증에 `THROW`를 사용하는 경우에만 해당 batch의 `THROW`와 오류 전달을 검사한다. 기존 저장 프로시저의 미확인 rowcount·반환값 test를 추가하지 않는다.
+- 공용 `DbClient.transaction`이 driver에서 생성하는 `BEGIN TRANSACTION`, `COMMIT`, 가능한 rollback의 존재·순서, 원래 오류 보존과 `DbCommitOutcomeUnknown` 변환은 기존 `test/db_transaction_test.dart`와 `test/db_client_test.dart`에서 한 번 검증한다. 신규 DAO test에서 driver 제어 SQL의 존재·순서를 반복 검사하지 않는다.
+- 신규 DAO transaction test는 DAO가 만든 `DbTransactionStatement` 순서, SQL·parameter·`returnsRows`, command 계약상 정확한 영향 행을 요구하는 본체 DML과 결과 decoding을 확인한다. 여러 DML이 든 단일 DAO batch SQL에 내부 `BEGIN TRANSACTION`/`COMMIT TRANSACTION`/`ROLLBACK TRANSACTION`이 없고 DAO가 `writeData`/`writeDataWithParams` 직접 실행 경로를 사용하지 않는지는 신규 경로 자체의 계약으로 검증한다. 선택적 연관 삭제·상태 갱신의 0건을 실패로 만들지 않고, server-side SQL batch가 자체 rowcount 검증에 `THROW`를 사용하는 경우에만 해당 batch의 `THROW`와 오류 전달을 검사한다. 기존 저장 프로시저의 미확인 rowcount·반환값 test를 추가하지 않는다.
 - compatibility 100 금지 함수 미사용은 SQL을 추가하거나 변경한 DAO에만, XML의 한글, null, 빈 문자열, `& < > ' "` 처리는 XML payload codec을 사용하는 기능에만 검증한다.
 
 ### 9.2 widget test
 
 - `test/app_menu_bar_test.dart`
-  - 넓은 화면 그룹 아이콘 3개.
-  - 좁은 화면 overflow 1개.
+  - `1200×800` viewport의 그룹 아이콘 3개.
+  - `600×720` viewport의 overflow 1개와 서버 상태·로그인/로그아웃 command 유지.
   - overflow 첫 단계의 그룹 3개와 2단계 command submenu/panel, 좌우키 진입·복귀와 단계별 Esc.
-  - 넓은 폭과 좁은 대표 폭에서 높이 clamp, scroll, title ellipsis와 주요 command 접근성.
+  - 두 고정 viewport에서 높이 clamp, scroll, title ellipsis와 주요 command 접근성. production 전환 임계값을 `1200`이나 `600`으로 하드코딩하지 않음.
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
   - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, 메뉴 취소 시 그룹 focus 복원과 dialog 실행 시 내부 초기 focus 인계.
   - 메뉴가 열린 동안 `HardwareKeyboard` 화면 전역 F1/F2/F3/F5/F12 command 차단, 닫힌 뒤 기존 단축키 복원.
@@ -1000,7 +983,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 전체 포팅 완료 시 다음 상태여야 한다.
 
 - AppBar에는 폭에 따라 그룹 아이콘 3개 또는 overflow 메뉴 1개가 표시된다.
-- 기존 desktop window 초기화 동작을 변경하지 않고 넓은 폭과 좁은 대표 폭에서 AppBar와 핵심 탭의 주요 command에 접근할 수 있다.
+- 기존 desktop window 초기화 동작을 변경하지 않고 widget test viewport `1200×800`과 `600×720`에서 AppBar와 핵심 탭의 주요 command에 접근할 수 있다. production의 expanded/overflow 전환은 이 숫자를 상수로 사용하지 않고 실제 제공 폭으로 계산한다.
 - 통합 overflow는 3개 그룹의 2단계 구조와 화면 높이 clamp·scroll·키보드 reveal을 제공한다.
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
 - AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하다. 메뉴만 취소하면 원래 trigger에 focus가 복원되고 top-level dialog를 실행하면 dialog 내부로 focus가 인계된다.
