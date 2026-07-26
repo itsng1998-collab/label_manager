@@ -62,6 +62,7 @@
 - Phase 2 데이터내용 이력 최종 검증 완료: 신규 source/test만 포맷 후 `flutter test test/content_save_log_test.dart test/content_save_history_dialog_test.dart test/print_history_dialog_test.dart test/login_history_dialog_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart` → `17 passed`. targeted analyze 신규 오류는 0건이며 [lib/home_page_manager.dart] 기존 unused 경고 2건만 유지했다.
 - Phase 2 데이터내용 이력 stage/commit 대상: [lib/models/content_save_log.dart], [lib/page_home/content_save_history_dialog.dart], [lib/home_page_manager.dart], [test/content_save_log_test.dart], [test/content_save_history_dialog_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
 - Phase 2 데이터내용 이력 stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 6개 파일뿐이며 첫 검증 시 변경 규모는 761 insertions다.
+- Phase 2 데이터내용 이력 커밋: `0cdaef6` (`데이터내용 이력 조회 구현`). 다음 시작점은 Phase 2 `공용라벨 수정 이력 보기`의 `BM_RICH_LABELSIZE_FORM_LOG` read schema와 기존 sheet/RTF preview helper를 확인해 조회 model·DAO부터 구현하는 것이다.
 - 완료: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소하고 검증했다.
 - 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
