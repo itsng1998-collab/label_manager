@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/app_menu_controller.dart';
+import 'core/admin_connect_resolver.dart';
+import 'core/admin_connect_session.dart';
 import 'core/app_shortcut_blocker.dart';
 import 'core/lifecycle.dart';
 
@@ -15,6 +17,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/db_connection_service.dart';
 import 'package:label_manager/database/db_server_connect_info.dart';
 import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/models/admin_access_log.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/models/market.dart';
@@ -47,6 +50,8 @@ class _HomePageState extends State<HomePage> {
   bool _disconnectCleanupDone = false;
   bool _isExiting = false;
   bool _loggedIn = false;
+  bool _contextSwitching = false;
+  int _managerSessionGeneration = 0;
   Future<void>? _loginToServerDbFuture;
   LifecycleExitSnapshotProvider? _exitSnapshotProvider;
   // 선택 상태
@@ -128,12 +133,22 @@ class _HomePageState extends State<HomePage> {
 
   void _onLogin() {
     if (!mounted) return;
-    _appMenuController.updateSession(userGrade: User.instance?.grade);
     if (!_loggedIn) {
       setState(() {
         _loggedIn = true;
       });
     }
+    _updateMenuSession();
+  }
+
+  void _updateMenuSession() {
+    final adminSession = AdminConnectSession.instance;
+    _appMenuController.updateSession(
+      userGrade: User.instance?.grade,
+      isAdminConnect: adminSession.isAdminConnect,
+      isCoopAdminConnect: adminSession.isCoopAdminConnect,
+      isFirstConnectByAdmin: adminSession.isFirstConnectByAdmin,
+    );
   }
 
   Future<void> _onLogout(bool isDisconnect) async {
@@ -242,7 +257,12 @@ class _HomePageState extends State<HomePage> {
     Customer.instance = null;
     Cooperator.instance = null;
     AutoLoginGuard.instance.reset();
-    _appMenuController.updateSession(userGrade: null);
+    AdminConnectSession.instance.resetForLogout();
+    _appMenuController.updateSession(
+      userGrade: null,
+      isFirstConnectByAdmin:
+          AdminConnectSession.instance.isFirstConnectByAdmin,
+    );
 
     if (isDisconnect == true) {
       DbConnectionService.instance.cancelReconnect();
@@ -287,6 +307,94 @@ class _HomePageState extends State<HomePage> {
     } finally {
       debugLog(END);
     }
+  }
+
+  Future<void> _connectToCustomer(Customer customer) async {
+    final currentUser = User.instance;
+    final currentMarket = Market.instance;
+    final currentCustomer = Customer.instance;
+    final currentCooperator = Cooperator.instance;
+    if (currentUser == null ||
+        currentMarket == null ||
+        currentCustomer == null ||
+        currentCooperator == null) {
+      return;
+    }
+
+    final target = await resolveAdminConnectTarget(customer: customer);
+    final targetCooperator = await CooperatorDAO.selectByCooperatorId(
+      customer.cooperatorId,
+    );
+    if (targetCooperator == null) {
+      throw StateError('접속할 협력업체가 없습니다.');
+    }
+    final adminSession = AdminConnectSession.instance;
+    final nextFlags = adminConnectFlagsFor(
+      currentGrade: currentUser.grade,
+      isAdminConnect: adminSession.isAdminConnect,
+      isCoopAdminConnect: adminSession.isCoopAdminConnect,
+    );
+    final previousSession = adminSession.snapshot();
+    final origin = previousSession.connectOrigin ?? currentUser;
+    final previousBrand = _selectedBrand;
+    final previousLabelSize = _selectedLabelSize;
+
+    setState(() {
+      _contextSwitching = true;
+      _selectedBrand = null;
+      _selectedLabelSize = null;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+
+    adminSession.connectOrigin = origin;
+    adminSession.isAdminConnect = nextFlags.isAdminConnect;
+    adminSession.isCoopAdminConnect = nextFlags.isCoopAdminConnect;
+    User.setInstance(target.user);
+    Market.setInstance(target.market);
+    Customer.setInstance(target.customer);
+    Cooperator.setInstance(targetCooperator);
+    _updateMenuSession();
+
+    try {
+      await AdminAccessLogDAO.insert(
+        accessUserId: origin.userId,
+        targetUserId: target.user.userId,
+        targetCustomerId: target.customer.customerId,
+      );
+    } catch (error) {
+      User.setInstance(currentUser);
+      Market.setInstance(currentMarket);
+      Customer.setInstance(currentCustomer);
+      Cooperator.setInstance(currentCooperator);
+      adminSession.restore(previousSession);
+      _updateMenuSession();
+      if (!mounted) return;
+      setState(() {
+        _contextSwitching = false;
+        _selectedBrand = previousBrand;
+        _selectedLabelSize = previousLabelSize;
+      });
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          content: Text(error.toString()),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _contextSwitching = false;
+      _managerSessionGeneration += 1;
+    });
   }
 
   @override
@@ -360,9 +468,14 @@ class _HomePageState extends State<HomePage> {
             SizedBox(width: lmSize(10)),
           ],
         ),
-        body: _loggedIn
+        body: _loggedIn && !_contextSwitching
             ? HomePageManager(
-              appMenuController: _appMenuController,
+                key: ValueKey(_managerSessionGeneration),
+                appMenuController: _appMenuController,
+                customerCooperatorSelectionEnabled:
+                    User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
+                  AdminConnectSession.instance.isAdminConnect,
+                onCustomerAdminConnect: _connectToCustomer,
                 selectedBrand: _selectedBrand,
                 onBrandChanged: (v) {
                   setState(() => _selectedBrand = v);

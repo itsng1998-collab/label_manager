@@ -97,4 +97,12 @@ class MarketDAO extends DAO {
       throw Exception('${runtimeLogTag()} $e');
     }
   }
+
+  static Future<List<Market>> selectForAdminConnect(int customerId) async {
+    final result = await DbClient.instance.getDataWithParams(
+      '$SelectSql $WhereSqlCustomerId',
+      {'customerId': customerId},
+    );
+    return DAO.mapRows(result, Market.fromMap);
+  }
 }

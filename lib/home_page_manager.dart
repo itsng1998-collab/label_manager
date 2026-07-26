@@ -77,6 +77,7 @@ import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/cooperator_manager_dialog.dart';
+import 'package:label_manager/page_home/customer_manager_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -199,6 +200,8 @@ Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
   final AppMenuController appMenuController;
+  final bool customerCooperatorSelectionEnabled;
+  final CustomerConnector onCustomerAdminConnect;
   final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
@@ -209,6 +212,8 @@ class HomePageManager extends StatefulWidget {
   const HomePageManager({
     super.key,
     required this.appMenuController,
+    required this.customerCooperatorSelectionEnabled,
+    required this.onCustomerAdminConnect,
     required this.selectedBrand,
     required this.onBrandChanged,
     required this.selectedLabelSize,
@@ -376,6 +381,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       ItemElementCommitQueue();
   final CooperatorManagerController _cooperatorManagerController =
       CooperatorManagerController();
+  final CustomerManagerController _customerManagerController =
+      CustomerManagerController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -388,6 +395,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _cooperatorManagerOverlayEntry;
   LifecycleParticipant? _cooperatorManagerLifecycleParticipant;
+  OverlayEntry? _customerManagerOverlayEntry;
+  LifecycleParticipant? _customerManagerLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -496,6 +505,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       owner: this,
       handlers: {
         AppMenuCommandId.manageCooperators: _openCooperatorManagerDialog,
+        AppMenuCommandId.manageCustomers: _openCustomerManagerDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3018,6 +3028,56 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  void _closeCustomerManagerDialog() {
+    _customerManagerOverlayEntry?.remove();
+    _customerManagerOverlayEntry = null;
+    final participant = _customerManagerLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _customerManagerLifecycleParticipant = null;
+    }
+  }
+
+  void _openCustomerManagerDialog() {
+    if (_customerManagerOverlayEntry != null) return;
+    final cooperator = Cooperator.instance;
+    if (cooperator == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _customerManagerController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '거래처 관리',
+            width: 820,
+            height: 660,
+            onClose: _closeCustomerManagerDialog,
+            closeEnabled:
+                !_customerManagerController.activeEditing &&
+                !_customerManagerController.writeBusy,
+            child: child!,
+          ),
+          child: CustomerManagerDialogContent(
+            controller: _customerManagerController,
+            initialCooperator: cooperator,
+            cooperatorSelectionEnabled:
+                widget.customerCooperatorSelectionEnabled,
+            connect: widget.onCustomerAdminConnect,
+          ),
+        ),
+      ),
+    );
+    _customerManagerOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _customerManagerController.snapshot,
+      close: _closeCustomerManagerDialog,
+    );
+    _customerManagerLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _openCooperatorManagerDialog() {
     if (_cooperatorManagerOverlayEntry != null) return;
 
@@ -4569,6 +4629,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _closeLoginHistoryDialog();
     _closeCooperatorManagerDialog();
     _cooperatorManagerController.dispose();
+    _closeCustomerManagerDialog();
+    _customerManagerController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }

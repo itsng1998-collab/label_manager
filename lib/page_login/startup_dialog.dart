@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
+import 'package:label_manager/core/admin_connect_session.dart';
 import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/database/db_connection_status.dart';
@@ -544,19 +545,17 @@ class _LoginPanelState extends State<_LoginPanel> {
       debugLog(END);
       return;
     }
-    else if (equalsIgnoreCase(_userInfo!.userId, User.SYSTEM)) {
-      if (inputPwd != _getDirectPassword() && inputPwd != _getSystemPassword()) {
-        if (mounted) {
-          setState(() => _infoText = '시스템 계정 패스워드가 올바르지 않습니다!');
-          FocusScope.of(context).requestFocus(_passwordFocus);
-        }
-        debugLog(END);
-        return;
-      }
-    }
-    else if (_userInfo!.pwd != inputPwd) {
+    final authenticationMode = loginAuthenticationModeFor(
+      user: _userInfo!,
+      inputPassword: inputPwd,
+      directPassword: _getDirectPassword(),
+      systemPassword: _getSystemPassword(),
+    );
+    if (authenticationMode == null) {
       if (mounted) {
-        setState(() => _infoText = '패스워드가 올바르지 않습니다!');
+        setState(() => _infoText = equalsIgnoreCase(_userInfo!.userId, User.SYSTEM)
+            ? '시스템 계정 패스워드가 올바르지 않습니다!'
+            : '패스워드가 올바르지 않습니다!');
         FocusScope.of(context).requestFocus(_passwordFocus);
       }
       debugLog(END);
@@ -569,15 +568,16 @@ class _LoginPanelState extends State<_LoginPanel> {
       Customer.setInstance(await CustomerDAO.selectByCustomerId(Market.instance!.customerId));
       Cooperator.setInstance(await CooperatorDAO.selectByCooperatorId(Customer.instance!.cooperatorId));
       User.setInstance(_userInfo!);
+      AdminConnectSession.instance.beginLogin(authenticationMode);
 
       // 로그인 정보를 저장한다.
-      //if (!CLoginUser::IsLoginMasterKey()) {
+      if (!AdminConnectSession.instance.isMasterKeyLogin) {
         LoginLogDAO.insertLoginLog(
           userId: User.instance!.userId, userGrade: User.instance!.grade,
           customerId: Customer.instance!.customerId, customerName: Customer.instance!.customerName,
           loginCondition: LoginCondition.LOGIN,
         );
-      //}
+      }
 
       if (!mounted) return;
 

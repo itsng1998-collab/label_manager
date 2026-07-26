@@ -58,6 +58,23 @@ class CustomerDAO extends DAO {
           LTRIM(RTRIM(CONVERT(NVARCHAR(30),@cooperatorId)))
   ''';
 
+  static const String InsertSql = '''
+    INSERT INTO BM_CUSTOMER (RICH_COOP_ID, RICH_NAME)
+    VALUES (@cooperatorId, @customerName)
+  ''';
+
+  static const String UpdateSql = '''
+    UPDATE BM_CUSTOMER
+       SET RICH_COOP_ID=@cooperatorId,
+           RICH_NAME=@customerName
+     WHERE RICH_CUSTOMER_ID=@customerId
+  ''';
+
+  static const String DeleteSql = '''
+    DELETE FROM BM_CUSTOMER
+     WHERE RICH_CUSTOMER_ID=@customerId
+  ''';
+
   static Future<List<Customer>> selectByCooperatorId(
     String cooperatorId,
   ) async {
@@ -95,6 +112,40 @@ class CustomerDAO extends DAO {
     catch (e) {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
+    }
+  }
+
+  static Future<void> insert(Customer customer) async {
+    final result = await DbClient.instance.writeDataWithParams(InsertSql, {
+      'cooperatorId': customer.cooperatorId,
+      'customerName': customer.customerName,
+    });
+    if (DAO.affectedRows(result) <= 0) {
+      throw Exception('${runtimeLogTag()} Insert failed for customer');
+    }
+  }
+
+  static Future<void> update(Customer customer) async {
+    final result = await DbClient.instance.writeDataWithParams(UpdateSql, {
+      'customerId': customer.customerId,
+      'cooperatorId': customer.cooperatorId,
+      'customerName': customer.customerName,
+    });
+    if (DAO.affectedRows(result) <= 0) {
+      throw Exception(
+        '${runtimeLogTag()} Update failed for customerId:${customer.customerId}',
+      );
+    }
+  }
+
+  static Future<void> delete(int customerId) async {
+    final result = await DbClient.instance.writeDataWithParams(DeleteSql, {
+      'customerId': customerId,
+    });
+    if (DAO.affectedRows(result) <= 0) {
+      throw Exception(
+        '${runtimeLogTag()} Delete failed for customerId:$customerId',
+      );
     }
   }
 }
