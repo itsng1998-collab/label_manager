@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 29차 감사의 영양성분 형식·표 manager command 상태, Enter·더블클릭 수정 진입, refresh 선택 상태와 입력 validation 범위를 활성 레거시 기준으로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 29차 감사의 영양성분 형식·표 manager command 상태, Enter·더블클릭 수정 진입, refresh 선택 상태와 입력 validation 범위를 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 영양성분 형식·표 manager의 수정·삭제는 선택 전에도 활성화하고, 삭제는 확인 승인 후 선택 여부를 검사하는 레거시 순서를 유지한다. 선택 기반 비활성화나 확인 순서 개선을 추가하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.2~5.3.3, 7.1, Phase 4와 focused test에서 manager Enter·더블클릭 수정 진입, 미선택 안내와 삭제 `확인 → 선택 검사 → DML`, 형식 refresh 후 선택 해제, 빈 구성 성분명·빈 RTF 허용과 영양성분표 검증 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 영양성분 본문 편집 완료: [doc/app_menu_porting.txt] 5.3.2~5.3.3에 선택 전 manager command 활성, 화면별 Enter·더블클릭 수정 진입, 삭제 확인 후 선택 검사, 형식 refresh 선택 해제와 빈 detail·RTF 허용을 반영했다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 영양성분 형식·표 manager command, Enter·더블클릭, 선택 lifecycle과 validation 범위 및 관련 7.1·Phase 4·focused test에만 한정됐고 기존 28차·계층형 관리 계약과 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 21 insertions, 6 deletions다.
+- commit 완료: `1e35e38` (`앱 메뉴 29차 영양성분 관리 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 28차 감사의 master-key 로그인 상태와 로그인·로그아웃 이력 기록 matrix·실패 처리를 활성 레거시 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 비시스템 사용자의 직접 비밀번호 로그인과 master-key 이력 미기록 상태를 이번 AppBar 로그인 command 계약에 포함한다. `IsFirstConnectByAdmin` 및 관리자 `Connect` 상태와 합치지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.1~5.1.2, 6.2, Phase 1과 focused test에서 일반·master-key·관리자 Connect·앱 종료별 `LOGIN`/`LOGOUT` 기록 조건, session 초기화 전 기록, 이력 저장 실패 시 상태 전환 유지와 자동 재시도 금지를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
