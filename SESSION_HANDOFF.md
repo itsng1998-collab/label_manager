@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 38차 감사에서 `INACTIVE` resource 플래그와 달리 MFC command UI 갱신으로 활성화되는 `공용라벨 수정 이력 보기`를 활성 레거시 기준으로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 38차 감사에서 `INACTIVE` resource 플래그와 달리 MFC command UI 갱신으로 활성화되는 `공용라벨 수정 이력 보기`를 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. `IDM_COMMON_LABEL_LOG`에는 `ON_COMMAND`와 실제 dialog가 있고 별도 `ON_UPDATE_COMMAND_UI`가 없어 메뉴가 열릴 때 자동 활성화되며, 거래게시판처럼 명시적으로 비활성화하는 handler가 없다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.5를 `legacyInactive` 제외에서 `loggedIn` 읽기 전용 조회로 전환하고 기간·selector·결과·전후 preview·확대·Enter·무정렬 계약을 명시한다. Phase 2·5, focused/policy test와 완료 범위를 동기화하고 현 `RICH_FORM_SHEET`·`RICH_ALTER_FORM_SHEET` 우선/fallback 적재를 기존 helper에 연결한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 38차 필수 계약과 공용라벨 `legacyInactive` 이전 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 5.2.5 활성 읽기 전용 조회, 7.4의 다섯 기간 조건·공용라벨 무정렬 예외, Phase 2·5와 policy/focused test, 실제 command UI 경로 기준 `legacyInactive` 판정에만 한정됐다. 새 sheet 우선·기존 RTF fallback 외 복원·내보내기 등 추가 기능은 금지했다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 30 insertions, 13 deletions다.
+- 기능 문서 커밋 완료: `03045b5` (`앱 메뉴 38차 공용라벨 이력 계약 명확화`). 원격 push는 수행하지 않았다.
 - 완료: [doc/app_menu_porting.txt] 37차 감사에서 확인한 영양성분 형식 입력의 `기존내용 참조`와 영양성분표 입력의 선택 형식 구성 미리보기 계약을 활성 레거시 기준으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. 두 UI는 활성 레거시 dialog와 event handler로 동작이 확정되며, 저장 field나 신규 기능으로 확장하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.2에 신규·수정 입력의 미선택 `기존내용 참조` selector와 선택 시 `RICH_NUTCOL_ID` 순 구성 교체를 명시한다. 5.3.3에는 형식 선택에 따른 keyword·성분명 read-only 구성 미리보기를 저장 field와 분리해 명시하고, 두 focused test를 동기화한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
