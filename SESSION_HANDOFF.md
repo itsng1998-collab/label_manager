@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소한다.
+- 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 42차 축소 계약과 이전 포괄 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- 공통 UX 본문 편집 완료: [doc/app_menu_porting.txt] 7.1에서 실제 존재하는 영역만 배치하고 활성 레거시·기존 owning 화면의 footer 순서를 우선하도록 했다. 7.2에서는 기존 `FortuneTable` 정렬·ellipsis를 유지하고 별도 정렬·tooltip은 개별 계약 또는 반복 필요가 있을 때만 공용 API로 검토하도록 축소했다. 7.5에서는 개별 계약이 없는 validation을 inline으로 일괄 전환하지 않고 공용 차단 overlay로 한 번 전달하도록 했다.
+- 테스트·완료 계약 편집 완료: 공용 dialog와 `FortuneTable` widget test, 명령별 체크리스트, 최종 완료 상태에서 빈 영역·command 재배치·정렬·tooltip API를 일반 완료 조건으로 요구하지 않도록 동기화했다.
+- 첫 편집 검증 완료: [SESSION_HANDOFF.md] 진행 기록과 [doc/app_menu_porting.txt] 본문 편집 직후 `git diff --check`가 각각 통과했다.
+- 검증 완료: 42차 축소 계약 `12/12`, 이전 포괄 footer 계층·잘림 tooltip·table 정렬 test·inline validation 문구 잔존 `0`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- diff 검토 완료: 변경은 7.1·7.2·7.5와 대응 widget test·체크리스트·최종 완료 계약에만 한정됐다. 전자저울·검색출력 batch·영양성분 권한·발행 합계·lifecycle을 포함한 기존 업무·DB·권한·Enter 계약은 변경하지 않았고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 검증 시 변경 규모는 23 insertions, 13 deletions다.
 - 완료: [doc/app_menu_porting.txt]에 DB·권한·검증·command 동작을 바꾸지 않는 현대적 UX 권장안을 7.1~7.5 공통 화면 계약으로 정리하고 검증했다.
 - 사용자 확정: 권장안으로 지시서를 정리한다. 기존 `BlockingModelessDialogFrame`·`FortuneTable`을 재사용하고 dialog 정보 계층, filter 반응형 배치, table 폭·정렬·말줄임, keyboard focus 표시, footer command 위계, 오류 위치만 통일한다. 자동 선택·scroll 복원, 새 빈 결과 안내, 신규 filter·정렬·pagination, Enter 재분류, 자동 저장·retry, 별도 design system은 추가하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1~7.5와 관련 widget test·완료 계약에 기능·DB 불변 UX 계약을 반영한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.

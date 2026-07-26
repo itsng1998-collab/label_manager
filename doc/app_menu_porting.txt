@@ -661,10 +661,10 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 신규 관리·조회 dialog는 보편적인 화면 비율을 강제하지 않는다. 입력 수, table column과 command 영역에 맞는 기능별 content 크기를 먼저 정하고, `MediaQuery`에서 가로 48px, 세로 64px 이상의 바깥 여백을 뺀 사용 가능 영역으로 clamp한다.
 - 1168x720은 현재 라벨 항목 편집창처럼 넓은 table·편집 영역이 필요한 dialog의 참고 상한으로만 사용한다. 내용이 적은 dialog를 이 크기로 늘리지 않으며 더 넓은 결과 column이 확인된 경우에만 기능별 max width를 확장한다.
 - 제목 bar에는 전체 한글 기능명과 닫기 icon을 표시한다.
-- 신규 dialog의 본문은 `filter/form → content/table → footer` 정보 계층을 사용하고 기존 compact dialog의 padding과 영역 간 간격을 일관되게 적용한다. 각 영역은 dialog 폭을 사용하는 평면 section으로 두며 장식용 card나 card 안의 card로 감싸지 않는다. 화면별 control·column·command의 존재와 순서, 조회·저장 동작은 바꾸지 않는다.
-- filter/form과 content/table 사이, content/table과 footer 사이에는 간격 또는 얇은 구분선 중 필요한 하나만 사용한다. 같은 경계를 padding·구분선·별도 container로 중복 강조하지 않는다.
+- 신규 dialog는 화면에 실제로 존재하는 `filter/form`, `content/table`, optional `footer` 영역만 이 순서로 배치하고 기존 compact dialog의 padding과 영역 간 간격을 일관되게 적용한다. 각 영역은 dialog 폭을 사용하는 평면 section으로 두며 장식용 card나 card 안의 card로 감싸지 않는다. 구조 통일을 위해 빈 영역이나 command를 추가하지 않고 화면별 control·column·command의 존재와 순서, 조회·저장 동작은 바꾸지 않는다.
+- 실제로 인접한 filter/form과 content/table, content/table과 footer 사이에는 간격 또는 얇은 구분선 중 필요한 하나만 사용한다. 존재하지 않는 영역의 경계를 만들거나 같은 경계를 padding·구분선·별도 container로 중복 강조하지 않는다.
 - 명시적 draft 저장이나 command 영역이 필요한 신규 dialog는 `BlockingModelessDialogFrame.footer`에 화면에 필요한 상태와 `취소`/`저장`, `취소`/`적용`, `닫기` command를 직접 구성한다. 같은 footer 구조가 둘 이상에서 반복될 때만 공용 widget으로 추출한다.
-- footer의 command는 기존 실행 순서와 개수를 유지하면서 저장·적용 같은 주 command를 오른쪽 끝에 두고 취소·닫기 같은 보조 command를 그 왼쪽에 인접 배치한다. 조회 command는 7.4의 filter 영역에 있는 기존 위치를 유지한다. 삭제·폐기 command는 기존 확인 흐름을 유지한 채 danger 색상으로만 구분한다. command가 없는 즉시 적용형 화면에 이 위계를 맞추기 위한 button을 새로 추가하지 않는다.
+- footer command의 순서는 활성 레거시 또는 기존 owning 화면에서 확인된 순서를 우선한다. 확인된 순서가 없는 신규 footer에만 저장·적용 같은 주 command를 오른쪽 끝에 두고 취소·닫기 같은 보조 command를 그 왼쪽에 인접 배치한다. 조회 command는 7.4의 filter 영역에 있는 기존 위치를 유지한다. 삭제·폐기 command는 기존 확인 흐름을 유지한 채 현재 앱의 `colorScheme.error` 계열로만 구분한다. command가 없는 즉시 적용형 화면에 이 위계를 맞추기 위한 button을 새로 추가하지 않는다.
 - busy 표시가 나타나거나 command가 비활성화되어도 footer 높이와 command 위치가 바뀌지 않게 상태 영역의 공간을 안정적으로 유지한다. 이는 진행 상태가 실제로 필요한 화면에만 적용하며 모든 command에 상태 문구를 새로 만들지 않는다.
 - 즉시 적용형·단순 설정형 dialog와 기존 owning dialog는 현재 동작에 지속적인 footer가 없으면 억지로 추가하지 않는다.
 - dialog를 열면 현재 작업의 첫 번째 주요 입력이나 table에 초기 focus를 두고, 비활성 control을 건너뛰며 마우스 없이 주요 입력과 command를 이동할 수 있게 한다. 화면마다 동일한 고정 Tab 영역 순서를 강제하지 않는다.
@@ -698,8 +698,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 관리 화면의 row draft와 저장 상태는 dialog/controller가 소유한다. `FortuneTable` 내부에 DAO 호출이나 업무 저장 로직을 넣지 않는다.
 - 조회 화면은 `FortuneTable`을 read-only로 구성한다. 레거시 동작과 데이터 성격상 필요한 filter, 조회 command, 건수 또는 합계는 table 바깥의 owning dialog가 관리한다.
 - column 순서와 데이터 정렬은 각 화면의 레거시·DB 계약을 그대로 유지한다. 짧은 checkbox·ID·수량·날짜·상태 column에는 내용에 맞는 `initialWidth`·`minWidth`를 주고 긴 이름·내용 column에는 기존 `autoFit` 또는 `fillRemaining`을 사용해 모든 column을 같은 폭으로 만들지 않는다. 화면 폭이 부족해도 column을 자동 숨김·재배치하지 않고 기존 가로 scroll을 유지한다.
-- 셀의 시각 정렬은 checkbox는 가운데, 숫자 값은 오른쪽, 날짜·짧은 상태 값은 가운데, 일반 문자열은 왼쪽을 기본으로 한다. 문자열 내용을 runtime에 해석해 정렬을 추측하지 않고 column 선언이 정한다. 이는 표시 정렬만의 규칙이며 query `ORDER BY`, row 순서, 값 변환 또는 숫자 format을 추가하는 근거로 사용하지 않는다.
-- 일반 text cell은 한 줄 ellipsis를 유지하고 실제로 잘린 경우에만 전체 원문을 tooltip으로 제공한다. tooltip용 별도 값이나 가공 문자열을 만들지 않고 같은 표시 원문을 사용하며, checkbox·편집 중 cell에는 불필요한 tooltip을 추가하지 않는다.
+- 셀은 현재 `FortuneTable`의 checkbox 가운데, 일반 text 왼쪽 정렬과 한 줄 ellipsis를 기본으로 유지한다. 숫자·날짜·상태의 별도 시각 정렬이나 잘린 text tooltip을 모든 화면의 완료 조건으로 추가하지 않는다.
+- 개별 화면 본문이 전체 원문 표시나 별도 정렬을 명시하거나 둘 이상 화면에서 같은 필요가 실제로 확인된 경우에만 `FortuneTableColumn` 공용 API 확장을 검토한다. 문자열 내용을 runtime에 해석해 정렬을 추측하거나 기능별 wrapper·셀별 임시 text 측정을 추가하지 않으며 query `ORDER BY`, row 순서, 값 변환 또는 숫자 format을 바꾸지 않는다.
 - 필요한 공용 table 기능이 없으면 개별 화면에 wrapper나 중복 구현을 추가하기 전에 `third_party/fortune_sheet/lib/src/fortune_table.dart`의 공용 API로 확장하고 `test/fortune_table_test.dart`에서 검증한다.
 - `FortuneSheet`/LabelSheet는 workbook·라벨 시트 편집 또는 read-only 시트 미리보기에만 사용하며, 일반 관리 목록과 조회 결과 table 용도로 사용하지 않는다.
 - 단일 상세값, key-value form, 선택 항목이 없는 짧은 안내 목록처럼 반복 column table이 아닌 UI는 `FortuneTable` 적용 대상이 아니다.
@@ -740,7 +740,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 - DAO 오류를 빈 목록이나 `false`로 바꾸지 않는다.
 - DB 오류는 원인 문자열을 보존해 command 계층으로 전달한다.
-- 차단형 overlay가 열린 동안 현재 화면에서 수정해 다시 실행할 수 있는 입력·validation 실패는 해당 입력 또는 command 영역 가까운 inline 상태로 한 번 알린다. DB·commit 오류와 사용자의 확인이 필요한 실패는 `showBlockingModelessOverlayDialog`로 한 번 알린다. 개별 기능이 기존 표시 위치를 명시하면 그 계약을 우선하며 오류 문구, validation 순서·횟수, draft 유지와 DB 처리 흐름은 바꾸지 않는다.
+- 차단형 overlay가 열린 동안 개별 기능 본문이나 기존 owning 화면이 inline validation을 명시한 경우에만 해당 입력 또는 command 영역 가까이에 한 번 표시한다. 그 밖의 validation 실패와 DB·commit 오류, 사용자의 확인이 필요한 실패는 `showBlockingModelessOverlayDialog`로 한 번 알린다. 오류 문구, validation 순서·횟수, draft 유지와 DB 처리 흐름은 바꾸지 않는다.
 - 같은 실패를 inline과 blocking overlay에 동시에 표시하지 않는다. 뒤쪽 `ScaffoldMessenger` snackbar를 오류 전달 경로로 사용하지 않는다.
 - snackbar는 차단형 overlay가 제거된 뒤 표시하는 비차단 성공 알림 또는 overlay 밖의 기존 화면 알림에만 사용한다. 사용자 확인이나 action이 필요한 오류를 snackbar로 표시하지 않는다.
 - 같은 오류를 DAO, controller, UI에서 각각 중복 로그로 남기지 않는다.
@@ -924,12 +924,12 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 로그인/로그아웃 command는 inventory에 존재하지만 `파일/관리` popup에는 렌더링되지 않고 현재 상태의 AppBar 고정 아이콘 하나만 표시.
   - 대표 command를 통해 별도 command ID·label 렌더링과 주입된 검색출력 mode 상태에 맞는 checkmark 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
-- 공용 dialog test에서 `BlockingModelessDialog`의 배경 입력 차단, `filter/form → content/table → footer` 정보 계층, 첫 주요 입력 focus와 keyboard focus 표시, Esc와 중첩 picker z-order를 한 번 검증한다. footer가 있는 대표 화면은 보조 command와 오른쪽 끝 주 command의 안정된 배치를 확인한다. 활성 셀 편집·dropdown·picker가 Esc를 소비하는 경우와 일반 행·checkbox 다중 선택은 소비하지 않고 닫기 요청으로 이어지는 경우를 구분한다. dirty와 write-busy는 이를 지원하는 편집 dialog에서, read-busy 중 닫기와 늦은 결과 폐기는 대표 읽기 전용 dialog에서 검증한다. 각 command test는 해당 화면의 filter 반응형 줄바꿈, draft, save/cancel, 실패 상태처럼 고유한 흐름만 추가한다.
+- 공용 dialog test에서 `BlockingModelessDialog`의 배경 입력 차단, 화면에 실제로 존재하는 영역만의 정보 계층, 첫 주요 입력 focus와 keyboard focus 표시, Esc와 중첩 picker z-order를 한 번 검증한다. footer가 있는 대표 화면은 활성 레거시·기존 owning 화면의 command 순서를 우선하고, 확인된 순서가 없는 경우에만 보조 command와 오른쪽 끝 주 command의 안정된 배치를 확인한다. 활성 셀 편집·dropdown·picker가 Esc를 소비하는 경우와 일반 행·checkbox 다중 선택은 소비하지 않고 닫기 요청으로 이어지는 경우를 구분한다. dirty와 write-busy는 이를 지원하는 편집 dialog에서, read-busy 중 닫기와 늦은 결과 폐기는 대표 읽기 전용 dialog에서 검증한다. 각 command test는 해당 화면의 filter 반응형 줄바꿈, draft, save/cancel, 실패 상태처럼 고유한 흐름만 추가한다.
 - 대표 route dialog, AppBar menu, `BlockingModelessDialog`, `DbReconnectOverlay`에서 전역 F-key 차단을 검증하고, 중첩 surface가 남으면 차단이 유지되며 마지막 surface 종료 후 복원되는지 확인한다. non-modal floating preview만 보일 때는 차단하지 않는다.
 - 로그아웃·종료 test에서 활성 lifecycle participant를 요청 시점에 한 번 수집하고 신규 dialog 또는 기존 메인 탭의 write busy와 active editing은 dirty 확인 전에 종료를 차단하는지 검증한다. 양쪽 owner의 여러 dirty는 한 번만 확인하며 승인된 폐기 callback과 활성 overlay close callback은 각각 한 번만 실행되고 취소 시 상태가 유지되어야 한다. clean·읽기 전용 participant는 일반 확인 없이 닫히고 늦은 결과가 폐기되며, 기존 프린터·저울 설정 modal route는 자동 닫기·dirty 확인 없이 설정창을 먼저 닫도록 종료를 차단하는지 확인한다.
 - 대표 저장 dialog test에서 commit 전 확정 실패는 draft를 유지하고, `DbCommitOutcomeUnknown`과 commit 후 reload 실패는 안내 후 dialog를 닫으며 같은 draft의 재저장 UI나 별도 읽기 전용·수동 재조회 mode를 만들지 않는지 검증한다.
 - 사용자 접속 이력 focused test에서 demo row·route page 없이 차단형 dialog content와 read-only `FortuneTable`, overlay date picker를 사용하는지 검증한다.
-- 반복 행 화면은 `FortuneTable`을 사용한다. 공용 API를 확장한 경우에만 `test/fortune_table_test.dart`에 column별 시각 정렬, 잘린 text의 원문 tooltip, 기존 resize·scroll·selection 회귀를 추가한다. query·row 정렬이나 업무 값 format은 table test에 추가하지 않는다.
+- 반복 행 화면은 `FortuneTable`을 사용한다. 개별 화면 본문 또는 반복 필요에 따라 공용 API를 실제 확장한 경우에만 `test/fortune_table_test.dart`에 해당 동작과 기존 resize·scroll·selection 회귀를 추가한다. query·row 정렬이나 업무 값 format은 table test에 추가하지 않는다.
 - `legacyInactive`와 `legacyUnreachable` command가 production 메뉴에 렌더링되지 않는지 검증한다.
 
 ### 9.3 integration test
@@ -957,9 +957,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - [ ] production 노출 대상인 활성 command가 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
 - [ ] 기존 핵심 탭 이동 외에 별도 route page, 신규 메인 탭, native child window를 추가하지 않음.
 - [ ] 신규 dialog를 여는 command는 주요 입력, Esc, 오류와 종료 흐름이 공용 계약을 따르고, 편집·저장이 있는 경우에만 실제 dirty/write-busy/active editing 상태를 처리함.
-- [ ] 신규 dialog는 공통 정보 계층, 실제 폭에 따른 filter 줄바꿈, keyboard focus 표시와 footer command 위계를 적용하되 control·command·Enter 동작을 변경하지 않음.
+- [ ] 신규 dialog는 실제로 존재하는 영역만의 정보 계층, 실제 폭에 따른 filter 줄바꿈, keyboard focus 표시를 적용하고 footer는 확인된 기존 command 순서를 우선하되 control·command·Enter 동작을 변경하지 않음.
 - [ ] 관리 목록 또는 조회 결과에 반복 행 table이 있는 command는 공용 `FortuneTable`을 사용함.
-- [ ] `FortuneTable` column은 레거시 순서·DB 정렬을 유지하면서 내용에 맞는 폭·시각 정렬과 잘린 text의 원문 tooltip을 사용함.
+- [ ] `FortuneTable` column은 레거시 순서·DB 정렬과 기존 셀 정렬·ellipsis를 유지하면서 내용에 맞는 폭을 사용하고, 별도 정렬·tooltip은 개별 계약 또는 반복 필요가 있을 때만 공용 API로 추가함.
 - [ ] 행 CRUD command는 작업 빈도와 현재 owning 화면에 맞는 toolbar/rail/context menu를 사용하고 비CRUD dialog에는 불필요한 CRUD command가 없음.
 - [ ] 조회 command는 데이터 성격에 필요한 조회 UI와 오류 흐름을 구현함.
 - [ ] 명시적 draft 저장 흐름이 있는 command만 저장/취소 UI를 구현함.
@@ -1029,9 +1029,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 신규 AppBar dialog는 owning controller가 동일 dialog 중복 실행과 close를 관리하고 열린 동안 lifecycle participant를 등록한다. 실제 편집·저장 상태가 있을 때만 non-empty exit snapshot을 제공하되 clean·읽기 전용 participant도 종료 후 overlay 정리를 위한 close callback을 제공한다. 종료 요청의 snapshot·폐기·close callback 수집 외에 서로 다른 dialog를 위한 전역 coordinator는 추가하지 않는다.
 - 로그아웃·메뉴 종료·OS 창 닫기는 활성 lifecycle participant와 기존 메인 탭의 exit snapshot을 함께 평가한다. 기존 프린터·저울 설정 modal route가 열려 있으면 설정창을 먼저 닫도록 종료를 차단한다. 읽기 전용 dialog는 guard 통과 뒤 닫고 늦은 결과를 폐기하며, write-busy와 activeEditing은 dirty 확인 전에 종료를 막고 모든 dirty 상태는 한 번의 통합 확인으로 처리한다. clean 상태에는 일반 확인창을 추가하지 않는다.
 - 차단형 dialog의 모든 중첩 modal/picker는 현재 dialog 위에 표시되고, form-only dialog도 첫 활성 입력에 초기 focus가 설정된다.
-- 신규 dialog는 `filter/form → content/table → footer` 정보 계층, 실제 폭에 따른 filter 줄바꿈과 명확한 keyboard focus 표시를 사용하되 화면별 control·command·Enter·Esc 동작을 유지한다.
-- 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용하고, 레거시 column·row 순서를 유지하면서 내용에 맞는 폭·시각 정렬과 잘린 text의 원문 tooltip을 제공한다.
-- 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 기존 frame footer slot에 필요한 command를 구성하고, 보조 command와 오른쪽 끝 주 command의 시각적 위계를 유지한다. 즉시 적용형·단순 설정형과 기존 owning dialog는 필요한 command 영역만 유지한다. 행 CRUD command는 작업 빈도와 owning 화면에 맞는 toolbar, rail 또는 context menu를 사용한다.
+- 신규 dialog는 실제로 존재하는 영역만의 정보 계층, 실제 폭에 따른 filter 줄바꿈과 명확한 keyboard focus 표시를 사용하되 화면별 control·command·Enter·Esc 동작을 유지한다.
+- 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용하고, 레거시 column·row 순서와 기존 셀 정렬·ellipsis를 유지하면서 내용에 맞는 폭을 사용한다. 별도 정렬·tooltip은 개별 계약 또는 반복 필요가 확인된 경우에만 공용 API로 추가한다.
+- 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 기존 frame footer slot에 필요한 command를 구성하고 활성 레거시·기존 owning 화면의 command 순서를 우선한다. 확인된 순서가 없는 신규 footer만 보조 command와 오른쪽 끝 주 command의 시각적 위계를 사용한다. 즉시 적용형·단순 설정형과 기존 owning dialog는 필요한 command 영역만 유지한다. 행 CRUD command는 작업 빈도와 owning 화면에 맞는 toolbar, rail 또는 context menu를 사용한다.
 - footer 없는 busy 상태는 실행 control 가까이에 표시되고, 차단형 overlay 오류는 inline 또는 공용 overlay dialog로 전달된다.
 - `legacyInactive`와 `legacyUnreachable` command는 inventory에 사유와 함께 유지하되 production 메뉴에서는 숨기며 활성화 요구나 실제 도달 경로 확인 전에는 내부 구현을 완료 조건으로 삼지 않는다.
 - DB schema는 변경되지 않는다.
