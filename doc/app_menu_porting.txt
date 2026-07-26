@@ -543,9 +543,12 @@ END CATCH
 
 - 권한: 6.1의 `loggedIn`.
 - 레거시 `CSearchPrintSetupDlg`와 같이 브랜드, 브랜드의 label size, 해당 label size의 column 목록을 표시한다.
-- dialog를 열면 현재 브랜드와 현재 label size를 우선 선택하고 해당 label size column의 DB `RICH_SEARCH_PRINT` 값을 checkbox draft에 그대로 반영한다. 브랜드를 변경하면 그 브랜드의 첫 label size를 선택하고 해당 DB 값을 다시 표시한다. 별도 최근 선택이나 사용자별 초기값을 추가하지 않는다.
-- 설정값은 각 column의 기존 `RICH_SEARCH_PRINT` 선택뿐이다. 개별 선택, 전체 선택, 전체 해제와 적용 command를 제공하고 기존 `CColumnDAO::UpdateBatch`에 대응하는 column 저장 API를 사용한다.
+- dialog를 열면 현재 브랜드와 현재 label size를 우선 선택하고 해당 label size column의 DB `RICH_SEARCH_PRINT` 값을 checkbox draft에 그대로 반영한다. 브랜드를 변경하면 레거시 `CLabelSizeDAO::SelectByBrandID`의 `RICH_LABELSIZE_ORDER ASC` 반환 순서 첫 행을 선택하고 해당 DB 값을 다시 표시한다. ID·이름 정렬, 별도 최근 선택이나 사용자별 초기값을 추가하지 않는다.
+- 화면에서 바꾸는 설정값은 각 column의 기존 `RICH_SEARCH_PRINT` 선택뿐이다. 개별 선택, 전체 선택, 전체 해제와 적용 command를 제공한다.
+- 사용자 확정에 따라 적용은 레거시 `CColumnDAO::UpdateBatch`의 전체 범위를 복제한다. 선택 label size에서 조회한 전체 column snapshot으로 `BM_RICH_COLUMN`의 `RICH_SEARCH_PRINT`를 포함한 기존 전체 column 속성을 batch update하고, `BM_RICH_COL_MIN` 행 갱신·생성과 column type별 `BM_GS1_COLUMN_INFO`·`BM_GS1_CONTAIN_COLUMN` 갱신·삭제도 같은 분기로 수행한다. 이 DML은 하나의 transaction으로 처리하며 검색 flag만 갱신하는 최소 UPDATE로 축소하거나 다른 table·보정 로직을 추가하지 않는다.
 - 적용 전 checkbox draft가 변경된 상태에서 브랜드·label size를 전환하거나 dialog를 닫으면 7.1의 공용 dirty 폐기 확인을 한 번 사용한다. 승인하면 변경을 저장하지 않고 버린 뒤 대상 selector의 DB 값으로 다시 초기화하거나 dialog를 닫고, 취소하면 현재 selector와 draft를 유지한다. selector 전환 시 자동 적용·자동 저장을 추가하지 않는다.
+- 적용 성공 후 `저장되었습니다.` 안내를 한 번 표시하고 현재 전체 column snapshot을 committed 기준으로 갱신해 dirty를 해제한다. 현재 브랜드·label size·checkbox와 dialog는 그대로 유지한다. 변경이 없는 상태에서 적용을 다시 실행해도 레거시처럼 전체 batch를 수행하며 자동으로 dialog를 닫거나 적용 command를 비활성화하지 않는다.
+- Enter도 레거시 default 적용 button과 `OnOK()`처럼 적용 command를 실행한다. 이 화면에만 7.1의 Enter 비저장과 성공 후 overlay 제거 규칙의 예외를 적용한다.
 - 별도 검색 문구, 자동 발행 조건, 사용자별 설정이나 신규 설정 table을 추가하지 않는다.
 - 기존 schema/config가 없으면 migration으로 대체하지 않는다.
 - 설정 저장 commit 실패 시 dialog 입력 상태를 유지하고 오류를 전달한다.
@@ -628,6 +631,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - commit 전 DML/validation 단계의 확정 실패는 dialog와 draft를 유지하고 오류를 한 번 전달한다. `DbCommitOutcomeUnknown`과 commit 성공 후 reload 실패는 1.3의 결과별 계약을 적용해 같은 draft를 재저장하지 못하게 한다.
 - commit과 필요한 reload가 모두 성공하면 committed 상태를 반영한 뒤 overlay를 제거하고 controller, listener, focus node를 dispose한다.
 - 단, 5.3.2 영양성분 형식과 5.3.3 영양성분표의 신규·수정 입력 dialog는 사용자 확정과 레거시 동작에 따라 저장 성공 후에도 같은 입력 상태로 열린 채 유지한다. 이 두 화면에 공통 성공 후 overlay 제거 규칙, 자동 draft 초기화, 신규에서 수정 mode로의 자동 전환이나 중복 저장 차단을 적용하지 않는다.
+- 5.3.11 검색출력 설정도 사용자 확정과 레거시 동작에 따라 적용 성공 후 committed 기준과 dirty만 갱신하고 dialog를 유지하며 Enter로 적용 command를 실행한다. 변경이 없는 재적용도 허용하고 이 화면에만 공통 성공 후 overlay 제거와 Enter 비저장 규칙을 적용하지 않는다.
 
 ### 7.2 FortuneTable 사용 원칙
 
@@ -765,6 +769,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 검색/치환 결과 table의 변경값 확인, 이동별 선택 source·미저장 변경 폐기, 레거시 확인 흐름과 transaction 검증 통과.
 - 검색/치환의 초기 filter·두 진입점과 실제 등급별 쓰기 UI, 검색출력의 빈 입력·0건 결과 흐름이 레거시 범위와 일치함.
 - 검색출력 설정의 현재 context·DB 값 초기화와 미적용 draft 폐기 확인 검증 통과.
+- 검색출력 설정의 label size 순서, 전체 `CColumnDAO::UpdateBatch` DML과 transaction, 적용 후 dialog 유지·dirty 해제·Enter 적용이 레거시 및 사용자 확정과 일치함.
 - 품목별 정보 편집은 현재 로그인 지점·메인 선택 label size만 사용하고 미선택 시 빈 상태이며, 영양성분 keyword는 삭제 후 재번호하지 않음.
 - 영양성분 형식·표의 삭제 확인, 저장 후 입력 dialog 유지, 영양성분표 신규 형식 미선택과 수정 후 선택·preview 복원이 레거시와 일치함.
 
@@ -806,7 +811,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 사용자 접속 이력 focused test에서 현재 협력업체·거래처 초기값, 시스템 관리자의 두 selector 표시·변경, 협력업체 관리자의 협력업체 selector·label 숨김과 거래처 selector만 표시·변경, 그 외 사용자의 두 selector·관련 label 숨김과 현재 거래처 조회를 검증한다. 기간·거래처 조건과 레거시 결과 column decoding, 0건에서 빈 table과 `검색결과가 없습니다!` 안내 1회를 확인한다.
 - 데이터내용 이력 focused test에서 현재 협력업체·거래처 초기값, 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회, 그 외 사용자의 현재 거래처 조회를 구분해 검증한다. 0건에서는 빈 table과 `검색결과가 없습니다!` 안내 1회를 확인한다. 행 더블클릭 상세는 `CONTENT_COLUMNS`와 `CONTENTS`를 줄바꿈으로 분리해 짧은 쪽 개수까지만 index pairing하고 before/after 보정을 추가하지 않는지 확인한다.
 - 발행 통계 focused test에서 현재 협력업체·거래처, 브랜드·label size `[전체 보기]`, 검색 column `주원료` 초기값과 시스템 관리자만 협력업체·거래처 selector를 변경하는 권한을 확인한다. `SelectDLG`의 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건, 부분 일치 기본값과 활성 결과 column을 검증한다. 조회 결과의 `RICH_PRINT_COUNT`로 총 발행 매수·삭제 품목 매수를 계산하고 삭제 행을 구분하며, 행 더블클릭 상세가 품명·주원료와 column 이름·저장일·값만 표시하는지 확인한다. 사용자 등급 decoding/filter나 `SelectPrintCountSum` 계열 합계 query test를 추가하지 않는다.
-- 검색출력 설정 focused test에서 현재 브랜드·label size와 DB `RICH_SEARCH_PRINT` 초기값, 브랜드 변경 시 첫 label size 선택, column의 개별 선택·전체 선택·전체 해제와 적용을 검증한다. 미적용 draft가 있는 selector 전환·닫기는 공용 폐기 확인을 한 번 사용하고 취소 시 현재 상태를 유지하며 승인 시 자동 저장 없이 대상 DB 값으로 초기화하거나 닫는지 확인한다.
+- 검색출력 설정 focused test에서 현재 브랜드·label size와 DB `RICH_SEARCH_PRINT` 초기값, 브랜드 변경 시 `RICH_LABELSIZE_ORDER ASC` 첫 label size 선택, column의 개별 선택·전체 선택·전체 해제와 적용을 검증한다. 적용은 조회한 전체 column snapshot으로 `BM_RICH_COLUMN` 전체 속성, `BM_RICH_COL_MIN`, column type별 `BM_GS1_COLUMN_INFO`·`BM_GS1_CONTAIN_COLUMN`을 레거시 `CColumnDAO::UpdateBatch`와 같은 분기·범위의 한 transaction에서 처리하는지 확인하고 검색 flag 최소 UPDATE로 축소하지 않는다. 성공 안내 1회, committed 기준 갱신·dirty 해제와 dialog·selector·checkbox 유지, Enter 및 변경 없는 재적용의 전체 batch 실행을 검증한다. 미적용 draft가 있는 selector 전환·닫기는 공용 폐기 확인을 한 번 사용하고 취소 시 현재 상태를 유지하며 승인 시 자동 저장 없이 대상 DB 값으로 초기화하거나 닫는지 확인한다.
 - 네 조회 dialog focused test에서 시작일·종료일이 현재 로컬 날짜이고 command별 selector 초기화만으로 DAO 조회가 실행되지 않으며 명시적 조회 command에서 최초 호출되는지 확인한다.
 - command policy test에서 발행내역, 사용자 접속 이력, 데이터내용 이력, 발행 통계, 품목별 정보 편집, 전자저울 관리, 검색출력모드, 검색출력 설정과 업데이트 메시지가 `loggedIn`이고 비로그인에는 숨겨지는지 검증한다.
 - 단축키 차단 helper를 별도로 추가한 경우 차단 surface 활성/중첩/종료와 non-modal preview 제외 결과만 검증한다. route identity나 lease 내부 구조는 테스트 계약으로 고정하지 않는다.

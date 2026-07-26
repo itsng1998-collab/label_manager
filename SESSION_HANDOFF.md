@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 진행 중: [doc/app_menu_porting.txt] 23차 감사의 검색출력 설정 label size 순서, 전체 `CColumnDAO::UpdateBatch` DML, 적용·Enter lifecycle 계약을 병합한다.
+- 사용자 확정: 검색출력 설정은 적용 성공 후 레거시처럼 열린 상태를 유지하고 Enter도 적용 command를 실행한다. 저장은 `RICH_SEARCH_PRINT`만 갱신하지 않고 레거시 `CColumnDAO::UpdateBatch`의 전체 column·`BM_RICH_COL_MIN`·GS1 연관 DML 범위를 복제한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.11, 7.1과 관련 Phase 4·focused test에서 `RICH_LABELSIZE_ORDER ASC` 첫 label size, 전체 batch DML·transaction, 성공 후 committed 기준·dirty·dialog 상태와 Enter 적용 예외를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검색출력 설정 계약 편집 완료: [doc/app_menu_porting.txt] 브랜드 변경 시 `RICH_LABELSIZE_ORDER ASC` 첫 행, 전체 column snapshot 기반 `BM_RICH_COLUMN`·`BM_RICH_COL_MIN`·GS1 DML과 transaction, 적용 성공 후 committed 기준·dirty 해제·dialog 유지·Enter와 변경 없는 재적용을 5.3.11에 반영했다.
+- 공통·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 7.1에 검색출력 설정만의 적용 후 유지·Enter 적용 예외를 추가하고 Phase 4 완료 기준과 focused test에 같은 23차 계약을 반영했다.
+- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
+- 검증 실행 예정: 23차 필수 계약과 이전 모호 문구 제거, 화면별 예외 범위를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: [doc/app_menu_porting.txt]의 23차 필수 계약 7개 반영과 이전 모호 문구 2개 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 23차 세 권장안과 사용자 확정, 관련 공통 규칙·Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 18 insertions, 3 deletions다.
 - 완료: [doc/app_menu_porting.txt] 22차 감사의 사용자 접속 이력 selector 가시성, 이력 조회 빈 결과, 영양성분 삭제 확인, 입력 dialog 저장 lifecycle, 영양성분표 초기 선택·수정 후 preview 복원 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 영양성분 형식·표 입력 dialog는 저장 성공 후 레거시처럼 열린 상태를 유지하고, 사용자 접속·데이터내용 이력 조회 0건은 빈 table과 함께 `검색결과가 없습니다!` 안내를 한 번 표시한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.3~5.2.4, 5.3.2~5.3.3, 7.1·7.3~7.4와 관련 Phase·focused test에서 22차 화면별 예외와 레거시 selector·삭제 확인·목록 상태 계약을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
