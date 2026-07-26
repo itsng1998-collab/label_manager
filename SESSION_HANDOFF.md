@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 종료 `LOGOUT`의 session snapshot·DB 정리 전 기록, 레거시 검색출력 하위 계층·키보드 이동, visibility 이후 separator와 active command 완료 범위에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 26 insertions, 12 deletions다.
+- commit 완료: `48ca762` (`앱 메뉴 34차 종료 메뉴 계층 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 33차 감사의 신규 transaction 실행 경로와 AppBar 반응형 검증 viewport를 권장안 및 사용자 확정 기준으로 병합하고 검증했다.
 - 사용자 확정: AppBar widget test의 넓은 대표 viewport는 `1200×800`, 좁은 대표 viewport는 `600×720`으로 사용한다. native minimum이나 window lifecycle은 변경하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 1.3, 3.2, 관리자 복사, Phase 1과 DAO/widget/완료 계약에서 신규 다중 DML을 `DbClient.transaction(List<DbTransactionStatement>)` 단일 경로로 고정하고 내부 transaction 제어문을 금지하며, 두 viewport를 전환 임계값이 아닌 test 입력값으로 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
