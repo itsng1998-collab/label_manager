@@ -79,6 +79,7 @@ import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/cooperator_manager_dialog.dart';
 import 'package:label_manager/page_home/customer_manager_dialog.dart';
 import 'package:label_manager/page_home/market_manager_dialog.dart';
+import 'package:label_manager/page_home/user_manager_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -204,6 +205,11 @@ class HomePageManager extends StatefulWidget {
   final bool customerCooperatorSelectionEnabled;
   final CustomerConnector onCustomerAdminConnect;
   final bool marketCooperatorSelectionEnabled;
+  final bool userCooperatorSelectionEnabled;
+  final bool userCustomerSelectionEnabled;
+  final bool userMarketSelectionEnabled;
+  final bool userCredentialsVisible;
+  final ManagedUserConnector onUserAdminConnect;
   final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
@@ -217,6 +223,11 @@ class HomePageManager extends StatefulWidget {
     required this.customerCooperatorSelectionEnabled,
     required this.onCustomerAdminConnect,
     required this.marketCooperatorSelectionEnabled,
+    required this.userCooperatorSelectionEnabled,
+    required this.userCustomerSelectionEnabled,
+    required this.userMarketSelectionEnabled,
+    required this.userCredentialsVisible,
+    required this.onUserAdminConnect,
     required this.selectedBrand,
     required this.onBrandChanged,
     required this.selectedLabelSize,
@@ -388,6 +399,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       CustomerManagerController();
     final MarketManagerController _marketManagerController =
       MarketManagerController();
+  final UserManagerController _userManagerController = UserManagerController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -404,6 +416,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _customerManagerLifecycleParticipant;
   OverlayEntry? _marketManagerOverlayEntry;
   LifecycleParticipant? _marketManagerLifecycleParticipant;
+  OverlayEntry? _userManagerOverlayEntry;
+  LifecycleParticipant? _userManagerLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -514,6 +528,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.manageCooperators: _openCooperatorManagerDialog,
         AppMenuCommandId.manageCustomers: _openCustomerManagerDialog,
         AppMenuCommandId.manageMarkets: _openMarketManagerDialog,
+        AppMenuCommandId.manageUsers: _openUserManagerDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3137,6 +3152,63 @@ class _HomePageManagerState extends State<HomePageManager> {
     Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
+  void _closeUserManagerDialog() {
+    _userManagerOverlayEntry?.remove();
+    _userManagerOverlayEntry = null;
+    final participant = _userManagerLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _userManagerLifecycleParticipant = null;
+    }
+  }
+
+  void _openUserManagerDialog() {
+    if (_userManagerOverlayEntry != null) return;
+    final cooperator = Cooperator.instance;
+    final customer = Customer.instance;
+    final market = Market.instance;
+    if (cooperator == null || customer == null || market == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _userManagerController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '사용자 관리',
+            width: 1180,
+            height: 760,
+            onClose: _closeUserManagerDialog,
+            closeEnabled:
+                !_userManagerController.activeEditing &&
+                !_userManagerController.writeBusy,
+            child: child!,
+          ),
+          child: UserManagerDialogContent(
+            controller: _userManagerController,
+            initialCooperator: cooperator,
+            initialCustomer: customer,
+            initialMarket: market,
+            cooperatorSelectionEnabled:
+                widget.userCooperatorSelectionEnabled,
+            customerSelectionEnabled: widget.userCustomerSelectionEnabled,
+            marketSelectionEnabled: widget.userMarketSelectionEnabled,
+            showCredentials: widget.userCredentialsVisible,
+            connect: widget.onUserAdminConnect,
+          ),
+        ),
+      ),
+    );
+    _userManagerOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _userManagerController.snapshot,
+      close: _closeUserManagerDialog,
+    );
+    _userManagerLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _openCooperatorManagerDialog() {
     if (_cooperatorManagerOverlayEntry != null) return;
 
@@ -4692,6 +4764,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _customerManagerController.dispose();
     _closeMarketManagerDialog();
     _marketManagerController.dispose();
+    _closeUserManagerDialog();
+    _userManagerController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }

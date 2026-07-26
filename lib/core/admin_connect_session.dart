@@ -75,3 +75,20 @@ class AdminConnectSession {
     isMasterKeyLogin = false;
   }
 }
+
+AdminConnectSessionSnapshot userConnectSessionFor({
+  required User currentUser,
+  required AdminConnectSession session,
+}) {
+  final isSystemOrigin =
+      currentUser.grade == UserGrade.SYSTEM_ADMIN_USER ||
+      session.isAdminConnect;
+  final isCooperatorOrigin =
+      currentUser.grade == UserGrade.COOP_ADMIN_USER ||
+      session.isCoopAdminConnect;
+  return AdminConnectSessionSnapshot(
+    connectOrigin: session.connectOrigin ?? currentUser,
+    isAdminConnect: isSystemOrigin,
+    isCoopAdminConnect: isSystemOrigin || isCooperatorOrigin,
+  );
+}

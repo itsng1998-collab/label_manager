@@ -21,6 +21,7 @@ import 'package:label_manager/models/admin_access_log.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/models/market.dart';
+import 'package:label_manager/models/managed_user.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/label_size.dart';
@@ -397,6 +398,97 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _connectToUser(ManagedUser selected) async {
+    final currentUser = User.instance;
+    final currentMarket = Market.instance;
+    final currentCustomer = Customer.instance;
+    final currentCooperator = Cooperator.instance;
+    if (currentUser == null ||
+        currentMarket == null ||
+        currentCustomer == null ||
+        currentCooperator == null) {
+      return;
+    }
+
+    final targetUser = await UserDAO.selectByUserId(selected.userId);
+    if (targetUser == null) throw StateError('접속할 사용자가 없습니다.');
+    final targetMarket = await MarketDAO.selectByMarketId(targetUser.marketId);
+    if (targetMarket == null) throw StateError('접속할 지점이 없습니다.');
+    final targetCustomer = await CustomerDAO.selectByCustomerId(
+      targetMarket.customerId,
+    );
+    if (targetCustomer == null) throw StateError('접속할 거래처가 없습니다.');
+    final targetCooperator = await CooperatorDAO.selectByCooperatorId(
+      targetCustomer.cooperatorId,
+    );
+    if (targetCooperator == null) throw StateError('접속할 협력업체가 없습니다.');
+
+    final adminSession = AdminConnectSession.instance;
+    final previousSession = adminSession.snapshot();
+    final nextSession = userConnectSessionFor(
+      currentUser: currentUser,
+      session: adminSession,
+    );
+    final previousBrand = _selectedBrand;
+    final previousLabelSize = _selectedLabelSize;
+
+    setState(() {
+      _contextSwitching = true;
+      _selectedBrand = null;
+      _selectedLabelSize = null;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+
+    adminSession.restore(nextSession);
+    User.setInstance(targetUser);
+    Market.setInstance(targetMarket);
+    Customer.setInstance(targetCustomer);
+    Cooperator.setInstance(targetCooperator);
+    _updateMenuSession();
+
+    try {
+      await AdminAccessLogDAO.insert(
+        accessUserId: nextSession.connectOrigin!.userId,
+        targetUserId: targetUser.userId,
+        targetCustomerId: targetCustomer.customerId,
+      );
+    } catch (error) {
+      User.setInstance(currentUser);
+      Market.setInstance(currentMarket);
+      Customer.setInstance(currentCustomer);
+      Cooperator.setInstance(currentCooperator);
+      adminSession.restore(previousSession);
+      _updateMenuSession();
+      if (mounted) {
+        setState(() {
+          _contextSwitching = false;
+          _selectedBrand = previousBrand;
+          _selectedLabelSize = previousLabelSize;
+        });
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            content: Text(error.toString()),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _contextSwitching = false;
+      _managerSessionGeneration += 1;
+    });
+  }
+
   @override
   void dispose() {
     debugLog(START);
@@ -480,6 +572,21 @@ class _HomePageState extends State<HomePage> {
                   User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                   AdminConnectSession.instance.isAdminConnect ||
                   AdminConnectSession.instance.isCoopAdminConnect,
+                userCooperatorSelectionEnabled:
+                  User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
+                  AdminConnectSession.instance.isAdminConnect,
+                userCustomerSelectionEnabled:
+                  User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
+                  User.instance?.grade == UserGrade.COOP_ADMIN_USER ||
+                  AdminConnectSession.instance.isAdminConnect ||
+                  AdminConnectSession.instance.isCoopAdminConnect,
+                userMarketSelectionEnabled:
+                  User.instance?.grade != UserGrade.CLIENT_USER ||
+                  AdminConnectSession.instance.isAdminConnect ||
+                  AdminConnectSession.instance.isCoopAdminConnect,
+                userCredentialsVisible:
+                  AdminConnectSession.instance.isFirstConnectByAdmin,
+                onUserAdminConnect: _connectToUser,
                 selectedBrand: _selectedBrand,
                 onBrandChanged: (v) {
                   setState(() => _selectedBrand = v);
