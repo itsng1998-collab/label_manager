@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 19차 감사의 검색·치환 이동, 검색출력 설정 draft, 발행 통계 기본 일치 방식, 지점 selector, 설정 command 권한, 조회 최초 실행 계약을 사용자 확정 및 레거시 활성 코드로 병합한다.
+- 완료: [doc/app_menu_porting.txt] 19차 감사의 검색·치환 이동, 검색출력 설정 draft, 발행 통계 기본 일치 방식, 지점 selector, 설정 command 권한, 조회 최초 실행 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 검색·치환에서 품목편집/출력 이동 시 미저장 치환 내용은 레거시처럼 확인 없이 폐기하고 자동 저장하지 않는다. 출력 이동은 체크 품목 1건 이상을 요구하고 모두 같은 브랜드·label size일 때 첫 체크 품목 context를 사용한다. 검색출력 설정의 미적용 checkbox 변경은 selector 전환·닫기 전에 공용 dirty 폐기 확인을 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.5, 5.2.1, 5.2.6, 5.3.5, 5.3.10~5.3.11, 7.4와 관련 Phase·focused test에서 레거시 선택 source·초기값·기본 mode·selector matrix·`loggedIn` 권한·최초 수동 조회를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 관리·조회 계약 편집 완료: [doc/app_menu_porting.txt] 지점 관리의 현재 context 초기값과 상태별 selector matrix, 검색·치환 이동별 선택 source와 미저장 변경 폐기 예외, 발행 통계의 부분 일치 기본값을 고정했다.
@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 19차 권장안과 사용자 확정 범위에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 30 insertions, 10 deletions다.
+- commit 완료: `d05b7e5` (`앱 메뉴 19차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 18차 감사의 shortcut, Connect, transaction 실행 경로, command 권한과 rowcount·정렬 범위를 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
 - 사용자 확정: 거래처 Connect 대상의 첫 반환 지점 또는 해당 지점 grade 2 사용자가 없으면 context·연결 플래그·화면을 변경하기 전에 전체 Connect를 중단하고 오류를 전달한다. `품목별 정보 편집`은 레거시 `OnEditItemInfo`처럼 로그인 사용자 전체에 표시한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]에서 `품목별 정보 편집`의 잘못된 F1 shortcut을 제거하고, 거래처·사용자 Connect별 플래그와 거래처 Connect 대상 선택, 관리자 브랜드 복사의 단일 server-side statement, `품목별 정보 편집`·`업데이트 메시지`의 `loggedIn` policy, command별 rowcount 0건 허용 범위, 관리 목록의 레거시 DAO 반환 순서, 후속 도움말의 비범위 문구를 명확히 한다. 관련 Phase·focused test·최종 상태도 같은 계약으로 정리한다.
