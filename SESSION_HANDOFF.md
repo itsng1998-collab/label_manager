@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt]의 사용자 관리 model, 데이터내용 이력 상세, 발행 통계 결과, 프린터 설정 활성 조건을 레거시 활성 코드와 현 owning method로 고정한다.
+- 완료: [doc/app_menu_porting.txt]의 사용자 관리 model, 데이터내용 이력 상세, 발행 통계 결과, 프린터 설정 활성 조건을 레거시 활성 코드와 현 owning method로 고정했다.
 - 사용자 확인: 새 기능 선택 사항은 없다. 프린터 설정 1→2 mapping은 기존 사용자 확정을 유지하고, 나머지는 레거시 코드가 확정하므로 별도 질문 없이 권장안대로 병합한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.6, 5.2.4, 5.2.6, 5.3.6과 관련 focused test에서 로그인 grade 보정과 관리 raw grade 분리, 줄바꿈 상세 pairing, 발행 통계 활성 결과·요약·상세, 두 프린터 command별 최소 활성 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 사용자 관리 계약 편집 완료: 로그인 `User.instance`/`UserDAO.selectByUserId`와 관리 `ManagedUser` row/codec을 분리하고, 관리 grade에는 `_effectiveGrade`/`clientUserTestOverrideId`를 적용하지 않도록 고정했다.
@@ -18,6 +18,7 @@
 - 검증 완료: PowerShell 표적 검사에서 제거 대상 5건과 필수 계약 11건을 모두 확인했고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`와 두 문서 diagnostics가 통과했다. 전체 diff는 네 권장안과 관련 focused test에 한정됐다.
 - 레거시 SQL 재확인: 삭제 품목 판별 column을 `StatusPrint.cpp`의 실제 `RICH_ID_CHANGE_DELETE_DATE`로 교정하고 잘못된 이름 미잔존·필수 이름 반영·지시서 diff 검사를 다시 통과했다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
+- 구현 커밋: `4ac1f6a` (`앱 메뉴 16차 레거시 상세 계약 명확화`).
 - 완료: [doc/app_menu_porting.txt]의 협력업체·거래처·지점·사용자 관리와 조회별 selector 계약을 레거시 활성 코드로 고정했다.
 - 사용자 확정: 협력업체 수정 후 로그인 session context는 레거시처럼 자동 reload·강제 로그아웃하지 않고 관리 목록만 갱신한다. 데이터내용 이력은 시스템 관리자의 무효 협력업체 selector와 협력업체 관리자의 조회에 반영되지 않는 거래처 selector까지 레거시 UI·조회 동작 그대로 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.3~5.1.6, 5.2.2~5.2.4, 5.2.6과 관련 Phase/test 계약을 실제 수정 field·삭제 gate·지점 연관 행·사용자 검증·조회별 selector 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
