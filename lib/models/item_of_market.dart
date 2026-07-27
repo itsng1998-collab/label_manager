@@ -3,6 +3,7 @@
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
 import 'item.dart';
@@ -69,7 +70,22 @@ class ItemOfMarket {
     datas = values;
   }
 
-  ItemOfMarket copyWith({Item? item}) {
+  ItemOfMarket copyWith({
+    Item? item,
+    bool? useLinefeed,
+    int? linefeed,
+    bool? useScaleBarcode,
+    int? printCount,
+    bool? useLabelSize,
+    int? labelSizeWidth,
+    int? labelSizeHeight,
+    bool? useMargin,
+    double? leftMargin,
+    double? rightMargin,
+    double? topMargin,
+    double? leftPush,
+    double? topPush,
+  }) {
     return ItemOfMarket(
       marketId: marketId,
       item: item ?? this.item,
@@ -83,19 +99,19 @@ class ItemOfMarket {
       dateEndDiscount: dateEndDiscount,
       useDefineElement: useDefineElement,
       rtfText: rtfText,
-      useLinefeed: useLinefeed,
-      linefeed: linefeed,
-      useScaleBarcode: useScaleBarcode,
-      printCount: printCount,
-      useLabelSize: useLabelSize,
-      labelSizeWidth: labelSizeWidth,
-      labelSizeHeight: labelSizeHeight,
-      useMargin: useMargin,
-      leftMargin: leftMargin,
-      rightMargin: rightMargin,
-      topMargin: topMargin,
-      leftPush: leftPush,
-      topPush: topPush,
+      useLinefeed: useLinefeed ?? this.useLinefeed,
+      linefeed: linefeed ?? this.linefeed,
+      useScaleBarcode: useScaleBarcode ?? this.useScaleBarcode,
+      printCount: printCount ?? this.printCount,
+      useLabelSize: useLabelSize ?? this.useLabelSize,
+      labelSizeWidth: labelSizeWidth ?? this.labelSizeWidth,
+      labelSizeHeight: labelSizeHeight ?? this.labelSizeHeight,
+      useMargin: useMargin ?? this.useMargin,
+      leftMargin: leftMargin ?? this.leftMargin,
+      rightMargin: rightMargin ?? this.rightMargin,
+      topMargin: topMargin ?? this.topMargin,
+      leftPush: leftPush ?? this.leftPush,
+      topPush: topPush ?? this.topPush,
     );
   }
 
@@ -163,6 +179,58 @@ class ItemOfMarket {
 }
 
 class ItemOfMarketDAO extends DAO {
+  static const String UpdateItemInfoSql = '''
+    UPDATE BM_ITEM_OF_MARKET
+       SET RICH_USE_LINEFEED=@useLinefeed,
+           RICH_LINEFEED=@linefeed,
+           RICH_USE_SCALEBARCODE=@useScaleBarcode,
+           RICH_PRINT_COUNT=@printCount,
+           RICH_USE_LABELSIZE=@useLabelSize,
+           RICH_LABELSIZE_WIDTH=@labelSizeWidth,
+           RICH_LABELSIZE_HEIGHT=@labelSizeHeight,
+           RICH_USE_MARGIN=@useMargin,
+           RICH_LEFT_MARGIN=@leftMargin,
+           RICH_RIGHT_MARGIN=@rightMargin,
+           RICH_TOP_MARGIN=@topMargin,
+           RICH_LEFT_PUSH=@leftPush,
+           RICH_TOP_PUSH=@topPush
+     WHERE RICH_MARKET_ID=@marketId
+       AND RICH_ITEM_ID=@itemId;
+    IF @@ROWCOUNT<>1
+      THROW 51009, 'Item info update count mismatch.', 1;
+  ''';
+
+  static List<DbTransactionStatement> itemInfoUpdateStatements(
+    List<ItemOfMarket> items,
+  ) => [
+    for (final item in items)
+      DbTransactionStatement(
+        sql: UpdateItemInfoSql,
+        params: {
+          'marketId': item.marketId,
+          'itemId': item.item.itemId,
+          'useLinefeed': item.useLinefeed ? 1 : 0,
+          'linefeed': item.linefeed,
+          'useScaleBarcode': item.useScaleBarcode ? 1 : 0,
+          'printCount': item.printCount,
+          'useLabelSize': item.useLabelSize ? 1 : 0,
+          'labelSizeWidth': item.labelSizeWidth,
+          'labelSizeHeight': item.labelSizeHeight,
+          'useMargin': item.useMargin ? 1 : 0,
+          'leftMargin': item.leftMargin,
+          'rightMargin': item.rightMargin,
+          'topMargin': item.topMargin,
+          'leftPush': item.leftPush,
+          'topPush': item.topPush,
+        },
+      ),
+  ];
+
+  static Future<void> updateItemInfoBatch(List<ItemOfMarket> items) async {
+    if (items.isEmpty) return;
+    await DbClient.instance.transaction(itemInfoUpdateStatements(items));
+  }
+
   static const String SelectSql =
       '''
 		SELECT 

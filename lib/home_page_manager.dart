@@ -82,6 +82,7 @@ import 'package:label_manager/page_home/market_manager_dialog.dart';
 import 'package:label_manager/page_home/user_manager_dialog.dart';
 import 'package:label_manager/page_home/admin_copy_dialog.dart';
 import 'package:label_manager/page_home/search_and_replace_dialog.dart';
+import 'package:label_manager/page_home/item_info_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -407,6 +408,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   final AdminCopyController _adminCopyController = AdminCopyController();
   final SearchAndReplaceController _searchAndReplaceController =
       SearchAndReplaceController();
+  final ItemInfoController _itemInfoController = ItemInfoController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -429,6 +431,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _adminCopyLifecycleParticipant;
   OverlayEntry? _searchAndReplaceOverlayEntry;
   LifecycleParticipant? _searchAndReplaceLifecycleParticipant;
+  OverlayEntry? _itemInfoOverlayEntry;
+  LifecycleParticipant? _itemInfoLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -542,6 +546,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.manageUsers: _openUserManagerDialog,
         AppMenuCommandId.copyAdmin: _openAdminCopyDialog,
         AppMenuCommandId.searchAndReplace: _openSearchAndReplaceDialog,
+        AppMenuCommandId.editItemInfo: _openItemInfoDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3478,6 +3483,86 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _requestCloseItemInfoDialog() async {
+    if (_itemInfoController.writeBusy) return;
+    if (_itemInfoController.dirty) {
+      final discard = await showBlockingModelessOverlayDialog<bool>(
+        context: context,
+        builder: (context, close) => AlertDialog(
+          title: const Text('품목별 정보 편집'),
+          content: const Text('저장하지 않은 변경내용을 버리시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => close(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => close(true),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true) return;
+      _itemInfoController.discard();
+    }
+    _closeItemInfoDialog();
+  }
+
+  void _closeItemInfoDialog() {
+    _itemInfoOverlayEntry?.remove();
+    _itemInfoOverlayEntry = null;
+    final participant = _itemInfoLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _itemInfoLifecycleParticipant = null;
+    }
+  }
+
+  void _openItemInfoDialog() {
+    if (_itemInfoOverlayEntry != null) return;
+    final hasContext =
+        widget.selectedBrand != null && _effectiveLabelSize != null;
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _itemInfoController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '품목별 정보 편집',
+            width: 1320,
+            height: 720,
+            onClose: _requestCloseItemInfoDialog,
+            closeEnabled: !_itemInfoController.writeBusy,
+            child: child!,
+          ),
+          child: ItemInfoDialogContent(
+            controller: _itemInfoController,
+            marketId: hasContext ? Market.instance?.marketId : null,
+            labelSizeId: hasContext ? _effectiveLabelSize?.labelSizeId : null,
+            onCommitted: _handleItemInfoCommitted,
+            onCommitOutcomeUnknown: _closeItemInfoDialog,
+          ),
+        ),
+      ),
+    );
+    _itemInfoOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _itemInfoController.snapshot,
+      close: _closeItemInfoDialog,
+    );
+    _itemInfoLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
+  void _handleItemInfoCommitted(List<ItemOfMarket> items) {
+    ItemOfMarket.setDatas(List.unmodifiable(items));
+    _syncLabelPrintRows();
+    _scaleOutputRowsDirty = true;
+    if (mounted) setState(() {});
+  }
+
   void _openCooperatorManagerDialog() {
     if (_cooperatorManagerOverlayEntry != null) return;
 
@@ -5039,6 +5124,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _adminCopyController.dispose();
     _closeSearchAndReplaceDialog();
     _searchAndReplaceController.dispose();
+    _closeItemInfoDialog();
+    _itemInfoController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
