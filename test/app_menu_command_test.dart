@@ -23,8 +23,8 @@ void main() {
           .map((command) => command.section),
       [0, 1, 1, 1, 1, 1],
     );
-    expect(appMenuCommand(AppMenuCommandId.login).renderInPopup, isFalse);
-    expect(appMenuCommand(AppMenuCommandId.logout).renderInPopup, isFalse);
+    expect(appMenuCommand(AppMenuCommandId.login).renderInPopup, isTrue);
+    expect(appMenuCommand(AppMenuCommandId.logout).renderInPopup, isTrue);
     expect(appMenuCommand(AppMenuCommandId.exit).renderInPopup, isTrue);
   });
 

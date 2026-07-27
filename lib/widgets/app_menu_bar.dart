@@ -7,6 +7,8 @@ class AppMenuBar extends StatefulWidget {
     required this.title,
     required this.commandStates,
     required this.onCommandSelected,
+    this.trailing,
+    this.trailingWidth = 0,
     this.searchPrintModeActive = false,
     this.onMenuOpenChanged,
   });
@@ -24,6 +26,8 @@ class AppMenuBar extends StatefulWidget {
   final Widget title;
   final Map<AppMenuCommandId, AppMenuCommandState> commandStates;
   final ValueChanged<AppMenuCommandId> onCommandSelected;
+  final Widget? trailing;
+  final double trailingWidth;
   final bool searchPrintModeActive;
   final ValueChanged<bool>? onMenuOpenChanged;
 
@@ -80,7 +84,8 @@ class _AppMenuBarState extends State<AppMenuBar> {
       builder: (context, constraints) {
         final wideMenuWidth =
           visibleGroups.length * AppMenuBar._groupButtonWidth +
-          AppMenuBar._menuGap;
+          AppMenuBar._menuGap +
+          widget.trailingWidth;
         final showWideMenu =
             constraints.maxWidth >=
             AppMenuBar._minimumTitleWidth + wideMenuWidth;
@@ -100,6 +105,8 @@ class _AppMenuBarState extends State<AppMenuBar> {
               for (final group in visibleGroups) _buildGroupAnchor(group)
             else if (visibleGroups.isNotEmpty)
               _buildOverflowAnchor(visibleGroups),
+            if (widget.trailing case final trailing?)
+              SizedBox(width: widget.trailingWidth, child: trailing),
           ],
         );
       },

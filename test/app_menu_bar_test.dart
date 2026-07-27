@@ -59,19 +59,12 @@ void main() {
               onCommandSelected: onSelected ?? (_) {},
               onMenuOpenChanged: onMenuOpenChanged,
               searchPrintModeActive: searchPrintModeActive,
+              trailing: const SizedBox.square(
+                key: ValueKey('server-status'),
+                dimension: 32,
+              ),
+              trailingWidth: 32,
             ),
-            actions: [
-              IconButton(
-                key: const ValueKey('server-status'),
-                onPressed: () {},
-                icon: const Icon(Icons.cloud_done),
-              ),
-              IconButton(
-                key: const ValueKey('login-command'),
-                onPressed: () {},
-                icon: const Icon(Icons.login),
-              ),
-            ],
           ),
         ),
       ),
@@ -79,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('1200x800 shows three group buttons and fixed actions', (
+  testWidgets('1200x800 shows three group buttons and server status', (
     tester,
   ) async {
     await pumpMenu(tester, size: const Size(1200, 800));
@@ -92,11 +85,17 @@ void main() {
     );
     expect(find.byKey(const ValueKey('app-menu-overflow')), findsNothing);
     expect(find.byKey(const ValueKey('server-status')), findsOneWidget);
-    expect(find.byKey(const ValueKey('login-command')), findsOneWidget);
+    final settingsRect = tester.getRect(
+      find.byKey(const ValueKey('app-menu-group-settings')),
+    );
+    final serverRect = tester.getRect(
+      find.byKey(const ValueKey('server-status')),
+    );
+    expect(serverRect.left, settingsRect.right);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('600x720 shows overflow and keeps fixed actions', (tester) async {
+  testWidgets('600x720 shows overflow and keeps server status', (tester) async {
     await pumpMenu(tester, size: const Size(600, 720));
 
     expect(find.byKey(const ValueKey('app-menu-overflow')), findsOneWidget);
@@ -107,7 +106,6 @@ void main() {
       findsNothing,
     );
     expect(find.byKey(const ValueKey('server-status')), findsOneWidget);
-    expect(find.byKey(const ValueKey('login-command')), findsOneWidget);
     final overflowAnchor = tester.widget<MenuAnchor>(
       find
           .ancestor(
@@ -118,6 +116,48 @@ void main() {
     );
     expect(overflowAnchor.useRootOverlay, isTrue);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('file popup shows only the session login command', (
+    tester,
+  ) async {
+    Map<AppMenuCommandId, AppMenuCommandState> sessionStates({
+      required bool loggedIn,
+    }) => {
+      for (final command in appMenuCommands)
+        command.id: command.id == AppMenuCommandId.login
+            ? AppMenuCommandState(visible: !loggedIn, enabled: !loggedIn)
+            : command.id == AppMenuCommandId.logout
+            ? AppMenuCommandState(visible: loggedIn, enabled: loggedIn)
+            : command.id == AppMenuCommandId.exit
+            ? const AppMenuCommandState(visible: true, enabled: true)
+            : const AppMenuCommandState.hidden(),
+    };
+
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      states: sessionStates(loggedIn: false),
+    );
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-file')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-login')), findsOneWidget);
+    expect(find.byKey(const ValueKey('app-menu-command-logout')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-file')));
+    await tester.pumpAndSettle();
+
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      states: sessionStates(loggedIn: true),
+    );
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-file')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-login')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('app-menu-command-logout')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('wide command selection is delivered exactly once', (
@@ -584,7 +624,6 @@ void main() {
     expect(paragraph.maxLines, 1);
     expect(paragraph.didExceedMaxLines, isTrue);
     expect(find.byKey(const ValueKey('server-status')), findsOneWidget);
-    expect(find.byKey(const ValueKey('login-command')), findsOneWidget);
   });
 
   testWidgets('short viewport constrains overflow menus without layout errors', (

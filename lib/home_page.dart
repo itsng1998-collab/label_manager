@@ -552,6 +552,10 @@ class _HomePageState extends State<HomePage> {
               onCommandSelected: (id) {
                 unawaited(_appMenuController.execute(id));
               },
+              trailing: const DbConnectionStatusIcon(
+                padding: EdgeInsets.zero,
+              ),
+              trailingWidth: 32,
               onMenuOpenChanged: (open) {
                 if (open) {
                   AppShortcutBlocker.instance.activate(
@@ -568,19 +572,6 @@ class _HomePageState extends State<HomePage> {
           ),
           centerTitle: false,
           actions: [
-            const DbConnectionStatusIcon(),
-            if (_loggedIn)
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: '로그아웃',
-                onPressed: () => _onLogout(false),
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.login),
-                tooltip: '로그인',
-                onPressed: _openLogin,
-              ),
             // IconButton(
             //   icon: const Icon(Icons.exit_to_app),
             //   tooltip: '종료',

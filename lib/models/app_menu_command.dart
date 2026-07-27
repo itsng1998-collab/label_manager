@@ -94,7 +94,6 @@ const appMenuCommands = <AppMenuCommandMetadata>[
     label: '로그인',
     permission: AppMenuPermission.always,
     section: 0,
-    renderInPopup: false,
   ),
   AppMenuCommandMetadata(
     id: AppMenuCommandId.logout,
@@ -102,7 +101,6 @@ const appMenuCommands = <AppMenuCommandMetadata>[
     label: '로그아웃',
     permission: AppMenuPermission.loggedIn,
     section: 0,
-    renderInPopup: false,
   ),
   AppMenuCommandMetadata(
     id: AppMenuCommandId.manageCooperators,
