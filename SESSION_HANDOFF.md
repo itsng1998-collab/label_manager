@@ -3,6 +3,7 @@
 - 편집: 검색어 행과 동일한 8px 간격을 두 필터에 적용하고 실제 위치 차이를 검증하는 widget test를 추가했다.
 - 검증: 검색 및 치환 dialog 테스트 5 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
 - stage/commit 대상: `lib/page_home/search_and_replace_dialog.dart`, `test/search_and_replace_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `2c57adf` (`검색 및 치환 필터 간격 조정`).
 
 # 완료: 관리자 복사 하단 여백 제거
 - 원인: frame 높이 460px에서 title bar를 제외한 content 424px가 실제 콘텐츠보다 커 하단 버튼 아래 불필요한 공간이 남는다.
