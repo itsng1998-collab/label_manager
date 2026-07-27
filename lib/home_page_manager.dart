@@ -80,6 +80,7 @@ import 'package:label_manager/page_home/cooperator_manager_dialog.dart';
 import 'package:label_manager/page_home/customer_manager_dialog.dart';
 import 'package:label_manager/page_home/market_manager_dialog.dart';
 import 'package:label_manager/page_home/user_manager_dialog.dart';
+import 'package:label_manager/page_home/admin_copy_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -202,6 +203,7 @@ Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
   final AppMenuController appMenuController;
+  final bool adminCopyCooperatorSelectionEnabled;
   final bool customerCooperatorSelectionEnabled;
   final CustomerConnector onCustomerAdminConnect;
   final bool marketCooperatorSelectionEnabled;
@@ -220,6 +222,7 @@ class HomePageManager extends StatefulWidget {
   const HomePageManager({
     super.key,
     required this.appMenuController,
+    required this.adminCopyCooperatorSelectionEnabled,
     required this.customerCooperatorSelectionEnabled,
     required this.onCustomerAdminConnect,
     required this.marketCooperatorSelectionEnabled,
@@ -400,6 +403,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final MarketManagerController _marketManagerController =
       MarketManagerController();
   final UserManagerController _userManagerController = UserManagerController();
+  final AdminCopyController _adminCopyController = AdminCopyController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -418,6 +422,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _marketManagerLifecycleParticipant;
   OverlayEntry? _userManagerOverlayEntry;
   LifecycleParticipant? _userManagerLifecycleParticipant;
+  OverlayEntry? _adminCopyOverlayEntry;
+  LifecycleParticipant? _adminCopyLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -529,6 +535,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.manageCustomers: _openCustomerManagerDialog,
         AppMenuCommandId.manageMarkets: _openMarketManagerDialog,
         AppMenuCommandId.manageUsers: _openUserManagerDialog,
+        AppMenuCommandId.copyAdmin: _openAdminCopyDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3209,6 +3216,105 @@ class _HomePageManagerState extends State<HomePageManager> {
     Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
+  void _closeAdminCopyDialog() {
+    _adminCopyOverlayEntry?.remove();
+    _adminCopyOverlayEntry = null;
+    final participant = _adminCopyLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _adminCopyLifecycleParticipant = null;
+    }
+  }
+
+  void _openAdminCopyDialog() {
+    if (_adminCopyOverlayEntry != null) return;
+    final cooperator = Cooperator.instance;
+    if (cooperator == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _adminCopyController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '관리자 복사',
+            width: 980,
+            height: 620,
+            onClose: _closeAdminCopyDialog,
+            closeEnabled: !_adminCopyController.writeBusy,
+            child: child!,
+          ),
+          child: AdminCopyDialogContent(
+            controller: _adminCopyController,
+            initialCooperator: cooperator,
+            cooperatorSelectionEnabled:
+                widget.adminCopyCooperatorSelectionEnabled,
+            onCommitted: _handleAdminCopyCommitted,
+            onCommitOutcomeUnknown: _closeAdminCopyDialog,
+          ),
+        ),
+      ),
+    );
+    _adminCopyOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _adminCopyController.snapshot,
+      close: _closeAdminCopyDialog,
+    );
+    _adminCopyLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
+  Future<void> _handleAdminCopyCommitted() async {
+    final currentBrandId = widget.selectedBrand?.brandId;
+    final currentLabelSizeId = _currentLabelSize?.labelSizeId;
+    _closeAdminCopyDialog();
+    try {
+      final customer = Customer.instance;
+      if (customer == null) {
+        throw StateError('현재 거래처 정보가 없습니다.');
+      }
+      final brands =
+          await BrandDAO.selectByCustomerIdByBrandOrder(customer.customerId) ??
+          const <Brand>[];
+      Brand.setDatas(brands);
+      _brands = List<Brand>.from(brands);
+      final currentBrand = brands.firstWhereOrNull(
+        (value) => value.brandId == currentBrandId,
+      );
+      widget.onBrandChanged(currentBrand);
+      if (currentBrand == null) {
+        final cleared = await _handleLabelSizeChanged(
+          null,
+          forceReload: true,
+          skipDraftContextGuard: true,
+        );
+        if (!cleared) throw StateError('현재 라벨 정보를 다시 불러오지 못했습니다.');
+        return;
+      }
+      final labelSizes =
+          await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(
+            currentBrand.brandId,
+          ) ??
+          const <LabelSize>[];
+      LabelSize.setDatas(labelSizes);
+      _labelSizesBrandId = currentBrand.brandId;
+      final currentLabelSize = labelSizes.firstWhereOrNull(
+        (value) => value.labelSizeId == currentLabelSizeId,
+      );
+      final reloaded = await _handleLabelSizeChanged(
+        currentLabelSize,
+        forceReload: true,
+        skipDraftContextGuard: true,
+      );
+      if (!reloaded) {
+        throw StateError('현재 라벨 정보를 다시 불러오지 못했습니다.');
+      }
+    } catch (error) {
+      if (mounted) _showItemDraftError('관리자 복사 후 조회 오류', error);
+    }
+  }
+
   void _openCooperatorManagerDialog() {
     if (_cooperatorManagerOverlayEntry != null) return;
 
@@ -4766,6 +4872,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _marketManagerController.dispose();
     _closeUserManagerDialog();
     _userManagerController.dispose();
+    _closeAdminCopyDialog();
+    _adminCopyController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }

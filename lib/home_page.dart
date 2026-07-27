@@ -564,6 +564,8 @@ class _HomePageState extends State<HomePage> {
             ? HomePageManager(
                 key: ValueKey(_managerSessionGeneration),
                 appMenuController: _appMenuController,
+                adminCopyCooperatorSelectionEnabled:
+                    User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER,
                 customerCooperatorSelectionEnabled:
                     User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                   AdminConnectSession.instance.isAdminConnect,
