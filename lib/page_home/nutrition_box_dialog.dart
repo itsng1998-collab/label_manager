@@ -4,11 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/nutrition_box.dart';
 import 'package:label_manager/models/nutrition_type.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef NutritionBoxListLoader = Future<List<NutritionBox>> Function();
@@ -29,7 +31,43 @@ typedef NutritionBoxUpdater = Future<void> Function({
   required int width,
 });
 typedef NutritionBoxDeleter = Future<void> Function(int boxId);
-typedef NutritionBoxRtfEditor = Future<String?> Function(String rtf);
+
+@visibleForTesting
+Future<FortuneWorkbook> nutritionBoxWorkbookFromData(
+  String data, {
+  required int widthMm,
+}) async {
+  final labelSize = _nutritionBoxLabelSize(data, widthMm);
+  final savedWorkbook = labelSheetTryDecodeWorkbookSave(data);
+  if (savedWorkbook != null) {
+    return labelSheetWorkbook(savedWorkbook, labelSize: labelSize);
+  }
+  return labelSheetWorkbookWithRtf(
+    FortuneWorkbook(
+      sheets: [FortuneSheet(id: 'nutrition_box_01', name: 'Nutrition')],
+    ),
+    labelSize: labelSize,
+    labelRtf: data,
+  );
+}
+
+LabelSize _nutritionBoxLabelSize(String data, int widthMm) => LabelSize(
+  labelSizeId: -1,
+  brandId: -1,
+  labelSizeName: '영양성분표',
+  labelSizeCommon: LabelSizeCommon(
+    width: widthMm > 0 ? widthMm : 100,
+    height: 100,
+    rtf: data,
+  ),
+);
+
+final List<String> _nutritionBoxSheetToolbarItems = List.unmodifiable([
+  for (final item in labelSheetToolbarItems)
+    if (item != labelSheetSaveToolbarCommand &&
+        item != fortuneToolbarObjectPanelCommand)
+      item,
+]);
 
 @visibleForTesting
 String? nutritionBoxValidationMessage(String name, int width, int? typeId) {
@@ -107,7 +145,6 @@ class NutritionBoxDialogContent extends StatefulWidget {
     this.insert = NutritionBoxDAO.insert,
     this.update = NutritionBoxDAO.update,
     this.delete = NutritionBoxDAO.delete,
-    this.editRtf = labelSheetEditRichText,
   });
 
   final NutritionBoxDialogController controller;
@@ -118,7 +155,6 @@ class NutritionBoxDialogContent extends StatefulWidget {
   final NutritionBoxWriter insert;
   final NutritionBoxUpdater update;
   final NutritionBoxDeleter delete;
-  final NutritionBoxRtfEditor editRtf;
 
   @override
   State<NutritionBoxDialogContent> createState() =>
@@ -137,6 +173,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _widthController = TextEditingController();
   String _rtf = '';
+  FortuneWorkbook? _editorWorkbook;
   int? _baselineTypeId;
   String _baselineName = '';
   String _baselineWidth = '';
@@ -207,6 +244,12 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       final columns = typeId == null
           ? <NutritionTypeColumn>[]
           : await widget.loadColumns(typeId);
+      final sourceRtf = selected?.rtf ?? '';
+      final workbook = await nutritionBoxWorkbookFromData(
+        sourceRtf,
+        widthMm: selected?.width ?? 100,
+      );
+      final sheetData = labelSheetEncodeWorkbookSave(workbook);
       if (!mounted) return;
       setState(() {
         _mode = mode;
@@ -216,7 +259,8 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         _columns = columns;
         _nameController.text = selected?.name ?? '';
         _widthController.text = '${selected?.width ?? 0}';
-        _rtf = selected?.rtf ?? '';
+        _rtf = sheetData;
+        _editorWorkbook = workbook;
         _baselineTypeId = typeId;
         _baselineName = _nameController.text;
         _baselineWidth = _widthController.text;
@@ -245,22 +289,6 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     }
   }
 
-  Future<void> _editRtf() async {
-    if (_busy) return;
-    widget.controller.setActiveEditing(true);
-    try {
-      final edited = await widget.editRtf(_rtf);
-      if (edited != null && mounted) {
-        setState(() => _rtf = edited);
-        _syncDirty();
-      }
-    } catch (error) {
-      if (mounted) await _showMessage(error.toString());
-    } finally {
-      widget.controller.setActiveEditing(false);
-    }
-  }
-
   void _syncDirty() {
     if (_inEditor) {
       widget.controller.setChildDirty(dirty: _dirty, discard: _discardEditor);
@@ -278,6 +306,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       _columns = const [];
       _selectedTypeId = null;
       _rtf = '';
+      _editorWorkbook = null;
     });
     _syncDirty();
   }
@@ -301,6 +330,15 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     if (message != null) {
       await _showMessage(message);
       return;
+    }
+    final editorWorkbook = _editorWorkbook;
+    if (editorWorkbook != null) {
+      final sizedWorkbook = labelSheetWorkbook(
+        editorWorkbook,
+        labelSize: _nutritionBoxLabelSize(_rtf, width),
+      );
+      _editorWorkbook = sizedWorkbook;
+      _rtf = labelSheetEncodeWorkbookSave(sizedWorkbook);
     }
     final typeId = _selectedTypeId!;
     final boxId = _editingBoxId;
@@ -395,10 +433,6 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         ),
       );
 
-  Widget _preview(String rtf, {int widthMm = 100}) => rtf.isEmpty
-      ? const SizedBox.expand()
-      : LabelSheetRtfPreview(rtf: rtf, widthMm: widthMm, heightMm: 100);
-
   Widget _buildManager() => CallbackShortcuts(
     bindings: {
       const SingleActivator(LogicalKeyboardKey.enter): () =>
@@ -476,8 +510,10 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                       decoration: BoxDecoration(
                         border: Border.all(color: Theme.of(context).dividerColor),
                       ),
-                      child: _preview(_selectedBox?.rtf ?? '',
-                          widthMm: _selectedBox?.width ?? 100),
+                      child: NutritionBoxSheetPreview(
+                        data: _selectedBox?.rtf ?? '',
+                        widthMm: _selectedBox?.width ?? 100,
+                      ),
                     ),
                   ),
                 ],
@@ -562,28 +598,30 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).dividerColor),
-                      ),
-                      child: _preview(_rtf,
-                          widthMm: int.tryParse(_widthController.text) ?? 100),
-                    ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: LabelSheetWorkbench(
+                  key: ValueKey('nutritionBoxSheet:${_editingBoxId ?? 'new'}'),
+                  initialWorkbook: _editorWorkbook,
+                  labelSize: _nutritionBoxLabelSize(
+                    _rtf,
+                    int.tryParse(_widthController.text) ?? 100,
                   ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: FilledButton.icon(
-                      key: const ValueKey('nutritionBoxRtfEditButton'),
-                      onPressed: _busy ? null : _editRtf,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('RTF 편집'),
-                    ),
-                  ),
-                ],
+                  toolbarItems: _nutritionBoxSheetToolbarItems,
+                  hideRowColumnHeaderLabels: true,
+                  rulerCornerSizeLabelUsesAsterisk: true,
+                  disableSheetRulerGuideInteraction: true,
+                  hideStatisticBar: true,
+                  allowObjectPanel: false,
+                  showObjectPanelOpenButton: false,
+                  onUserWorkbookChanged: (workbook) {
+                    _editorWorkbook = workbook;
+                    _rtf = labelSheetEncodeWorkbookSave(workbook);
+                    _syncDirty();
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -609,4 +647,55 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   @override
   Widget build(BuildContext context) =>
       _inEditor ? _buildEditor() : _buildManager();
+}
+
+class NutritionBoxSheetPreview extends StatefulWidget {
+  const NutritionBoxSheetPreview({
+    super.key,
+    required this.data,
+    required this.widthMm,
+  });
+
+  final String data;
+  final int widthMm;
+
+  @override
+  State<NutritionBoxSheetPreview> createState() =>
+      _NutritionBoxSheetPreviewState();
+}
+
+class _NutritionBoxSheetPreviewState extends State<NutritionBoxSheetPreview> {
+  late Future<FortuneWorkbook> _workbook = _loadWorkbook();
+
+  Future<FortuneWorkbook> _loadWorkbook() => nutritionBoxWorkbookFromData(
+    widget.data,
+    widthMm: widget.widthMm,
+  );
+
+  @override
+  void didUpdateWidget(covariant NutritionBoxSheetPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data != widget.data || oldWidget.widthMm != widget.widthMm) {
+      _workbook = _loadWorkbook();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<FortuneWorkbook>(
+    future: _workbook,
+    builder: (context, snapshot) => LabelOutputPreview(
+      workbook: snapshot.data,
+      hintText: snapshot.hasError
+          ? '미리보기를 불러올 수 없습니다.'
+          : snapshot.hasData
+          ? null
+          : '미리보기를 불러오는 중입니다.',
+      identityKey:
+          'nutrition-box:${widget.widthMm}:${widget.data.length}:${widget.data.hashCode}',
+      labelSize: _nutritionBoxLabelSize(widget.data, widget.widthMm),
+      imageObjectIds: const [],
+      barcodeObjectIds: const [],
+      autoFitWidth: true,
+    ),
+  );
 }
