@@ -257,24 +257,26 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: NutritionBoxDialogContent(
-            controller: controller,
-            onCommitOutcomeUnknown: () {},
-            loadBoxes: () async => const [
-              NutritionBox(
-                id: 1,
-                typeId: 2,
-                typeName: '기본형',
-                name: 'RTF 표',
-                rtf: r'{\rtf1\ansi Calories 100}',
-                width: 75,
-              ),
-            ],
-            loadTypes: () async => const [],
-            loadColumns: (_) async => const [],
-            insert: ({required typeId, required name, required rtf, required width}) async {},
-            update: ({required boxId, required typeId, required name, required rtf, required width}) async {},
-            delete: (_) async {},
+          body: BlockingModelessDialog(
+            child: NutritionBoxDialogContent(
+              controller: controller,
+              onCommitOutcomeUnknown: () {},
+              loadBoxes: () async => const [
+                NutritionBox(
+                  id: 1,
+                  typeId: 2,
+                  typeName: '기본형',
+                  name: 'RTF 표',
+                  rtf: r'{\rtf1\ansi Calories 100}',
+                  width: 75,
+                ),
+              ],
+              loadTypes: () async => const [],
+              loadColumns: (_) async => const [],
+              insert: ({required typeId, required name, required rtf, required width}) async {},
+              update: ({required boxId, required typeId, required name, required rtf, required width}) async {},
+              delete: (_) async {},
+            ),
           ),
         ),
       ),

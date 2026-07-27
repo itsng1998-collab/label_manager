@@ -426,7 +426,9 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         ),
         tooltip: 'RTF 미리보기',
         onCloseRequested: _closeRtfPreviewWindow,
+        usePortalHost: true,
       );
+      if (mounted) setState(() {});
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _rtfPreviewClosedByUser || _rtfPreviewData != rtf) {
@@ -524,7 +526,8 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         ),
       );
 
-  Widget _buildManager() => CallbackShortcuts(
+  Widget _buildManager() {
+    Widget result = CallbackShortcuts(
     bindings: {
       const SingleActivator(LogicalKeyboardKey.enter): () =>
           _openEditor(NutritionBoxEditorMode.edit),
@@ -693,7 +696,13 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         ),
       ),
     ),
-  );
+    );
+    final rtfPreviewWindow = _rtfPreviewWindow;
+    if (rtfPreviewWindow != null) {
+      result = rtfPreviewWindow.wrapPortalHost(child: result);
+    }
+    return result;
+  }
 
   Widget _buildEditor() => CallbackShortcuts(
     bindings: {const SingleActivator(LogicalKeyboardKey.enter): _save},
