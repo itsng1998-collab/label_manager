@@ -28,6 +28,7 @@ void main() {
       await _pumpManager(
         tester,
         selectionEnabled: true,
+        inModelessOverlay: true,
         loadMarkets: (customerId) async {
           marketScopes.add(customerId);
           return const [marketA];
@@ -193,55 +194,92 @@ Future<void> _pumpManager(
   Future<void> Function(Market market)? update,
   Future<void> Function(int marketId)? delete,
   VoidCallback? onClose,
+  bool inModelessOverlay = false,
 }) async {
   final controller = MarketManagerController();
   addTearDown(controller.dispose);
+  final manager = SizedBox(
+    width: 900,
+    height: 660,
+    child: MarketManagerDialogContent(
+      controller: controller,
+      onClose: onClose ?? () {},
+      initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
+      initialCustomer: const Customer(
+        customerId: 10,
+        cooperatorId: 'A',
+        customerName: 'A 거래처',
+      ),
+      cooperatorSelectionEnabled: selectionEnabled,
+      loadCooperators: () async => const [
+        Cooperator(id: 'A', name: 'A 업체'),
+        Cooperator(id: 'B', name: 'B 업체'),
+      ],
+      loadCustomers: (cooperatorId) async => cooperatorId == 'A'
+          ? const [
+              Customer(
+                customerId: 10,
+                cooperatorId: 'A',
+                customerName: 'A 거래처',
+              ),
+            ]
+          : const [
+              Customer(
+                customerId: 20,
+                cooperatorId: 'B',
+                customerName: 'B 거래처',
+              ),
+            ],
+      loadMarkets: loadMarkets,
+      insert: insert ?? (market) async => 1,
+      update: update ?? (market) async {},
+      delete: delete ?? (marketId) async {},
+      systemPassword: ([now]) => '1234',
+    ),
+  );
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 900,
-          height: 660,
-          child: MarketManagerDialogContent(
-            controller: controller,
-            onClose: onClose ?? () {},
-            initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
-            initialCustomer: const Customer(
-              customerId: 10,
-              cooperatorId: 'A',
-              customerName: 'A 거래처',
-            ),
-            cooperatorSelectionEnabled: selectionEnabled,
-            loadCooperators: () async => const [
-              Cooperator(id: 'A', name: 'A 업체'),
-              Cooperator(id: 'B', name: 'B 업체'),
-            ],
-            loadCustomers: (cooperatorId) async => cooperatorId == 'A'
-                ? const [
-                    Customer(
-                      customerId: 10,
-                      cooperatorId: 'A',
-                      customerName: 'A 거래처',
-                    ),
-                  ]
-                : const [
-                    Customer(
-                      customerId: 20,
-                      cooperatorId: 'B',
-                      customerName: 'B 거래처',
-                    ),
-                  ],
-            loadMarkets: loadMarkets,
-            insert: insert ?? (market) async => 1,
-            update: update ?? (market) async {},
-            delete: delete ?? (marketId) async {},
-            systemPassword: ([now]) => '1234',
-          ),
-        ),
-      ),
+      home: inModelessOverlay
+          ? _OverlayHost(child: manager)
+          : Scaffold(body: manager),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+class _OverlayHost extends StatefulWidget {
+  const _OverlayHost({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_OverlayHost> createState() => _OverlayHostState();
+}
+
+class _OverlayHostState extends State<_OverlayHost> {
+  OverlayEntry? _entry;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final entry = OverlayEntry(
+        builder: (_) => Center(child: Material(child: widget.child)),
+      );
+      _entry = entry;
+      Overlay.of(context).insert(entry);
+    });
+  }
+
+  @override
+  void dispose() {
+    _entry?.remove();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold();
 }
 
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {

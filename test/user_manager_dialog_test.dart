@@ -6,6 +6,7 @@ import 'package:label_manager/models/managed_user.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_home/user_manager_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   test('manager lifecycle blocks child and write work', () {
@@ -31,7 +32,7 @@ void main() {
 
     expect(
       tester
-          .widget<DropdownButtonFormField<int>>(
+          .widget<ModelessDropdownFormField<int>>(
             find.byKey(const ValueKey('userCustomerSelector')),
           )
           .onChanged,

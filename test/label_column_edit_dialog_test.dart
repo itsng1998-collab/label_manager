@@ -399,6 +399,13 @@ void main() {
     final barcodeTypeDropdown = find.byType(DropdownMenu<BarcodeType>);
     expect(barcodeTypeDropdown, findsOneWidget);
     expect(
+      tester
+          .widget<DropdownMenu<BarcodeType>>(barcodeTypeDropdown)
+          .inputDecorationTheme
+          ?.fillColor,
+      Colors.white,
+    );
+    expect(
       find.descendant(
         of: barcodeTypeDropdown,
         matching: find.byKey(

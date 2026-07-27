@@ -8,6 +8,7 @@ import 'package:label_manager/models/managed_user.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef ManagedUserCooperatorLoader = Future<List<Cooperator>> Function();
 typedef ManagedUserCustomerLoader = Future<List<Customer>> Function(String);
@@ -576,7 +577,7 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
     required ValueChanged<T?> onChanged,
   }) => SizedBox(
     width: width,
-    child: DropdownButtonFormField<T>(
+    child: ModelessDropdownFormField<T>(
       key: ValueKey(key),
       initialValue: items.any((item) => item.value == value) ? value : null,
       items: items,
@@ -691,7 +692,7 @@ class _ManagedUserInputDialogState extends State<_ManagedUserInputDialog> {
                 : null,
           ),
           _field('managedUserNameField', '이름', _name, '이름을 입력해주세요!'),
-          DropdownButtonFormField<UserGrade>(
+          ModelessDropdownFormField<UserGrade>(
             key: const ValueKey('managedUserGradeField'),
             initialValue: _grade,
             items: const [

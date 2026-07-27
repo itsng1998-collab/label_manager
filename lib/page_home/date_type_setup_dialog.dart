@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:label_manager/models/date_manager.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 class DateTypeSetupDialog extends StatefulWidget {
   const DateTypeSetupDialog({
@@ -330,7 +331,7 @@ class _SetupRow<T> extends StatelessWidget {
         const SizedBox(width: 8),
         SizedBox(
           width: 165,
-          child: DropdownButtonFormField<T>(
+          child: ModelessDropdownFormField<T>(
             initialValue: format,
             isExpanded: true,
             decoration: const InputDecoration(

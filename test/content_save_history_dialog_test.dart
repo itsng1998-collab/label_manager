@@ -6,6 +6,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   const initialCooperator = Cooperator(id: 'coop1', name: '협력업체 1');
@@ -87,18 +88,18 @@ void main() {
           },
     );
 
-    expect(find.byType(DropdownButtonFormField<Cooperator>), findsOneWidget);
-    expect(find.byType(DropdownButtonFormField<Customer>), findsOneWidget);
+    expect(find.byType(ModelessDropdownFormField<Cooperator>), findsOneWidget);
+    expect(find.byType(ModelessDropdownFormField<Customer>), findsOneWidget);
     expect(loadCount, 1);
 
-    await tester.tap(find.byType(DropdownButtonFormField<Cooperator>));
+    await tester.tap(find.byType(ModelessDropdownFormField<Cooperator>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('협력업체 2').last);
     await tester.pumpAndSettle();
 
     expect(loadCount, 1);
 
-    await tester.tap(find.byType(DropdownButtonFormField<Customer>));
+    await tester.tap(find.byType(ModelessDropdownFormField<Customer>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('거래처 2').last);
     await tester.pumpAndSettle();
@@ -134,11 +135,11 @@ void main() {
           },
     );
 
-    expect(find.byType(DropdownButtonFormField<Cooperator>), findsNothing);
-    expect(find.byType(DropdownButtonFormField<Customer>), findsOneWidget);
+    expect(find.byType(ModelessDropdownFormField<Cooperator>), findsNothing);
+    expect(find.byType(ModelessDropdownFormField<Customer>), findsOneWidget);
     expect(queryCount, 0);
 
-    await tester.tap(find.byType(DropdownButtonFormField<Customer>));
+    await tester.tap(find.byType(ModelessDropdownFormField<Customer>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('거래처 2').last);
     await tester.pumpAndSettle();

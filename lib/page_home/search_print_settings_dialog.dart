@@ -7,6 +7,7 @@ import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/search_print_settings.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 class SearchPrintSettingsDialogController extends ChangeNotifier {
   bool _dirty = false;
@@ -308,7 +309,7 @@ class _SearchPrintSettingsDialogState
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<Brand>(
+                  child: ModelessDropdownFormField<Brand>(
                     focusNode: _initialFocusNode,
                     initialValue: _brand,
                     decoration: const InputDecoration(labelText: '브랜드'),
@@ -326,7 +327,7 @@ class _SearchPrintSettingsDialogState
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<LabelSize>(
+                  child: ModelessDropdownFormField<LabelSize>(
                     initialValue: _labelSize,
                     decoration: const InputDecoration(labelText: '라벨'),
                     items: [

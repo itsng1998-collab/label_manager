@@ -1,3 +1,11 @@
+# 완료: AppBar 기능 modeless dropdown 통일
+- 원인: Navigator route 및 `useRootNavigator` 기반 popup은 이미 삽입된 modeless `OverlayEntry` 아래에 생성되어 메뉴가 가려질 수 있다.
+- 구현: root `OverlayEntry`에 메뉴를 후삽입하는 공용 `ModelessDropdownFormField<T>`를 추가하고 시장/사용자/관리자 복사/찾아바꾸기/날짜 설정/영양성분/검색출력 설정/발행·내용·공통라벨 이력/통계의 form dropdown 21개에 적용했다.
+- 표시: 공용 field와 라벨 항목 편집 `DropdownMenu`는 활성 흰색, 비활성 `#E9ECEF` 배경을 사용한다. 메뉴는 외부 클릭 및 `Esc`로 닫힌다.
+- 범위 확인: `lib/page_home`에 남은 `DropdownButtonFormField` 5개는 modeless dialog가 아닌 독립 저울 출력 페이지에만 있다.
+- 최종 검증: 수정 파일 정적 오류 없음, 관련 dialog + 공용 widget 13개 테스트 파일 48 passed, 0 failed. 라벨 항목 편집 활성 배경 및 modeless overlay 선택 focused test 각 1 passed.
+- stage/commit 대상: 공용 widget, 적용된 12개 dialog 파일, 관련 테스트 10개, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+
 # 완료: 거래처 관리 협력업체 selector 활성 배경
 - 원인: `DropdownMenu`에 fill color가 없어 활성 상태에서도 modeless dialog 배경색이 비쳐 비활성처럼 보인다.
 - 편집: `customerCooperatorSelectionEnabled`에 따라 활성은 흰색, 비활성은 `#E9ECEF` 배경을 사용하고 widget test에서 두 상태를 검증한다.

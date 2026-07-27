@@ -6,6 +6,7 @@ import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/print_log.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_home/print_history_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   const initialCooperator = Cooperator(id: 'coop1', name: '협력업체 1');
@@ -102,8 +103,8 @@ void main() {
       },
     );
 
-    expect(find.byType(DropdownButtonFormField<Cooperator>), findsOneWidget);
-    expect(find.byType(DropdownButtonFormField<Customer>), findsOneWidget);
+    expect(find.byType(ModelessDropdownFormField<Cooperator>), findsOneWidget);
+    expect(find.byType(ModelessDropdownFormField<Customer>), findsOneWidget);
     expect(find.text('품명'), findsWidgets);
     expect(queryCount, 0);
 
@@ -155,8 +156,8 @@ void main() {
       querySum: ({startDate, endDate, customerName, labelSizeName}) async => 0,
     );
 
-    expect(find.byType(DropdownButtonFormField<Cooperator>), findsNothing);
-    expect(find.byType(DropdownButtonFormField<Customer>), findsNothing);
+    expect(find.byType(ModelessDropdownFormField<Cooperator>), findsNothing);
+    expect(find.byType(ModelessDropdownFormField<Customer>), findsNothing);
     expect(queryCount, 0);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -198,7 +199,7 @@ void main() {
       },
     );
 
-    await tester.tap(find.byType(DropdownButtonFormField<Customer>));
+    await tester.tap(find.byType(ModelessDropdownFormField<Customer>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('[전체 보기]').last);
     await tester.pumpAndSettle();

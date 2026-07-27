@@ -8,6 +8,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef MarketCooperatorLoader = Future<List<Cooperator>> Function();
 typedef MarketCustomerLoader = Future<List<Customer>> Function(String);
@@ -329,7 +330,7 @@ class _MarketManagerDialogContentState
             const SizedBox(width: 76, child: Text('협력업체')),
             SizedBox(
               width: 220,
-              child: DropdownButtonFormField<String>(
+              child: ModelessDropdownFormField<String>(
                 key: const ValueKey('marketCooperatorSelector'),
                 initialValue:
                     _cooperators.any(
@@ -353,7 +354,7 @@ class _MarketManagerDialogContentState
             const SizedBox(width: 52, child: Text('거래처')),
             SizedBox(
               width: 240,
-              child: DropdownButtonFormField<int>(
+              child: ModelessDropdownFormField<int>(
                 key: const ValueKey('marketCustomerSelector'),
                 initialValue:
                     _customers.any(

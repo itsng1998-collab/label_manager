@@ -9,6 +9,7 @@ import 'package:label_manager/models/nutrition_type.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef NutritionBoxListLoader = Future<List<NutritionBox>> Function();
 typedef NutritionBoxTypeListLoader = Future<List<NutritionType>> Function();
@@ -499,7 +500,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<int>(
+                  child: ModelessDropdownFormField<int>(
                     key: const ValueKey('nutritionBoxTypeSelector'),
                     initialValue: _selectedTypeId,
                     decoration: const InputDecoration(

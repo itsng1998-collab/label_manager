@@ -1460,6 +1460,10 @@ class _DialogDropdown<T> extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(),
+          filled: true,
+          fillColor: onChanged == null
+              ? const Color(0xFFE9ECEF)
+              : Colors.white,
           isDense: true,
           isCollapsed: compact,
           contentPadding: compact

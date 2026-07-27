@@ -4,6 +4,7 @@ import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/item_detail.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/search_and_replace_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   const brand = Brand(brandId: 10, customerId: 1, brandName: '브랜드 1');
@@ -97,7 +98,7 @@ void main() {
   testWidgets('brand filter enables label size filter in order', (tester) async {
     await pumpContent(tester, editable: true);
 
-    var brandSelector = tester.widget<DropdownButtonFormField<int>>(
+    var brandSelector = tester.widget<ModelessDropdownFormField<int>>(
       find.byKey(const ValueKey('searchReplaceBrand')),
     );
     var labelCheckbox = tester.widget<Checkbox>(
@@ -108,7 +109,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('searchReplaceUseBrand')));
     await tester.pump();
-    brandSelector = tester.widget<DropdownButtonFormField<int>>(
+    brandSelector = tester.widget<ModelessDropdownFormField<int>>(
       find.byKey(const ValueKey('searchReplaceBrand')),
     );
     labelCheckbox = tester.widget<Checkbox>(
@@ -123,7 +124,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('searchReplaceUseLabelSize')));
     await tester.pump();
-    final labelSelector = tester.widget<DropdownButtonFormField<int>>(
+    final labelSelector = tester.widget<ModelessDropdownFormField<int>>(
       find.byKey(const ValueKey('searchReplaceLabelSize')),
     );
     expect(labelSelector.onChanged, isNotNull);

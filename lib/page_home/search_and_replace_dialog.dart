@@ -8,6 +8,7 @@ import 'package:label_manager/models/item_detail.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/search_and_replace_sheet.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef ItemDetailSearcher = Future<List<ItemDetail>> Function({
   required int customerId,
@@ -599,7 +600,7 @@ class _SearchAndReplaceDialogContentState
             children: [
               SizedBox(
                 width: 130,
-                child: DropdownButtonFormField<ItemDetailSearchType>(
+                child: ModelessDropdownFormField<ItemDetailSearchType>(
                   key: const ValueKey('searchReplaceType'),
                   initialValue: _searchType,
                   items: const [
@@ -651,7 +652,7 @@ class _SearchAndReplaceDialogContentState
               const Text('브랜드'),
               SizedBox(
                 width: 190,
-                child: DropdownButtonFormField<int>(
+                child: ModelessDropdownFormField<int>(
                   key: const ValueKey('searchReplaceBrand'),
                   initialValue: _brands.any((value) => value.brandId == _brandId)
                       ? _brandId
@@ -677,7 +678,7 @@ class _SearchAndReplaceDialogContentState
               const Text('라벨 크기'),
               SizedBox(
                 width: 190,
-                child: DropdownButtonFormField<int>(
+                child: ModelessDropdownFormField<int>(
                   key: const ValueKey('searchReplaceLabelSize'),
                   initialValue: _labelSizes.any(
                     (value) => value.labelSizeId == _labelSizeId,

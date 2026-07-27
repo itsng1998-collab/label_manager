@@ -10,6 +10,7 @@ import 'package:label_manager/models/print_log.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef PrintHistoryQuery =
     Future<List<PrintLog>> Function({
@@ -414,7 +415,7 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
                   if (_isSystemAdmin)
                     SizedBox(
                       width: 190,
-                      child: DropdownButtonFormField<Cooperator>(
+                      child: ModelessDropdownFormField<Cooperator>(
                         initialValue: _selectedCooperator,
                         decoration: const InputDecoration(
                           labelText: '협력업체',
@@ -435,7 +436,7 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
                   if (_isSystemAdmin || _isCoopAdmin)
                     SizedBox(
                       width: 210,
-                      child: DropdownButtonFormField<Customer>(
+                      child: ModelessDropdownFormField<Customer>(
                         key: ValueKey(_selectedCooperator?.id),
                         initialValue: _selectedCustomer,
                         decoration: const InputDecoration(
@@ -456,7 +457,7 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
                     ),
                   SizedBox(
                     width: 135,
-                    child: DropdownButtonFormField<PrintLogSearchType>(
+                    child: ModelessDropdownFormField<PrintLogSearchType>(
                       initialValue: _searchType,
                       decoration: const InputDecoration(
                         labelText: '검색 종류',

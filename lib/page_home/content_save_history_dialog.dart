@@ -7,6 +7,7 @@ import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef ContentSaveHistoryQuery =
     Future<List<ContentSaveLog>> Function({
@@ -211,7 +212,7 @@ class _ContentSaveHistoryDialogContentState
               if (_isSystemAdmin)
                 SizedBox(
                   width: 210,
-                  child: DropdownButtonFormField<Cooperator>(
+                  child: ModelessDropdownFormField<Cooperator>(
                     initialValue: _selectedCooperator,
                     decoration: const InputDecoration(
                       labelText: '협력업체',
@@ -235,7 +236,7 @@ class _ContentSaveHistoryDialogContentState
               if (_isSystemAdmin || _isCoopAdmin)
                 SizedBox(
                   width: 230,
-                  child: DropdownButtonFormField<Customer>(
+                  child: ModelessDropdownFormField<Customer>(
                     initialValue: _selectedCustomer,
                     decoration: const InputDecoration(
                       labelText: '거래처',

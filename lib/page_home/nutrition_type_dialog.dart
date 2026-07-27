@@ -6,6 +6,7 @@ import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/nutrition_type.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef NutritionTypeListLoader = Future<List<NutritionType>> Function();
 typedef NutritionTypeColumnsLoader =
@@ -611,7 +612,7 @@ class _NutritionTypeDialogContentState extends State<NutritionTypeDialogContent>
                   const SizedBox(width: 12),
                   SizedBox(
                     width: 260,
-                    child: DropdownButtonFormField<int>(
+                    child: ModelessDropdownFormField<int>(
                       key: const ValueKey('nutritionTypeTemplateSelector'),
                       initialValue: _selectedTemplateTypeId,
                       decoration: const InputDecoration(

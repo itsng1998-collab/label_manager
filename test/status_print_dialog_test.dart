@@ -12,6 +12,7 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/status_print.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_home/status_print_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   const initialCooperator = Cooperator(id: 'coop1', name: '협력업체 1');
@@ -191,7 +192,7 @@ void main() {
 
       await tester.tap(
         find.widgetWithText(
-          DropdownButtonFormField<String>,
+          ModelessDropdownFormField<String>,
           statusPrintElementColumn,
         ),
       );
@@ -204,7 +205,7 @@ void main() {
 
       await tester.tap(
         find.widgetWithText(
-          DropdownButtonFormField<String>,
+          ModelessDropdownFormField<String>,
           initialCooperator.name,
         ),
       );

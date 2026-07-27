@@ -6,6 +6,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/admin_copy_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   const cooperator = Cooperator(id: 'C1', name: '협력업체');
@@ -66,7 +67,7 @@ void main() {
     await pumpDialog(tester, copyBrand: (_) async {});
     await tester.tap(find.byKey(const ValueKey('adminCopyWholeBrand')));
     await tester.pump();
-    final targetBefore = tester.widget<DropdownButtonFormField<int>>(
+    final targetBefore = tester.widget<ModelessDropdownFormField<int>>(
       find.byKey(const ValueKey('adminCopyTargetCustomer')),
     );
     expect(targetBefore.onChanged, isNull);
@@ -80,7 +81,7 @@ void main() {
     await tester.tap(find.text('브랜드 1').last);
     await tester.pumpAndSettle();
 
-    final targetAfter = tester.widget<DropdownButtonFormField<int>>(
+    final targetAfter = tester.widget<ModelessDropdownFormField<int>>(
       find.byKey(const ValueKey('adminCopyTargetCustomer')),
     );
     expect(targetAfter.onChanged, isNotNull);

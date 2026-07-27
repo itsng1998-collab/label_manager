@@ -8,6 +8,7 @@ import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef AdminCopyCooperatorLoader = Future<List<Cooperator>> Function();
 typedef AdminCopyCustomerLoader = Future<List<Customer>> Function(String);
@@ -507,7 +508,7 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     required bool enabled,
     required List<DropdownMenuItem<T>> items,
     required ValueChanged<T?> onChanged,
-  }) => DropdownButtonFormField<T>(
+  }) => ModelessDropdownFormField<T>(
     key: ValueKey(key),
     initialValue: items.any((item) => item.value == value) ? value : null,
     decoration: InputDecoration(labelText: label),

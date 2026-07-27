@@ -11,6 +11,7 @@ import 'package:label_manager/models/status_print.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef StatusPrintQuery = Future<List<StatusPrintRow>> Function(
   StatusPrintQuerySpec spec,
@@ -583,7 +584,7 @@ class _StatusPrintDialogContentState extends State<StatusPrintDialogContent> {
   }) {
     return SizedBox(
       width: width,
-      child: DropdownButtonFormField<T>(
+      child: ModelessDropdownFormField<T>(
         key: ValueKey('$label:$value'),
         initialValue: value,
         decoration: InputDecoration(labelText: label, isDense: true),
