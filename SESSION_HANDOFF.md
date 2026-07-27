@@ -3,6 +3,7 @@
 - 편집: 관리 미리보기를 `LabelOutputPreview`로, 추가·수정 편집을 `LabelSheetWorkbench`로 교체했다. 개체보기는 숨기고 레거시 RTF 또는 기존 시트 데이터를 workbook으로 통합 materialize하며 `_rtf`/`_baselineRtf`는 시트 저장 포맷으로 유지한다. 저장 직전 현재 폭으로 workbook을 정규화해 기존 RTF 컬럼에 시트 포맷을 전달한다.
 - 검증: 영양성분표 dialog 7개와 DAO/형식 관련 테스트 12개가 모두 통과했다. 레거시 RTF fallback 변환과 편집 workbook의 RTF 컬럼 시트 저장을 검증했으며 전체 workspace 정적 오류 및 `git diff --check` 오류가 없다.
 - stage/commit 대상: `lib/page_home/nutrition_box_dialog.dart`, `test/nutrition_box_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `999c817` (`영양성분표 라벨 시트 편집 전환`).
 
 # 완료: 검색 및 치환 필터 간격 조정
 - 원인: 브랜드/라벨 크기 라벨과 dropdown 사이에 간격 위젯이 없어 서로 붙어 보인다.
