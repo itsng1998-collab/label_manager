@@ -3,6 +3,7 @@
 - 편집: 사용자 관리 접속 버튼/처리 함수/콜백 전달 경로와 `HomePage._connectToUser`, 전용 `userConnectSessionFor` helper를 제거했다. 접속 이력 조회 메뉴와 사용자 CRUD는 유지한다.
 - 검증: 사용자 관리/관리 사용자/관리자 세션/AppBar 메뉴 테스트 49 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없고 접속 관련 잔여 참조는 버튼 부재 assertion뿐이다.
 - stage/commit 대상: 사용자 관리 dialog, `home_page.dart`, `home_page_manager.dart`, 관리자 세션 helper/테스트, 사용자 관리 테스트, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `bc5bc04` (`사용자 관리 접속 기능 제거`).
 
 # 완료: 지점 관리 드롭다운 높이와 정렬 통일
 - 원인: 지점 관리의 공용 `ModelessDropdownFormField`는 필드 높이는 40px이지만 선택 항목 child에 수직 정렬 제약이 없어 라벨이 위쪽에 붙어 보였다.
