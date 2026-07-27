@@ -52,25 +52,32 @@ void main() {
     var calls = 0;
     var labelPrinterCalls = 0;
     var scalePrinterCalls = 0;
+    final menuStates = <bool>[];
     controller.attach(
       owner: owner,
       openScaleConnectSettings: () async => calls += 1,
       openLabelPrintSettings: () async => labelPrinterCalls += 1,
       openScaleOutputPrinterSettings: () async => scalePrinterCalls += 1,
+      appMenuOpenChanged: menuStates.add,
     );
     await controller.openScaleConnectSettings();
     await controller.openLabelPrintSettings();
     await controller.openScaleOutputPrinterSettings();
+    controller.appMenuOpenChanged(true);
+    controller.appMenuOpenChanged(false);
     expect(calls, 1);
     expect(labelPrinterCalls, 1);
     expect(scalePrinterCalls, 1);
+    expect(menuStates, [true, false]);
     controller.detach(owner);
     await controller.openScaleConnectSettings();
     await controller.openLabelPrintSettings();
     await controller.openScaleOutputPrinterSettings();
+    controller.appMenuOpenChanged(true);
     expect(calls, 1);
     expect(labelPrinterCalls, 1);
     expect(scalePrinterCalls, 1);
+    expect(menuStates, [true, false]);
   });
 
   testWidgets('dialog applies edited auto print with persisted serial values', (

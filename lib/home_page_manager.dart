@@ -215,17 +215,20 @@ class HomePageManagerController {
   Future<void> Function()? _openScaleConnectSettings;
   Future<void> Function()? _openLabelPrintSettings;
   Future<void> Function()? _openScaleOutputPrinterSettings;
+  ValueChanged<bool>? _appMenuOpenChanged;
 
   void attach({
     required Object owner,
     required Future<void> Function() openScaleConnectSettings,
     required Future<void> Function() openLabelPrintSettings,
     required Future<void> Function() openScaleOutputPrinterSettings,
+    required ValueChanged<bool> appMenuOpenChanged,
   }) {
     _owner = owner;
     _openScaleConnectSettings = openScaleConnectSettings;
     _openLabelPrintSettings = openLabelPrintSettings;
     _openScaleOutputPrinterSettings = openScaleOutputPrinterSettings;
+    _appMenuOpenChanged = appMenuOpenChanged;
   }
 
   void detach(Object owner) {
@@ -234,6 +237,7 @@ class HomePageManagerController {
     _openScaleConnectSettings = null;
     _openLabelPrintSettings = null;
     _openScaleOutputPrinterSettings = null;
+    _appMenuOpenChanged = null;
   }
 
   Future<void> openScaleConnectSettings() async {
@@ -246,6 +250,10 @@ class HomePageManagerController {
 
   Future<void> openScaleOutputPrinterSettings() async {
     await _openScaleOutputPrinterSettings?.call();
+  }
+
+  void appMenuOpenChanged(bool isOpen) {
+    _appMenuOpenChanged?.call(isOpen);
   }
 }
 
@@ -1193,6 +1201,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       openScaleConnectSettings: _openScaleConnectSettings,
       openLabelPrintSettings: _openLabelPrintSettings,
       openScaleOutputPrinterSettings: _openScaleOutputPrinterSettings,
+      appMenuOpenChanged: _handleAppMenuOpenChanged,
     );
     _attachAppMenuCommands();
     widget.onExitSnapshotProviderChanged?.call(_createExitSnapshot);
@@ -1227,6 +1236,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         openScaleConnectSettings: _openScaleConnectSettings,
         openLabelPrintSettings: _openLabelPrintSettings,
         openScaleOutputPrinterSettings: _openScaleOutputPrinterSettings,
+        appMenuOpenChanged: _handleAppMenuOpenChanged,
       );
       _attachAppMenuCommands();
     }
@@ -4725,6 +4735,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           initialSize: const Size(670, 470),
           minSize: const Size(420, 280),
           onCloseRequested: _handleItemPreviewCloseRequested,
+          usePortalHost: true,
         );
       }
       _itemPreviewWindow!
@@ -4927,6 +4938,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         headerAction: _RtfPreviewAiConvertButton(
           onPressed: () => unawaited(_handleRtfPreviewAiConvert()),
         ),
+        usePortalHost: true,
       );
       if (shouldRebuildPreview) {
         _rtfPreviewWindowKey = readyKey;
@@ -5333,6 +5345,20 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted || postFrameTab != 'common_label') return;
       postFrameWindow?.keepBelowRoutePopups(context);
     });
+  }
+
+  void _handleAppMenuOpenChanged(bool isOpen) {
+    if (!isOpen) return;
+    _keepFloatingPreviewsBelowRoutePopups();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _keepFloatingPreviewsBelowRoutePopups();
+    });
+  }
+
+  void _keepFloatingPreviewsBelowRoutePopups() {
+    _itemPreviewWindow?.keepBelowRoutePopups(context);
+    _commonLabelPreviewWindow?.keepBelowRoutePopups(context);
   }
 
   String _rtfPreviewKey(LabelSize? labelSize, String rtf) =>
@@ -7001,7 +7027,18 @@ class _HomePageManagerState extends State<HomePageManager> {
         ),
       ],
     );
-    return result;
+    Widget hostedResult = result;
+    final itemPreviewWindow = _itemPreviewWindow;
+    if (itemPreviewWindow != null) {
+      hostedResult = itemPreviewWindow.wrapPortalHost(child: hostedResult);
+    }
+    final commonLabelPreviewWindow = _commonLabelPreviewWindow;
+    if (commonLabelPreviewWindow != null) {
+      hostedResult = commonLabelPreviewWindow.wrapPortalHost(
+        child: hostedResult,
+      );
+    }
+    return hostedResult;
   }
 
   bool _itemPreviewRestoreButtonShouldShow(Object? selectedTabValue) {

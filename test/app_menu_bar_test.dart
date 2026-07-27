@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/app_menu_bar.dart';
 
 void main() {
@@ -392,6 +393,82 @@ void main() {
       );
       expect(anchor.useRootOverlay, isTrue);
     }
+  });
+
+  testWidgets('root menu stays above a floating preview route', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final selected = <AppMenuCommandId>[];
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(320, 360),
+      usePortalHost: true,
+      child: const ColoredBox(
+        key: ValueKey('floating-preview-content'),
+        color: Colors.red,
+      ),
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: labelManagerTheme(
+          ColorScheme.fromSeed(seedColor: Colors.blue),
+        ),
+        home: window.wrapPortalHost(
+          child: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () {
+                  window.show(context);
+                  window.alignBottomRightTo(
+                    context,
+                    const Offset(1200, 416),
+                  );
+                },
+                child: const Text('show preview'),
+              ),
+            ),
+            appBar: AppBar(
+              title: AppMenuBar(
+                title: const Text('라벨 매니저'),
+                commandStates: visibleStates,
+                onCommandSelected: selected.add,
+                onMenuOpenChanged: (open) {
+                  if (open) {
+                    window.keepBelowRoutePopups(
+                      tester.element(find.byType(Scaffold)),
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show preview'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-settings')));
+    await tester.pumpAndSettle();
+
+    final command = find.byKey(
+      const ValueKey('app-menu-command-labelPrintSettings'),
+    );
+    expect(
+      tester.getRect(command).overlaps(
+        tester.getRect(find.byKey(const ValueKey('floating-preview-content'))),
+      ),
+      isTrue,
+    );
+    await tester.tap(command);
+    await tester.pumpAndSettle();
+    expect(selected, [AppMenuCommandId.labelPrintSettings]);
   });
 
   testWidgets('hidden sections do not leave separators', (tester) async {

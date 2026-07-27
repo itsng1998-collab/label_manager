@@ -24,6 +24,7 @@ class PreviewFloatingWindow {
     this.onResizeCompleted,
     this.onCloseRequested,
     this.headerAction,
+    this.usePortalHost = false,
   }) : _rect = ValueNotifier<Rect>(
          Rect.fromLTWH(
            initialPosition.dx,
@@ -46,6 +47,7 @@ class PreviewFloatingWindow {
   final ValueChanged<Rect>? onResizeCompleted;
   final VoidCallback? onCloseRequested;
   final Widget? headerAction;
+  final bool usePortalHost;
 
   final ValueNotifier<Rect> _rect;
   final ValueNotifier<Widget?> _child;
@@ -54,10 +56,12 @@ class PreviewFloatingWindow {
   final ValueNotifier<bool> _controlsVisible;
   final ValueNotifier<bool> _visible = ValueNotifier<bool>(true);
   final ValueNotifier<double> _hideProgress;
+  final OverlayPortalController _portalController = OverlayPortalController();
   Rect? _hideTargetRect;
   _PreviewFloatingRoute? _route;
   bool _positionInitialized = false;
-  bool get isVisible => _route != null && _visible.value;
+  bool get isVisible =>
+      (_route != null || _portalController.isShowing) && _visible.value;
   Rect get rect => _rect.value;
 
   static String _formatOffset(Offset value) =>
@@ -78,63 +82,74 @@ class PreviewFloatingWindow {
   OverlayEntry _createEntry() {
     _log('create overlay entry routeId=${_route?.debugId ?? 'pending'}');
     return OverlayEntry(
-      builder: (ctx) {
-        _log(
-          'build overlay entry routeId=${_route?.debugId ?? 'pending'} '
-          'rect=${_formatRect(_rect.value)}',
-        );
-        return ValueListenableBuilder<bool>(
-          valueListenable: _visible,
-          builder: (context, visible, _) {
-            return ValueListenableBuilder<Rect>(
-              valueListenable: _rect,
-              builder: (context, rect, _) {
-                return ValueListenableBuilder<double>(
-                  valueListenable: _hideProgress,
-                  builder: (context, hideProgress, _) {
-                    final hideTarget = _hideTargetRect;
-                    Widget card = _FloatingCard(
-                      rect: rect,
-                      minSize: minSize,
-                      childListenable: _child,
-                      tooltipListenable: _tooltip,
-                      isResizingListenable: _isResizing,
-                      controlsVisibleListenable: _controlsVisible,
-                      onMove: _updatePosition,
-                      onResize: _updateRect,
-                      onResizeStart: _handleResizeStart,
-                      onResizeEnd: _handleResizeEnd,
-                      onClose: _handleCloseRequested,
-                      headerAction: headerAction,
-                    );
-                    if (hideTarget != null && hideProgress > 0) {
-                      card = _buildHideTransition(
-                        source: rect,
-                        target: hideTarget,
-                        progress: hideProgress,
-                        child: card,
-                      );
-                    }
-                    return Positioned(
-                      left: rect.left,
-                      top: rect.top,
-                      width: rect.width,
-                      height: rect.height,
-                      child: Offstage(
-                        offstage: !visible,
-                        child: IgnorePointer(
-                          ignoring: !visible || hideProgress > 0,
-                          child: card,
-                        ),
-                      ),
-                    );
-                  },
+      builder: (ctx) => _buildOverlayContent(),
+    );
+  }
+
+  Widget _buildOverlayContent() {
+    _log(
+      'build overlay entry routeId=${_route?.debugId ?? 'pending'} '
+      'rect=${_formatRect(_rect.value)}',
+    );
+    return ValueListenableBuilder<bool>(
+      valueListenable: _visible,
+      builder: (context, visible, _) {
+        return ValueListenableBuilder<Rect>(
+          valueListenable: _rect,
+          builder: (context, rect, _) {
+            return ValueListenableBuilder<double>(
+              valueListenable: _hideProgress,
+              builder: (context, hideProgress, _) {
+                final hideTarget = _hideTargetRect;
+                Widget card = _FloatingCard(
+                  rect: rect,
+                  minSize: minSize,
+                  childListenable: _child,
+                  tooltipListenable: _tooltip,
+                  isResizingListenable: _isResizing,
+                  controlsVisibleListenable: _controlsVisible,
+                  onMove: _updatePosition,
+                  onResize: _updateRect,
+                  onResizeStart: _handleResizeStart,
+                  onResizeEnd: _handleResizeEnd,
+                  onClose: _handleCloseRequested,
+                  headerAction: headerAction,
+                );
+                if (hideTarget != null && hideProgress > 0) {
+                  card = _buildHideTransition(
+                    source: rect,
+                    target: hideTarget,
+                    progress: hideProgress,
+                    child: card,
+                  );
+                }
+                return Positioned(
+                  left: rect.left,
+                  top: rect.top,
+                  width: rect.width,
+                  height: rect.height,
+                  child: Offstage(
+                    offstage: !visible,
+                    child: IgnorePointer(
+                      ignoring: !visible || hideProgress > 0,
+                      child: card,
+                    ),
+                  ),
                 );
               },
             );
           },
         );
       },
+    );
+  }
+
+  Widget wrapPortalHost({required Widget child}) {
+    assert(usePortalHost);
+    return OverlayPortal.targetsRootOverlay(
+      controller: _portalController,
+      overlayChildBuilder: (_) => _buildOverlayContent(),
+      child: child,
     );
   }
 
@@ -171,6 +186,11 @@ class PreviewFloatingWindow {
       'tooltip=${_tooltip.value != null}',
     );
     _controlsVisible.value = true;
+    _visible.value = true;
+    if (usePortalHost) {
+      _portalController.show();
+      return;
+    }
     final route = _PreviewFloatingRoute(createEntry: _createEntry, onLog: _log);
     _route = route;
     _log('push routeId=${route.debugId} rootNavigator=1');
@@ -197,6 +217,13 @@ class PreviewFloatingWindow {
 
   void hide() {
     final route = _route;
+    if (usePortalHost) {
+      _hideTargetRect = null;
+      _hideProgress.value = 0;
+      _visible.value = false;
+      if (_portalController.isShowing) _portalController.hide();
+      return;
+    }
     if (route == null) {
       return;
     }
@@ -209,19 +236,19 @@ class PreviewFloatingWindow {
 
   Future<void> hideToRect(Rect targetRect) async {
     final route = _route;
-    if (route == null || !_visible.value) {
+    if ((!usePortalHost && route == null) || !_visible.value) {
       hide();
       return;
     }
     final original = _rect.value;
     _log(
-      'hideToRect routeId=${route.debugId} '
+      'hideToRect routeId=${route?.debugId ?? 'portal'} '
       'from=${_formatRect(original)} to=${_formatRect(targetRect)}',
     );
     _controlsVisible.value = false;
     _hideTargetRect = targetRect;
     _hideProgress.value = 0;
-    route.markNeedsBuild();
+    route?.markNeedsBuild();
     const steps = 12;
     const duration = Duration(milliseconds: 180);
     final stepDuration = Duration(
@@ -234,10 +261,13 @@ class PreviewFloatingWindow {
       await Future<void>.delayed(stepDuration);
     }
     _visible.value = false;
+    if (usePortalHost && _portalController.isShowing) {
+      _portalController.hide();
+    }
     _hideProgress.value = 0;
     _hideTargetRect = null;
     _controlsVisible.value = true;
-    route.markNeedsBuild();
+    route?.markNeedsBuild();
   }
 
   Widget _buildHideTransition({
@@ -288,6 +318,7 @@ class PreviewFloatingWindow {
 
   void dispose() {
     _removeRoute();
+    if (_portalController.isShowing) _portalController.hide();
     _rect.dispose();
     _child.dispose();
     _tooltip.dispose();

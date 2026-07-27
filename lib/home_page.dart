@@ -562,6 +562,7 @@ class _HomePageState extends State<HomePage> {
                     _appMenuShortcutBlockerOwner,
                   );
                 }
+                _homePageManagerController.appMenuOpenChanged(open);
               },
             ),
           ),
