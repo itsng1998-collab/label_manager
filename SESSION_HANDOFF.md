@@ -3,6 +3,7 @@
 - 편집: 각 selector 왼쪽에 고정 폭 라벨을 추가하고 그룹 간격을 16px로 통일했다. `라벨 + selector`를 `Wrap` 그룹으로 구성해 좁은 창에서는 그룹 단위로 자연스럽게 줄바꿈된다.
 - 검증: 사용자 관리/관리 사용자/공용 dropdown/AppBar 메뉴 관련 테스트 26 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없고 800px 테스트 viewport에서도 overflow가 없다.
 - stage/commit 대상: `lib/page_home/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `22b27b9` (`사용자 관리 선택 항목 라벨 추가`).
 
 # 완료: 사용자 관리 접속 기능 제거
 - 원인: Flutter 사용자 관리 구현 시 관리자 컨텍스트 전환용 `접속` 기능이 추가됐지만 레거시 사용자 관리에는 대응 버튼/핸들러가 없고 CRUD와 독립적이다.
