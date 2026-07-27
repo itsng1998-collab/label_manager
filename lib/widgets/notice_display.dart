@@ -14,6 +14,7 @@ class NoticeDisplayPanel extends StatelessWidget {
     this.editable = false,
     this.onVersionChanged,
     this.onContentChanged,
+    this.initialFocusNode,
   });
 
   final String version;
@@ -21,6 +22,7 @@ class NoticeDisplayPanel extends StatelessWidget {
   final bool editable;
   final ValueChanged<String>? onVersionChanged;
   final ValueChanged<String>? onContentChanged;
+  final FocusNode? initialFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,7 @@ class NoticeDisplayPanel extends StatelessWidget {
         SizedBox(
           width: 240,
           child: TextFormField(
+            focusNode: initialFocusNode,
             initialValue: version,
             readOnly: !editable,
             decoration: const InputDecoration(labelText: '업데이트 버전'),

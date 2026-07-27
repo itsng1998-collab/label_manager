@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/notice.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_home/update_notice_dialog.dart';
@@ -127,11 +128,14 @@ void main() {
     var saveCount = 0;
     var closeCount = 0;
     UpdateNoticeSaveRequest? savedRequest;
+    final controller = UpdateNoticeDialogController();
+    addTearDown(controller.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: UpdateNoticeDialog(
+            controller: controller,
             user: user,
             notice: const Notice(message: '공지', state: 1),
             targetUsers: const [],
@@ -140,9 +144,15 @@ void main() {
               savedRequest = request;
             },
             onClose: () => closeCount++,
+            onCommitOutcomeUnknown: () => closeCount++,
           ),
         ),
       ),
+    );
+    await tester.pump();
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText).first).focusNode.hasFocus,
+      isTrue,
     );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
@@ -155,5 +165,64 @@ void main() {
     expect(savedRequest?.message, isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('unknown commit outcome is shown once and closes the dialog', (
+    tester,
+  ) async {
+    const user = User(
+      userId: 'user1',
+      marketId: 1,
+      name: '사용자',
+      pwd: '',
+      grade: UserGrade.CLIENT_USER,
+      marketName: '지점',
+      customerName: '거래처',
+    );
+    final controller = UpdateNoticeDialogController();
+    addTearDown(controller.dispose);
+    var saveCount = 0;
+    var closeCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UpdateNoticeDialog(
+            controller: controller,
+            user: user,
+            notice: const Notice(message: '공지', state: 0),
+            targetUsers: const [],
+            onSave: (_) async {
+              saveCount++;
+              throw const DbCommitOutcomeUnknown('commit outcome unknown');
+            },
+            onClose: () {},
+            onCommitOutcomeUnknown: () => closeCount++,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(saveCount, 1);
+    expect(find.textContaining('commit outcome unknown'), findsOneWidget);
+    expect(closeCount, 0);
+
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closeCount, 1);
+    expect(saveCount, 1);
+  });
+
+  test('controller exposes dirty and write-busy exit state', () {
+    final controller = UpdateNoticeDialogController();
+    addTearDown(controller.dispose);
+
+    expect(controller.snapshot().dirtyWorks, isEmpty);
+    controller.setDirty(true);
+    expect(controller.snapshot().dirtyWorks.single.name, '업데이트 메시지');
+    controller.setWriteBusy(true);
+    expect(controller.snapshot().blockingReason, isNotNull);
   });
 }

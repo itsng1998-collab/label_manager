@@ -140,7 +140,11 @@ class AppMenuBar extends StatelessWidget {
         ? null
         : Icon(command.icon);
     final onPressed = state.enabled
-        ? () => onCommandSelected(command.id)
+        ? () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              onCommandSelected(command.id);
+            });
+          }
         : null;
 
     return Semantics(

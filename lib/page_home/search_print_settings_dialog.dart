@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/label_column_edit.dart';
@@ -7,9 +8,37 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/search_print_settings.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
+class SearchPrintSettingsDialogController extends ChangeNotifier {
+  bool _dirty = false;
+  bool _writeBusy = false;
+
+  LifecycleExitSnapshot snapshot() => LifecycleExitSnapshot(
+    blockingReason: _writeBusy ? '검색출력 설정 저장이 끝난 뒤 다시 시도해주세요.' : null,
+    dirtyWorks: [
+      if (_dirty)
+        LifecycleDirtyWork(name: '검색출력 설정', discard: discard),
+    ],
+  );
+
+  void setDirty(bool value) {
+    if (_dirty == value) return;
+    _dirty = value;
+    notifyListeners();
+  }
+
+  void setWriteBusy(bool value) {
+    if (_writeBusy == value) return;
+    _writeBusy = value;
+    notifyListeners();
+  }
+
+  void discard() => setDirty(false);
+}
+
 class SearchPrintSettingsDialog extends StatefulWidget {
   const SearchPrintSettingsDialog({
     super.key,
+    required this.controller,
     required this.brands,
     required this.initialBrand,
     required this.initialLabelSize,
@@ -19,6 +48,7 @@ class SearchPrintSettingsDialog extends StatefulWidget {
     required this.onClose,
   });
 
+  final SearchPrintSettingsDialogController controller;
   final List<Brand> brands;
   final Brand? initialBrand;
   final LabelSize? initialLabelSize;
@@ -45,6 +75,9 @@ class _SearchPrintSettingsDialogState
   SearchPrintSettingsDraft? _draft;
   bool _busy = true;
   String? _error;
+  final FocusNode _initialFocusNode = FocusNode(
+    debugLabel: 'SearchPrintSettingsInitialFocus',
+  );
 
   @override
   void initState() {
@@ -57,15 +90,17 @@ class _SearchPrintSettingsDialogState
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _draft?.dispose();
+    _initialFocusNode.dispose();
     super.dispose();
   }
 
   bool _handleKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.enter ||
-        _busy) {
-      return false;
+    if (event is! KeyDownEvent) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape && !_busy) {
+      _requestClose();
+      return true;
     }
+    if (event.logicalKey != LogicalKeyboardKey.enter || _busy) return false;
     _apply();
     return true;
   }
@@ -84,6 +119,9 @@ class _SearchPrintSettingsDialogState
       brand,
       preferredLabelSizeId: widget.initialLabelSize?.labelSizeId,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _initialFocusNode.requestFocus();
+    });
   }
 
   Brand? _resolveBrand(Brand? preferred) {
@@ -177,6 +215,7 @@ class _SearchPrintSettingsDialogState
   }
 
   void _rebuild() {
+    widget.controller.setDirty(_draft?.isDirty == true);
     if (mounted) setState(() {});
   }
 
@@ -188,6 +227,7 @@ class _SearchPrintSettingsDialogState
       _busy = true;
       _error = null;
     });
+    widget.controller.setWriteBusy(true);
     try {
       final reloaded = await widget.apply(
         labelSizeId: labelSize.labelSizeId,
@@ -197,6 +237,7 @@ class _SearchPrintSettingsDialogState
       if (!mounted) return;
       _committedColumns = List<TColumn>.unmodifiable(reloaded);
       draft.replaceCommitted(reloaded);
+      widget.controller.setDirty(false);
       setState(() => _busy = false);
       await _showMessage('저장되었습니다.');
     } on LabelColumnSaveCommittedException catch (error) {
@@ -209,6 +250,8 @@ class _SearchPrintSettingsDialogState
         _busy = false;
         _error = error.toString();
       });
+    } finally {
+      widget.controller.setWriteBusy(false);
     }
   }
 
@@ -266,6 +309,7 @@ class _SearchPrintSettingsDialogState
               children: [
                 Expanded(
                   child: DropdownButtonFormField<Brand>(
+                    focusNode: _initialFocusNode,
                     initialValue: _brand,
                     decoration: const InputDecoration(labelText: '브랜드'),
                     items: [

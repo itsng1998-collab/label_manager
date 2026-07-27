@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/widgets/app_menu_bar.dart';
 
 void main() {
+  setUp(AppShortcutBlocker.instance.reset);
+  tearDown(AppShortcutBlocker.instance.reset);
+
   final visibleStates = {
     for (final command in appMenuCommands)
       command.id: AppMenuCommandState(
@@ -21,6 +25,7 @@ void main() {
     ValueChanged<bool>? onMenuOpenChanged,
     Map<AppMenuCommandId, AppMenuCommandState>? states,
     bool searchPrintModeActive = false,
+    FocusNode? commandFocusNode,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
@@ -30,6 +35,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
+          body: Focus(
+            focusNode: commandFocusNode,
+            child: const SizedBox.expand(),
+          ),
           appBar: AppBar(
             title: AppMenuBar(
               title: const Text(
@@ -97,11 +106,18 @@ void main() {
   ) async {
     final selected = <AppMenuCommandId>[];
     final menuStates = <bool>[];
+    final events = <String>[];
     await pumpMenu(
       tester,
       size: const Size(1200, 800),
-      onSelected: selected.add,
-      onMenuOpenChanged: menuStates.add,
+      onSelected: (id) {
+        selected.add(id);
+        events.add('selected');
+      },
+      onMenuOpenChanged: (open) {
+        menuStates.add(open);
+        events.add(open ? 'opened' : 'closed');
+      },
     );
 
     await tester.tap(
@@ -117,6 +133,7 @@ void main() {
 
     expect(selected, [AppMenuCommandId.labelPrintSettings]);
     expect(menuStates, [true, false]);
+    expect(events, ['opened', 'closed', 'selected']);
   });
 
   testWidgets('narrow overflow preserves group then command navigation', (
@@ -219,6 +236,61 @@ void main() {
     semanticsHandle.dispose();
   });
 
+  testWidgets('search print submenu supports enter and left navigation', (
+    tester,
+  ) async {
+    await pumpMenu(tester, size: const Size(1200, 800));
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-settings')));
+    await tester.pumpAndSettle();
+    final submenu = find.byKey(
+      const ValueKey('app-menu-submenu-searchPrint'),
+    );
+    await tester.tap(submenu);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('app-menu-command-searchPrintMode')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('app-menu-command-searchPrintMode')),
+      findsNothing,
+    );
+    expect(submenu, findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('app-menu-command-searchPrintMode')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('menu lifetime blocks shortcuts until the popup closes', (
+    tester,
+  ) async {
+    final owner = Object();
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      onMenuOpenChanged: (open) {
+        if (open) {
+          AppShortcutBlocker.instance.activate(owner);
+        } else {
+          AppShortcutBlocker.instance.deactivate(owner);
+        }
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-file')));
+    await tester.pumpAndSettle();
+    expect(AppShortcutBlocker.instance.isBlocked, isTrue);
+    await tester.tapAt(const Offset(20, 200));
+    await tester.pumpAndSettle();
+    expect(AppShortcutBlocker.instance.isBlocked, isFalse);
+  });
+
   testWidgets('hidden sections do not leave separators', (tester) async {
     final states = {
       for (final command in appMenuCommands)
@@ -251,6 +323,74 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(Focus.of(tester.element(trigger)).hasFocus, isTrue);
+  });
+
+  testWidgets('space opens and arrow navigation executes one command', (
+    tester,
+  ) async {
+    final selected = <AppMenuCommandId>[];
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      onSelected: selected.add,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-exit')), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(selected, hasLength(1));
+  });
+
+  testWidgets('overflow right enters and left returns to group level', (
+    tester,
+  ) async {
+    await pumpMenu(tester, size: const Size(600, 720));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('app-menu-overflow-group-file')),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-exit')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-exit')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('app-menu-overflow-group-file')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('command transfers focus after popup closes', (tester) async {
+    final targetFocus = FocusNode(debugLabel: 'dialog-initial-focus');
+    addTearDown(targetFocus.dispose);
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      commandFocusNode: targetFocus,
+      onSelected: (_) => targetFocus.requestFocus(),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('app-menu-command-labelPrintSettings')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(targetFocus.hasFocus, isTrue);
   });
 
   testWidgets('collapsed menu keeps a single-line ellipsized title', (

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:label_manager/core/app.dart';
+import 'package:label_manager/core/lifecycle.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/notice.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -11,6 +13,33 @@ enum UpdateNoticeSaveTarget {
   allCooperators,
   currentCooperator,
   currentUser,
+}
+
+class UpdateNoticeDialogController extends ChangeNotifier {
+  bool _dirty = false;
+  bool _writeBusy = false;
+
+  LifecycleExitSnapshot snapshot() => LifecycleExitSnapshot(
+    blockingReason: _writeBusy ? '업데이트 메시지 저장이 끝난 뒤 다시 시도해주세요.' : null,
+    dirtyWorks: [
+      if (_dirty)
+        LifecycleDirtyWork(name: '업데이트 메시지', discard: discard),
+    ],
+  );
+
+  void setDirty(bool value) {
+    if (_dirty == value) return;
+    _dirty = value;
+    notifyListeners();
+  }
+
+  void setWriteBusy(bool value) {
+    if (_writeBusy == value) return;
+    _writeBusy = value;
+    notifyListeners();
+  }
+
+  void discard() => setDirty(false);
 }
 
 UpdateNoticeSaveTarget resolveUpdateNoticeSaveTarget({
@@ -46,18 +75,22 @@ class UpdateNoticeSaveRequest {
 class UpdateNoticeDialog extends StatefulWidget {
   const UpdateNoticeDialog({
     super.key,
+    required this.controller,
     required this.user,
     required this.notice,
     required this.targetUsers,
     required this.onSave,
     required this.onClose,
+    required this.onCommitOutcomeUnknown,
   });
 
+  final UpdateNoticeDialogController controller;
   final User user;
   final Notice notice;
   final List<NoticeTargetUser> targetUsers;
   final Future<void> Function(UpdateNoticeSaveRequest request) onSave;
   final VoidCallback onClose;
+  final VoidCallback onCommitOutcomeUnknown;
 
   @override
   State<UpdateNoticeDialog> createState() => _UpdateNoticeDialogState();
@@ -72,6 +105,9 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
   bool _saving = false;
   String? _error;
   final Set<String> _selectedUserIds = <String>{};
+  final FocusNode _initialFocusNode = FocusNode(
+    debugLabel: 'UpdateNoticeInitialFocus',
+  );
 
   bool get _isAdministrator =>
       widget.user.grade == UserGrade.SYSTEM_ADMIN_USER ||
@@ -81,20 +117,25 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _initialFocusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _initialFocusNode.dispose();
     super.dispose();
   }
 
   bool _handleKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.enter ||
-        _saving) {
-      return false;
+    if (event is! KeyDownEvent) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape && !_saving) {
+      widget.onClose();
+      return true;
     }
+    if (event.logicalKey != LogicalKeyboardKey.enter || _saving) return false;
     _save();
     return true;
   }
@@ -115,6 +156,7 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
       _saving = true;
       _error = null;
     });
+    widget.controller.setWriteBusy(true);
     try {
       await widget.onSave(
         UpdateNoticeSaveRequest(
@@ -124,14 +166,36 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
           dontShowAgain: _dontShowAgain,
         ),
       );
+      widget.controller.setDirty(false);
       widget.onClose();
+    } on DbCommitOutcomeUnknown catch (error) {
+      if (!mounted) return;
+      await _showMessage(error.toString());
+      widget.onCommitOutcomeUnknown();
     } catch (error) {
       if (!mounted) return;
       setState(() => _error = error.toString());
     } finally {
+      widget.controller.setWriteBusy(false);
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  Future<void> _showMessage(String message) =>
+      showBlockingModelessOverlayDialog<void>(
+        context: context,
+        builder: (_, close) => AlertDialog(
+          content: Text(message),
+          actions: [
+            FilledButton(
+              onPressed: () => close(null),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+
+  void _markDirty() => widget.controller.setDirty(true);
 
   @override
   Widget build(BuildContext context) {
@@ -153,9 +217,15 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
               child: NoticeDisplayPanel(
                 version: _version,
                 content: _message,
+                initialFocusNode: _initialFocusNode,
                 editable: _isAdministrator,
-                onVersionChanged: (value) => _version = value,
-                onContentChanged: (value) => _message = value,
+                onVersionChanged: (value) {
+                  _version = value;
+                },
+                onContentChanged: (value) {
+                  _message = value;
+                  _markDirty();
+                },
               ),
             ),
             if (_isAdministrator) ...[
@@ -183,6 +253,7 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
                     _selectUsers = value ?? false;
                     if (!_selectUsers) _selectedUserIds.clear();
                   });
+                  _markDirty();
                 },
         ),
         if (widget.user.grade == UserGrade.SYSTEM_ADMIN_USER)
@@ -192,8 +263,10 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
             controlAffinity: ListTileControlAffinity.leading,
             onChanged: _saving
                 ? null
-                : (value) =>
-                      setState(() => _allCooperators = value ?? false),
+                : (value) => setState(() {
+                    _allCooperators = value ?? false;
+                    _markDirty();
+                  }),
           ),
         const Divider(),
         Expanded(
@@ -218,6 +291,7 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
                                   _selectedUserIds.remove(target.userId);
                                 }
                               });
+                              _markDirty();
                             },
                     );
                   },
@@ -236,7 +310,10 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
             value: _dontShowAgain,
             onChanged: _saving
                 ? null
-                : (value) => setState(() => _dontShowAgain = value ?? false),
+                : (value) => setState(() {
+                    _dontShowAgain = value ?? false;
+                    if (!_isAdministrator) _markDirty();
+                  }),
           ),
           const Text('다시 보지 않기'),
           const SizedBox(width: 12),

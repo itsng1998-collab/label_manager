@@ -132,11 +132,14 @@ void main() {
     ];
     var applyCount = 0;
     var closeCount = 0;
+    final controller = SearchPrintSettingsDialogController();
+    addTearDown(controller.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: SearchPrintSettingsDialog(
+            controller: controller,
             brands: const [brand],
             initialBrand: brand,
             initialLabelSize: labelSize,
@@ -156,6 +159,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'SearchPrintSettingsInitialFocus',
+    );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
@@ -169,6 +176,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('검색출력 설정'), findsOneWidget);
     expect(closeCount, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(closeCount, 1);
+  });
+
+  test('controller exposes dirty and write-busy exit state', () {
+    final controller = SearchPrintSettingsDialogController();
+    addTearDown(controller.dispose);
+
+    expect(controller.snapshot().dirtyWorks, isEmpty);
+    controller.setDirty(true);
+    expect(controller.snapshot().dirtyWorks.single.name, '검색출력 설정');
+    controller.setWriteBusy(true);
+    expect(controller.snapshot().blockingReason, isNotNull);
   });
 }
 

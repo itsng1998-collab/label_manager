@@ -468,6 +468,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       NutritionTypeDialogController();
   final NutritionBoxDialogController _nutritionBoxDialogController =
       NutritionBoxDialogController();
+    final UpdateNoticeDialogController _updateNoticeDialogController =
+      UpdateNoticeDialogController();
+    final SearchPrintSettingsDialogController
+    _searchPrintSettingsDialogController = SearchPrintSettingsDialogController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -496,6 +500,10 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _nutritionTypeLifecycleParticipant;
   OverlayEntry? _nutritionBoxOverlayEntry;
   LifecycleParticipant? _nutritionBoxLifecycleParticipant;
+  OverlayEntry? _updateNoticeOverlayEntry;
+  LifecycleParticipant? _updateNoticeLifecycleParticipant;
+  OverlayEntry? _searchPrintSettingsOverlayEntry;
+  LifecycleParticipant? _searchPrintSettingsLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -5410,6 +5418,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     _nutritionTypeDialogController.dispose();
     _closeNutritionBoxDialog();
     _nutritionBoxDialogController.dispose();
+    _closeUpdateNoticeDialog();
+    _updateNoticeDialogController.dispose();
+    _closeSearchPrintSettingsDialog();
+    _searchPrintSettingsDialogController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
@@ -5687,7 +5699,42 @@ class _HomePageManagerState extends State<HomePageManager> {
     _scaleOutputSessionController.updateConnectInfo(settings);
   }
 
+  Future<void> _requestCloseUpdateNoticeDialog() async {
+    final snapshot = _updateNoticeDialogController.snapshot();
+    if (snapshot.blockingReason != null) return;
+    if (snapshot.dirtyWorks.isNotEmpty) {
+      final discard = await showBlockingModelessOverlayDialog<bool>(
+        context: context,
+        builder: (_, close) => AlertDialog(
+          title: const Text('업데이트 메시지'),
+          content: const Text('저장하지 않은 변경내용을 버리시겠습니까?'),
+          actions: [
+            TextButton(onPressed: () => close(false), child: const Text('취소')),
+            FilledButton(onPressed: () => close(true), child: const Text('확인')),
+          ],
+        ),
+      );
+      if (discard != true) return;
+      for (final work in snapshot.dirtyWorks) {
+        await work.discard();
+      }
+    }
+    _closeUpdateNoticeDialog();
+  }
+
+  void _closeUpdateNoticeDialog() {
+    _updateNoticeOverlayEntry?.remove();
+    _updateNoticeOverlayEntry = null;
+    _updateNoticeDialogController.discard();
+    final participant = _updateNoticeLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _updateNoticeLifecycleParticipant = null;
+    }
+  }
+
   Future<void> _openUpdateNoticeDialog() async {
+    if (_updateNoticeOverlayEntry != null) return;
     final user = User.instance;
     final cooperator = Cooperator.instance;
     if (user == null || cooperator == null) return;
@@ -5701,13 +5748,16 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? await NoticeDAO.selectTargetUsers(cooperator.id)
           : const <NoticeTargetUser>[];
       if (!mounted) return;
-      await showBlockingModelessOverlayDialog<void>(
-        context: context,
-        builder: (dialogContext, close) => UpdateNoticeDialog(
+      late final OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (_) => BlockingModelessDialog(
+          child: UpdateNoticeDialog(
+          controller: _updateNoticeDialogController,
           user: user,
           notice: notice,
           targetUsers: targetUsers,
-          onClose: () => close(null),
+          onClose: _requestCloseUpdateNoticeDialog,
+          onCommitOutcomeUnknown: _closeUpdateNoticeDialog,
           onSave: (request) async {
             switch (request.target) {
               case UpdateNoticeSaveTarget.selectedUsers:
@@ -5730,7 +5780,16 @@ class _HomePageManagerState extends State<HomePageManager> {
             }
           },
         ),
+      ),
       );
+      _updateNoticeOverlayEntry = entry;
+      final participant = LifecycleParticipant(
+        snapshot: _updateNoticeDialogController.snapshot,
+        close: _closeUpdateNoticeDialog,
+      );
+      _updateNoticeLifecycleParticipant = participant;
+      LifecycleManager.instance.addParticipant(participant);
+      Overlay.of(context, rootOverlay: true).insert(entry);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -5741,7 +5800,19 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  void _closeSearchPrintSettingsDialog() {
+    _searchPrintSettingsOverlayEntry?.remove();
+    _searchPrintSettingsOverlayEntry = null;
+    _searchPrintSettingsDialogController.discard();
+    final participant = _searchPrintSettingsLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _searchPrintSettingsLifecycleParticipant = null;
+    }
+  }
+
   Future<void> _openSearchPrintSettingsDialog() async {
+    if (_searchPrintSettingsOverlayEntry != null) return;
     final customer = Customer.instance;
     if (customer == null) return;
     try {
@@ -5749,9 +5820,11 @@ class _HomePageManagerState extends State<HomePageManager> {
           await BrandDAO.selectByCustomerIdByBrandOrder(customer.customerId) ??
           const <Brand>[];
       if (!mounted) return;
-      await showBlockingModelessOverlayDialog<void>(
-        context: context,
-        builder: (dialogContext, close) => SearchPrintSettingsDialog(
+      late final OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (_) => BlockingModelessDialog(
+          child: SearchPrintSettingsDialog(
+          controller: _searchPrintSettingsDialogController,
           brands: brands,
           initialBrand: widget.selectedBrand,
           initialLabelSize: _effectiveLabelSize,
@@ -5782,9 +5855,18 @@ class _HomePageManagerState extends State<HomePageManager> {
             );
             return reloaded!;
           },
-          onClose: () => close(null),
+          onClose: _closeSearchPrintSettingsDialog,
         ),
+      ),
       );
+      _searchPrintSettingsOverlayEntry = entry;
+      final participant = LifecycleParticipant(
+        snapshot: _searchPrintSettingsDialogController.snapshot,
+        close: _closeSearchPrintSettingsDialog,
+      );
+      _searchPrintSettingsLifecycleParticipant = participant;
+      LifecycleManager.instance.addParticipant(participant);
+      Overlay.of(context, rootOverlay: true).insert(entry);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
