@@ -81,6 +81,7 @@ import 'package:label_manager/page_home/customer_manager_dialog.dart';
 import 'package:label_manager/page_home/market_manager_dialog.dart';
 import 'package:label_manager/page_home/user_manager_dialog.dart';
 import 'package:label_manager/page_home/admin_copy_dialog.dart';
+import 'package:label_manager/page_home/search_and_replace_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -404,6 +405,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       MarketManagerController();
   final UserManagerController _userManagerController = UserManagerController();
   final AdminCopyController _adminCopyController = AdminCopyController();
+  final SearchAndReplaceController _searchAndReplaceController =
+      SearchAndReplaceController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -424,6 +427,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _userManagerLifecycleParticipant;
   OverlayEntry? _adminCopyOverlayEntry;
   LifecycleParticipant? _adminCopyLifecycleParticipant;
+  OverlayEntry? _searchAndReplaceOverlayEntry;
+  LifecycleParticipant? _searchAndReplaceLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -536,6 +541,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.manageMarkets: _openMarketManagerDialog,
         AppMenuCommandId.manageUsers: _openUserManagerDialog,
         AppMenuCommandId.copyAdmin: _openAdminCopyDialog,
+        AppMenuCommandId.searchAndReplace: _openSearchAndReplaceDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3315,6 +3321,163 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  Future<void> _requestCloseSearchAndReplaceDialog() async {
+    if (_searchAndReplaceController.writeBusy ||
+        _searchAndReplaceController.activeEditing) {
+      return;
+    }
+    if (_searchAndReplaceController.dirty) {
+      final discard = await showBlockingModelessOverlayDialog<bool>(
+        context: context,
+        builder: (context, close) => AlertDialog(
+          title: const Text('검색 및 치환'),
+          content: const Text('저장하지 않은 변경내용을 버리시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => close(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => close(true),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true) return;
+      final snapshot = _searchAndReplaceController.snapshot();
+      for (final work in snapshot.dirtyWorks) {
+        await work.discard();
+      }
+    }
+    _closeSearchAndReplaceDialog();
+  }
+
+  void _closeSearchAndReplaceDialog() {
+    _searchAndReplaceOverlayEntry?.remove();
+    _searchAndReplaceOverlayEntry = null;
+    final participant = _searchAndReplaceLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _searchAndReplaceLifecycleParticipant = null;
+    }
+  }
+
+  void _openSearchAndReplaceDialog([String initialSearchText = '']) {
+    if (_searchAndReplaceOverlayEntry != null) return;
+    final customerId = Customer.instance?.customerId;
+    if (customerId == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _searchAndReplaceController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '검색 및 치환',
+            width: 1120,
+            height: 720,
+            onClose: _requestCloseSearchAndReplaceDialog,
+            closeEnabled:
+                !_searchAndReplaceController.writeBusy &&
+                !_searchAndReplaceController.activeEditing,
+            child: child!,
+          ),
+          child: SearchAndReplaceDialogContent(
+            controller: _searchAndReplaceController,
+            customerId: customerId,
+            editable: User.instance?.canEdit == true,
+            initialSearchText: initialSearchText,
+            onMoveToEdit: _moveFromSearchAndReplaceToEdit,
+            onMoveToPrint: _moveFromSearchAndReplaceToPrint,
+            onSaved: _reloadSearchAndReplaceCurrentContext,
+            onCommitOutcomeUnknown: _closeSearchAndReplaceDialog,
+          ),
+        ),
+      ),
+    );
+    _searchAndReplaceOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _searchAndReplaceController.snapshot,
+      close: _closeSearchAndReplaceDialog,
+    );
+    _searchAndReplaceLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
+  Future<void> _reloadSearchAndReplaceCurrentContext() async {
+    final labelSize = _effectiveLabelSize;
+    if (labelSize == null) return;
+    final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
+    if (!loaded) throw StateError('현재 라벨 정보를 다시 불러오지 못했습니다.');
+  }
+
+  Future<void> _loadSearchAndReplaceTarget(
+    int brandId,
+    int labelSizeId,
+  ) async {
+    final customerId = Customer.instance?.customerId;
+    if (customerId == null) throw StateError('현재 거래처 정보가 없습니다.');
+    final brands =
+        await BrandDAO.selectByCustomerIdByBrandOrder(customerId) ??
+        const <Brand>[];
+    final brand = brands.firstWhereOrNull((value) => value.brandId == brandId);
+    if (brand == null) throw StateError('이동할 브랜드를 찾을 수 없습니다.');
+    Brand.setDatas(brands);
+    _brands = List<Brand>.from(brands);
+    widget.onBrandChanged(brand);
+
+    final labelSizes =
+        await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
+        const <LabelSize>[];
+    final labelSize = labelSizes.firstWhereOrNull(
+      (value) => value.labelSizeId == labelSizeId,
+    );
+    if (labelSize == null) throw StateError('이동할 라벨 크기를 찾을 수 없습니다.');
+    LabelSize.setDatas(labelSizes);
+    _labelSizesBrandId = brandId;
+    final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
+    if (!loaded) throw StateError('이동할 품목 정보를 불러오지 못했습니다.');
+  }
+
+  void _selectHomeTab(Object value) {
+    final index = _tabs.indexWhere((tab) => tab.value == value);
+    if (index < 0 || _tabController.selectedIndex == index) return;
+    _tabController.selectedIndex = index;
+    _onTabSelection(index, _tabs[index]);
+  }
+
+  Future<void> _moveFromSearchAndReplaceToEdit(
+    SearchReplaceEditTarget target,
+  ) async {
+    await _loadSearchAndReplaceTarget(target.brandId, target.labelSizeId);
+    final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
+    final index = items.indexWhere((value) => value.item.itemId == target.itemId);
+    if (index < 0) throw StateError('이동할 품목을 찾을 수 없습니다.');
+    _selectedItemIndex = index;
+    _selectedItemOfMarket = items[index];
+    _itemDraftController?.setSelection([
+      'item:${target.itemId}',
+    ], anchorRowKey: 'item:${target.itemId}');
+    _searchAndReplaceController.setDirty(false);
+    _closeSearchAndReplaceDialog();
+    _selectHomeTab('items');
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _moveFromSearchAndReplaceToPrint(
+    SearchReplacePrintTarget target,
+  ) async {
+    await _loadSearchAndReplaceTarget(target.brandId, target.labelSizeId);
+    _publishCheckedItemIds = Set<int>.unmodifiable(target.itemIds);
+    _syncLabelPrintRows();
+    _searchAndReplaceController.setDirty(false);
+    _closeSearchAndReplaceDialog();
+    _selectHomeTab('label_print');
+    if (mounted) setState(() {});
+  }
+
   void _openCooperatorManagerDialog() {
     if (_cooperatorManagerOverlayEntry != null) return;
 
@@ -4874,13 +5037,18 @@ class _HomePageManagerState extends State<HomePageManager> {
     _userManagerController.dispose();
     _closeAdminCopyDialog();
     _adminCopyController.dispose();
+    _closeSearchAndReplaceDialog();
+    _searchAndReplaceController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
 
   Future<void> _onTabSearch() async {
     final query = _tabSearchController.text.trim();
-    if (query.isEmpty) return;
+    _openSearchAndReplaceDialog(query);
+    return;
+    // 검색출력모드는 5.3.10에서 이 아래 기존 tab-local 검색과 분기한다.
+    // ignore: dead_code
     final selectedTabValue = _selectedTabValue();
     if (selectedTabValue == 'label_print') {
       final found = _labelPrintSessionController.selectNextExact(query, (

@@ -59,6 +59,18 @@ class ItemOrderUpdate {
   const ItemOrderUpdate({required this.itemId, required this.order});
 }
 
+class ItemElementSearchReplaceUpdate {
+  const ItemElementSearchReplaceUpdate({
+    required this.itemId,
+    required this.element,
+    required this.elementSheet,
+  });
+
+  final int itemId;
+  final String element;
+  final String elementSheet;
+}
+
 class ItemDAO extends DAO {
   static const String UpdateElementSheetSql = '''
     UPDATE BM_RICH_ITEM
@@ -94,6 +106,38 @@ class ItemDAO extends DAO {
     IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @OrderUpdates)
       THROW 51002, 'Item order update count mismatch.', 1;
   ''';
+
+  static const String UpdateSearchReplaceElementSql = '''
+    UPDATE BM_RICH_ITEM
+       SET RICH_ELEMENT=@element,
+           RICH_ELEMENT_SHEET=@elementSheet
+     WHERE RICH_ITEM_ID=@itemId;
+    IF @@ROWCOUNT<>1
+      THROW 51008, 'Search and replace item update count mismatch.', 1;
+  ''';
+
+  static List<DbTransactionStatement> searchReplaceElementStatements(
+    List<ItemElementSearchReplaceUpdate> updates,
+  ) => [
+    for (final update in updates)
+      DbTransactionStatement(
+        sql: UpdateSearchReplaceElementSql,
+        params: {
+          'itemId': update.itemId,
+          'element': update.element,
+          'elementSheet': update.elementSheet,
+        },
+      ),
+  ];
+
+  static Future<void> updateSearchReplaceElements(
+    List<ItemElementSearchReplaceUpdate> updates,
+  ) async {
+    if (updates.isEmpty) return;
+    await DbClient.instance.transaction(
+      searchReplaceElementStatements(updates),
+    );
+  }
 
   static Future<void> updateElementSheetByItemId(
     int itemId,
