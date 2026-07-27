@@ -26,6 +26,7 @@ import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/last_connect.dart';
+import 'package:label_manager/models/login_log.dart';
 import 'database/db_connection_status_icon.dart';
 import 'home_page_manager.dart';
 import 'page_login/startup_dialog.dart';
@@ -252,6 +253,29 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _doLogout(bool isDisconnect) async {
     debugLog(START);
+
+    final customer = Customer.instance;
+    final logoutLog = exitLogoutLogSnapshotFor(
+      loggedIn: _loggedIn,
+      isDisconnect: isDisconnect,
+      isMasterKeyLogin: AdminConnectSession.instance.isMasterKeyLogin,
+      user: User.instance,
+      customerId: customer?.customerId,
+      customerName: customer?.customerName,
+    );
+    if (logoutLog != null) {
+      try {
+        await LoginLogDAO.insertExitLogoutLog(logoutLog);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(content: Text('종료 이력 저장에 실패했습니다.\n$error')),
+            );
+        }
+      }
+    }
 
     User.instance = null;
     Market.instance = null;

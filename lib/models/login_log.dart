@@ -65,6 +65,38 @@ class LoginLog {
   }
 }
 
+class ExitLogoutLogSnapshot {
+  const ExitLogoutLogSnapshot({
+    required this.userId,
+    required this.userGrade,
+    required this.customerId,
+    required this.customerName,
+  });
+
+  final String userId;
+  final UserGrade userGrade;
+  final int customerId;
+  final String customerName;
+}
+
+ExitLogoutLogSnapshot? exitLogoutLogSnapshotFor({
+  required bool loggedIn,
+  required bool isDisconnect,
+  required bool isMasterKeyLogin,
+  required User? user,
+  required int? customerId,
+  required String? customerName,
+}) {
+  if (!loggedIn || !isDisconnect || isMasterKeyLogin) return null;
+  if (user == null || customerId == null || customerName == null) return null;
+  return ExitLogoutLogSnapshot(
+    userId: user.userId,
+    userGrade: user.grade,
+    customerId: customerId,
+    customerName: customerName,
+  );
+}
+
 class LoginLogDAO extends DAO {
   static const String SelectSql = '''
     SELECT
@@ -189,4 +221,14 @@ class LoginLogDAO extends DAO {
       throw Exception('${runtimeLogTag()} $e');
     }
   }
+
+  static Future<void> insertExitLogoutLog(
+    ExitLogoutLogSnapshot snapshot,
+  ) => insertLoginLog(
+    userId: snapshot.userId,
+    userGrade: snapshot.userGrade,
+    customerId: snapshot.customerId,
+    customerName: snapshot.customerName,
+    loginCondition: LoginCondition.LOGOUT,
+  );
 }
