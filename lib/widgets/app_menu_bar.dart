@@ -37,13 +37,11 @@ class _AppMenuBarState extends State<AppMenuBar> {
   };
   final MenuController _overflowController = MenuController();
   final Set<MenuController> _openControllers = {};
-  MenuController? _pendingController;
   bool _menuOpenReported = false;
+  int _closeReportGeneration = 0;
 
   void _handleMenuOpened(MenuController controller) {
-    if (identical(_pendingController, controller)) {
-      _pendingController = null;
-    }
+    _closeReportGeneration += 1;
     _openControllers.add(controller);
     for (final other in _openControllers.toList(growable: false)) {
       if (!identical(other, controller) && other.isOpen) {
@@ -58,31 +56,18 @@ class _AppMenuBarState extends State<AppMenuBar> {
 
   void _handleMenuClosed(MenuController controller) {
     _openControllers.remove(controller);
-    if (_openControllers.isEmpty && _pendingController == null) {
-      _reportAllMenusClosed();
-    }
+    if (_openControllers.isNotEmpty) return;
+    final generation = ++_closeReportGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _closeReportGeneration) return;
+      if (_openControllers.isEmpty) _reportAllMenusClosed();
+    });
   }
 
   void _reportAllMenusClosed() {
     if (!_menuOpenReported) return;
     _menuOpenReported = false;
     widget.onMenuOpenChanged?.call(false);
-  }
-
-  void _openAfterOtherMenuCloses(MenuController controller) {
-    final hasOtherOpen = _openControllers.any(
-      (other) => !identical(other, controller) && other.isOpen,
-    );
-    if (!hasOtherOpen) return;
-    _pendingController = controller;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!controller.isOpen) controller.open();
-      if (identical(_pendingController, controller)) {
-        _pendingController = null;
-        if (_openControllers.isEmpty) _reportAllMenusClosed();
-      }
-    });
   }
 
   @override
@@ -126,21 +111,17 @@ class _AppMenuBarState extends State<AppMenuBar> {
     final controller = _groupControllers[group]!;
     return MenuAnchor(
       controller: controller,
-      consumeOutsideTap: true,
       useRootOverlay: true,
       onOpen: () => _handleMenuOpened(controller),
       onClose: () => _handleMenuClosed(controller),
       menuChildren: _buildCommandMenu(group),
-      builder: (context, menuController, child) => Listener(
-        onPointerDown: (_) => _openAfterOtherMenuCloses(menuController),
-        child: IconButton(
-          key: ValueKey('app-menu-group-${group.name}'),
-          tooltip: presentation.label,
-          icon: Icon(presentation.icon),
-          onPressed: menuController.isOpen
-              ? menuController.close
-              : menuController.open,
-        ),
+      builder: (context, menuController, child) => IconButton(
+        key: ValueKey('app-menu-group-${group.name}'),
+        tooltip: presentation.label,
+        icon: Icon(presentation.icon),
+        onPressed: menuController.isOpen
+            ? menuController.close
+            : menuController.open,
       ),
     );
   }
@@ -148,7 +129,6 @@ class _AppMenuBarState extends State<AppMenuBar> {
   Widget _buildOverflowAnchor(List<AppMenuGroup> visibleGroups) {
     return MenuAnchor(
       controller: _overflowController,
-      consumeOutsideTap: true,
       useRootOverlay: true,
       onOpen: () => _handleMenuOpened(_overflowController),
       onClose: () => _handleMenuClosed(_overflowController),
@@ -161,16 +141,13 @@ class _AppMenuBarState extends State<AppMenuBar> {
             child: Text(_groupPresentation(group).label),
           ),
       ],
-      builder: (context, menuController, child) => Listener(
-        onPointerDown: (_) => _openAfterOtherMenuCloses(menuController),
-        child: IconButton(
-          key: const ValueKey('app-menu-overflow'),
-          tooltip: '메뉴',
-          icon: const Icon(Icons.more_vert),
-          onPressed: menuController.isOpen
-              ? menuController.close
-              : menuController.open,
-        ),
+      builder: (context, menuController, child) => IconButton(
+        key: const ValueKey('app-menu-overflow'),
+        tooltip: '메뉴',
+        icon: const Icon(Icons.more_vert),
+        onPressed: menuController.isOpen
+            ? menuController.close
+            : menuController.open,
       ),
     );
   }

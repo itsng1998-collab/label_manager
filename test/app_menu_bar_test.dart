@@ -309,7 +309,7 @@ void main() {
     await tester.tapAt(const Offset(20, 200));
     await tester.pumpAndSettle();
     expect(AppShortcutBlocker.instance.isBlocked, isFalse);
-    expect(bodyTapCount, 0);
+    expect(bodyTapCount, 1);
   });
 
   testWidgets('menu items keep standard popup spacing in compact theme', (
@@ -369,7 +369,7 @@ void main() {
     expect(find.byKey(const ValueKey('app-menu-command-exit')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('app-menu-group-search')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.byKey(const ValueKey('app-menu-command-exit')), findsNothing);
     expect(
       find.byKey(const ValueKey('app-menu-command-viewPrintHistory')),
