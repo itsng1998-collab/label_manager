@@ -38,6 +38,7 @@ void main() {
       find.byKey(const ValueKey('customerCooperatorSelector')),
     );
     expect(dropdown.enabled, isFalse);
+    expect(dropdown.inputDecorationTheme?.fillColor, const Color(0xFFE9ECEF));
     expect(loadedScopes, ['A']);
     expect(find.text('A 거래처'), findsOneWidget);
   });
@@ -55,6 +56,11 @@ void main() {
         return cooperatorId == 'A' ? const [customerA] : const [];
       },
     );
+
+    final dropdown = tester.widget<DropdownMenu<String>>(
+      find.byKey(const ValueKey('customerCooperatorSelector')),
+    );
+    expect(dropdown.inputDecorationTheme?.fillColor, Colors.white);
 
     await tester.tap(find.byKey(const ValueKey('customerCooperatorSelector')));
     await tester.pumpAndSettle();

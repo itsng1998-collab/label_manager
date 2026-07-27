@@ -323,6 +323,8 @@ class _CustomerManagerDialogContentState
 
   @override
   Widget build(BuildContext context) {
+    final cooperatorSelectionEnabled =
+        widget.cooperatorSelectionEnabled && !_busy;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
@@ -350,9 +352,15 @@ class _CustomerManagerDialogContentState
                   ],
                   enableFilter: false,
                   enableSearch: false,
-                  enabled: widget.cooperatorSelectionEnabled && !_busy,
+                  enabled: cooperatorSelectionEnabled,
+                  inputDecorationTheme: InputDecorationTheme(
+                    filled: true,
+                    fillColor: cooperatorSelectionEnabled
+                        ? Colors.white
+                        : const Color(0xFFE9ECEF),
+                  ),
                   requestFocusOnTap: false,
-                  onSelected: widget.cooperatorSelectionEnabled && !_busy
+                  onSelected: cooperatorSelectionEnabled
                       ? _changeCooperator
                       : null,
                 ),

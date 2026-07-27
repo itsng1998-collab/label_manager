@@ -1,3 +1,10 @@
+# 완료: 거래처 관리 협력업체 selector 활성 배경
+- 원인: `DropdownMenu`에 fill color가 없어 활성 상태에서도 modeless dialog 배경색이 비쳐 비활성처럼 보인다.
+- 편집: `customerCooperatorSelectionEnabled`에 따라 활성은 흰색, 비활성은 `#E9ECEF` 배경을 사용하고 widget test에서 두 상태를 검증한다.
+- focused 검증: `test/customer_manager_dialog_test.dart` 8 passed, 0 failed.
+- 최종 검증: 수정 Dart 파일 정적 오류 없음, 거래처 관리 dialog/DAO 테스트 13 passed, 0 failed. 들여쓰기 정리 후 focused test 8 passed, 0 failed.
+- stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+
 # 완료: 거래처 관리 협력업체 드롭다운
 - 원인: 거래처 관리창은 root `OverlayEntry`인데 협력업체 selector가 Navigator route 기반 `DropdownButtonFormField`를 사용하여 메뉴가 dialog 뒤에 가려지고, 재클릭 시 `_dropdownRoute == null` assertion이 발생한다.
 - 수정 예정: `lib/page_home/customer_manager_dialog.dart`의 selector를 modeless overlay 위에 표시되는 `DropdownMenu`로 교체하고 `test/customer_manager_dialog_test.dart`에 실제 OverlayEntry 회귀 테스트를 추가한다.
