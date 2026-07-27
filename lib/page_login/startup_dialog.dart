@@ -1,14 +1,10 @@
 // ignore_for_file: no_leading_underscores_for_local_identifiers
 
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:label_manager/utils/on_messages.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:label_manager/core/bootstrap.dart';
 import 'package:label_manager/models/login_log.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
@@ -24,6 +20,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/widgets/notice_display.dart';
 
 /// 독립적으로 호출 가능한 시작 다이얼로그
 class StartupDialog extends StatefulWidget {
@@ -266,57 +263,16 @@ class _DialogBodyState extends State<_DialogBody> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-                return CustomScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: _LabeledField(
-                              label: '업데이트 버전',
-                              child: Text(widget.noticeVersion),
-                            ),
-                          ),
-                          const Expanded(flex: 2, child: SizedBox.shrink()),
-                        ],
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: NoticeDisplayPanel(
+                        version: widget.noticeVersion,
+                        content: widget.noticeContent,
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    SliverFillRemaining(
-                      hasScrollBody: keyboardOpen,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _InlayPanel(
-                                    margin: const EdgeInsets.only(top: 2),
-                                    child: ScrollConfiguration(
-                                      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: true),
-                                      child: SingleChildScrollView(
-                                        physics: const ClampingScrollPhysics(),
-                                        child: DefaultTextStyle.merge(
-                                          style: const TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontSize: 14,
-                                            color: Color(0xFF1F1F1F),
-                                          ),
-                                          child: Text(widget.noticeContent),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Expanded(child: _AdBanner()),
-                              ],
-                            ),
-                          ),
+                    if (!keyboardOpen) ...[
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -342,9 +298,7 @@ class _DialogBodyState extends State<_DialogBody> {
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ],
                 );
               },
@@ -962,95 +916,6 @@ class _InlayPanel extends StatelessWidget {
       decoration: deco,
       padding: lmInsetsAll(isAndroid ? 12 : 14),
       child: child,
-    );
-  }
-}
-
-class _AdBanner extends StatefulWidget {
-  const _AdBanner();
-
-  @override
-  State<_AdBanner> createState() => _AdBannerState();
-}
-
-class _AdBannerState extends State<_AdBanner> {
-  Uint8List? _bytes;
-  bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (isShowLogo) _loadAd();
-  }
-
-  Future<void> _loadAd() async {
-    setState(() => _loading = true);
-    const url = 'https://itsng.co.kr/LabelManager/LabelManager_ITSad.bmp';
-
-    try {
-      final bust = DateTime.now().millisecondsSinceEpoch.toString();
-      final uri = Uri.parse(url).replace(queryParameters: {'_ts': bust});
-      final resp = await http
-          .get(uri, headers: {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'})
-          .timeout(const Duration(seconds: 10));
-
-      if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
-        if (!mounted) return;
-        setState(() => _bytes = resp.bodyBytes);
-      } else {
-        throw Exception('HTTP ${resp.statusCode}');
-      }
-    } catch (_) {
-      try {
-        final fb = await rootBundle.load('assets/images/LabelManager_ITSad.bmp');
-        if (!mounted) return;
-        setState(() => _bytes = fb.buffer.asUint8List());
-      } catch (_) {
-        // 폴백 자산 없음: 무시
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget content;
-    if (_bytes != null) {
-      content = ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Image.memory(
-          _bytes!,
-          fit: BoxFit.fill,
-          alignment: Alignment.center,
-        ),
-      );
-    } else {
-      content = Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFEFEFEF),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0x11000000)),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          _loading ? '다운로드 중...' : '광고 배너 이미지',
-          style: const TextStyle(color: Color(0xFF666666)),
-        ),
-      );
-    }
-
-    return InkWell(
-      onTap: _loading
-        ? null
-        : () async {
-            final url = Uri.parse('https://itsngshop.com/index.html');
-            if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-              // 무시
-            }
-          },
-      borderRadius: BorderRadius.circular(6),
-      child: content,
     );
   }
 }

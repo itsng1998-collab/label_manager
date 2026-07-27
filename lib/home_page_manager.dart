@@ -53,6 +53,7 @@ import 'package:label_manager/models/label_column_save.dart';
 import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/models/notice.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/models/update_item.dart';
 import 'package:label_manager/models/update_item_column_content.dart';
@@ -85,6 +86,7 @@ import 'package:label_manager/page_home/search_and_replace_dialog.dart';
 import 'package:label_manager/page_home/item_info_dialog.dart';
 import 'package:label_manager/page_home/nutrition_type_dialog.dart';
 import 'package:label_manager/page_home/nutrition_box_dialog.dart';
+import 'package:label_manager/page_home/update_notice_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -607,6 +609,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           widget.controller.openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
           widget.controller.openScaleOutputPrinterSettings,
+        AppMenuCommandId.updateNotice: _openUpdateNoticeDialog,
         AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
         AppMenuCommandId.viewContentHistory: _openContentSaveHistoryDialog,
         AppMenuCommandId.viewCommonLabelHistory: _openCommonLabelHistoryDialog,
@@ -5611,6 +5614,60 @@ class _HomePageManagerState extends State<HomePageManager> {
     await DbScaleConnectInfoHelper.saveConnectInfo(settings);
     if (!mounted) return;
     _scaleOutputSessionController.updateConnectInfo(settings);
+  }
+
+  Future<void> _openUpdateNoticeDialog() async {
+    final user = User.instance;
+    final cooperator = Cooperator.instance;
+    if (user == null || cooperator == null) return;
+
+    try {
+      final notice = await NoticeDAO.selectNoticeByUserId(user.userId);
+      final isAdministrator =
+          user.grade == UserGrade.SYSTEM_ADMIN_USER ||
+          user.grade == UserGrade.COOP_ADMIN_USER;
+      final targetUsers = isAdministrator
+          ? await NoticeDAO.selectTargetUsers(cooperator.id)
+          : const <NoticeTargetUser>[];
+      if (!mounted) return;
+      await showBlockingModelessOverlayDialog<void>(
+        context: context,
+        builder: (dialogContext, close) => UpdateNoticeDialog(
+          user: user,
+          notice: notice,
+          targetUsers: targetUsers,
+          onClose: () => close(null),
+          onSave: (request) async {
+            switch (request.target) {
+              case UpdateNoticeSaveTarget.selectedUsers:
+                await NoticeDAO.updateSelectedUsers(
+                  userIds: request.selectedUserIds,
+                  message: request.message!,
+                );
+              case UpdateNoticeSaveTarget.allCooperators:
+                await NoticeDAO.updateAll(request.message!);
+              case UpdateNoticeSaveTarget.currentCooperator:
+                await NoticeDAO.updateCooperator(
+                  cooperatorId: cooperator.id,
+                  message: request.message!,
+                );
+              case UpdateNoticeSaveTarget.currentUser:
+                await NoticeDAO.updateUserState(
+                  userId: user.userId,
+                  dontShowAgain: request.dontShowAgain,
+                );
+            }
+          },
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(content: Text('업데이트 메시지를 불러오지 못했습니다.\n$error')),
+        );
+    }
   }
 
   Future<void> _connectScaleOutput() async {
