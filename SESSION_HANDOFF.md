@@ -1,3 +1,9 @@
+# 완료: 관리자 복사 UI 재배치
+- 원인: 포팅 UI가 `980x620` frame, 큰 divider와 `Spacer`를 사용해 레거시 `247x220` dialog보다 세로 여백이 많고 옵션 체크박스가 라벨 뒤에 표시됐다.
+- 편집: frame을 `820x460`으로 줄이고 원본/대상을 2열 비교 구조로 배치했다. 각 열은 거래처/브랜드/라벨 크기 행을 맞추고, 복사 옵션은 `Checkbox + 라벨` 순서로 하단에 모았다.
+- 검증: 실제 frame content 크기 `820x424`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 11 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
+- stage/commit 대상: `lib/page_home/admin_copy_dialog.dart`, `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+
 # 완료: 사용자 관리 selector 라벨 추가
 - 원인: 사용자 관리 상단의 협력업체/거래처/지점 selector가 값만 연속 표시되어 각 범위를 구분하기 어렵다.
 - 편집: 각 selector 왼쪽에 고정 폭 라벨을 추가하고 그룹 간격을 16px로 통일했다. `라벨 + selector`를 `Wrap` 그룹으로 구성해 좁은 창에서는 그룹 단위로 자연스럽게 줄바꿈된다.

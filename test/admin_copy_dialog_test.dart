@@ -25,8 +25,8 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: SizedBox(
-            width: 900,
-            height: 600,
+            width: 820,
+            height: 424,
             child: AdminCopyDialogContent(
               controller: AdminCopyController(),
               initialCooperator: cooperator,
@@ -85,6 +85,31 @@ void main() {
       find.byKey(const ValueKey('adminCopyTargetCustomer')),
     );
     expect(targetAfter.onChanged, isNotNull);
+  });
+
+  testWidgets('uses compact comparison layout with leading checkboxes', (
+    tester,
+  ) async {
+    await pumpDialog(tester, copyBrand: (_) async {});
+
+    final sourceCustomer = tester.getRect(
+      find.byKey(const ValueKey('adminCopySourceCustomer')),
+    );
+    final targetCustomer = tester.getRect(
+      find.byKey(const ValueKey('adminCopyTargetCustomer')),
+    );
+    expect(sourceCustomer.top, moreOrLessEquals(targetCustomer.top));
+    expect(sourceCustomer.right, lessThan(targetCustomer.left));
+
+    final brandCheckbox = tester.getRect(
+      find.byKey(const ValueKey('adminCopyWholeBrand')),
+    );
+    final brandLabel = tester.getRect(find.text('브랜드 복사'));
+    expect(brandCheckbox.right, lessThanOrEqualTo(brandLabel.left));
+    expect(
+      tester.getBottomRight(find.byKey(const ValueKey('adminCopyExecute'))).dy,
+      lessThan(430),
+    );
   });
 
   testWidgets('brand copy is enabled by target customer event', (

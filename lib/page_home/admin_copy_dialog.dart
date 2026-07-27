@@ -368,73 +368,59 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.all(16),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _selector<String>(
-          key: 'adminCopyCooperator',
+        _labeledSelector(
           label: '협력업체',
-          value: _cooperatorId,
-          enabled: widget.cooperatorSelectionEnabled,
-          items: [
-            for (final value in _cooperators)
-              DropdownMenuItem(value: value.id, child: Text(value.name)),
+          child: _selector<String>(
+            key: 'adminCopyCooperator',
+            value: _cooperatorId,
+            enabled: widget.cooperatorSelectionEnabled,
+            items: [
+              for (final value in _cooperators)
+                DropdownMenuItem(value: value.id, child: Text(value.name)),
+            ],
+            onChanged: _changeCooperator,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _copyScopePanel(source: true),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _copyScopePanel(source: false),
+            ),
           ],
-          onChanged: _changeCooperator,
+        ),
+        const Divider(height: 24),
+        Row(
+          children: [
+            _copyOption(
+              key: 'adminCopyWholeBrand',
+              label: '브랜드 복사',
+              value: _copyWholeBrand,
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() => _copyWholeBrand = value),
+            ),
+            const SizedBox(width: 32),
+            _copyOption(
+              key: 'adminCopyItems',
+              label: '품목까지 복사',
+              value: _copyItems,
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() => _copyItems = value),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CheckboxListTile(
-                key: const ValueKey('adminCopyWholeBrand'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('브랜드 복사'),
-                value: _copyWholeBrand,
-                onChanged: _busy
-                    ? null
-                    : (value) => setState(() => _copyWholeBrand = value!),
-              ),
-            ),
-            Expanded(
-              child: CheckboxListTile(
-                key: const ValueKey('adminCopyItems'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('품목까지 복사'),
-                value: _copyItems,
-                onChanged: _busy
-                    ? null
-                    : (value) => setState(() => _copyItems = value!),
-              ),
-            ),
-          ],
-        ),
-        const Divider(height: 28),
-        Text('원본', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _customerSelector(true)),
-            const SizedBox(width: 12),
-            Expanded(child: _brandSelector(true)),
-            const SizedBox(width: 12),
-            Expanded(child: _labelSizeSelector(true)),
-          ],
-        ),
-        const Divider(height: 36),
-        Text('대상', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _customerSelector(false)),
-            const SizedBox(width: 12),
-            Expanded(child: _brandSelector(false)),
-            const SizedBox(width: 12),
-            Expanded(child: _labelSizeSelector(false)),
-          ],
-        ),
-        const Spacer(),
         Align(
           alignment: Alignment.centerRight,
           child: FilledButton.icon(
@@ -448,9 +434,56 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     ),
   );
 
+  Widget _copyScopePanel({required bool source}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        source ? '원본' : '대상',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      const SizedBox(height: 12),
+      _labeledSelector(
+        label: '거래처',
+        child: _customerSelector(source),
+      ),
+      const SizedBox(height: 8),
+      _labeledSelector(label: '브랜드', child: _brandSelector(source)),
+      const SizedBox(height: 8),
+      _labeledSelector(
+        label: '라벨 크기',
+        child: _labelSizeSelector(source),
+      ),
+    ],
+  );
+
+  Widget _labeledSelector({required String label, required Widget child}) => Row(
+    children: [
+      SizedBox(width: 72, child: Text(label)),
+      Expanded(child: child),
+    ],
+  );
+
+  Widget _copyOption({
+    required String key,
+    required String label,
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+  }) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Checkbox(
+        key: ValueKey(key),
+        value: value,
+        onChanged: onChanged == null
+            ? null
+            : (nextValue) => onChanged(nextValue == true),
+      ),
+      Text(label),
+    ],
+  );
+
   Widget _customerSelector(bool source) => _selector<int>(
     key: source ? 'adminCopySourceCustomer' : 'adminCopyTargetCustomer',
-    label: '거래처',
     value: source ? _sourceCustomerId : _targetCustomerId,
     enabled: source || _targetCustomerEnabled,
     items: [
@@ -467,7 +500,6 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     final values = source ? _sourceBrands : _targetBrands;
     return _selector<int>(
       key: source ? 'adminCopySourceBrand' : 'adminCopyTargetBrand',
-      label: '브랜드',
       value: source ? _sourceBrandId : _targetBrandId,
       enabled: source ? _sourceCustomerId != null : _targetBrandEnabled,
       items: [
@@ -485,7 +517,6 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     final values = source ? _sourceLabelSizes : _targetLabelSizes;
     return _selector<int>(
       key: source ? 'adminCopySourceLabelSize' : 'adminCopyTargetLabelSize',
-      label: '라벨 크기',
       value: source ? _sourceLabelSizeId : _targetLabelSizeId,
       enabled: source ? _sourceLabelSizeEnabled : _targetLabelSizeEnabled,
       items: [
@@ -503,7 +534,6 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
 
   Widget _selector<T>({
     required String key,
-    required String label,
     required T? value,
     required bool enabled,
     required List<DropdownMenuItem<T>> items,
@@ -511,7 +541,6 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
   }) => ModelessDropdownFormField<T>(
     key: ValueKey(key),
     initialValue: items.any((item) => item.value == value) ? value : null,
-    decoration: InputDecoration(labelText: label),
     items: items,
     onChanged: enabled && !_busy ? onChanged : null,
   );
