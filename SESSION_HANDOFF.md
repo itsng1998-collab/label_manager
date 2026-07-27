@@ -3,6 +3,7 @@
 - 편집: 공용 선택 항목 영역을 `Alignment.centerLeft`로 정렬하고 지점 관리 협력업체/거래처 selector의 40px 높이와 라벨 중앙 정렬 테스트를 추가했다.
 - 검증: 공용 드롭다운 사용 dialog와 지점 관리 dialog/DAO 테스트 36 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없다.
 - stage/commit 대상: `lib/widgets/modeless_dropdown_form_field.dart`, `test/modeless_dropdown_form_field_test.dart`, `test/market_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `828b503` (`지점 관리 드롭다운 정렬 통일`).
 
 # 완료: 일반 사용자 수동 테스트 override 제거
 - 원인: 일반 권한 수동 테스트가 끝나 `User.clientUserTestOverrideId`로 특정 ID의 DB 등급을 강제 변경할 필요가 없어졌다.
