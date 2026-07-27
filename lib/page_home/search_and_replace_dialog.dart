@@ -649,7 +649,11 @@ class _SearchAndReplaceDialogContentState
                         if (!_useBrand) _useLabelSize = false;
                       }),
               ),
-              const Text('브랜드'),
+              const Text(
+                '브랜드',
+                key: ValueKey('searchReplaceBrandLabel'),
+              ),
+              const SizedBox(width: 8),
               SizedBox(
                 width: 190,
                 child: ModelessDropdownFormField<int>(
@@ -675,7 +679,11 @@ class _SearchAndReplaceDialogContentState
                     ? (value) => setState(() => _useLabelSize = value == true)
                     : null,
               ),
-              const Text('라벨 크기'),
+              const Text(
+                '라벨 크기',
+                key: ValueKey('searchReplaceLabelSizeLabel'),
+              ),
+              const SizedBox(width: 8),
               SizedBox(
                 width: 190,
                 child: ModelessDropdownFormField<int>(

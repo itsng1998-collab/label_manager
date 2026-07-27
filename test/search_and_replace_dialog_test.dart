@@ -130,6 +130,26 @@ void main() {
     expect(labelSelector.onChanged, isNotNull);
   });
 
+  testWidgets('filter labels leave space before dropdowns', (tester) async {
+    await pumpContent(tester, editable: true);
+
+    final brandLabel = tester.getRect(
+      find.byKey(const ValueKey('searchReplaceBrandLabel')),
+    );
+    final brandSelector = tester.getRect(
+      find.byKey(const ValueKey('searchReplaceBrand')),
+    );
+    final labelSizeLabel = tester.getRect(
+      find.byKey(const ValueKey('searchReplaceLabelSizeLabel')),
+    );
+    final labelSizeSelector = tester.getRect(
+      find.byKey(const ValueKey('searchReplaceLabelSize')),
+    );
+
+    expect(brandSelector.left - brandLabel.right, 8);
+    expect(labelSizeSelector.left - labelSizeLabel.right, 8);
+  });
+
   testWidgets('read only user keeps search and move commands only', (
     tester,
   ) async {
