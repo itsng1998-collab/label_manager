@@ -7,6 +7,7 @@
 - focused 검증 완료: `test/customer_manager_dialog_test.dart` 8 passed, 0 failed.
 - 최종 검증: 수정 Dart 파일 format 완료, 정적 오류 없음, `customer_manager_dialog_test.dart` + `customer_manager_dao_test.dart` 13 passed, 0 failed.
 - stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+- 구현 커밋: `152df06` (`거래처 협력업체 메뉴 표시 수정`).
 
 ## 다음 세션 시작 문구
 - SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행해줘
