@@ -113,6 +113,30 @@ void main() {
         settings: const LabelPrintSettingsSnapshot.empty(),
       );
 
+  test('transient issue rows restore edited session rows and selection', () {
+    final first = _item(10, '첫째', copies: 1);
+    final second = _item(20, '둘째', copies: 2);
+    final transient = _item(30, '검색 품목', copies: 3);
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    controller.syncCheckedItems(
+      baselineItems: [first, second],
+      checkedItemIds: const <int>{10, 20},
+      createRow: createRow,
+    );
+    controller.editCopies(10, 7);
+    controller.selectItem(20);
+
+    final snapshot = controller.replaceRowsForIssue([createRow(transient)]);
+    expect(controller.rows.single.itemId, 30);
+    expect(controller.selectedItemId, 30);
+
+    controller.restoreRowsAfterIssue(snapshot);
+    expect(controller.rows.map((row) => row.itemId), [10, 20]);
+    expect(controller.rows.first.copies, 7);
+    expect(controller.selectedItemId, 20);
+  });
+
   test('session keeps baseline order and discards unchecked row edits', () {
     final first = _item(10, '첫째', copies: 1);
     final second = _item(20, '둘째', copies: 2);

@@ -225,6 +225,17 @@ class LabelPrintRowDraft {
 
 const Object _unchanged = Object();
 
+@immutable
+class LabelPrintRowsSnapshot {
+  const LabelPrintRowsSnapshot({
+    required this.rows,
+    required this.selectedItemId,
+  });
+
+  final List<LabelPrintRowDraft> rows;
+  final int? selectedItemId;
+}
+
 class LabelPrintSessionController extends ChangeNotifier {
   LabelPrintSessionController({
     this.settings = const LabelPrintSettingsSnapshot.empty(),
@@ -247,6 +258,23 @@ class LabelPrintSessionController extends ChangeNotifier {
   int get issueTotalUnits => _issueTotalUnits;
 
   void refreshPreview() => notifyListeners();
+
+  LabelPrintRowsSnapshot replaceRowsForIssue(List<LabelPrintRowDraft> rows) {
+    final snapshot = LabelPrintRowsSnapshot(
+      rows: List<LabelPrintRowDraft>.unmodifiable(_rows),
+      selectedItemId: _selectedItemId,
+    );
+    _rows = List<LabelPrintRowDraft>.unmodifiable(rows);
+    _selectedItemId = _rows.firstOrNull?.itemId;
+    notifyListeners();
+    return snapshot;
+  }
+
+  void restoreRowsAfterIssue(LabelPrintRowsSnapshot snapshot) {
+    _rows = snapshot.rows;
+    _selectedItemId = snapshot.selectedItemId;
+    notifyListeners();
+  }
 
   bool beginIssue() {
     if (_busy) return false;

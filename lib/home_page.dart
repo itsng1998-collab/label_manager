@@ -55,6 +55,7 @@ class _HomePageState extends State<HomePage> {
   bool _isExiting = false;
   bool _loggedIn = false;
   bool _contextSwitching = false;
+  bool _searchPrintModeActive = false;
   int _managerSessionGeneration = 0;
   Future<void>? _loginToServerDbFuture;
   LifecycleExitSnapshotProvider? _exitSnapshotProvider;
@@ -547,6 +548,7 @@ class _HomePageState extends State<HomePage> {
             builder: (context, child) => AppMenuBar(
               title: Text('$APP_TITLE v$appVersion'),
               commandStates: _appMenuController.commandStates,
+              searchPrintModeActive: _searchPrintModeActive,
               onCommandSelected: (id) {
                 unawaited(_appMenuController.execute(id));
               },
@@ -591,6 +593,12 @@ class _HomePageState extends State<HomePage> {
                 key: ValueKey(_managerSessionGeneration),
                 appMenuController: _appMenuController,
                 controller: _homePageManagerController,
+                searchPrintModeActive: _searchPrintModeActive,
+                onToggleSearchPrintMode: () {
+                  setState(
+                    () => _searchPrintModeActive = !_searchPrintModeActive,
+                  );
+                },
                 adminCopyCooperatorSelectionEnabled:
                     User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER,
                 customerCooperatorSelectionEnabled:

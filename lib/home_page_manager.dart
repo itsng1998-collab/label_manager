@@ -41,6 +41,7 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_print_auto_increment.dart';
 import 'package:label_manager/models/scale_output.dart';
+import 'package:label_manager/models/search_print.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_print_persistence.dart';
@@ -71,6 +72,7 @@ import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/automatic_item_update_page.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
 import 'package:label_manager/page_home/scale_output_page.dart';
+import 'package:label_manager/page_home/search_print_command.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
@@ -249,6 +251,8 @@ class HomePageManagerController {
 class HomePageManager extends StatefulWidget {
   final AppMenuController appMenuController;
   final HomePageManagerController controller;
+  final bool searchPrintModeActive;
+  final VoidCallback onToggleSearchPrintMode;
   final bool adminCopyCooperatorSelectionEnabled;
   final bool customerCooperatorSelectionEnabled;
   final CustomerConnector onCustomerAdminConnect;
@@ -269,6 +273,8 @@ class HomePageManager extends StatefulWidget {
     super.key,
     required this.appMenuController,
     required this.controller,
+    required this.searchPrintModeActive,
+    required this.onToggleSearchPrintMode,
     required this.adminCopyCooperatorSelectionEnabled,
     required this.customerCooperatorSelectionEnabled,
     required this.onCustomerAdminConnect,
@@ -358,6 +364,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   static const double _itemPreviewTableInset = 10.0;
 
   late TabbedViewController _tabController;
+  Object? _searchPrintModeLockedTabValue;
   final TextEditingController _tabSearchController = TextEditingController();
   final ItemManageController _itemManageController = ItemManageController();
   final AutoItemUpdatePageController _autoItemUpdatePageController =
@@ -610,6 +617,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.scaleOutputPrinterSettings:
           widget.controller.openScaleOutputPrinterSettings,
         AppMenuCommandId.updateNotice: _openUpdateNoticeDialog,
+        AppMenuCommandId.searchPrintMode: widget.onToggleSearchPrintMode,
         AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
         AppMenuCommandId.viewContentHistory: _openContentSaveHistoryDialog,
         AppMenuCommandId.viewCommonLabelHistory: _openCommonLabelHistoryDialog,
@@ -1163,6 +1171,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     super.initState();
     _currentLabelSize = widget.selectedLabelSize;
     _tabController = _createTabController();
+    if (widget.searchPrintModeActive) {
+      _searchPrintModeLockedTabValue = _selectedTabValue();
+    }
     _labelPrintSessionController.addListener(_handleLabelPrintChanged);
     _scaleOutputSessionController.addListener(_handleScaleOutputChanged);
     widget.controller.attach(
@@ -1183,6 +1194,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   @override
   void didUpdateWidget(covariant HomePageManager oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.searchPrintModeActive != widget.searchPrintModeActive) {
+      _searchPrintModeLockedTabValue = widget.searchPrintModeActive
+          ? _selectedTabValue()
+          : null;
+    }
     if (oldWidget.onExitSnapshotProviderChanged !=
         widget.onExitSnapshotProviderChanged) {
       oldWidget.onExitSnapshotProviderChanged?.call(null);
@@ -2861,6 +2877,19 @@ class _HomePageManagerState extends State<HomePageManager> {
       traceId: _lastItemDraftCancelTraceId,
     );
     final currentTabValue = _selectedTabValue();
+    if (searchPrintModeBlocksTabSelection(
+      active: widget.searchPrintModeActive,
+      currentTab: _searchPrintModeLockedTabValue,
+      requestedTab: tab?.value,
+    )) {
+      final revertIndex = _tabs.indexWhere(
+        (candidate) => candidate.value == _searchPrintModeLockedTabValue,
+      );
+      if (revertIndex >= 0 && _tabController.selectedIndex != revertIndex) {
+        _tabController.selectedIndex = revertIndex;
+      }
+      return;
+    }
     final leavingItems = currentTabValue == 'items' && tab?.value != 'items';
     final leavingAutoUpdate =
         currentTabValue == 'auto_update' && tab?.value != 'auto_update';
@@ -3070,6 +3099,23 @@ class _HomePageManagerState extends State<HomePageManager> {
       return true;
     }
     final keyboard = HardwareKeyboard.instance;
+    if (searchPrintModeShortcutPressed(
+      key: key,
+      modifierPressed:
+        keyboard.isAltPressed ||
+        keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isShiftPressed,
+    )) {
+      widget.onToggleSearchPrintMode();
+      return true;
+    }
+    if (widget.searchPrintModeActive &&
+        (key == LogicalKeyboardKey.f1 ||
+            key == LogicalKeyboardKey.f2 ||
+            key == LogicalKeyboardKey.f3)) {
+      return true;
+    }
     if (key == LogicalKeyboardKey.f5 &&
         !keyboard.isAltPressed &&
         !keyboard.isControlPressed &&
@@ -5360,6 +5406,21 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Future<void> _onTabSearch() async {
     final query = _tabSearchController.text.trim();
+    if (widget.searchPrintModeActive) {
+      try {
+        await runSearchPrintInputCommand(
+          controller: _tabSearchController,
+          issue: _issueSearchPrint,
+        );
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text('검색출력 실패: $error')));
+        }
+      }
+      return;
+    }
     _openSearchAndReplaceDialog(query);
     return;
     // 검색출력모드는 5.3.10에서 이 아래 기존 tab-local 검색과 분기한다.
@@ -5732,8 +5793,48 @@ class _HomePageManagerState extends State<HomePageManager> {
     });
   }
 
-  Future<void> _issueLabelPrint() async {
-    if (!_labelPrintSessionController.beginIssue()) return;
+  Future<void> _issueSearchPrint(String query) async {
+    if (query.isEmpty) throw StateError('검색할 데이터가 없습니다.');
+    final labelSize = _effectiveLabelSize;
+    if (labelSize == null) throw StateError('현재 라벨을 확인할 수 없습니다.');
+    final result = await SearchPrintDAO.selectFirst(
+      labelSizeId: labelSize.labelSizeId,
+      query: query,
+    );
+    if (result == null) throw StateError('일치하는 품목이 없습니다.');
+    final item = searchPrintFindBaselineItem(
+      ItemOfMarket.datas ?? const <ItemOfMarket>[],
+      result.itemId,
+    );
+    final draftController = _itemDraftController;
+    if (item == null || draftController == null) {
+      throw StateError('발행할 품목 정보를 확인할 수 없습니다.');
+    }
+    final row = LabelPrintRowDraft.fromBaseline(
+      item: item,
+      labelSize: labelSize,
+      copies: resolveLabelPrintCopies(
+        item: item,
+        columns: TColumn.datas ?? const <TColumn>[],
+        columnContents: draftController.scopedColumnContents,
+      ),
+      settings: _labelPrintSessionController.settings,
+    );
+    await _issueLabelPrint(rowsOverride: [row]);
+  }
+
+  Future<void> _issueLabelPrint({
+    List<LabelPrintRowDraft>? rowsOverride,
+  }) async {
+    final rowsSnapshot = rowsOverride == null
+        ? null
+        : _labelPrintSessionController.replaceRowsForIssue(rowsOverride);
+    if (!_labelPrintSessionController.beginIssue()) {
+      if (rowsSnapshot != null) {
+        _labelPrintSessionController.restoreRowsAfterIssue(rowsSnapshot);
+      }
+      return;
+    }
     final originalSelection = _labelPrintSessionController.selectedItemId;
     final requestedAt = DateTime.now();
     _labelPrintRenderReferenceAt = requestedAt;
@@ -6040,6 +6141,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         _labelPrintSessionController.selectItem(originalSelection);
       }
       _labelPrintSessionController.endIssue();
+      if (rowsSnapshot != null) {
+        _labelPrintSessionController.restoreRowsAfterIssue(rowsSnapshot);
+      }
     }
   }
 
@@ -6506,7 +6610,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         children: [
           _buildItemPreviewButton(context),
           _buildCommonLabelPreviewButton(context),
-          if (itemManagerSearchVisibleForTab(_selectedTabValue())) ...[
+          if (searchPrintInputVisible(
+            active: widget.searchPrintModeActive,
+            standardVisible: itemManagerSearchVisibleForTab(
+              _selectedTabValue(),
+            ),
+          )) ...[
             Transform.translate(
               offset: const Offset(0, -1),
               child: SizedBox(
@@ -6550,12 +6659,12 @@ class _HomePageManagerState extends State<HomePageManager> {
                   key: const ValueKey('item-manager-search-button'),
                   onPressed: _onTabSearch,
                   icon: Icon(
-                    Icons.search,
+                    widget.searchPrintModeActive ? Icons.print : Icons.search,
                     size: lmSize(14),
                     color: onButtonColor,
                   ),
                   label: Text(
-                    '검색',
+                    searchPrintButtonLabel(widget.searchPrintModeActive),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
