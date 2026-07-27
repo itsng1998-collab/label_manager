@@ -14,6 +14,11 @@ class AppMenuBar extends StatelessWidget {
   static const double _minimumTitleWidth = 400;
   static const double _groupButtonWidth = 48;
   static const double _menuGap = 8;
+  static final ButtonStyle _menuItemStyle = MenuItemButton.styleFrom(
+    minimumSize: const Size(64, kMinInteractiveDimension),
+    visualDensity: VisualDensity.standard,
+    tapTargetSize: MaterialTapTargetSize.padded,
+  );
 
   final Widget title;
   final Map<AppMenuCommandId, AppMenuCommandState> commandStates;
@@ -58,6 +63,7 @@ class AppMenuBar extends StatelessWidget {
   Widget _buildGroupAnchor(AppMenuGroup group) {
     final presentation = _groupPresentation(group);
     return MenuAnchor(
+      consumeOutsideTap: true,
       onOpen: () => onMenuOpenChanged?.call(true),
       onClose: () => onMenuOpenChanged?.call(false),
       menuChildren: _buildCommandMenu(group),
@@ -72,12 +78,14 @@ class AppMenuBar extends StatelessWidget {
 
   Widget _buildOverflowAnchor(List<AppMenuGroup> visibleGroups) {
     return MenuAnchor(
+      consumeOutsideTap: true,
       onOpen: () => onMenuOpenChanged?.call(true),
       onClose: () => onMenuOpenChanged?.call(false),
       menuChildren: [
         for (final group in visibleGroups)
           SubmenuButton(
             key: ValueKey('app-menu-overflow-group-${group.name}'),
+            style: _menuItemStyle,
             menuChildren: _buildCommandMenu(group),
             child: Text(_groupPresentation(group).label),
           ),
@@ -114,6 +122,7 @@ class AppMenuBar extends StatelessWidget {
           children.add(
             SubmenuButton(
               key: const ValueKey('app-menu-submenu-searchPrint'),
+              style: _menuItemStyle,
               menuChildren: submenuCommands
                   .map(_buildCommandItem)
                   .toList(growable: false),
@@ -159,6 +168,7 @@ class AppMenuBar extends StatelessWidget {
       excludeSemantics: true,
       child: MenuItemButton(
         key: ValueKey('app-menu-command-${command.id.name}'),
+        style: _menuItemStyle,
         onPressed: onPressed,
         leadingIcon: leadingIcon,
         trailingIcon: command.shortcutLabel == null

@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/app_shortcut_blocker.dart';
+import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/widgets/app_menu_bar.dart';
 
@@ -26,6 +27,7 @@ void main() {
     Map<AppMenuCommandId, AppMenuCommandState>? states,
     bool searchPrintModeActive = false,
     FocusNode? commandFocusNode,
+    VoidCallback? onBodyTap,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
@@ -34,10 +36,17 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: labelManagerTheme(
+          ColorScheme.fromSeed(seedColor: Colors.blue),
+        ),
         home: Scaffold(
-          body: Focus(
-            focusNode: commandFocusNode,
-            child: const SizedBox.expand(),
+          body: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onBodyTap,
+            child: Focus(
+              focusNode: commandFocusNode,
+              child: const SizedBox.expand(),
+            ),
           ),
           appBar: AppBar(
             title: AppMenuBar(
@@ -271,9 +280,11 @@ void main() {
     tester,
   ) async {
     final owner = Object();
+    var bodyTapCount = 0;
     await pumpMenu(
       tester,
       size: const Size(1200, 800),
+      onBodyTap: () => bodyTapCount += 1,
       onMenuOpenChanged: (open) {
         if (open) {
           AppShortcutBlocker.instance.activate(owner);
@@ -289,6 +300,33 @@ void main() {
     await tester.tapAt(const Offset(20, 200));
     await tester.pumpAndSettle();
     expect(AppShortcutBlocker.instance.isBlocked, isFalse);
+    expect(bodyTapCount, 0);
+  });
+
+  testWidgets('menu items keep standard popup spacing in compact theme', (
+    tester,
+  ) async {
+    await pumpMenu(tester, size: const Size(1200, 800));
+
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-settings')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(
+        find.byKey(
+          const ValueKey('app-menu-command-labelPrintSettings'),
+        ),
+      ).height,
+      kMinInteractiveDimension,
+    );
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('app-menu-submenu-searchPrint')),
+          )
+          .height,
+      kMinInteractiveDimension,
+    );
   });
 
   testWidgets('hidden sections do not leave separators', (tester) async {
