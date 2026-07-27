@@ -107,6 +107,15 @@ void main() {
     );
     expect(find.byKey(const ValueKey('server-status')), findsOneWidget);
     expect(find.byKey(const ValueKey('login-command')), findsOneWidget);
+    final overflowAnchor = tester.widget<MenuAnchor>(
+      find
+          .ancestor(
+            of: find.byKey(const ValueKey('app-menu-overflow')),
+            matching: find.byType(MenuAnchor),
+          )
+          .first,
+    );
+    expect(overflowAnchor.useRootOverlay, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -327,6 +336,62 @@ void main() {
           .height,
       kMinInteractiveDimension,
     );
+    final commandItem = tester.widget<MenuItemButton>(
+      find.byKey(
+        const ValueKey('app-menu-command-labelPrintSettings'),
+      ),
+    );
+    final submenuItem = tester.widget<SubmenuButton>(
+      find.byKey(const ValueKey('app-menu-submenu-searchPrint')),
+    );
+    expect(
+      commandItem.style?.padding?.resolve(<WidgetState>{}),
+      const EdgeInsets.symmetric(horizontal: 12),
+    );
+    expect(
+      submenuItem.style?.padding?.resolve(<WidgetState>{}),
+      const EdgeInsets.symmetric(horizontal: 12),
+    );
+  });
+
+  testWidgets('opening another group replaces the previous popup', (
+    tester,
+  ) async {
+    final menuStates = <bool>[];
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      onMenuOpenChanged: menuStates.add,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-file')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-exit')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('app-menu-group-search')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('app-menu-command-exit')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('app-menu-command-viewPrintHistory')),
+      findsOneWidget,
+    );
+    expect(menuStates, [true]);
+  });
+
+  testWidgets('root group menus use the root overlay', (tester) async {
+    await pumpMenu(tester, size: const Size(1200, 800));
+
+    for (final group in AppMenuGroup.values) {
+      final anchor = tester.widget<MenuAnchor>(
+        find
+            .ancestor(
+              of: find.byKey(ValueKey('app-menu-group-${group.name}')),
+              matching: find.byType(MenuAnchor),
+            )
+            .first,
+      );
+      expect(anchor.useRootOverlay, isTrue);
+    }
   });
 
   testWidgets('hidden sections do not leave separators', (tester) async {

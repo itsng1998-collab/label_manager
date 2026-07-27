@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:label_manager/models/app_menu_command.dart';
 
-class AppMenuBar extends StatelessWidget {
+class AppMenuBar extends StatefulWidget {
   const AppMenuBar({
     super.key,
     required this.title,
@@ -15,6 +15,7 @@ class AppMenuBar extends StatelessWidget {
   static const double _groupButtonWidth = 48;
   static const double _menuGap = 8;
   static final ButtonStyle _menuItemStyle = MenuItemButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
     minimumSize: const Size(64, kMinInteractiveDimension),
     visualDensity: VisualDensity.standard,
     tapTargetSize: MaterialTapTargetSize.padded,
@@ -27,6 +28,64 @@ class AppMenuBar extends StatelessWidget {
   final ValueChanged<bool>? onMenuOpenChanged;
 
   @override
+  State<AppMenuBar> createState() => _AppMenuBarState();
+}
+
+class _AppMenuBarState extends State<AppMenuBar> {
+  final Map<AppMenuGroup, MenuController> _groupControllers = {
+    for (final group in AppMenuGroup.values) group: MenuController(),
+  };
+  final MenuController _overflowController = MenuController();
+  final Set<MenuController> _openControllers = {};
+  MenuController? _pendingController;
+  bool _menuOpenReported = false;
+
+  void _handleMenuOpened(MenuController controller) {
+    if (identical(_pendingController, controller)) {
+      _pendingController = null;
+    }
+    _openControllers.add(controller);
+    for (final other in _openControllers.toList(growable: false)) {
+      if (!identical(other, controller) && other.isOpen) {
+        other.close();
+      }
+    }
+    if (!_menuOpenReported) {
+      _menuOpenReported = true;
+      widget.onMenuOpenChanged?.call(true);
+    }
+  }
+
+  void _handleMenuClosed(MenuController controller) {
+    _openControllers.remove(controller);
+    if (_openControllers.isEmpty && _pendingController == null) {
+      _reportAllMenusClosed();
+    }
+  }
+
+  void _reportAllMenusClosed() {
+    if (!_menuOpenReported) return;
+    _menuOpenReported = false;
+    widget.onMenuOpenChanged?.call(false);
+  }
+
+  void _openAfterOtherMenuCloses(MenuController controller) {
+    final hasOtherOpen = _openControllers.any(
+      (other) => !identical(other, controller) && other.isOpen,
+    );
+    if (!hasOtherOpen) return;
+    _pendingController = controller;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!controller.isOpen) controller.open();
+      if (identical(_pendingController, controller)) {
+        _pendingController = null;
+        if (_openControllers.isEmpty) _reportAllMenusClosed();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final visibleGroups = AppMenuGroup.values
         .where((group) => _visibleCommands(group).isNotEmpty)
@@ -35,9 +94,11 @@ class AppMenuBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wideMenuWidth =
-            visibleGroups.length * _groupButtonWidth + _menuGap;
+          visibleGroups.length * AppMenuBar._groupButtonWidth +
+          AppMenuBar._menuGap;
         final showWideMenu =
-            constraints.maxWidth >= _minimumTitleWidth + wideMenuWidth;
+            constraints.maxWidth >=
+            AppMenuBar._minimumTitleWidth + wideMenuWidth;
 
         return Row(
           children: [
@@ -46,10 +107,10 @@ class AppMenuBar extends StatelessWidget {
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.ellipsis,
-                child: title,
+                child: widget.title,
               ),
             ),
-            const SizedBox(width: _menuGap),
+            const SizedBox(width: AppMenuBar._menuGap),
             if (showWideMenu)
               for (final group in visibleGroups) _buildGroupAnchor(group)
             else if (visibleGroups.isNotEmpty)
@@ -62,39 +123,54 @@ class AppMenuBar extends StatelessWidget {
 
   Widget _buildGroupAnchor(AppMenuGroup group) {
     final presentation = _groupPresentation(group);
+    final controller = _groupControllers[group]!;
     return MenuAnchor(
+      controller: controller,
       consumeOutsideTap: true,
-      onOpen: () => onMenuOpenChanged?.call(true),
-      onClose: () => onMenuOpenChanged?.call(false),
+      useRootOverlay: true,
+      onOpen: () => _handleMenuOpened(controller),
+      onClose: () => _handleMenuClosed(controller),
       menuChildren: _buildCommandMenu(group),
-      builder: (context, controller, child) => IconButton(
-        key: ValueKey('app-menu-group-${group.name}'),
-        tooltip: presentation.label,
-        icon: Icon(presentation.icon),
-        onPressed: controller.isOpen ? controller.close : controller.open,
+      builder: (context, menuController, child) => Listener(
+        onPointerDown: (_) => _openAfterOtherMenuCloses(menuController),
+        child: IconButton(
+          key: ValueKey('app-menu-group-${group.name}'),
+          tooltip: presentation.label,
+          icon: Icon(presentation.icon),
+          onPressed: menuController.isOpen
+              ? menuController.close
+              : menuController.open,
+        ),
       ),
     );
   }
 
   Widget _buildOverflowAnchor(List<AppMenuGroup> visibleGroups) {
     return MenuAnchor(
+      controller: _overflowController,
       consumeOutsideTap: true,
-      onOpen: () => onMenuOpenChanged?.call(true),
-      onClose: () => onMenuOpenChanged?.call(false),
+      useRootOverlay: true,
+      onOpen: () => _handleMenuOpened(_overflowController),
+      onClose: () => _handleMenuClosed(_overflowController),
       menuChildren: [
         for (final group in visibleGroups)
           SubmenuButton(
             key: ValueKey('app-menu-overflow-group-${group.name}'),
-            style: _menuItemStyle,
+            style: AppMenuBar._menuItemStyle,
             menuChildren: _buildCommandMenu(group),
             child: Text(_groupPresentation(group).label),
           ),
       ],
-      builder: (context, controller, child) => IconButton(
-        key: const ValueKey('app-menu-overflow'),
-        tooltip: '메뉴',
-        icon: const Icon(Icons.more_vert),
-        onPressed: controller.isOpen ? controller.close : controller.open,
+      builder: (context, menuController, child) => Listener(
+        onPointerDown: (_) => _openAfterOtherMenuCloses(menuController),
+        child: IconButton(
+          key: const ValueKey('app-menu-overflow'),
+          tooltip: '메뉴',
+          icon: const Icon(Icons.more_vert),
+          onPressed: menuController.isOpen
+              ? menuController.close
+              : menuController.open,
+        ),
       ),
     );
   }
@@ -122,7 +198,7 @@ class AppMenuBar extends StatelessWidget {
           children.add(
             SubmenuButton(
               key: const ValueKey('app-menu-submenu-searchPrint'),
-              style: _menuItemStyle,
+              style: AppMenuBar._menuItemStyle,
               menuChildren: submenuCommands
                   .map(_buildCommandItem)
                   .toList(growable: false),
@@ -140,9 +216,9 @@ class AppMenuBar extends StatelessWidget {
   }
 
   Widget _buildCommandItem(AppMenuCommandMetadata command) {
-    final state = commandStates[command.id]!;
+    final state = widget.commandStates[command.id]!;
     final checked = command.id == AppMenuCommandId.searchPrintMode &&
-        searchPrintModeActive;
+        widget.searchPrintModeActive;
     final leadingIcon = checked
         ? const Icon(Icons.check)
         : command.icon == null
@@ -151,7 +227,7 @@ class AppMenuBar extends StatelessWidget {
     final onPressed = state.enabled
         ? () {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              onCommandSelected(command.id);
+              widget.onCommandSelected(command.id);
             });
           }
         : null;
@@ -168,7 +244,7 @@ class AppMenuBar extends StatelessWidget {
       excludeSemantics: true,
       child: MenuItemButton(
         key: ValueKey('app-menu-command-${command.id.name}'),
-        style: _menuItemStyle,
+        style: AppMenuBar._menuItemStyle,
         onPressed: onPressed,
         leadingIcon: leadingIcon,
         trailingIcon: command.shortcutLabel == null
@@ -188,7 +264,7 @@ class AppMenuBar extends StatelessWidget {
             (command) =>
                 command.group == group &&
                 command.renderInPopup &&
-                commandStates[command.id]?.visible == true,
+                widget.commandStates[command.id]?.visible == true,
           )
           .toList(growable: false);
 
