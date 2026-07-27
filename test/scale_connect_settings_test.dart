@@ -50,15 +50,27 @@ void main() {
     final controller = HomePageManagerController();
     final owner = Object();
     var calls = 0;
+    var labelPrinterCalls = 0;
+    var scalePrinterCalls = 0;
     controller.attach(
       owner: owner,
       openScaleConnectSettings: () async => calls += 1,
+      openLabelPrintSettings: () async => labelPrinterCalls += 1,
+      openScaleOutputPrinterSettings: () async => scalePrinterCalls += 1,
     );
     await controller.openScaleConnectSettings();
+    await controller.openLabelPrintSettings();
+    await controller.openScaleOutputPrinterSettings();
     expect(calls, 1);
+    expect(labelPrinterCalls, 1);
+    expect(scalePrinterCalls, 1);
     controller.detach(owner);
     await controller.openScaleConnectSettings();
+    await controller.openLabelPrintSettings();
+    await controller.openScaleOutputPrinterSettings();
     expect(calls, 1);
+    expect(labelPrinterCalls, 1);
+    expect(scalePrinterCalls, 1);
   });
 
   testWidgets('dialog applies edited auto print with persisted serial values', (

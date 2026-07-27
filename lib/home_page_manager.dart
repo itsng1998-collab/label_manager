@@ -207,23 +207,39 @@ Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
 class HomePageManagerController {
   Object? _owner;
   Future<void> Function()? _openScaleConnectSettings;
+  Future<void> Function()? _openLabelPrintSettings;
+  Future<void> Function()? _openScaleOutputPrinterSettings;
 
   void attach({
     required Object owner,
     required Future<void> Function() openScaleConnectSettings,
+    required Future<void> Function() openLabelPrintSettings,
+    required Future<void> Function() openScaleOutputPrinterSettings,
   }) {
     _owner = owner;
     _openScaleConnectSettings = openScaleConnectSettings;
+    _openLabelPrintSettings = openLabelPrintSettings;
+    _openScaleOutputPrinterSettings = openScaleOutputPrinterSettings;
   }
 
   void detach(Object owner) {
     if (!identical(_owner, owner)) return;
     _owner = null;
     _openScaleConnectSettings = null;
+    _openLabelPrintSettings = null;
+    _openScaleOutputPrinterSettings = null;
   }
 
   Future<void> openScaleConnectSettings() async {
     await _openScaleConnectSettings?.call();
+  }
+
+  Future<void> openLabelPrintSettings() async {
+    await _openLabelPrintSettings?.call();
+  }
+
+  Future<void> openScaleOutputPrinterSettings() async {
+    await _openScaleOutputPrinterSettings?.call();
   }
 }
 
@@ -587,9 +603,10 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.addNutritionTable: _openNutritionBoxDialog,
         AppMenuCommandId.manageScale:
             widget.controller.openScaleConnectSettings,
-        AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
+        AppMenuCommandId.labelPrintSettings:
+          widget.controller.openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
-            _openScaleOutputPrinterSettings,
+          widget.controller.openScaleOutputPrinterSettings,
         AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
         AppMenuCommandId.viewContentHistory: _openContentSaveHistoryDialog,
         AppMenuCommandId.viewCommonLabelHistory: _openCommonLabelHistoryDialog,
@@ -1148,6 +1165,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     widget.controller.attach(
       owner: this,
       openScaleConnectSettings: _openScaleConnectSettings,
+      openLabelPrintSettings: _openLabelPrintSettings,
+      openScaleOutputPrinterSettings: _openScaleOutputPrinterSettings,
     );
     _attachAppMenuCommands();
     widget.onExitSnapshotProviderChanged?.call(_createExitSnapshot);
@@ -1175,6 +1194,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       widget.controller.attach(
         owner: this,
         openScaleConnectSettings: _openScaleConnectSettings,
+        openLabelPrintSettings: _openLabelPrintSettings,
+        openScaleOutputPrinterSettings: _openScaleOutputPrinterSettings,
       );
       _attachAppMenuCommands();
     }
@@ -5548,9 +5569,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   );
 
   Future<void> _openLabelPrintSettings() async {
+    final persisted = await loadLabelPrintSettingsSnapshot();
+    if (!mounted) return;
     final settings = await showLabelPrintSettingsDialog(
       context: context,
-      initial: _labelPrintSessionController.settings,
+      initial: persisted,
     );
     if (!mounted || settings == null) return;
     await saveLabelPrintSettingsSnapshot(settings);
