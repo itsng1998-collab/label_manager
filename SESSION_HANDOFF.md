@@ -3,6 +3,7 @@
 - 편집: preview workbook만 grid line을 숨기고 영양성분 zoom은 아이콘 glyph를 사용한다. 액션 행을 zoom과 같은 34px 띠로 줄이며, 원본 RTF 선택 시 `PreviewFloatingWindow`/`LabelSheetRtfPreview`를 띄우고 닫을 때 zoom 앞 restore anchor로 축소한 뒤 다시보기 버튼을 표시한다.
 - 검증: 영양성분표 dialog 8개와 공용 zoom toolbar 회귀 테스트 4개가 모두 통과했다. preview `showGridLines=false`, zoom icon mode, 34px toolbar, RTF floating 표시→anchor 축소→restore 재열기를 검증했으며 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
 - stage/commit 대상: 영양성분표 dialog/test, 공용 preview/workbench/floating window, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `537eff2` (`영양성분표 미리보기 마감`).
 
 # 완료: 영양성분표 미리보기 분할·스타일 조정
 - 원인: 영양성분표 관리의 우측 preview 폭이 360px로 고정되고, zoom toolbar 배경이 공용 workbench의 흰색 계열 상수라 dialog 배경과 어울리지 않는다.
