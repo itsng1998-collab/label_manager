@@ -371,7 +371,7 @@ void main() {
     expect(bodyTapCount, 1);
   });
 
-  testWidgets('menu items keep standard popup spacing in compact theme', (
+  testWidgets('menu items match general popup spacing in compact theme', (
     tester,
   ) async {
     await pumpMenu(tester, size: const Size(1200, 800));
@@ -385,7 +385,7 @@ void main() {
           const ValueKey('app-menu-command-labelPrintSettings'),
         ),
       ).height,
-      kMinInteractiveDimension,
+      28,
     );
     expect(
       tester
@@ -393,7 +393,7 @@ void main() {
             find.byKey(const ValueKey('app-menu-submenu-searchPrint')),
           )
           .height,
-      kMinInteractiveDimension,
+      28,
     );
     final commandItem = tester.widget<MenuItemButton>(
       find.byKey(
@@ -411,6 +411,7 @@ void main() {
       submenuItem.style?.padding?.resolve(<WidgetState>{}),
       const EdgeInsets.symmetric(horizontal: 12),
     );
+    expect(tester.widget<Divider>(find.byType(Divider).first).height, 9);
   });
 
   testWidgets('opening another group replaces the previous popup', (

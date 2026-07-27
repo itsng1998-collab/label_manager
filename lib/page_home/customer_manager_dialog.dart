@@ -348,6 +348,13 @@ class _CustomerManagerDialogContentState
                       DropdownMenuEntry(
                         value: cooperator.id,
                         label: cooperator.id,
+                        style: MenuItemButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(0, 28),
+                          maximumSize: const Size(double.infinity, 28),
+                          visualDensity: VisualDensity.standard,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                       ),
                   ],
                   enableFilter: false,
@@ -358,6 +365,9 @@ class _CustomerManagerDialogContentState
                     fillColor: cooperatorSelectionEnabled
                         ? Colors.white
                         : const Color(0xFFE9ECEF),
+                    isDense: true,
+                    constraints: const BoxConstraints.tightFor(height: 40),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   requestFocusOnTap: false,
                   onSelected: cooperatorSelectionEnabled

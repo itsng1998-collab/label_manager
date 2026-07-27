@@ -16,11 +16,13 @@ class AppMenuBar extends StatefulWidget {
   static const double _minimumTitleWidth = 400;
   static const double _groupButtonWidth = 48;
   static const double _menuGap = 8;
+  static const double _menuItemHeight = 28;
+  static const double _menuDividerHeight = 9;
   static final ButtonStyle _menuItemStyle = MenuItemButton.styleFrom(
     padding: const EdgeInsets.symmetric(horizontal: 12),
-    minimumSize: const Size(64, kMinInteractiveDimension),
+    minimumSize: const Size(64, _menuItemHeight),
     visualDensity: VisualDensity.standard,
-    tapTargetSize: MaterialTapTargetSize.padded,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
 
   final Widget title;
@@ -167,7 +169,7 @@ class _AppMenuBarState extends State<AppMenuBar> {
 
     for (final command in commands) {
       if (previousSection != null && previousSection != command.section) {
-        children.add(const Divider());
+        children.add(const Divider(height: AppMenuBar._menuDividerHeight));
       }
       previousSection = command.section;
 

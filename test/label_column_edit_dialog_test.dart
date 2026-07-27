@@ -393,7 +393,7 @@ void main() {
     await tester.pumpAndSettle();
     final barcodeMenuItem = find.widgetWithText(MenuItemButton, '바코드');
     expect(barcodeMenuItem, findsAtLeastNWidgets(1));
-    expect(tester.getSize(barcodeMenuItem.last).height, lessThanOrEqualTo(40));
+    expect(tester.getSize(barcodeMenuItem.last).height, 28);
     await _tapVisible(tester, barcodeMenuItem.last);
     await tester.pumpAndSettle();
     final barcodeTypeDropdown = find.byType(DropdownMenu<BarcodeType>);

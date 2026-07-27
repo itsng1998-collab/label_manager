@@ -1,3 +1,11 @@
+# 완료: AppBar popup/dropdown 밀도 통일
+- 기준: 기존 일반 업무 popup과 홈 dropdown의 목록 행은 28px이며 divider는 9px이다.
+- 수정 예정: AppBar popup 행 28px/divider 9px, modeless 및 `DropdownMenu` 필드 40px/목록 28px로 통일한다.
+- 구현: AppBar popup 행 28px/divider 9px, 공용 modeless field 40px/menu row 28px, 거래처 field 40px/menu row 28px을 적용했다. 라벨 편집 field는 기존 36px을 유지하고 menu row만 28px로 줄였다.
+- focused 검증: AppBar + 공용 dropdown 22 passed, 거래처 8 passed, 라벨 편집 dropdown 3 passed.
+- 최종 검증: 수정 파일 정적 오류 없음, AppBar 및 전체 modeless dropdown 관련 테스트 68 passed, 0 failed. 라벨 편집 치수/overlay focused test 3 passed, 0 failed.
+- stage/commit 대상: `app_menu_bar.dart`, `modeless_dropdown_form_field.dart`, 거래처/라벨 편집 dropdown, 관련 테스트, `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+
 # 완료: AppBar 기능 modeless dropdown 통일
 - 원인: Navigator route 및 `useRootNavigator` 기반 popup은 이미 삽입된 modeless `OverlayEntry` 아래에 생성되어 메뉴가 가려질 수 있다.
 - 구현: root `OverlayEntry`에 메뉴를 후삽입하는 공용 `ModelessDropdownFormField<T>`를 추가하고 시장/사용자/관리자 복사/찾아바꾸기/날짜 설정/영양성분/검색출력 설정/발행·내용·공통라벨 이력/통계의 form dropdown 21개에 적용했다.

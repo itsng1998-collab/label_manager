@@ -22,9 +22,18 @@ void main() {
 
     final decorator = tester.widget<InputDecorator>(find.byType(InputDecorator));
     expect(decorator.decoration.fillColor, Colors.white);
+    expect(tester.getSize(find.byType(InputDecorator)).height, 40);
 
     await tester.tap(find.byType(ModelessDropdownFormField<String>));
     await tester.pump();
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('modeless-dropdown-menu-item-1')),
+          )
+          .height,
+      28,
+    );
     await tester.tap(find.text('B').last);
     await tester.pump();
 

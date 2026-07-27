@@ -64,6 +64,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('customerCooperatorSelector')));
     await tester.pumpAndSettle();
+    expect(tester.getSize(find.widgetWithText(MenuItemButton, 'B')).height, 28);
     await tester.tap(find.text('B').last);
     await tester.pumpAndSettle();
 

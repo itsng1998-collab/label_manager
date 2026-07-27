@@ -1447,17 +1447,30 @@ class _DialogDropdown<T> extends StatelessWidget {
                 ),
               )
             : null,
-        dropdownMenuEntries: entries,
+        dropdownMenuEntries: [
+          for (final entry in entries)
+            DropdownMenuEntry<T>(
+              value: entry.value,
+              label: entry.label,
+              labelWidget: entry.labelWidget,
+              leadingIcon: entry.leadingIcon,
+              trailingIcon: entry.trailingIcon,
+              enabled: entry.enabled,
+              style: MenuItemButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                minimumSize: const Size(0, 28),
+                maximumSize: const Size(double.infinity, 28),
+                visualDensity: VisualDensity.standard,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
         enabled: onChanged != null,
         enableFilter: false,
         enableSearch: false,
         requestFocusOnTap: false,
         trailingIcon: _dropdownIcon(compact),
         selectedTrailingIcon: _dropdownIcon(compact),
-        menuStyle: const MenuStyle(
-          visualDensity: VisualDensity(horizontal: -1, vertical: -3),
-          minimumSize: WidgetStatePropertyAll(Size(0, 36)),
-        ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(),
           filled: true,

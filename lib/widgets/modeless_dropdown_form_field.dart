@@ -3,6 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+const double modelessDropdownFieldHeight = 40;
+const double modelessDropdownMenuItemHeight = 28;
+
 class ModelessDropdownFormField<T> extends StatefulWidget {
   const ModelessDropdownFormField({
     super.key,
@@ -69,7 +72,7 @@ class _ModelessDropdownFormFieldState<T>
     final overlay = Overlay.of(context, rootOverlay: true);
     final fieldRect = renderObject.localToGlobal(Offset.zero) & renderObject.size;
     final screenSize = MediaQuery.sizeOf(context);
-    const itemHeight = 48.0;
+    const itemHeight = modelessDropdownMenuItemHeight;
     final desiredHeight = itemHeight * widget.items.length;
     final availableBelow = screenSize.height - fieldRect.bottom - 4;
     final availableAbove = fieldRect.top - 4;
@@ -112,6 +115,7 @@ class _ModelessDropdownFormFieldState<T>
                   itemBuilder: (context, index) {
                     final item = widget.items[index];
                     return InkWell(
+                      key: ValueKey('modeless-dropdown-menu-item-$index'),
                       onTap: item.enabled
                           ? () {
                               _removeMenu();
@@ -171,6 +175,11 @@ class _ModelessDropdownFormFieldState<T>
           isFocused: _menuEntry != null,
           decoration: widget.decoration.copyWith(
             enabled: _enabled,
+            isDense: true,
+            constraints: const BoxConstraints.tightFor(
+              height: modelessDropdownFieldHeight,
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             suffixIcon: Icon(
               _menuEntry == null
                   ? Icons.arrow_drop_down
