@@ -5,6 +5,7 @@
 - focused 검증: AppBar + 공용 dropdown 22 passed, 거래처 8 passed, 라벨 편집 dropdown 3 passed.
 - 최종 검증: 수정 파일 정적 오류 없음, AppBar 및 전체 modeless dropdown 관련 테스트 68 passed, 0 failed. 라벨 편집 치수/overlay focused test 3 passed, 0 failed.
 - stage/commit 대상: `app_menu_bar.dart`, `modeless_dropdown_form_field.dart`, 거래처/라벨 편집 dropdown, 관련 테스트, `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+- 구현 커밋: `3c287c5` (`앱바 메뉴와 드롭다운 간격 조정`).
 
 # 완료: AppBar 기능 modeless dropdown 통일
 - 원인: Navigator route 및 `useRootNavigator` 기반 popup은 이미 삽입된 modeless `OverlayEntry` 아래에 생성되어 메뉴가 가려질 수 있다.
