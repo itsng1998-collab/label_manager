@@ -22,23 +22,7 @@ void main() {
     }
   });
 
-  test('tester01 is forced to the client grade for UI testing', () {
-    final user = User.fromMap(const {
-      'USER_ID': 'Tester01',
-      'MARKET_ID': 1,
-      'NAME': '테스트 사용자',
-      'PASSWORD': '',
-      'GRADE': 0,
-      'MARKET_NAME': '매장',
-      'CUSTOMER_NAME': '고객',
-    });
-
-    expect(User.clientUserTestOverrideId, 'tester01');
-    expect(user.grade, UserGrade.CLIENT_USER);
-    expect(user.canEdit, isFalse);
-  });
-
-  test('other users keep the database grade', () {
+  test('users keep the database grade', () {
     final user = User.fromMap(const {
       'USER_ID': 'tester02',
       'MARKET_ID': 1,

@@ -1,3 +1,9 @@
+# 완료: 일반 사용자 수동 테스트 override 제거
+- 원인: 일반 권한 수동 테스트가 끝나 `User.clientUserTestOverrideId`로 특정 ID의 DB 등급을 강제 변경할 필요가 없어졌다.
+- 편집: override 필드와 `_effectiveGrade`를 제거하고 `User.fromMap`이 DB `GRADE`를 그대로 사용하도록 복원했다. 관련 테스트 fixture도 명시적인 사용자 ID/등급으로 변경했다.
+- 검증: 사용자 모델/관리 사용자/AppBar 메뉴/사용자 관리 테스트 49 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없고 관련 심볼/임시 문구의 잔여 참조도 없다.
+- stage/commit 대상: `lib/models/user.dart`, `test/user_test.dart`, `test/managed_user_test.dart`, `test/app_menu_policy_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+
 # 완료: 거래처 관리 접속 기능 제거
 - 원인: Flutter 거래처 관리 구현 시 관리자 컨텍스트 전환용 `접속` 기능이 추가됐지만, 레거시 `CAddClientsDlg`에는 대응 버튼이나 핸들러가 없다.
 - 편집: 거래처 관리의 접속 버튼/처리 함수/콜백 타입과 `HomePage`까지 이어진 전용 전달 경로를 제거했다. 협력업체 선택 및 추가/수정/삭제 기능은 유지한다.

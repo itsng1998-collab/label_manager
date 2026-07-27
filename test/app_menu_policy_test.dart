@@ -80,10 +80,10 @@ void main() {
     expect(state(context, AppMenuCommandId.manageMarkets).visible, isFalse);
   });
 
-  test('tester override is evaluated by User mapping before menu policy', () {
+  test('client database grade is evaluated before menu policy', () {
     final user = User.fromMap({
-      'USER_ID': User.clientUserTestOverrideId,
-      'GRADE': UserGrade.SYSTEM_ADMIN_USER.code,
+      'USER_ID': 'client',
+      'GRADE': UserGrade.CLIENT_USER.code,
     });
     final context = AppMenuPolicyContext(userGrade: user.grade);
 

@@ -5,7 +5,7 @@ import 'package:label_manager/models/user.dart';
 void main() {
   test('managed row preserves database grade and plain password', () {
     final row = ManagedUser.fromMap({
-      'USER_ID': User.clientUserTestOverrideId,
+      'USER_ID': 'manager',
       'MARKET_ID': 10,
       'NAME': '테스터',
       'PASSWORD': 'plain',

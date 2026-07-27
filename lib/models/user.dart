@@ -32,8 +32,6 @@ enum UserGrade {
 
 class User {
   static const String SYSTEM = 'SYSTEM';
-  // 일반 사용자 UI 테스트를 해제하려면 null로 변경한다.
-  static const String? clientUserTestOverrideId = 'tester01';
   static User? instance;
  
 	final String userId;
@@ -78,20 +76,11 @@ class User {
       marketId:     i('MARKET_ID'),
       name:         s('NAME'),
       pwd:          s('PASSWORD'),
-      grade:        _effectiveGrade(userId, databaseGrade),
+      grade:        databaseGrade,
       marketName:   s('MARKET_NAME'),
       customerName: s('CUSTOMER_NAME'),
     );
   }
-
-  static UserGrade _effectiveGrade(
-    String userId,
-    UserGrade databaseGrade,
-  ) => clientUserTestOverrideId != null &&
-      userId.trim().toLowerCase() ==
-          clientUserTestOverrideId!.trim().toLowerCase()
-      ? UserGrade.CLIENT_USER
-      : databaseGrade;
 
   @override
   String toString() =>
