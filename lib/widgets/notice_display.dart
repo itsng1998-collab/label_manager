@@ -15,6 +15,8 @@ class NoticeDisplayPanel extends StatelessWidget {
     this.onVersionChanged,
     this.onContentChanged,
     this.initialFocusNode,
+    this.contentFlex = 2,
+    this.adFlex = 1,
   });
 
   final String version;
@@ -23,6 +25,8 @@ class NoticeDisplayPanel extends StatelessWidget {
   final ValueChanged<String>? onVersionChanged;
   final ValueChanged<String>? onContentChanged;
   final FocusNode? initialFocusNode;
+  final int contentFlex;
+  final int adFlex;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +49,8 @@ class NoticeDisplayPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                flex: 2,
+                key: const ValueKey('notice-content-area'),
+                flex: contentFlex,
                 child: TextFormField(
                   initialValue: content,
                   readOnly: !editable,
@@ -66,7 +71,11 @@ class NoticeDisplayPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(child: NoticeAdBanner()),
+              Expanded(
+                key: const ValueKey('notice-ad-area'),
+                flex: adFlex,
+                child: const NoticeAdBanner(),
+              ),
             ],
           ),
         ),

@@ -22,6 +22,9 @@ import 'package:label_manager/models/user.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 
+const int startupNoticeContentFlex = 1;
+const int startupNoticeAdFlex = 1;
+
 /// 독립적으로 호출 가능한 시작 다이얼로그
 class StartupDialog extends StatefulWidget {
   final VoidCallback onLogin;
@@ -270,6 +273,8 @@ class _DialogBodyState extends State<_DialogBody> {
                       child: NoticeDisplayPanel(
                         version: widget.noticeVersion,
                         content: widget.noticeContent,
+                        contentFlex: startupNoticeContentFlex,
+                        adFlex: startupNoticeAdFlex,
                       ),
                     ),
                     if (!keyboardOpen) ...[
