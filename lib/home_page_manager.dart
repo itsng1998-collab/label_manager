@@ -42,6 +42,7 @@ import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_print_auto_increment.dart';
 import 'package:label_manager/models/scale_output.dart';
 import 'package:label_manager/models/search_print.dart';
+import 'package:label_manager/models/search_print_settings.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_print_persistence.dart';
@@ -73,6 +74,7 @@ import 'package:label_manager/page_home/automatic_item_update_page.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
 import 'package:label_manager/page_home/scale_output_page.dart';
 import 'package:label_manager/page_home/search_print_command.dart';
+import 'package:label_manager/page_home/search_print_settings_dialog.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
@@ -618,6 +620,8 @@ class _HomePageManagerState extends State<HomePageManager> {
           widget.controller.openScaleOutputPrinterSettings,
         AppMenuCommandId.updateNotice: _openUpdateNoticeDialog,
         AppMenuCommandId.searchPrintMode: widget.onToggleSearchPrintMode,
+        AppMenuCommandId.searchPrintSettings:
+          _openSearchPrintSettingsDialog,
         AppMenuCommandId.viewPrintHistory: _openPrintHistoryDialog,
         AppMenuCommandId.viewContentHistory: _openContentSaveHistoryDialog,
         AppMenuCommandId.viewCommonLabelHistory: _openCommonLabelHistoryDialog,
@@ -5727,6 +5731,60 @@ class _HomePageManagerState extends State<HomePageManager> {
         ..clearSnackBars()
         ..showSnackBar(
           SnackBar(content: Text('업데이트 메시지를 불러오지 못했습니다.\n$error')),
+        );
+    }
+  }
+
+  Future<void> _openSearchPrintSettingsDialog() async {
+    final customer = Customer.instance;
+    if (customer == null) return;
+    try {
+      final brands =
+          await BrandDAO.selectByCustomerIdByBrandOrder(customer.customerId) ??
+          const <Brand>[];
+      if (!mounted) return;
+      await showBlockingModelessOverlayDialog<void>(
+        context: context,
+        builder: (dialogContext, close) => SearchPrintSettingsDialog(
+          brands: brands,
+          initialBrand: widget.selectedBrand,
+          initialLabelSize: _effectiveLabelSize,
+          loadLabelSizes: (brandId) async =>
+              await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
+              const <LabelSize>[],
+          loadColumns: (labelSizeId) async =>
+              await TColumnDAO.selectByLabelSizeId(labelSizeId) ??
+              const <TColumn>[],
+          apply: ({
+            required labelSizeId,
+            required originalColumns,
+            required workingColumns,
+          }) async {
+            final command = buildSearchPrintSettingsSaveCommand(
+              labelSizeId: labelSizeId,
+              customerId: customer.customerId,
+              originalColumns: originalColumns,
+              workingColumns: workingColumns,
+            );
+            List<TColumn>? reloaded;
+            await LabelColumnSaveDao.saveDialogAndReload(
+              command,
+              reload: () async {
+                reloaded = await TColumnDAO.selectByLabelSizeId(labelSizeId);
+                return reloaded != null;
+              },
+            );
+            return reloaded!;
+          },
+          onClose: () => close(null),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('검색출력 설정을 불러오지 못했습니다.\n$error')),
         );
     }
   }
