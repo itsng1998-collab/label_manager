@@ -270,7 +270,6 @@ class HomePageManager extends StatefulWidget {
   final bool userCustomerSelectionEnabled;
   final bool userMarketSelectionEnabled;
   final bool userCredentialsVisible;
-  final ManagedUserConnector onUserAdminConnect;
   final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
@@ -291,7 +290,6 @@ class HomePageManager extends StatefulWidget {
     required this.userCustomerSelectionEnabled,
     required this.userMarketSelectionEnabled,
     required this.userCredentialsVisible,
-    required this.onUserAdminConnect,
     required this.selectedBrand,
     required this.onBrandChanged,
     required this.selectedLabelSize,
@@ -3355,7 +3353,6 @@ class _HomePageManagerState extends State<HomePageManager> {
             customerSelectionEnabled: widget.userCustomerSelectionEnabled,
             marketSelectionEnabled: widget.userMarketSelectionEnabled,
             showCredentials: widget.userCredentialsVisible,
-            connect: widget.onUserAdminConnect,
           ),
         ),
       ),

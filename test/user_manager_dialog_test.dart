@@ -110,14 +110,12 @@ void main() {
     expect(find.textContaining('이미 존재하는 ID입니다'), findsOneWidget);
   });
 
-  testWidgets('name search wraps and connect invokes selected row', (
+  testWidgets('name search wraps and connect command is absent', (
     tester,
   ) async {
-    final connected = <String>[];
     await _pumpManager(
       tester,
       initialUsers: [_user('one', '김하나'), _user('two', '김둘')],
-      connect: (user) async => connected.add(user.userId),
     );
 
     await tester.enterText(find.byKey(const ValueKey('userSearchField')), '김');
@@ -127,10 +125,13 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('userSearchButton')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('userConnectButton')));
-    await tester.pumpAndSettle();
-
-    expect(connected, ['one']);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const ValueKey('userDeleteButton')))
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.byKey(const ValueKey('userConnectButton')), findsNothing);
   });
 
   testWidgets(
@@ -212,7 +213,6 @@ Future<void> _pumpManager(
   List<ManagedUser>? initialUsers,
   Future<List<ManagedUser>> Function(int)? loadUsers,
   Future<ManagedUser?> Function(String)? lookupUser,
-  Future<void> Function(ManagedUser)? connect,
   Future<void> Function(ManagedUser)? insert,
   Future<void> Function(String)? delete,
   VoidCallback? onClose,
@@ -243,7 +243,6 @@ Future<void> _pumpManager(
             customerSelectionEnabled: true,
             marketSelectionEnabled: true,
             showCredentials: showCredentials,
-            connect: connect ?? (user) async {},
             loadCooperators: () async => const [
               Cooperator(id: 'A', name: 'A 업체'),
             ],

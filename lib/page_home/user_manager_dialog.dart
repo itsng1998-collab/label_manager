@@ -20,7 +20,6 @@ typedef ManagedUserLookup = Future<ManagedUser?> Function(String);
 typedef ManagedUserWriter = Future<void> Function(ManagedUser);
 typedef ManagedUserUpdater = Future<void> Function(String, ManagedUser);
 typedef ManagedUserDeleter = Future<void> Function(String);
-typedef ManagedUserConnector = Future<void> Function(ManagedUser);
 
 class UserManagerController extends ChangeNotifier {
   bool _activeEditing = false;
@@ -68,7 +67,6 @@ class UserManagerDialogContent extends StatefulWidget {
     required this.customerSelectionEnabled,
     required this.marketSelectionEnabled,
     required this.showCredentials,
-    required this.connect,
     required this.onClose,
     this.loadCooperators = CooperatorDAO.selectAll,
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
@@ -89,7 +87,6 @@ class UserManagerDialogContent extends StatefulWidget {
   final bool customerSelectionEnabled;
   final bool marketSelectionEnabled;
   final bool showCredentials;
-  final ManagedUserConnector connect;
   final VoidCallback onClose;
   final ManagedUserCooperatorLoader loadCooperators;
   final ManagedUserCustomerLoader loadCustomers;
@@ -306,21 +303,6 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
       () => widget.delete(selected.userId),
       '삭제가 완료되었습니다!',
     );
-  }
-
-  Future<void> _connectSelected() async {
-    final selected = _selectedUser;
-    if (_busy || selected == null) return;
-    widget.controller.setWriteBusy(true);
-    if (mounted) setState(() {});
-    try {
-      await widget.connect(selected);
-    } catch (error) {
-      if (mounted) await _showMessage(error.toString());
-    } finally {
-      widget.controller.setWriteBusy(false);
-      if (mounted) setState(() {});
-    }
   }
 
   void _searchNext() {
@@ -542,12 +524,6 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
                 tooltip: '선택한 사용자 삭제',
                 onPressed: hasSelection ? _deleteSelected : null,
                 icon: const Icon(Icons.delete_outline),
-              ),
-              FilledButton.icon(
-                key: const ValueKey('userConnectButton'),
-                onPressed: hasSelection ? _connectSelected : null,
-                icon: const Icon(Icons.login),
-                label: const Text('접속'),
               ),
             ],
           ),

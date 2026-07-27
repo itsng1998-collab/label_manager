@@ -46,24 +46,6 @@ void main() {
     expect(session.isMasterKeyLogin, isFalse);
   });
 
-  test('user connect keeps distinct system and cooperator flag mapping', () {
-    final session = AdminConnectSession.instance;
-    session.resetForLogout();
-    final system = userConnectSessionFor(
-      currentUser: _user('admin', UserGrade.SYSTEM_ADMIN_USER, 'own'),
-      session: session,
-    );
-    expect(system.isAdminConnect, isTrue);
-    expect(system.isCoopAdminConnect, isTrue);
-
-    session.resetForLogout();
-    final cooperator = userConnectSessionFor(
-      currentUser: _user('coop', UserGrade.COOP_ADMIN_USER, 'own'),
-      session: session,
-    );
-    expect(cooperator.isAdminConnect, isFalse);
-    expect(cooperator.isCoopAdminConnect, isTrue);
-  });
 }
 
 User _user(String id, UserGrade grade, String password) => User(
