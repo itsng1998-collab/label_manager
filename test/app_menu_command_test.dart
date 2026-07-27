@@ -15,7 +15,22 @@ void main() {
       appMenuCommands
           .where((command) => command.group == AppMenuGroup.file)
           .map((command) => command.section),
-      [0, 0, 1, 1, 1, 1, 2, 3],
+      [1, 1, 1, 1, 2, 3, 3, 3],
+    );
+    expect(
+      appMenuCommands
+          .where((command) => command.group == AppMenuGroup.file)
+          .map((command) => command.id),
+      [
+        AppMenuCommandId.manageCooperators,
+        AppMenuCommandId.manageCustomers,
+        AppMenuCommandId.manageMarkets,
+        AppMenuCommandId.manageUsers,
+        AppMenuCommandId.copyAdmin,
+        AppMenuCommandId.login,
+        AppMenuCommandId.logout,
+        AppMenuCommandId.exit,
+      ],
     );
     expect(
       appMenuCommands

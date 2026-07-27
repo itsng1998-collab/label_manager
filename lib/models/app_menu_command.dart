@@ -89,20 +89,6 @@ class AppMenuCommandState {
 
 const appMenuCommands = <AppMenuCommandMetadata>[
   AppMenuCommandMetadata(
-    id: AppMenuCommandId.login,
-    group: AppMenuGroup.file,
-    label: '로그인',
-    permission: AppMenuPermission.always,
-    section: 0,
-  ),
-  AppMenuCommandMetadata(
-    id: AppMenuCommandId.logout,
-    group: AppMenuGroup.file,
-    label: '로그아웃',
-    permission: AppMenuPermission.loggedIn,
-    section: 0,
-  ),
-  AppMenuCommandMetadata(
     id: AppMenuCommandId.manageCooperators,
     group: AppMenuGroup.file,
     label: '협력업체 관리',
@@ -136,6 +122,20 @@ const appMenuCommands = <AppMenuCommandMetadata>[
     label: '관리자 복사',
     permission: AppMenuPermission.adminCommand,
     section: 2,
+  ),
+  AppMenuCommandMetadata(
+    id: AppMenuCommandId.login,
+    group: AppMenuGroup.file,
+    label: '로그인',
+    permission: AppMenuPermission.always,
+    section: 3,
+  ),
+  AppMenuCommandMetadata(
+    id: AppMenuCommandId.logout,
+    group: AppMenuGroup.file,
+    label: '로그아웃',
+    permission: AppMenuPermission.loggedIn,
+    section: 3,
   ),
   AppMenuCommandMetadata(
     id: AppMenuCommandId.exit,

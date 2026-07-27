@@ -143,6 +143,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('app-menu-command-login')), findsOneWidget);
     expect(find.byKey(const ValueKey('app-menu-command-logout')), findsNothing);
+    expect(
+      tester.getRect(
+        find.byKey(const ValueKey('app-menu-command-login')),
+      ).bottom,
+      tester.getRect(
+        find.byKey(const ValueKey('app-menu-command-exit')),
+      ).top,
+    );
+    expect(find.byType(Divider), findsNothing);
     await tester.tap(find.byKey(const ValueKey('app-menu-group-file')));
     await tester.pumpAndSettle();
 
@@ -158,6 +167,15 @@ void main() {
       find.byKey(const ValueKey('app-menu-command-logout')),
       findsOneWidget,
     );
+    expect(
+      tester.getRect(
+        find.byKey(const ValueKey('app-menu-command-logout')),
+      ).bottom,
+      tester.getRect(
+        find.byKey(const ValueKey('app-menu-command-exit')),
+      ).top,
+    );
+    expect(find.byType(Divider), findsNothing);
   });
 
   testWidgets('wide command selection is delivered exactly once', (
