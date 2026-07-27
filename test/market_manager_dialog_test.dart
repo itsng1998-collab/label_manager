@@ -5,6 +5,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/page_home/market_manager_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
   const marketA = Market(marketId: 1, customerId: 10, name: 'A 지점');
@@ -52,6 +53,32 @@ void main() {
       expect(delete.onPressed, isNull);
     },
   );
+
+  testWidgets('selectors use compact height and centered labels', (
+    tester,
+  ) async {
+    await _pumpManager(
+      tester,
+      selectionEnabled: true,
+      loadMarkets: (_) async => const [marketA],
+    );
+
+    for (final key in const [
+      ValueKey('marketCooperatorSelector'),
+      ValueKey('marketCustomerSelector'),
+    ]) {
+      final selector = find.byKey(key);
+      expect(tester.getSize(selector).height, modelessDropdownFieldHeight);
+    }
+
+    final cooperatorCenter = tester.getCenter(
+      find.byKey(const ValueKey('marketCooperatorSelector')),
+    );
+    expect(
+      tester.getCenter(find.text('A')).dy,
+      moreOrLessEquals(cooperatorCenter.dy),
+    );
+  });
 
   testWidgets('explicit customer selection enables empty-name add and reload', (
     tester,

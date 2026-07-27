@@ -195,7 +195,11 @@ class _ModelessDropdownFormFieldState<T>
           child: DefaultTextStyle(
             style: Theme.of(context).textTheme.bodyLarge!,
             overflow: TextOverflow.ellipsis,
-            child: _selectedItem?.child ?? const SizedBox.shrink(),
+            child: Align(
+              key: const ValueKey('modeless-dropdown-selected-item'),
+              alignment: Alignment.centerLeft,
+              child: _selectedItem?.child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),

@@ -1,3 +1,9 @@
+# 완료: 지점 관리 드롭다운 높이와 정렬 통일
+- 원인: 지점 관리의 공용 `ModelessDropdownFormField`는 필드 높이는 40px이지만 선택 항목 child에 수직 정렬 제약이 없어 라벨이 위쪽에 붙어 보였다.
+- 편집: 공용 선택 항목 영역을 `Alignment.centerLeft`로 정렬하고 지점 관리 협력업체/거래처 selector의 40px 높이와 라벨 중앙 정렬 테스트를 추가했다.
+- 검증: 공용 드롭다운 사용 dialog와 지점 관리 dialog/DAO 테스트 36 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없다.
+- stage/commit 대상: `lib/widgets/modeless_dropdown_form_field.dart`, `test/modeless_dropdown_form_field_test.dart`, `test/market_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+
 # 완료: 일반 사용자 수동 테스트 override 제거
 - 원인: 일반 권한 수동 테스트가 끝나 `User.clientUserTestOverrideId`로 특정 ID의 DB 등급을 강제 변경할 필요가 없어졌다.
 - 편집: override 필드와 `_effectiveGrade`를 제거하고 `User.fromMap`이 DB `GRADE`를 그대로 사용하도록 복원했다. 관련 테스트 fixture도 명시적인 사용자 ID/등급으로 변경했다.

@@ -23,6 +23,9 @@ void main() {
     final decorator = tester.widget<InputDecorator>(find.byType(InputDecorator));
     expect(decorator.decoration.fillColor, Colors.white);
     expect(tester.getSize(find.byType(InputDecorator)).height, 40);
+    final fieldCenter = tester.getCenter(find.byType(InputDecorator));
+    final labelCenter = tester.getCenter(find.text('A'));
+    expect(labelCenter.dy, moreOrLessEquals(fieldCenter.dy));
 
     await tester.tap(find.byType(ModelessDropdownFormField<String>));
     await tester.pump();
