@@ -30,6 +30,7 @@ constexpr char kChannelName[] = "label_manager/rtf_open_xml";
 constexpr char kWriteMethod[] = "writeRtfOpenXml";
 constexpr char kConvertHtmlMethod[] = "convertRtfHtml";
 constexpr char kCaptureRtfImageMethod[] = "captureRtfImage";
+constexpr char kEditRtfMethod[] = "editRtf";
 constexpr char kResetRtf[] =
     "{\\rtf1\\ansi\\ansicpg949\\deff0\\nouicompat\\deflang1033"
     "\\deflangfe1042{\\fonttbl{\\f0\\fnil\\fcharset129 "
@@ -98,6 +99,22 @@ struct RtfStreamState {
   size_t length = 0;
   size_t offset = 0;
 };
+
+struct RtfStreamOutState {
+  std::string data;
+};
+
+DWORD CALLBACK RtfStreamOutCallback(DWORD_PTR cookie, LPBYTE buffer,
+                                    LONG buffer_size,
+                                    LONG* bytes_read) noexcept {
+  auto* state = reinterpret_cast<RtfStreamOutState*>(cookie);
+  if (state == nullptr || bytes_read == nullptr || buffer_size < 0) {
+    return 1;
+  }
+  state->data.append(reinterpret_cast<const char*>(buffer), buffer_size);
+  *bytes_read = buffer_size;
+  return 0;
+}
 
 DWORD CALLBACK RtfStreamInCallback(DWORD_PTR cookie, LPBYTE buffer,
                                    LONG buffer_size,
@@ -186,6 +203,20 @@ bool StreamRtfIntoRichEdit(HWND rich_edit, const std::string& rtf) {
   const LRESULT result = SendMessage(rich_edit, EM_STREAMIN, SF_RTF,
                                      reinterpret_cast<LPARAM>(&stream));
   return result > 0 && stream.dwError == 0;
+}
+
+bool StreamRtfOutOfRichEdit(HWND rich_edit, std::string* rtf) {
+  RtfStreamOutState state;
+  EDITSTREAM stream{};
+  stream.dwCookie = reinterpret_cast<DWORD_PTR>(&state);
+  stream.pfnCallback = RtfStreamOutCallback;
+  const LRESULT result = SendMessage(rich_edit, EM_STREAMOUT, SF_RTF,
+                                     reinterpret_cast<LPARAM>(&stream));
+  if (result == 0 || stream.dwError != 0) {
+    return false;
+  }
+  *rtf = std::move(state.data);
+  return true;
 }
 
 std::string WideToUtf8(const std::wstring& value) {
@@ -810,6 +841,145 @@ void HandleCaptureRtfImage(
                                         height_mm, render_scale));
 }
 
+struct RtfEditorState {
+  HWND rich_edit = nullptr;
+  bool accepted = false;
+  bool done = false;
+  std::string rtf;
+};
+
+constexpr wchar_t kRtfEditorClass[] = L"LabelManagerRtfEditor";
+constexpr int kRtfEditorControlId = 1001;
+
+LRESULT CALLBACK RtfEditorWindowProc(HWND window, UINT message, WPARAM wparam,
+                                     LPARAM lparam) {
+  auto* state = reinterpret_cast<RtfEditorState*>(
+      GetWindowLongPtr(window, GWLP_USERDATA));
+  if (message == WM_NCCREATE) {
+    const auto* create = reinterpret_cast<CREATESTRUCT*>(lparam);
+    state = static_cast<RtfEditorState*>(create->lpCreateParams);
+    SetWindowLongPtr(window, GWLP_USERDATA,
+                     reinterpret_cast<LONG_PTR>(state));
+  }
+  if (state == nullptr) {
+    return DefWindowProc(window, message, wparam, lparam);
+  }
+  switch (message) {
+    case WM_CREATE:
+      state->rich_edit = CreateWindowEx(
+          WS_EX_CLIENTEDGE, L"RICHEDIT50W", L"",
+          WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE |
+              ES_AUTOVSCROLL | ES_WANTRETURN,
+          12, 12, 656, 416, window,
+          reinterpret_cast<HMENU>(static_cast<INT_PTR>(kRtfEditorControlId)),
+          GetModuleHandle(nullptr),
+          nullptr);
+      CreateWindow(L"BUTTON", L"Cancel",
+                   WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 500, 440,
+                   80, 28, window,
+                   reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDCANCEL)),
+                   GetModuleHandle(nullptr), nullptr);
+      CreateWindow(L"BUTTON", L"OK",
+                   WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 588,
+                   440, 80, 28, window,
+                   reinterpret_cast<HMENU>(static_cast<INT_PTR>(IDOK)),
+                   GetModuleHandle(nullptr), nullptr);
+      SetRichEditDefaultFormat(state->rich_edit);
+      SetRichEditDefaultZoom(state->rich_edit);
+      if (!state->rtf.empty()) {
+        StreamRtfIntoRichEdit(state->rich_edit, state->rtf);
+      }
+      SetFocus(state->rich_edit);
+      return 0;
+    case WM_SIZE: {
+      const int width = LOWORD(lparam);
+      const int height = HIWORD(lparam);
+      MoveWindow(state->rich_edit, 12, 12, width - 24, height - 64, TRUE);
+      MoveWindow(GetDlgItem(window, IDCANCEL), width - 180, height - 40, 80, 28,
+                 TRUE);
+      MoveWindow(GetDlgItem(window, IDOK), width - 92, height - 40, 80, 28,
+                 TRUE);
+      return 0;
+    }
+    case WM_COMMAND:
+      if (LOWORD(wparam) == IDOK) {
+        state->accepted = StreamRtfOutOfRichEdit(state->rich_edit, &state->rtf);
+        state->done = true;
+        DestroyWindow(window);
+        return 0;
+      }
+      if (LOWORD(wparam) == IDCANCEL) {
+        state->done = true;
+        DestroyWindow(window);
+        return 0;
+      }
+      break;
+    case WM_CLOSE:
+      state->done = true;
+      DestroyWindow(window);
+      return 0;
+  }
+  return DefWindowProc(window, message, wparam, lparam);
+}
+
+EncodableValue EditRtfResult(const std::string& initial_rtf) {
+  const HINSTANCE instance = GetModuleHandle(nullptr);
+  LoadLibrary(L"Msftedit.dll");
+  WNDCLASS window_class{};
+  window_class.lpfnWndProc = RtfEditorWindowProc;
+  window_class.hInstance = instance;
+  window_class.hCursor = LoadCursor(nullptr, IDC_ARROW);
+  window_class.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+  window_class.lpszClassName = kRtfEditorClass;
+  RegisterClass(&window_class);
+
+  RtfEditorState state;
+  state.rtf = initial_rtf;
+  HWND owner = GetActiveWindow();
+  HWND window = CreateWindowEx(
+      WS_EX_DLGMODALFRAME, kRtfEditorClass, L"RTF Editor",
+      WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME, CW_USEDEFAULT,
+      CW_USEDEFAULT, 700, 520, owner, nullptr, instance, &state);
+  if (window == nullptr) {
+    return EncodableValue(EncodableMap{
+        {EncodableValue("accepted"), EncodableValue(false)},
+    });
+  }
+  if (owner != nullptr) {
+    EnableWindow(owner, FALSE);
+  }
+  ShowWindow(window, SW_SHOW);
+  MSG message{};
+  while (!state.done && GetMessage(&message, nullptr, 0, 0) > 0) {
+    if (!IsDialogMessage(window, &message)) {
+      TranslateMessage(&message);
+      DispatchMessage(&message);
+    }
+  }
+  if (owner != nullptr) {
+    EnableWindow(owner, TRUE);
+    SetForegroundWindow(owner);
+  }
+  EncodableMap response{
+      {EncodableValue("accepted"), EncodableValue(state.accepted)},
+  };
+  if (state.accepted) {
+    response[EncodableValue("rtf")] = EncodableValue(state.rtf);
+  }
+  return EncodableValue(response);
+}
+
+void HandleEditRtf(const flutter::MethodCall<EncodableValue>& call,
+                   std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
+  const auto* args = std::get_if<EncodableMap>(call.arguments());
+  if (args == nullptr) {
+    result->Error("bad-arguments", "Expected argument map.");
+    return;
+  }
+  const std::string* rtf = StringArg(*args, "rtf");
+  result->Success(EditRtfResult(rtf == nullptr ? "" : *rtf));
+}
+
 }  // namespace
 
 void RegisterLabelRtfOpenXmlChannel(flutter::FlutterEngine* engine) {
@@ -829,6 +999,10 @@ void RegisterLabelRtfOpenXmlChannel(flutter::FlutterEngine* engine) {
         }
         if (call.method_name() == kCaptureRtfImageMethod) {
           HandleCaptureRtfImage(call, std::move(result));
+          return;
+        }
+        if (call.method_name() == kEditRtfMethod) {
+          HandleEditRtf(call, std::move(result));
           return;
         }
         result->NotImplemented();

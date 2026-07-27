@@ -38,6 +38,15 @@ class LabelSheetNativeRtfPngImage {
   final double scale;
 }
 
+Future<String?> labelSheetEditRichText(String rtf) async {
+  final result = await labelSheetNativeOpenXmlChannel
+      .invokeMapMethod<String, Object?>('editRtf', <String, Object?>{'rtf': rtf});
+  if (result?['accepted'] != true) {
+    return null;
+  }
+  return result?['rtf'] as String?;
+}
+
 Future<File?> labelSheetWriteRtfNativeOpenXmlFile(
   String rtf, {
   required FortuneSheetGridClientPhysicalSize physicalSize,

@@ -84,6 +84,7 @@ import 'package:label_manager/page_home/admin_copy_dialog.dart';
 import 'package:label_manager/page_home/search_and_replace_dialog.dart';
 import 'package:label_manager/page_home/item_info_dialog.dart';
 import 'package:label_manager/page_home/nutrition_type_dialog.dart';
+import 'package:label_manager/page_home/nutrition_box_dialog.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/page_home/content_save_history_dialog.dart';
@@ -412,6 +413,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   final ItemInfoController _itemInfoController = ItemInfoController();
   final NutritionTypeDialogController _nutritionTypeDialogController =
       NutritionTypeDialogController();
+  final NutritionBoxDialogController _nutritionBoxDialogController =
+      NutritionBoxDialogController();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -438,6 +441,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   LifecycleParticipant? _itemInfoLifecycleParticipant;
   OverlayEntry? _nutritionTypeOverlayEntry;
   LifecycleParticipant? _nutritionTypeLifecycleParticipant;
+  OverlayEntry? _nutritionBoxOverlayEntry;
+  LifecycleParticipant? _nutritionBoxLifecycleParticipant;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _printHistoryOverlayEntry;
@@ -553,6 +558,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.searchAndReplace: _openSearchAndReplaceDialog,
         AppMenuCommandId.editItemInfo: _openItemInfoDialog,
         AppMenuCommandId.addNutritionType: _openNutritionTypeDialog,
+        AppMenuCommandId.addNutritionTable: _openNutritionBoxDialog,
         AppMenuCommandId.manageScale: _openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
@@ -3604,6 +3610,74 @@ class _HomePageManagerState extends State<HomePageManager> {
     Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
+  Future<void> _requestCloseNutritionBoxDialog() async {
+    if (_nutritionBoxDialogController.writeBusy ||
+        _nutritionBoxDialogController.activeEditing) {
+      return;
+    }
+    final snapshot = _nutritionBoxDialogController.snapshot();
+    if (snapshot.dirtyWorks.isNotEmpty) {
+      final discard = await showBlockingModelessOverlayDialog<bool>(
+        context: context,
+        builder: (context, close) => AlertDialog(
+          title: const Text('영양성분표 추가'),
+          content: const Text('저장하지 않은 변경내용을 버리시겠습니까?'),
+          actions: [
+            TextButton(onPressed: () => close(false), child: const Text('취소')),
+            FilledButton(onPressed: () => close(true), child: const Text('확인')),
+          ],
+        ),
+      );
+      if (discard != true) return;
+      for (final work in snapshot.dirtyWorks) {
+        await work.discard();
+      }
+    }
+    _closeNutritionBoxDialog();
+  }
+
+  void _closeNutritionBoxDialog() {
+    _nutritionBoxOverlayEntry?.remove();
+    _nutritionBoxOverlayEntry = null;
+    final participant = _nutritionBoxLifecycleParticipant;
+    if (participant != null) {
+      LifecycleManager.instance.removeParticipant(participant);
+      _nutritionBoxLifecycleParticipant = null;
+    }
+  }
+
+  void _openNutritionBoxDialog() {
+    if (_nutritionBoxOverlayEntry != null) return;
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => BlockingModelessDialog(
+        child: AnimatedBuilder(
+          animation: _nutritionBoxDialogController,
+          builder: (context, child) => BlockingModelessDialogFrame(
+            title: '영양성분표 추가',
+            width: 1100,
+            height: 760,
+            onClose: _requestCloseNutritionBoxDialog,
+            closeEnabled: !_nutritionBoxDialogController.writeBusy,
+            child: child!,
+          ),
+          child: NutritionBoxDialogContent(
+            controller: _nutritionBoxDialogController,
+            onCommitOutcomeUnknown: _closeNutritionBoxDialog,
+          ),
+        ),
+      ),
+    );
+    _nutritionBoxOverlayEntry = entry;
+    final participant = LifecycleParticipant(
+      snapshot: _nutritionBoxDialogController.snapshot,
+      close: _closeNutritionBoxDialog,
+    );
+    _nutritionBoxLifecycleParticipant = participant;
+    LifecycleManager.instance.addParticipant(participant);
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
   void _openItemInfoDialog() {
     if (_itemInfoOverlayEntry != null) return;
     final hasContext =
@@ -5213,6 +5287,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _itemInfoController.dispose();
     _closeNutritionTypeDialog();
     _nutritionTypeDialogController.dispose();
+    _closeNutritionBoxDialog();
+    _nutritionBoxDialogController.dispose();
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
