@@ -7,6 +7,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 typedef AdminCopyCooperatorLoader = Future<List<Cooperator>> Function();
 typedef AdminCopyCustomerLoader = Future<List<Customer>> Function(String);
@@ -331,31 +332,33 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     }
   }
 
-  Future<bool?> _confirmOverwrite() => showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
+  Future<bool?> _confirmOverwrite() =>
+      showBlockingModelessOverlayDialog<bool>(
+        context: context,
+        builder: (_, close) => AlertDialog(
       title: const Text('관리자 복사'),
       content: const Text('대상 라벨의 기존 데이터가 삭제됩니다.\n계속하시겠습니까?'),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: () => close(false),
           child: const Text('취소'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
+          onPressed: () => close(true),
           child: const Text('확인'),
         ),
       ],
     ),
   );
 
-  Future<void> _showMessage(String message) => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
+  Future<void> _showMessage(String message) =>
+      showBlockingModelessOverlayDialog<void>(
+        context: context,
+        builder: (_, close) => AlertDialog(
       content: Text(message),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => close(null),
           child: const Text('확인'),
         ),
       ],

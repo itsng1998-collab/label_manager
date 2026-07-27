@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
@@ -126,6 +127,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(deleted, [1]);
   });
+
+  testWidgets('committed update closes after reload failure', (tester) async {
+    var loads = 0;
+    var closes = 0;
+    await _pumpManager(
+      tester,
+      selectionEnabled: false,
+      loadMarkets: (_) async {
+        loads += 1;
+        if (loads > 1) throw Exception('reload failed');
+        return const [marketA];
+      },
+      update: (_) async {},
+      onClose: () => closes += 1,
+    );
+
+    await _doubleTap(tester, find.text('A 지점'));
+    await tester.enterText(
+      find.byKey(const ValueKey('marketNameField')),
+      '수정 지점',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
+  });
+
+  testWidgets('unknown commit outcome closes without reload', (tester) async {
+    var loads = 0;
+    var closes = 0;
+    await _pumpManager(
+      tester,
+      selectionEnabled: false,
+      loadMarkets: (_) async {
+        loads += 1;
+        return const [marketA];
+      },
+      update: (_) async => throw const DbCommitOutcomeUnknown('commit lost'),
+      onClose: () => closes += 1,
+    );
+
+    await _doubleTap(tester, find.text('A 지점'));
+    await tester.enterText(
+      find.byKey(const ValueKey('marketNameField')),
+      '수정 지점',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('commit lost'), findsOneWidget);
+    expect(loads, 1);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
+  });
 }
 
 Future<void> _pumpManager(
@@ -135,6 +192,7 @@ Future<void> _pumpManager(
   Future<int> Function(Market market)? insert,
   Future<void> Function(Market market)? update,
   Future<void> Function(int marketId)? delete,
+  VoidCallback? onClose,
 }) async {
   final controller = MarketManagerController();
   addTearDown(controller.dispose);
@@ -146,6 +204,7 @@ Future<void> _pumpManager(
           height: 660,
           child: MarketManagerDialogContent(
             controller: controller,
+            onClose: onClose ?? () {},
             initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
             initialCustomer: const Customer(
               customerId: 10,

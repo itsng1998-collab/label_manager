@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/system_password.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -57,6 +58,7 @@ class CustomerManagerDialogContent extends StatefulWidget {
     required this.initialCooperator,
     required this.cooperatorSelectionEnabled,
     required this.connect,
+    required this.onClose,
     this.loadCooperators = CooperatorDAO.selectAll,
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
     this.insert = CustomerDAO.insert,
@@ -69,6 +71,7 @@ class CustomerManagerDialogContent extends StatefulWidget {
   final Cooperator initialCooperator;
   final bool cooperatorSelectionEnabled;
   final CustomerConnector connect;
+  final VoidCallback onClose;
   final CustomerCooperatorLoader loadCooperators;
   final CustomerLoader loadCustomers;
   final CustomerWriter insert;
@@ -236,16 +239,30 @@ class _CustomerManagerDialogContentState
   }) async {
     widget.controller.setWriteBusy(true);
     if (mounted) setState(() {});
+    var committed = false;
+    var closeAfterWrite = false;
     try {
       await write();
+      committed = true;
       await _reload();
       if (mounted) await _showMessage(successMessage);
-    } catch (error) {
+    } on DbCommitOutcomeUnknown catch (error) {
       if (mounted) await _showMessage(error.toString());
+      closeAfterWrite = true;
+    } catch (error) {
+      if (committed) {
+        if (mounted) {
+          await _showMessage('저장은 완료됐지만 화면 갱신에 실패했습니다.');
+        }
+        closeAfterWrite = true;
+      } else if (mounted) {
+        await _showMessage(error.toString());
+      }
     } finally {
       widget.controller.setWriteBusy(false);
       if (mounted) setState(() {});
     }
+    if (closeAfterWrite) widget.onClose();
   }
 
   Future<String?> _showInputDialog({

@@ -183,6 +183,8 @@ class _NutritionTypeDialogContentState extends State<NutritionTypeDialogContent>
     } catch (error) {
       if (showError && mounted) {
         await _showMessage(error.toString());
+      } else {
+        rethrow;
       }
     } finally {
       if (mounted) {
@@ -344,8 +346,10 @@ class _NutritionTypeDialogContentState extends State<NutritionTypeDialogContent>
   }) async {
     widget.controller.setWriteBusy(true);
     if (mounted) setState(() {});
+    var committed = false;
     try {
       await write();
+      committed = true;
       await onSuccess();
     } on DbCommitOutcomeUnknown catch (error) {
       if (mounted) {
@@ -353,7 +357,12 @@ class _NutritionTypeDialogContentState extends State<NutritionTypeDialogContent>
       }
       widget.onCommitOutcomeUnknown();
     } catch (error) {
-      if (mounted) {
+      if (committed) {
+        if (mounted) {
+          await _showMessage('저장은 완료됐지만 화면 갱신에 실패했습니다.');
+        }
+        widget.onCommitOutcomeUnknown();
+      } else if (mounted) {
         await _showMessage(error.toString());
       }
     } finally {

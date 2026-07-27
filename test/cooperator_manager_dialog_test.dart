@@ -120,6 +120,32 @@ void main() {
     expect(find.byKey(const ValueKey('cooperatorIdField')), findsNothing);
   });
 
+  testWidgets('committed add closes after reload failure', (tester) async {
+    var loads = 0;
+    var closes = 0;
+    await _pumpManager(
+      tester,
+      load: () async {
+        loads += 1;
+        if (loads > 1) throw Exception('reload failed');
+        return const [];
+      },
+      insert: (_) async {},
+      onClose: () => closes += 1,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('cooperatorAddButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    expect(closes, 0);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
+  });
+
   testWidgets('delete requires selection password and one warning', (
     tester,
   ) async {
@@ -178,6 +204,7 @@ Future<void> _pumpManager(
   Future<void> Function(String oldId, Cooperator value)? update,
   Future<void> Function(String id)? delete,
   String Function([DateTime? now])? systemPassword,
+  VoidCallback? onClose,
 }) async {
   final controller = CooperatorManagerController();
   addTearDown(controller.dispose);
@@ -189,6 +216,7 @@ Future<void> _pumpManager(
           height: 620,
           child: CooperatorManagerDialogContent(
             controller: controller,
+            onClose: onClose ?? () {},
             load: load,
             insert: insert ?? (value) async {},
             update: update ?? (oldId, value) async {},

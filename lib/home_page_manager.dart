@@ -3226,6 +3226,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ),
           child: CustomerManagerDialogContent(
             controller: _customerManagerController,
+            onClose: _closeCustomerManagerDialog,
             initialCooperator: cooperator,
             cooperatorSelectionEnabled:
                 widget.customerCooperatorSelectionEnabled,
@@ -3277,6 +3278,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ),
           child: MarketManagerDialogContent(
             controller: _marketManagerController,
+            onClose: _closeMarketManagerDialog,
             initialCooperator: cooperator,
             initialCustomer: customer,
             cooperatorSelectionEnabled:
@@ -3329,6 +3331,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ),
           child: UserManagerDialogContent(
             controller: _userManagerController,
+            onClose: _closeUserManagerDialog,
             initialCooperator: cooperator,
             initialCustomer: customer,
             initialMarket: market,
@@ -3447,7 +3450,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         throw StateError('현재 라벨 정보를 다시 불러오지 못했습니다.');
       }
     } catch (error) {
-      if (mounted) _showItemDraftError('관리자 복사 후 조회 오류', error);
+      if (mounted) {
+        _showItemDraftError('저장은 완료됐지만 화면 갱신에 실패했습니다.', error);
+      }
     }
   }
 
@@ -3855,6 +3860,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ),
           child: CooperatorManagerDialogContent(
             controller: _cooperatorManagerController,
+            onClose: _closeCooperatorManagerDialog,
           ),
         ),
       ),

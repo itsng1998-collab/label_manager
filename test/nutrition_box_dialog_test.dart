@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/models/nutrition_box.dart';
+import 'package:label_manager/models/nutrition_type.dart';
 import 'package:label_manager/page_home/nutrition_box_dialog.dart';
 
 void main() {
@@ -18,5 +21,56 @@ void main() {
     await snapshot.dirtyWorks.single.discard();
     expect(discarded, isTrue);
     controller.dispose();
+  });
+
+  testWidgets('committed delete closes after list reload failure', (
+    tester,
+  ) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    var loads = 0;
+    var closes = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NutritionBoxDialogContent(
+            controller: controller,
+            onCommitOutcomeUnknown: () => closes += 1,
+            loadBoxes: () async {
+              loads += 1;
+              if (loads > 1) throw Exception('reload failed');
+              return const [
+                NutritionBox(
+                  id: 1,
+                  typeId: 2,
+                  typeName: '기본형',
+                  name: '기본표',
+                  rtf: '',
+                  width: 100,
+                ),
+              ];
+            },
+            loadTypes: () async => const [NutritionType(id: 2, name: '기본형')],
+            loadColumns: (_) async => const [],
+            insert: ({required typeId, required name, required rtf, required width}) async {},
+            update: ({required boxId, required typeId, required name, required rtf, required width}) async {},
+            delete: (_) async {},
+            editRtf: (_) async => null,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('기본표'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nutritionBoxDeleteButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
   });
 }

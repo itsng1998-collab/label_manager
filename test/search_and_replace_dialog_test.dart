@@ -28,6 +28,9 @@ void main() {
     required bool editable,
     String initialSearchText = '',
     ItemDetailSearcher? search,
+    SearchReplaceSaver? save,
+    Future<void> Function()? onSaved,
+    VoidCallback? onClose,
   }) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -52,11 +55,11 @@ void main() {
                   brandId,
                   labelSizeId,
                 }) async => const [result],
-            save: (_) async {},
+            save: save ?? (_) async {},
             onMoveToEdit: (_) async {},
             onMoveToPrint: (_) async {},
-            onSaved: () async {},
-            onCommitOutcomeUnknown: () {},
+            onSaved: onSaved ?? () async {},
+            onCommitOutcomeUnknown: onClose ?? () {},
           ),
         ),
       ),
@@ -145,5 +148,41 @@ void main() {
       find.byKey(const ValueKey('searchReplaceMovePrintButton')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('committed save closes after owner reload failure', (
+    tester,
+  ) async {
+    var saves = 0;
+    var closes = 0;
+    await pumpContent(
+      tester,
+      editable: true,
+      initialSearchText: '품목',
+      save: (_) async => saves += 1,
+      onSaved: () async => throw Exception('reload failed'),
+      onClose: () => closes += 1,
+    );
+
+    await tester.tap(find.text('주원료 1'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('주원료 1'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('searchReplaceElementEditor')),
+      '변경 원료',
+    );
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('searchReplaceSaveButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 1);
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
   });
 }

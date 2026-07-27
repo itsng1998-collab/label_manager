@@ -147,6 +147,32 @@ void main() {
     expect(loads, 2);
   });
 
+  testWidgets('committed add closes after reload failure', (tester) async {
+    var loads = 0;
+    var closes = 0;
+    await _pumpManager(
+      tester,
+      selectionEnabled: false,
+      loadCustomers: (_) async {
+        loads += 1;
+        if (loads > 1) throw Exception('reload failed');
+        return const [];
+      },
+      insert: (_) async {},
+      onClose: () => closes += 1,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('customerAddButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
+  });
+
   testWidgets('delete uses password and one cascade warning', (tester) async {
     final deleted = <int>[];
     var loads = 0;
@@ -199,6 +225,7 @@ Future<void> _pumpManager(
   Future<void> Function(int customerId)? delete,
   Future<void> Function(Customer customer)? connect,
   String Function([DateTime? now])? systemPassword,
+  VoidCallback? onClose,
 }) async {
   final controller = CustomerManagerController();
   addTearDown(controller.dispose);
@@ -210,6 +237,7 @@ Future<void> _pumpManager(
           height: 660,
           child: CustomerManagerDialogContent(
             controller: controller,
+            onClose: onClose ?? () {},
             initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
             cooperatorSelectionEnabled: selectionEnabled,
             loadCooperators: () async => const [

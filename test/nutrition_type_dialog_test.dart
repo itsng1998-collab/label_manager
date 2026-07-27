@@ -14,6 +14,7 @@ void main() {
     NutritionTypeWriter? insert,
     NutritionTypeUpdater? update,
     NutritionTypeDeleter? delete,
+    VoidCallback? onClose,
   }) async {
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -22,7 +23,7 @@ void main() {
         home: Scaffold(
           body: NutritionTypeDialogContent(
             controller: controller,
-            onCommitOutcomeUnknown: () {},
+            onCommitOutcomeUnknown: onClose ?? () {},
             loadTypes: loadTypes ?? (() async => const []),
             loadTypesById: loadTypesById ?? (() async => const []),
             loadColumns: loadColumns ?? ((_) async => const []),
@@ -186,5 +187,36 @@ void main() {
       find.byKey(const ValueKey('nutritionTypeDraftTable')),
     );
     expect(table.rows.single.name, '');
+  });
+
+  testWidgets('committed delete closes after list reload failure', (
+    tester,
+  ) async {
+    final controller = NutritionTypeDialogController();
+    addTearDown(controller.dispose);
+    var loads = 0;
+    var closes = 0;
+    await pumpDialog(
+      tester,
+      controller: controller,
+      loadTypes: () async {
+        loads += 1;
+        if (loads > 1) throw Exception('reload failed');
+        return const [NutritionType(id: 1, name: '기본형')];
+      },
+      delete: (_) async {},
+      onClose: () => closes += 1,
+    );
+
+    await tester.tap(find.text('기본형'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nutritionTypeDeleteButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
   });
 }

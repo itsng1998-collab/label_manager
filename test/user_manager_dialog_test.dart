@@ -177,6 +177,32 @@ void main() {
       expect(deleted, ['one']);
     },
   );
+
+  testWidgets('committed delete closes after reload failure', (tester) async {
+    var loads = 0;
+    var closes = 0;
+    await _pumpManager(
+      tester,
+      loadUsers: (_) async {
+        loads += 1;
+        if (loads > 1) throw Exception('reload failed');
+        return [_user('one', '김하나')];
+      },
+      delete: (_) async {},
+      onClose: () => closes += 1,
+    );
+
+    await tester.tap(find.text('김하나'));
+  await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('userDeleteButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(find.text('저장은 완료됐지만 화면 갱신에 실패했습니다.'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(closes, 1);
+  });
 }
 
 Future<void> _pumpManager(
@@ -188,6 +214,7 @@ Future<void> _pumpManager(
   Future<void> Function(ManagedUser)? connect,
   Future<void> Function(ManagedUser)? insert,
   Future<void> Function(String)? delete,
+  VoidCallback? onClose,
 }) async {
   final controller = UserManagerController();
   addTearDown(controller.dispose);
@@ -199,6 +226,7 @@ Future<void> _pumpManager(
           height: 720,
           child: UserManagerDialogContent(
             controller: controller,
+            onClose: onClose ?? () {},
             initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
             initialCustomer: const Customer(
               customerId: 10,

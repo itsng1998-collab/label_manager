@@ -374,6 +374,7 @@ class _SearchAndReplaceDialogContentState
     if (confirmed != true || !mounted) return;
     widget.controller.setWriteBusy(true);
     if (mounted) setState(() {});
+    var committed = false;
     try {
       await widget.save([
         for (final row in _rows)
@@ -384,6 +385,7 @@ class _SearchAndReplaceDialogContentState
               elementSheet: row.elementSheet,
             ),
       ]);
+          committed = true;
       if (!mounted) return;
       setState(() {
         _rows = [for (final row in _rows) row.copyWith(changed: false)];
@@ -394,7 +396,14 @@ class _SearchAndReplaceDialogContentState
       if (mounted) await _showMessage(error.toString());
       widget.onCommitOutcomeUnknown();
     } catch (error) {
-      if (mounted) await _showMessage(error.toString());
+      if (committed) {
+        if (mounted) {
+          await _showMessage('저장은 완료됐지만 화면 갱신에 실패했습니다.');
+        }
+        widget.onCommitOutcomeUnknown();
+      } else if (mounted) {
+        await _showMessage(error.toString());
+      }
     } finally {
       widget.controller.setWriteBusy(false);
       if (mounted) setState(() {});

@@ -139,17 +139,31 @@ class AppMenuBar extends StatelessWidget {
         : command.icon == null
         ? null
         : Icon(command.icon);
+    final onPressed = state.enabled
+        ? () => onCommandSelected(command.id)
+        : null;
 
-    return MenuItemButton(
-      key: ValueKey('app-menu-command-${command.id.name}'),
-      onPressed: state.enabled ? () => onCommandSelected(command.id) : null,
-      leadingIcon: leadingIcon,
-      trailingIcon: command.shortcutLabel == null
-          ? null
-          : Text(command.shortcutLabel!),
-      child: _CommandLabel(
-        label: command.label,
-        disabledReason: state.disabledReason,
+    return Semantics(
+      key: ValueKey('app-menu-command-semantics-${command.id.name}'),
+      container: true,
+      button: true,
+      enabled: state.enabled,
+      label: command.shortcutLabel == null
+          ? command.label
+          : '${command.label} ${command.shortcutLabel}',
+      onTap: onPressed,
+      excludeSemantics: true,
+      child: MenuItemButton(
+        key: ValueKey('app-menu-command-${command.id.name}'),
+        onPressed: onPressed,
+        leadingIcon: leadingIcon,
+        trailingIcon: command.shortcutLabel == null
+            ? null
+            : Text(command.shortcutLabel!),
+        child: _CommandLabel(
+          label: command.label,
+          disabledReason: state.disabledReason,
+        ),
       ),
     );
   }

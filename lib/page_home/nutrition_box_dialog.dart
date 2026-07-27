@@ -170,7 +170,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     super.dispose();
   }
 
-  Future<void> _reloadBoxes({int? restoreIndex}) async {
+  Future<void> _reloadBoxes({int? restoreIndex, bool showError = true}) async {
     setState(() => _loading = true);
     try {
       final rows = await widget.loadBoxes();
@@ -182,7 +182,11 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
             : null;
       });
     } catch (error) {
-      if (mounted) await _showMessage(error.toString());
+      if (showError && mounted) {
+        await _showMessage(error.toString());
+      } else {
+        rethrow;
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -335,7 +339,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     }
     await _runWrite(
       write: () => widget.delete(selected.id),
-      onSuccess: () => _reloadBoxes(),
+      onSuccess: () => _reloadBoxes(showError: false),
     );
   }
 
@@ -344,14 +348,23 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     required Future<void> Function() onSuccess,
   }) async {
     widget.controller.setWriteBusy(true);
+    var committed = false;
     try {
       await write();
+      committed = true;
       await onSuccess();
     } on DbCommitOutcomeUnknown catch (error) {
       if (mounted) await _showMessage(error.toString());
       widget.onCommitOutcomeUnknown();
     } catch (error) {
-      if (mounted) await _showMessage(error.toString());
+      if (committed) {
+        if (mounted) {
+          await _showMessage('저장은 완료됐지만 화면 갱신에 실패했습니다.');
+        }
+        widget.onCommitOutcomeUnknown();
+      } else if (mounted) {
+        await _showMessage(error.toString());
+      }
     } finally {
       widget.controller.setWriteBusy(false);
     }
