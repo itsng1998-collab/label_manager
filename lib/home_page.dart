@@ -47,6 +47,8 @@ class _HomePageState extends State<HomePage> {
   final StartupDbHelper _db = StartupDbHelper();
   final Object _appMenuShortcutBlockerOwner = Object();
   late final AppMenuController _appMenuController;
+  final HomePageManagerController _homePageManagerController =
+      HomePageManagerController();
   LifecycleCallbacks? _lifecycleCallbacks;
   Future<void>? _disconnectLogoutFuture;
   bool _disconnectCleanupDone = false;
@@ -588,6 +590,7 @@ class _HomePageState extends State<HomePage> {
             ? HomePageManager(
                 key: ValueKey(_managerSessionGeneration),
                 appMenuController: _appMenuController,
+                controller: _homePageManagerController,
                 adminCopyCooperatorSelectionEnabled:
                     User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER,
                 customerCooperatorSelectionEnabled:

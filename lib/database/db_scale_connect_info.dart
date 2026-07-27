@@ -31,7 +31,7 @@ class ScaleConnectInfo {
   final String portName;
   final int baudRate;
   final int dataBit;
-  final int stopBit;
+  final double stopBit;
   final String parityBit;
   final bool autoPrint;
 
@@ -48,7 +48,7 @@ class ScaleConnectInfo {
     String? portName,
     int? baudRate,
     int? dataBit,
-    int? stopBit,
+    double? stopBit,
     String? parityBit,
     bool? autoPrint,
   }) => ScaleConnectInfo(
@@ -64,7 +64,7 @@ class ScaleConnectInfo {
     portName: (map['PORT_NAME'] ?? 'COM1').toString(),
     baudRate: (map['BAUD_RATE'] as num?)?.toInt() ?? 9600,
     dataBit: (map['DATA_BIT'] as num?)?.toInt() ?? 8,
-    stopBit: (map['STOP_BIT'] as num?)?.toInt() ?? 1,
+    stopBit: (map['STOP_BIT'] as num?)?.toDouble() ?? 1,
     parityBit: (map['PARITY_BIT'] ?? 'none').toString(),
     autoPrint: ((map['AUTO_PRINT'] as num?)?.toInt() ?? 0) != 0,
   );

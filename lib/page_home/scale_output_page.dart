@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/database/db_scale_connect_info.dart';
@@ -9,143 +11,250 @@ import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 Future<ScaleConnectInfo?> showScaleConnectSettingsDialog({
   required BuildContext context,
   required ScaleConnectInfo initial,
-  required List<String> availablePorts,
-}) async {
-  final portItems = <String>{
-    if (initial.portName.trim().isNotEmpty) initial.portName.trim(),
-    ...availablePorts.where((port) => port.trim().isNotEmpty),
-  }.toList(growable: false)
-    ..sort();
-  final baudRateController = TextEditingController(text: '${initial.baudRate}');
-  final dataBitController = TextEditingController(text: '${initial.dataBit}');
-  final stopBitController = TextEditingController(text: '${initial.stopBit}');
-  var selectedPort = initial.portName;
-  var parity = initial.parityBit;
-  String? errorText;
-  try {
-    return await showDialog<ScaleConnectInfo>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('저울 연결 설정'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+  ScaleConnectionService? connectionService,
+}) => showDialog<ScaleConnectInfo>(
+  context: context,
+  builder: (_) => _ScaleConnectSettingsDialog(
+    initial: initial,
+    connectionService: connectionService ?? ScaleConnectionService(),
+  ),
+);
+
+class _ScaleConnectSettingsDialog extends StatefulWidget {
+  const _ScaleConnectSettingsDialog({
+    required this.initial,
+    required this.connectionService,
+  });
+
+  final ScaleConnectInfo initial;
+  final ScaleConnectionService connectionService;
+
+  @override
+  State<_ScaleConnectSettingsDialog> createState() =>
+      _ScaleConnectSettingsDialogState();
+}
+
+class _ScaleConnectSettingsDialogState
+    extends State<_ScaleConnectSettingsDialog> {
+  static final List<String> _ports = List<String>.generate(
+    10,
+    (index) => 'COM${index + 1}',
+  );
+  static const List<int> _dataBits = <int>[4, 5, 6, 7, 8];
+  static const List<double> _stopBits = <double>[1, 1.5, 2];
+  static const List<String> _parities = <String>[
+    'even',
+    'odd',
+    'none',
+    'mark',
+    'space',
+  ];
+
+  late String _port = widget.initial.portName;
+  late int _baudRate = widget.initial.baudRate;
+  late int _dataBit = widget.initial.dataBit;
+  late double _stopBit = widget.initial.stopBit;
+  late String _parity = widget.initial.parityBit;
+  late bool _autoPrint = widget.initial.autoPrint;
+  bool _testBusy = false;
+  bool _testConnected = false;
+  String _testStatus = '';
+  String _receivedWeight = '';
+
+  ScaleConnectInfo get _draft => ScaleConnectInfo(
+    portName: _port,
+    baudRate: _baudRate,
+    dataBit: _dataBit,
+    stopBit: _stopBit,
+    parityBit: _parity,
+    autoPrint: _autoPrint,
+  );
+
+  @override
+  void dispose() {
+    unawaited(widget.connectionService.disconnect());
+    super.dispose();
+  }
+
+  void _changeCommunication(VoidCallback change) {
+    change();
+    if (_testConnected || _testBusy) {
+      unawaited(widget.connectionService.disconnect());
+    }
+    setState(() {
+      _testBusy = false;
+      _testConnected = false;
+      _testStatus = '';
+      _receivedWeight = '';
+    });
+  }
+
+  Future<void> _connectTest() async {
+    setState(() {
+      _testBusy = true;
+      _testStatus = '연결 중';
+      _receivedWeight = '';
+    });
+    try {
+      final connected = await widget.connectionService.connect(
+        info: _draft,
+        onWeight: (weight) {
+          if (mounted) setState(() => _receivedWeight = weight);
+        },
+      );
+      if (!mounted || !connected) return;
+      setState(() {
+        _testBusy = false;
+        _testConnected = true;
+        _testStatus = '연결됨';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _testBusy = false;
+        _testConnected = false;
+        _testStatus = '연결 실패: $error';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('저울 연결 설정'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: portItems.contains(selectedPort) ? selectedPort : null,
-                  items: [
-                    for (final port in portItems)
-                      DropdownMenuItem<String>(value: port, child: Text(port)),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setDialogState(() {
-                      selectedPort = value;
-                      errorText = null;
-                    });
-                  },
-                  decoration: const InputDecoration(labelText: '포트'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: baudRateController,
-                  decoration: const InputDecoration(labelText: 'Baud Rate'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: dataBitController,
-                        decoration: const InputDecoration(labelText: 'Data Bit'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: stopBitController,
-                        decoration: const InputDecoration(labelText: 'Stop Bit'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: parity,
-                  items: const [
-                    DropdownMenuItem(value: 'none', child: Text('None')),
-                    DropdownMenuItem(value: 'odd', child: Text('Odd')),
-                    DropdownMenuItem(value: 'even', child: Text('Even')),
-                    DropdownMenuItem(value: 'mark', child: Text('Mark')),
-                    DropdownMenuItem(value: 'space', child: Text('Space')),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setDialogState(() {
-                      parity = value;
-                      errorText = null;
-                    });
-                  },
-                  decoration: const InputDecoration(labelText: 'Parity'),
-                ),
-                if (errorText != null) ...[
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      errorText!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    ),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _port,
+                    decoration: const InputDecoration(labelText: '포트'),
+                    items: [
+                      for (final value in _ports)
+                        DropdownMenuItem(value: value, child: Text(value)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _changeCommunication(() => _port = value);
+                      }
+                    },
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _baudRate,
+                    decoration: const InputDecoration(labelText: 'Baud Rate'),
+                    items: [
+                      for (final value in scaleOutputSupportedBaudRates)
+                        DropdownMenuItem(value: value, child: Text('$value')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _changeCommunication(() => _baudRate = value);
+                      }
+                    },
+                  ),
+                ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final baudRate = int.tryParse(baudRateController.text.trim());
-                final dataBit = int.tryParse(dataBitController.text.trim());
-                final stopBit = int.tryParse(stopBitController.text.trim());
-                if (selectedPort.trim().isEmpty ||
-                    baudRate == null ||
-                    dataBit == null ||
-                    stopBit == null ||
-                    !scaleOutputIsSupportedBaudRate(baudRate) ||
-                    !scaleOutputIsSupportedDataBit(dataBit) ||
-                    !scaleOutputIsSupportedStopBit(stopBit)) {
-                  setDialogState(() {
-                    errorText = '지원하는 포트 설정값을 확인해 주세요.';
-                  });
-                  return;
-                }
-                Navigator.of(dialogContext).pop(
-                  ScaleConnectInfo(
-                    portName: selectedPort.trim(),
-                    baudRate: baudRate,
-                    dataBit: dataBit,
-                    stopBit: stopBit,
-                    parityBit: parity,
-                    autoPrint: initial.autoPrint,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _dataBit,
+                    decoration: const InputDecoration(labelText: 'Data Bit'),
+                    items: [
+                      for (final value in _dataBits)
+                        DropdownMenuItem(value: value, child: Text('$value')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _changeCommunication(() => _dataBit = value);
+                      }
+                    },
                   ),
-                );
-              },
-              child: const Text('적용'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<double>(
+                    initialValue: _stopBit,
+                    decoration: const InputDecoration(labelText: 'Stop Bit'),
+                    items: [
+                      for (final value in _stopBits)
+                        DropdownMenuItem(value: value, child: Text('$value')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _changeCommunication(() => _stopBit = value);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _parity,
+                    decoration: const InputDecoration(labelText: 'Parity'),
+                    items: [
+                      for (final value in _parities)
+                        DropdownMenuItem(
+                          value: value,
+                          child: Text(value[0].toUpperCase() + value.substring(1)),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _changeCommunication(() => _parity = value);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('자동발행'),
+              value: _autoPrint,
+              onChanged: (value) => setState(() => _autoPrint = value ?? false),
+            ),
+            Row(
+              children: [
+                FilledButton.icon(
+                  key: const ValueKey('scaleConnectTestButton'),
+                  onPressed: _testBusy || _testConnected ? null : _connectTest,
+                  icon: const Icon(Icons.cable_outlined),
+                  label: const Text('연결'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(_testStatus)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('수신 중량: $_receivedWeight'),
             ),
           ],
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_draft),
+          child: const Text('적용'),
+        ),
+      ],
     );
-  } finally {
-    baudRateController.dispose();
-    dataBitController.dispose();
-    stopBitController.dispose();
   }
 }
 

@@ -56,8 +56,11 @@ const List<int> scaleOutputSupportedBaudRates = <int>[
   14400,
   19200,
   38400,
+  56000,
   57600,
   115200,
+  128000,
+  256000,
 ];
 
 bool scaleOutputIsSupportedBaudRate(int value) {
@@ -65,11 +68,39 @@ bool scaleOutputIsSupportedBaudRate(int value) {
 }
 
 bool scaleOutputIsSupportedDataBit(int value) {
-  return value >= 5 && value <= 8;
+  return value >= 4 && value <= 8;
 }
 
-bool scaleOutputIsSupportedStopBit(int value) {
-  return value == 1 || value == 2;
+bool scaleOutputIsSupportedStopBit(double value) {
+  return value == 1 || value == 1.5 || value == 2;
+}
+
+class ScaleOutputIncomingReading {
+  const ScaleOutputIncomingReading({
+    required this.state,
+    required this.weight,
+  });
+
+  final String state;
+  final String weight;
+}
+
+ScaleOutputIncomingReading? scaleOutputParseIncomingReading(String raw) {
+  final match = RegExp(
+    r'^\s*([A-Za-z]{2})\b.*?([+-]?\s*\d+(?:\.\d+)?)\s*(kg|g)\b',
+    caseSensitive: false,
+  ).firstMatch(raw);
+  if (match == null) return null;
+  return ScaleOutputIncomingReading(
+    state: match.group(1)!.toUpperCase(),
+    weight: '${match.group(2)!.replaceAll(' ', '')}${match.group(3)!}',
+  );
+}
+
+bool scaleOutputIsStablePositiveReading(ScaleOutputIncomingReading reading) {
+  if (reading.state != 'ST') return false;
+  final value = double.tryParse(scaleOutputNormalizedWeightText(reading.weight));
+  return value != null && value > 0;
 }
 
 String scaleOutputNormalizedWeightText(String raw) {
@@ -704,6 +735,7 @@ class ScaleConnectionService {
   SerialPort? _port;
   bool _running = false;
   Future<void>? _reader;
+  int _generation = 0;
   final StringBuffer _buffer = StringBuffer();
 
   bool get isConnected => _port != null && _port!.isOpened;
@@ -713,11 +745,13 @@ class ScaleConnectionService {
     return SerialPort.getAvailablePorts().where((port) => port.isNotEmpty).toList();
   }
 
-  Future<void> connect({
+  Future<bool> connect({
     required ScaleConnectInfo info,
     required void Function(String rawWeight) onWeight,
   }) async {
-    await disconnect();
+    final generation = ++_generation;
+    await _disconnectCurrent();
+    if (generation != _generation) return false;
     if (!Platform.isWindows) {
       throw UnsupportedError('저울 연결은 Windows에서만 지원합니다.');
     }
@@ -725,19 +759,33 @@ class ScaleConnectionService {
       info.portName,
       BaudRate: _baudRateValue(info.baudRate),
       ByteSize: info.dataBit,
-      StopBits: info.stopBit == 2 ? TWOSTOPBITS : ONESTOPBIT,
+      StopBits: info.stopBit == 2
+          ? TWOSTOPBITS
+          : info.stopBit == 1.5
+          ? ONE5STOPBITS
+          : ONESTOPBIT,
       Parity: _parityValue(info.parityBit),
       ReadIntervalTimeout: 0xFFFFFFFF,
       ReadTotalTimeoutConstant: 0,
       ReadTotalTimeoutMultiplier: 0,
       openNow: true,
     );
+    if (generation != _generation) {
+      port.close();
+      return false;
+    }
     _port = port;
     _running = true;
-    _reader = _readLoop(onWeight);
+    _reader = _readLoop(generation, onWeight);
+    return true;
   }
 
   Future<void> disconnect() async {
+    _generation += 1;
+    await _disconnectCurrent();
+  }
+
+  Future<void> _disconnectCurrent() async {
     _running = false;
     final port = _port;
     _port = null;
@@ -754,8 +802,11 @@ class ScaleConnectionService {
     }
   }
 
-  Future<void> _readLoop(void Function(String rawWeight) onWeight) async {
-    while (_running) {
+  Future<void> _readLoop(
+    int generation,
+    void Function(String rawWeight) onWeight,
+  ) async {
+    while (_running && generation == _generation) {
       final port = _port;
       if (port == null || !port.isOpened) return;
       final bytes = await port.readBytes(
@@ -773,7 +824,7 @@ class ScaleConnectionService {
         ..write(parts.last);
       for (final line in parts.take(parts.length - 1)) {
         final value = line.trim();
-        if (value.isNotEmpty) onWeight(value);
+        if (value.isNotEmpty && generation == _generation) onWeight(value);
       }
     }
   }
@@ -800,11 +851,18 @@ class ScaleConnectionService {
         return CBR_19200;
       case 38400:
         return CBR_38400;
+      case 56000:
+        return CBR_56000;
       case 57600:
         return CBR_57600;
       case 115200:
-      default:
         return CBR_115200;
+      case 128000:
+        return CBR_128000;
+      case 256000:
+        return CBR_256000;
+      default:
+        throw ArgumentError.value(value, 'value', 'Unsupported baud rate');
     }
   }
 

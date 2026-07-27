@@ -204,9 +204,33 @@ Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
   );
 }
 
+class HomePageManagerController {
+  Object? _owner;
+  Future<void> Function()? _openScaleConnectSettings;
+
+  void attach({
+    required Object owner,
+    required Future<void> Function() openScaleConnectSettings,
+  }) {
+    _owner = owner;
+    _openScaleConnectSettings = openScaleConnectSettings;
+  }
+
+  void detach(Object owner) {
+    if (!identical(_owner, owner)) return;
+    _owner = null;
+    _openScaleConnectSettings = null;
+  }
+
+  Future<void> openScaleConnectSettings() async {
+    await _openScaleConnectSettings?.call();
+  }
+}
+
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
   final AppMenuController appMenuController;
+  final HomePageManagerController controller;
   final bool adminCopyCooperatorSelectionEnabled;
   final bool customerCooperatorSelectionEnabled;
   final CustomerConnector onCustomerAdminConnect;
@@ -226,6 +250,7 @@ class HomePageManager extends StatefulWidget {
   const HomePageManager({
     super.key,
     required this.appMenuController,
+    required this.controller,
     required this.adminCopyCooperatorSelectionEnabled,
     required this.customerCooperatorSelectionEnabled,
     required this.onCustomerAdminConnect,
@@ -360,6 +385,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       LabelSheetEditingLifecycleController();
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
+  Timer? _scaleAutoPrintTimer;
   List<Brand> _brands = const <Brand>[];
   List<TabData> _tabs = const <TabData>[];
   LabelSize? _currentLabelSize;
@@ -559,7 +585,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         AppMenuCommandId.editItemInfo: _openItemInfoDialog,
         AppMenuCommandId.addNutritionType: _openNutritionTypeDialog,
         AppMenuCommandId.addNutritionTable: _openNutritionBoxDialog,
-        AppMenuCommandId.manageScale: _openScaleConnectSettings,
+        AppMenuCommandId.manageScale:
+            widget.controller.openScaleConnectSettings,
         AppMenuCommandId.labelPrintSettings: _openLabelPrintSettings,
         AppMenuCommandId.scaleOutputPrinterSettings:
             _openScaleOutputPrinterSettings,
@@ -1118,6 +1145,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     _tabController = _createTabController();
     _labelPrintSessionController.addListener(_handleLabelPrintChanged);
     _scaleOutputSessionController.addListener(_handleScaleOutputChanged);
+    widget.controller.attach(
+      owner: this,
+      openScaleConnectSettings: _openScaleConnectSettings,
+    );
     _attachAppMenuCommands();
     widget.onExitSnapshotProviderChanged?.call(_createExitSnapshot);
     HardwareKeyboard.instance.addHandler(_handleTabShortcutKeyEvent);
@@ -1137,6 +1168,14 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (!identical(oldWidget.appMenuController, widget.appMenuController)) {
       oldWidget.appMenuController.detach(this);
+      _attachAppMenuCommands();
+    }
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller.detach(this);
+      widget.controller.attach(
+        owner: this,
+        openScaleConnectSettings: _openScaleConnectSettings,
+      );
       _attachAppMenuCommands();
     }
     if (oldWidget.selectedLabelSize?.labelSizeId !=
@@ -5237,6 +5276,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleTabShortcutKeyEvent);
     widget.appMenuController.detach(this);
+    widget.controller.detach(this);
     widget.onExitSnapshotProviderChanged?.call(null);
     final readyCompleter = _itemManagerReadyCompleter;
     if (readyCompleter != null && !readyCompleter.isCompleted) {
@@ -5254,6 +5294,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _scaleOutputSessionController.dispose();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();
+    _scaleAutoPrintTimer?.cancel();
     _itemPreviewWindow?.dispose();
     _commonLabelPreviewWindow?.dispose();
     _itemElementPreviewZoomController.dispose();
@@ -5531,23 +5572,17 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _openScaleConnectSettings() async {
-    if (_scaleOutputSessionController.connectionState ==
-            ScaleOutputConnectionState.connected ||
-        _scaleOutputSessionController.connectionState ==
-            ScaleOutputConnectionState.connecting) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(content: Text('저울 연결을 해제한 뒤 설정을 변경해 주세요.')),
-          );
-      }
-      return;
-    }
+    await _scaleConnectionService.disconnect();
+    if (!mounted) return;
+    _scaleOutputSessionController.setConnectionState(
+      ScaleOutputConnectionState.disconnected,
+      statusText: '연결 안 됨',
+    );
+    final persisted = await DbScaleConnectInfoHelper.loadConnectInfo();
+    if (!mounted) return;
     final settings = await showScaleConnectSettingsDialog(
       context: context,
-      initial: _scaleOutputSessionController.connectInfo,
-      availablePorts: _scaleConnectionService.availablePorts(),
+      initial: persisted,
     );
     if (!mounted || settings == null) return;
     await DbScaleConnectInfoHelper.saveConnectInfo(settings);
@@ -5563,14 +5598,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       portName: info.portName,
     );
     try {
-      await _scaleConnectionService.connect(
+      final connected = await _scaleConnectionService.connect(
         info: info,
         onWeight: (rawWeight) {
           if (!mounted) return;
-          _scaleOutputSessionController.applyIncomingWeight(rawWeight);
+          _handleScaleIncomingWeight(rawWeight);
         },
       );
-      if (!mounted) return;
+      if (!mounted || !connected) return;
       _scaleOutputSessionController.setConnectionState(
         ScaleOutputConnectionState.connected,
         statusText: '연결됨',
@@ -5597,6 +5632,24 @@ class _HomePageManagerState extends State<HomePageManager> {
       statusText: '연결 안 됨',
       portName: _scaleOutputSessionController.connectInfo.portName,
     );
+  }
+
+  void _handleScaleIncomingWeight(String rawWeight) {
+    final reading = scaleOutputParseIncomingReading(rawWeight);
+    _scaleOutputSessionController.applyIncomingWeight(
+      reading?.weight ?? rawWeight,
+    );
+    if (reading == null ||
+        !_scaleOutputSessionController.connectInfo.autoPrint ||
+        !scaleOutputIsStablePositiveReading(reading) ||
+        _scaleAutoPrintTimer != null) {
+      return;
+    }
+    _scaleAutoPrintTimer = Timer(const Duration(seconds: 5), () {
+      _scaleAutoPrintTimer = null;
+      if (!mounted || !_scaleOutputSessionController.isConnected) return;
+      unawaited(_issueScaleOutput());
+    });
   }
 
   Future<void> _issueLabelPrint() async {
