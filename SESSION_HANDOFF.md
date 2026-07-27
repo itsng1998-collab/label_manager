@@ -3,6 +3,7 @@
 - 구현: `NoticeDisplayPanel`에 본문/광고 flex 옵션을 추가하고, 로그인 화면만 공용화 이전의 1:1 비율을 지정했다. AppBar 업데이트 메시지 편집 화면의 기본 2:1은 유지한다.
 - 검증: `test/startup_dialog_test.dart` 3 passed, 0 failed. 로그인 1:1과 공용 기본 2:1의 실제 렌더 폭을 함께 검증했고 수정 파일 정적 오류 및 `git diff --check` 오류가 없다.
 - stage/commit 대상: `lib/page_login/startup_dialog.dart`, `lib/widgets/notice_display.dart`, `test/startup_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+- 구현 커밋: `1ccc5bb` (`로그인 공지 이미지 폭 복원`).
 
 # 완료: AppBar popup/dropdown 밀도 통일
 - 기준: 기존 일반 업무 popup과 홈 dropdown의 목록 행은 28px이며 divider는 9px이다.
