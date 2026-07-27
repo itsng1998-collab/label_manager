@@ -70,9 +70,7 @@ void main() {
 
     expect(loadedScopes, ['A', 'B']);
     expect(find.text('A 거래처'), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('customerConnectButton')));
-    await tester.pumpAndSettle();
-    expect(find.text('접속 할 행을 먼저 선택해주세요!!'), findsOneWidget);
+    expect(find.byKey(const ValueKey('customerConnectButton')), findsNothing);
   });
 
   testWidgets('add allows empty name and limits entered name to 50 chars', (
@@ -103,29 +101,6 @@ void main() {
     expect(inserted.single.customerName.length, 50);
     expect(inserted.single.cooperatorId, 'A');
     expect(loads, 2);
-  });
-
-  testWidgets('connect needs selection and invokes selected row once', (
-    tester,
-  ) async {
-    final connected = <int>[];
-    await _pumpManager(
-      tester,
-      selectionEnabled: false,
-      loadCustomers: (_) async => const [customerA],
-      connect: (customer) async => connected.add(customer.customerId),
-    );
-
-    await tester.tap(find.byKey(const ValueKey('customerConnectButton')));
-    await tester.pumpAndSettle();
-    expect(connected, isEmpty);
-    await tester.tap(find.text('확인'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('A 거래처'));
-    await tester.tap(find.byKey(const ValueKey('customerConnectButton')));
-    await tester.pumpAndSettle();
-    expect(connected, [1]);
   });
 
   testWidgets('valid row double tap updates once and reloads', (tester) async {
@@ -231,7 +206,6 @@ Future<void> _pumpManager(
   Future<void> Function(Customer customer)? insert,
   Future<void> Function(Customer customer)? update,
   Future<void> Function(int customerId)? delete,
-  Future<void> Function(Customer customer)? connect,
   String Function([DateTime? now])? systemPassword,
   VoidCallback? onClose,
   bool inModelessOverlay = false,
@@ -254,7 +228,6 @@ Future<void> _pumpManager(
       insert: insert ?? (customer) async {},
       update: update ?? (customer) async {},
       delete: delete ?? (customerId) async {},
-      connect: connect ?? (customer) async {},
       systemPassword: systemPassword ?? ([now]) => '1234',
     ),
   );

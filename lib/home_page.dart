@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/app_menu_controller.dart';
-import 'core/admin_connect_resolver.dart';
 import 'core/admin_connect_session.dart';
 import 'core/app_shortcut_blocker.dart';
 import 'core/lifecycle.dart';
@@ -337,94 +336,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _connectToCustomer(Customer customer) async {
-    final currentUser = User.instance;
-    final currentMarket = Market.instance;
-    final currentCustomer = Customer.instance;
-    final currentCooperator = Cooperator.instance;
-    if (currentUser == null ||
-        currentMarket == null ||
-        currentCustomer == null ||
-        currentCooperator == null) {
-      return;
-    }
-
-    final target = await resolveAdminConnectTarget(customer: customer);
-    final targetCooperator = await CooperatorDAO.selectByCooperatorId(
-      customer.cooperatorId,
-    );
-    if (targetCooperator == null) {
-      throw StateError('접속할 협력업체가 없습니다.');
-    }
-    final adminSession = AdminConnectSession.instance;
-    final nextFlags = adminConnectFlagsFor(
-      currentGrade: currentUser.grade,
-      isAdminConnect: adminSession.isAdminConnect,
-      isCoopAdminConnect: adminSession.isCoopAdminConnect,
-    );
-    final previousSession = adminSession.snapshot();
-    final origin = previousSession.connectOrigin ?? currentUser;
-    final previousBrand = _selectedBrand;
-    final previousLabelSize = _selectedLabelSize;
-
-    setState(() {
-      _contextSwitching = true;
-      _selectedBrand = null;
-      _selectedLabelSize = null;
-    });
-    await WidgetsBinding.instance.endOfFrame;
-
-    adminSession.connectOrigin = origin;
-    adminSession.isAdminConnect = nextFlags.isAdminConnect;
-    adminSession.isCoopAdminConnect = nextFlags.isCoopAdminConnect;
-    User.setInstance(target.user);
-    Market.setInstance(target.market);
-    Customer.setInstance(target.customer);
-    Cooperator.setInstance(targetCooperator);
-    _updateMenuSession();
-
-    try {
-      await AdminAccessLogDAO.insert(
-        accessUserId: origin.userId,
-        targetUserId: target.user.userId,
-        targetCustomerId: target.customer.customerId,
-      );
-    } catch (error) {
-      User.setInstance(currentUser);
-      Market.setInstance(currentMarket);
-      Customer.setInstance(currentCustomer);
-      Cooperator.setInstance(currentCooperator);
-      adminSession.restore(previousSession);
-      _updateMenuSession();
-      if (!mounted) return;
-      setState(() {
-        _contextSwitching = false;
-        _selectedBrand = previousBrand;
-        _selectedLabelSize = previousLabelSize;
-      });
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          content: Text(error.toString()),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('확인'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _contextSwitching = false;
-      _managerSessionGeneration += 1;
-    });
-  }
-
   Future<void> _connectToUser(ManagedUser selected) async {
     final currentUser = User.instance;
     final currentMarket = Market.instance;
@@ -596,7 +507,6 @@ class _HomePageState extends State<HomePage> {
                 customerCooperatorSelectionEnabled:
                     User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                   AdminConnectSession.instance.isAdminConnect,
-                onCustomerAdminConnect: _connectToCustomer,
                 marketCooperatorSelectionEnabled:
                   User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                   AdminConnectSession.instance.isAdminConnect ||

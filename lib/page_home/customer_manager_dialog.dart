@@ -12,7 +12,6 @@ typedef CustomerCooperatorLoader = Future<List<Cooperator>> Function();
 typedef CustomerLoader = Future<List<Customer>> Function(String cooperatorId);
 typedef CustomerWriter = Future<void> Function(Customer customer);
 typedef CustomerDeleter = Future<void> Function(int customerId);
-typedef CustomerConnector = Future<void> Function(Customer customer);
 
 class CustomerManagerController extends ChangeNotifier {
   bool _activeEditing = false;
@@ -57,7 +56,6 @@ class CustomerManagerDialogContent extends StatefulWidget {
     required this.controller,
     required this.initialCooperator,
     required this.cooperatorSelectionEnabled,
-    required this.connect,
     required this.onClose,
     this.loadCooperators = CooperatorDAO.selectAll,
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
@@ -70,7 +68,6 @@ class CustomerManagerDialogContent extends StatefulWidget {
   final CustomerManagerController controller;
   final Cooperator initialCooperator;
   final bool cooperatorSelectionEnabled;
-  final CustomerConnector connect;
   final VoidCallback onClose;
   final CustomerCooperatorLoader loadCooperators;
   final CustomerLoader loadCustomers;
@@ -212,25 +209,6 @@ class _CustomerManagerDialogContentState
       write: () => widget.delete(selected.customerId),
       successMessage: '삭제가 완료되었습니다.',
     );
-  }
-
-  Future<void> _connectSelected() async {
-    if (_busy) return;
-    final selected = _selectedCustomer;
-    if (selected == null) {
-      await _showMessage('접속 할 행을 먼저 선택해주세요!!');
-      return;
-    }
-    widget.controller.setWriteBusy(true);
-    if (mounted) setState(() {});
-    try {
-      await widget.connect(selected);
-    } catch (error) {
-      if (mounted) await _showMessage(error.toString());
-    } finally {
-      widget.controller.setWriteBusy(false);
-      if (mounted) setState(() {});
-    }
   }
 
   Future<void> _writeThenReload({
@@ -387,12 +365,6 @@ class _CustomerManagerDialogContentState
                 tooltip: '선택한 거래처 삭제',
                 onPressed: _busy ? null : _deleteSelected,
                 icon: const Icon(Icons.delete_outline),
-              ),
-              FilledButton.icon(
-                key: const ValueKey('customerConnectButton'),
-                onPressed: _busy ? null : _connectSelected,
-                icon: const Icon(Icons.login),
-                label: const Text('접속'),
               ),
             ],
           ),

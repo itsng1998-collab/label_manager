@@ -265,7 +265,6 @@ class HomePageManager extends StatefulWidget {
   final VoidCallback onToggleSearchPrintMode;
   final bool adminCopyCooperatorSelectionEnabled;
   final bool customerCooperatorSelectionEnabled;
-  final CustomerConnector onCustomerAdminConnect;
   final bool marketCooperatorSelectionEnabled;
   final bool userCooperatorSelectionEnabled;
   final bool userCustomerSelectionEnabled;
@@ -287,7 +286,6 @@ class HomePageManager extends StatefulWidget {
     required this.onToggleSearchPrintMode,
     required this.adminCopyCooperatorSelectionEnabled,
     required this.customerCooperatorSelectionEnabled,
-    required this.onCustomerAdminConnect,
     required this.marketCooperatorSelectionEnabled,
     required this.userCooperatorSelectionEnabled,
     required this.userCustomerSelectionEnabled,
@@ -3248,7 +3246,6 @@ class _HomePageManagerState extends State<HomePageManager> {
             initialCooperator: cooperator,
             cooperatorSelectionEnabled:
                 widget.customerCooperatorSelectionEnabled,
-            connect: widget.onCustomerAdminConnect,
           ),
         ),
       ),
