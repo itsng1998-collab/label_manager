@@ -46,6 +46,21 @@ void main() {
     );
   });
 
+  testWidgets('scope selectors show aligned labels', (tester) async {
+    await _pumpManager(tester);
+
+    for (final pair in const [
+      (ValueKey('userCooperatorLabel'), ValueKey('userCooperatorSelector')),
+      (ValueKey('userCustomerLabel'), ValueKey('userCustomerSelector')),
+      (ValueKey('userMarketLabel'), ValueKey('userMarketSelector')),
+    ]) {
+      final labelRect = tester.getRect(find.byKey(pair.$1));
+      final selectorRect = tester.getRect(find.byKey(pair.$2));
+      expect(labelRect.right, lessThanOrEqualTo(selectorRect.left));
+      expect(labelRect.center.dy, moreOrLessEquals(selectorRect.center.dy));
+    }
+  });
+
   testWidgets('customer selection chooses first market and reloads users', (
     tester,
   ) async {

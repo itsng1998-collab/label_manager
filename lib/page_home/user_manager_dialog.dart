@@ -442,57 +442,96 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         children: [
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _selector<String>(
-                key: 'userCooperatorSelector',
-                width: 180,
-                value: _selectedCooperatorId,
-                enabled: widget.cooperatorSelectionEnabled && !_showAll,
-                items: [
-                  for (final value in _cooperators)
-                    DropdownMenuItem(value: value.id, child: Text(value.name)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    key: ValueKey('userCooperatorLabel'),
+                    width: 76,
+                    child: Text('협력업체'),
+                  ),
+                  _selector<String>(
+                    key: 'userCooperatorSelector',
+                    width: 180,
+                    value: _selectedCooperatorId,
+                    enabled: widget.cooperatorSelectionEnabled && !_showAll,
+                    items: [
+                      for (final value in _cooperators)
+                        DropdownMenuItem(
+                          value: value.id,
+                          child: Text(value.name),
+                        ),
+                    ],
+                    onChanged: _changeCooperator,
+                  ),
                 ],
-                onChanged: _changeCooperator,
               ),
-              const SizedBox(width: 8),
-              _selector<int>(
-                key: 'userCustomerSelector',
-                width: 190,
-                value: _selectedCustomerId,
-                enabled: widget.customerSelectionEnabled && !_showAll,
-                items: [
-                  for (final value in _customers)
-                    DropdownMenuItem(
-                      value: value.customerId,
-                      child: Text(value.customerName),
-                    ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    key: ValueKey('userCustomerLabel'),
+                    width: 52,
+                    child: Text('거래처'),
+                  ),
+                  _selector<int>(
+                    key: 'userCustomerSelector',
+                    width: 190,
+                    value: _selectedCustomerId,
+                    enabled: widget.customerSelectionEnabled && !_showAll,
+                    items: [
+                      for (final value in _customers)
+                        DropdownMenuItem(
+                          value: value.customerId,
+                          child: Text(value.customerName),
+                        ),
+                    ],
+                    onChanged: _changeCustomer,
+                  ),
                 ],
-                onChanged: _changeCustomer,
               ),
-              const SizedBox(width: 8),
-              _selector<int>(
-                key: 'userMarketSelector',
-                width: 170,
-                value: _selectedMarketId,
-                enabled: widget.marketSelectionEnabled && !_showAll,
-                items: [
-                  for (final value in _markets)
-                    DropdownMenuItem(
-                      value: value.marketId,
-                      child: Text(value.name),
-                    ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    key: ValueKey('userMarketLabel'),
+                    width: 40,
+                    child: Text('지점'),
+                  ),
+                  _selector<int>(
+                    key: 'userMarketSelector',
+                    width: 170,
+                    value: _selectedMarketId,
+                    enabled: widget.marketSelectionEnabled && !_showAll,
+                    items: [
+                      for (final value in _markets)
+                        DropdownMenuItem(
+                          value: value.marketId,
+                          child: Text(value.name),
+                        ),
+                    ],
+                    onChanged: _changeMarket,
+                  ),
                 ],
-                onChanged: _changeMarket,
               ),
-              Checkbox(
-                key: const ValueKey('userShowAllCheckbox'),
-                value: _showAll,
-                onChanged: widget.customerSelectionEnabled && !_busy
-                    ? (value) => _toggleShowAll(value == true)
-                    : null,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Checkbox(
+                    key: const ValueKey('userShowAllCheckbox'),
+                    value: _showAll,
+                    onChanged: widget.customerSelectionEnabled && !_busy
+                        ? (value) => _toggleShowAll(value == true)
+                        : null,
+                  ),
+                  const Text('전체 표시'),
+                ],
               ),
-              const Text('전체 표시'),
             ],
           ),
           const SizedBox(height: 8),
