@@ -3,6 +3,7 @@
 - 편집: 공용라벨관리와 동일하게 `PreviewFloatingWindow(usePortalHost: true)`와 `wrapPortalHost`를 연결해 root modeless dialog 위에 표시되도록 변경했다.
 - 검증: 실제 `BlockingModelessDialog` fixture에서 Viewer가 `routeId=portal`로 표시되고 close 버튼 hit-test, restore anchor 축소, 다시 열기가 통과했다. 영양성분 dialog 테스트 8 passed, 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
 - stage/commit 대상: `lib/page_home/nutrition_box_dialog.dart`, `test/nutrition_box_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `dd20619` (`영양성분 RTF 뷰어 레이어 수정`).
 
 # 완료: 영양성분표 미리보기 마감 및 RTF Viewer
 - 원인: 변환 시트에 기본 grid line이 남고 zoom 문자 glyph가 노란 밑줄처럼 보이며, 48px 액션 행 때문에 zoom 위 빈 영역이 생긴다. 원본 RTF도 변환 시트만 보여 공용라벨관리의 원본 RTF 확인 흐름과 다르다.
