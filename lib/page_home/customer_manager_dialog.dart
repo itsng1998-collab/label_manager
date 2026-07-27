@@ -333,21 +333,26 @@ class _CustomerManagerDialogContentState
               const SizedBox(width: 76, child: Text('협력업체')),
               SizedBox(
                 width: 260,
-                child: DropdownButtonFormField<String>(
+                child: DropdownMenu<String>(
                   key: const ValueKey('customerCooperatorSelector'),
-                  initialValue: _cooperators.any(
+                  width: 260,
+                  initialSelection: _cooperators.any(
                     (value) => value.id == _selectedCooperatorId,
                   )
                       ? _selectedCooperatorId
                       : null,
-                  items: [
+                  dropdownMenuEntries: [
                     for (final cooperator in _cooperators)
-                      DropdownMenuItem(
+                      DropdownMenuEntry(
                         value: cooperator.id,
-                        child: Text(cooperator.id),
+                        label: cooperator.id,
                       ),
                   ],
-                  onChanged: widget.cooperatorSelectionEnabled && !_busy
+                  enableFilter: false,
+                  enableSearch: false,
+                  enabled: widget.cooperatorSelectionEnabled && !_busy,
+                  requestFocusOnTap: false,
+                  onSelected: widget.cooperatorSelectionEnabled && !_busy
                       ? _changeCooperator
                       : null,
                 ),

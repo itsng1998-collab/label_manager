@@ -34,10 +34,10 @@ void main() {
       },
     );
 
-    final dropdown = tester.widget<DropdownButtonFormField<String>>(
+    final dropdown = tester.widget<DropdownMenu<String>>(
       find.byKey(const ValueKey('customerCooperatorSelector')),
     );
-    expect(dropdown.onChanged, isNull);
+    expect(dropdown.enabled, isFalse);
     expect(loadedScopes, ['A']);
     expect(find.text('A 거래처'), findsOneWidget);
   });
@@ -49,6 +49,7 @@ void main() {
     await _pumpManager(
       tester,
       selectionEnabled: true,
+      inModelessOverlay: true,
       loadCustomers: (cooperatorId) async {
         loadedScopes.add(cooperatorId);
         return cooperatorId == 'A' ? const [customerA] : const [];
@@ -226,36 +227,73 @@ Future<void> _pumpManager(
   Future<void> Function(Customer customer)? connect,
   String Function([DateTime? now])? systemPassword,
   VoidCallback? onClose,
+  bool inModelessOverlay = false,
 }) async {
   final controller = CustomerManagerController();
   addTearDown(controller.dispose);
+  final manager = SizedBox(
+    width: 820,
+    height: 660,
+    child: CustomerManagerDialogContent(
+      controller: controller,
+      onClose: onClose ?? () {},
+      initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
+      cooperatorSelectionEnabled: selectionEnabled,
+      loadCooperators: () async => const [
+        Cooperator(id: 'A', name: 'A 업체'),
+        Cooperator(id: 'B', name: 'B 업체'),
+      ],
+      loadCustomers: loadCustomers,
+      insert: insert ?? (customer) async {},
+      update: update ?? (customer) async {},
+      delete: delete ?? (customerId) async {},
+      connect: connect ?? (customer) async {},
+      systemPassword: systemPassword ?? ([now]) => '1234',
+    ),
+  );
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 820,
-          height: 660,
-          child: CustomerManagerDialogContent(
-            controller: controller,
-            onClose: onClose ?? () {},
-            initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
-            cooperatorSelectionEnabled: selectionEnabled,
-            loadCooperators: () async => const [
-              Cooperator(id: 'A', name: 'A 업체'),
-              Cooperator(id: 'B', name: 'B 업체'),
-            ],
-            loadCustomers: loadCustomers,
-            insert: insert ?? (customer) async {},
-            update: update ?? (customer) async {},
-            delete: delete ?? (customerId) async {},
-            connect: connect ?? (customer) async {},
-            systemPassword: systemPassword ?? ([now]) => '1234',
-          ),
-        ),
-      ),
+      home: inModelessOverlay
+          ? _OverlayHost(child: manager)
+          : Scaffold(body: manager),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+class _OverlayHost extends StatefulWidget {
+  const _OverlayHost({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_OverlayHost> createState() => _OverlayHostState();
+}
+
+class _OverlayHostState extends State<_OverlayHost> {
+  OverlayEntry? _entry;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final entry = OverlayEntry(
+        builder: (_) => Center(child: Material(child: widget.child)),
+      );
+      _entry = entry;
+      Overlay.of(context).insert(entry);
+    });
+  }
+
+  @override
+  void dispose() {
+    _entry?.remove();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold();
 }
 
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {

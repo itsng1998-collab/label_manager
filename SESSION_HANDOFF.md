@@ -1,3 +1,13 @@
+# 완료: 거래처 관리 협력업체 드롭다운
+- 원인: 거래처 관리창은 root `OverlayEntry`인데 협력업체 selector가 Navigator route 기반 `DropdownButtonFormField`를 사용하여 메뉴가 dialog 뒤에 가려지고, 재클릭 시 `_dropdownRoute == null` assertion이 발생한다.
+- 수정 예정: `lib/page_home/customer_manager_dialog.dart`의 selector를 modeless overlay 위에 표시되는 `DropdownMenu`로 교체하고 `test/customer_manager_dialog_test.dart`에 실제 OverlayEntry 회귀 테스트를 추가한다.
+- `lib/page_home/customer_manager_dialog.dart` 편집 완료: `customerCooperatorSelector`를 `DropdownMenu<String>`으로 교체하여 popup을 `MenuAnchor` overlay에 표시한다.
+- 1차 focused test: `test/customer_manager_dialog_test.dart` 7 passed, 1 failed. 실패는 기존 테스트의 `DropdownButtonFormField` 타입 고정 cast이며 구현 오류가 아니다.
+- `test/customer_manager_dialog_test.dart` 편집 완료: disabled selector 계약을 `DropdownMenu.enabled`로 검증하고 enabled selector를 실제 `OverlayEntry`의 `Center + Material` 안에서 선택하도록 변경했다.
+- focused 검증 완료: `test/customer_manager_dialog_test.dart` 8 passed, 0 failed.
+- 최종 검증: 수정 Dart 파일 format 완료, 정적 오류 없음, `customer_manager_dialog_test.dart` + `customer_manager_dao_test.dart` 13 passed, 0 failed.
+- stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+
 ## 다음 세션 시작 문구
 - SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행해줘
 - SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행하게 대기해줘
