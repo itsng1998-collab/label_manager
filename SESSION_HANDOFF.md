@@ -5,6 +5,7 @@
 - 범위 확인: `lib/page_home`에 남은 `DropdownButtonFormField` 5개는 modeless dialog가 아닌 독립 저울 출력 페이지에만 있다.
 - 최종 검증: 수정 파일 정적 오류 없음, 관련 dialog + 공용 widget 13개 테스트 파일 48 passed, 0 failed. 라벨 항목 편집 활성 배경 및 modeless overlay 선택 focused test 각 1 passed.
 - stage/commit 대상: 공용 widget, 적용된 12개 dialog 파일, 관련 테스트 10개, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+- 구현 커밋: `297c2e1` (`앱바 기능 드롭다운 표시 통일`).
 
 # 완료: 거래처 관리 협력업체 selector 활성 배경
 - 원인: `DropdownMenu`에 fill color가 없어 활성 상태에서도 modeless dialog 배경색이 비쳐 비활성처럼 보인다.
