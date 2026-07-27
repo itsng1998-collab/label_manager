@@ -20,6 +20,7 @@ void main() {
     required Future<void> Function(AdminBrandCopyCommand) copyBrand,
     Future<bool> Function(int)? targetHasColumns,
     Future<void> Function(AdminLabelSizeCopyCommand)? copyLabelSize,
+    VoidCallback? onClose,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -33,6 +34,7 @@ void main() {
               cooperatorSelectionEnabled: true,
               onCommitted: () async {},
               onCommitOutcomeUnknown: () {},
+              onClose: onClose ?? () {},
               loadCooperators: () async => const [cooperator],
               loadCustomers: (_) async => customers,
               loadBrands: (customerId) async => [
@@ -110,6 +112,23 @@ void main() {
       tester.getBottomRight(find.byKey(const ValueKey('adminCopyExecute'))).dy,
       lessThan(430),
     );
+  });
+
+  testWidgets('shows legacy hint and closes from the footer', (tester) async {
+    var closeCount = 0;
+    await pumpDialog(
+      tester,
+      copyBrand: (_) async {},
+      onClose: () => closeCount += 1,
+    );
+
+    expect(
+      find.text('※ 복사할 내용이 있는 라벨크기를 선택해주세요!!'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('adminCopyClose')));
+    await tester.pump();
+    expect(closeCount, 1);
   });
 
   testWidgets('brand copy is enabled by target customer event', (

@@ -3402,6 +3402,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 widget.adminCopyCooperatorSelectionEnabled,
             onCommitted: _handleAdminCopyCommitted,
             onCommitOutcomeUnknown: _closeAdminCopyDialog,
+            onClose: _closeAdminCopyDialog,
           ),
         ),
       ),

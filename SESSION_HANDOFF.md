@@ -1,3 +1,9 @@
+# 완료: 관리자 복사 힌트와 닫기 버튼 복원
+- 레거시 기준: `※ 복사할 내용이 있는 라벨크기를 선택해주세요!!` 힌트와 하단 `복사`, `닫기` 버튼이 함께 있다.
+- 편집: 원본/대상 아래에 힌트 라벨을 추가하고 하단 우측에 닫기 버튼을 배치했다. 닫기는 title bar와 동일한 close callback을 호출하며 복사 작업 중에는 비활성화된다.
+- 검증: 실제 frame content 크기 `820x424`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 12 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
+- stage/commit 대상: `lib/page_home/admin_copy_dialog.dart`, `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+
 # 완료: 관리자 복사 UI 재배치
 - 원인: 포팅 UI가 `980x620` frame, 큰 divider와 `Spacer`를 사용해 레거시 `247x220` dialog보다 세로 여백이 많고 옵션 체크박스가 라벨 뒤에 표시됐다.
 - 편집: frame을 `820x460`으로 줄이고 원본/대상을 2열 비교 구조로 배치했다. 각 열은 거래처/브랜드/라벨 크기 행을 맞추고, 복사 옵션은 `Checkbox + 라벨` 순서로 하단에 모았다.

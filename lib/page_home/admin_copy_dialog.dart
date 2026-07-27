@@ -51,6 +51,7 @@ class AdminCopyDialogContent extends StatefulWidget {
     required this.cooperatorSelectionEnabled,
     required this.onCommitted,
     required this.onCommitOutcomeUnknown,
+    required this.onClose,
     this.loadCooperators = CooperatorDAO.selectAll,
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
     this.loadBrands = BrandDAO.selectByCustomerIdByBrandOrder,
@@ -66,6 +67,7 @@ class AdminCopyDialogContent extends StatefulWidget {
   final bool cooperatorSelectionEnabled;
   final Future<void> Function() onCommitted;
   final VoidCallback onCommitOutcomeUnknown;
+  final VoidCallback onClose;
   final AdminCopyCooperatorLoader loadCooperators;
   final AdminCopyCustomerLoader loadCustomers;
   final AdminCopyBrandLoader loadBrands;
@@ -399,6 +401,12 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
           ],
         ),
         const Divider(height: 24),
+        const Text(
+          '※ 복사할 내용이 있는 라벨크기를 선택해주세요!!',
+          key: ValueKey('adminCopyHint'),
+          style: TextStyle(color: Color(0xFF5F6368)),
+        ),
+        const SizedBox(height: 4),
         Row(
           children: [
             _copyOption(
@@ -420,15 +428,23 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            FilledButton.icon(
             key: const ValueKey('adminCopyExecute'),
             onPressed: _copyEnabled && !_busy ? _copy : null,
             icon: const Icon(Icons.copy_all_outlined),
             label: Text(widget.controller.writeBusy ? '복사 중' : '복사'),
           ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              key: const ValueKey('adminCopyClose'),
+              onPressed: _busy ? null : widget.onClose,
+              child: const Text('닫기'),
+            ),
+          ],
         ),
       ],
     ),
