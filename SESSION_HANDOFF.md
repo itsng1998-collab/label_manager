@@ -3,6 +3,7 @@
 - 편집: frame을 `820x460`으로 줄이고 원본/대상을 2열 비교 구조로 배치했다. 각 열은 거래처/브랜드/라벨 크기 행을 맞추고, 복사 옵션은 `Checkbox + 라벨` 순서로 하단에 모았다.
 - 검증: 실제 frame content 크기 `820x424`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 11 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
 - stage/commit 대상: `lib/page_home/admin_copy_dialog.dart`, `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+- 구현 커밋: `149eb4e` (`관리자 복사 화면 재배치`).
 
 # 완료: 사용자 관리 selector 라벨 추가
 - 원인: 사용자 관리 상단의 협력업체/거래처/지점 selector가 값만 연속 표시되어 각 범위를 구분하기 어렵다.
