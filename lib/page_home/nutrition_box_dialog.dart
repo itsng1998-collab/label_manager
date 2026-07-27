@@ -12,6 +12,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 typedef NutritionBoxListLoader = Future<List<NutritionBox>> Function();
 typedef NutritionBoxTypeListLoader = Future<List<NutritionType>> Function();
@@ -162,6 +163,11 @@ class NutritionBoxDialogContent extends StatefulWidget {
 }
 
 class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
+  static const double _managerSplitterWidth = 8;
+  static const double _managerInitialPreviewWidth = 360;
+  static const double _managerMinTableWidth = 420;
+  static const double _managerMinPreviewWidth = 280;
+
   List<NutritionBox> _boxes = const [];
   int? _selectedIndex;
   bool _loading = true;
@@ -178,6 +184,8 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   String _baselineName = '';
   String _baselineWidth = '';
   String _baselineRtf = '';
+  double _managerPreviewFraction = 0;
+  bool _managerPreviewWidthChangedByUser = false;
 
   bool get _inEditor => _mode != null;
   bool get _busy => _loading || widget.controller.writeBusy;
@@ -472,10 +480,27 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
               ],
             ),
             Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FortuneTable<NutritionBox>(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final totalWidth = constraints.maxWidth;
+                  final maxPreviewWidth =
+                      totalWidth - _managerMinTableWidth - _managerSplitterWidth;
+                  final minPreviewWidth = maxPreviewWidth < _managerMinPreviewWidth
+                      ? maxPreviewWidth
+                      : _managerMinPreviewWidth;
+                  final previewWidth = (_managerPreviewWidthChangedByUser
+                          ? totalWidth * _managerPreviewFraction
+                          : _managerInitialPreviewWidth)
+                      .clamp(minPreviewWidth, maxPreviewWidth)
+                      .toDouble();
+                  final tableWidth =
+                      totalWidth - previewWidth - _managerSplitterWidth;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: tableWidth,
+                        child: FortuneTable<NutritionBox>(
                       key: const ValueKey('nutritionBoxManagerTable'),
                       rows: _boxes,
                       selectedIndex: _selectedIndex,
@@ -501,12 +526,30 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                       },
                       autoFitColumns: false,
                       fillLastColumn: true,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 360,
-                    child: DecoratedBox(
+                        ),
+                      ),
+                      VerticalPaneSplitter(
+                        key: const ValueKey('nutritionBoxPreviewSplitter'),
+                        width: _managerSplitterWidth,
+                        onDrag: (dx) {
+                          setState(() {
+                            final currentWidth =
+                                _managerPreviewWidthChangedByUser
+                                ? totalWidth * _managerPreviewFraction
+                                : previewWidth;
+                            final nextWidth = (currentWidth - dx).clamp(
+                              minPreviewWidth,
+                              maxPreviewWidth,
+                            );
+                            _managerPreviewWidthChangedByUser = true;
+                            _managerPreviewFraction = nextWidth / totalWidth;
+                          });
+                        },
+                      ),
+                      SizedBox(
+                        key: const ValueKey('nutritionBoxPreviewPane'),
+                        width: previewWidth,
+                        child: DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border.all(color: Theme.of(context).dividerColor),
                       ),
@@ -514,9 +557,11 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                         data: _selectedBox?.rtf ?? '',
                         widthMm: _selectedBox?.width ?? 100,
                       ),
-                    ),
-                  ),
-                ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -696,6 +741,7 @@ class _NutritionBoxSheetPreviewState extends State<NutritionBoxSheetPreview> {
       imageObjectIds: const [],
       barcodeObjectIds: const [],
       autoFitWidth: true,
+      zoomToolbarBackgroundColor: blockingModelessDialogBackgroundColor,
     ),
   );
 }

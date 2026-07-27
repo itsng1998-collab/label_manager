@@ -1,3 +1,9 @@
+# 완료: 영양성분표 미리보기 분할·스타일 조정
+- 원인: 영양성분표 관리의 우측 preview 폭이 360px로 고정되고, zoom toolbar 배경이 공용 workbench의 흰색 계열 상수라 dialog 배경과 어울리지 않는다.
+- 편집: 공용 `VerticalPaneSplitter`로 테이블/preview 폭을 조정하고, `LabelOutputPreview`의 읽기 전용 시트 속성은 유지하면서 zoom toolbar 배경색 주입 API를 통해 modeless dialog 배경색과 맞췄다.
+- 검증: 영양성분표 dialog 7개와 zoom toolbar 회귀 테스트 4개가 모두 통과했다. splitter drag 시 preview 폭 40px 증가, 공용 preview 속성, overlay 실제 배경색을 검증했으며 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
+- stage/commit 대상: 영양성분표 dialog, 공용 preview/workbench/modeless frame, 영양성분표 테스트, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+
 # 완료: 영양성분표 라벨 시트 전환
 - 원인: 영양성분표 관리가 native RTF 이미지 미리보기와 RichEdit 편집기를 직접 사용해 품목관리/공용라벨관리의 라벨 시트 흐름과 다르다.
 - 편집: 관리 미리보기를 `LabelOutputPreview`로, 추가·수정 편집을 `LabelSheetWorkbench`로 교체했다. 개체보기는 숨기고 레거시 RTF 또는 기존 시트 데이터를 workbook으로 통합 materialize하며 `_rtf`/`_baselineRtf`는 시트 저장 포맷으로 유지한다. 저장 직전 현재 폭으로 workbook을 정규화해 기존 RTF 컬럼에 시트 포맷을 전달한다.

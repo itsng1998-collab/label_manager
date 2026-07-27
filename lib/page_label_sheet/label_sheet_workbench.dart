@@ -1911,6 +1911,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.allowObjectPanel = true,
     this.showObjectPanelOpenButton = true,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
+    this.zoomToolbarBackgroundColor,
     this.zoomController,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
@@ -1955,6 +1956,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool allowObjectPanel;
   final bool showObjectPanelOpenButton;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
+  final Color? zoomToolbarBackgroundColor;
   final LabelSheetZoomController? zoomController;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
@@ -3952,9 +3954,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Widget _buildZoomToolbarControls({required bool inPreviewTabArea}) {
     return ColoredBox(
-      color: inPreviewTabArea
-          ? const Color(0xFFF7F8FA)
-          : const Color(0xfffafafc),
+      color:
+          widget.zoomToolbarBackgroundColor ??
+          (inPreviewTabArea
+              ? const Color(0xFFF7F8FA)
+              : const Color(0xfffafafc)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

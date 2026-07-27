@@ -26,6 +26,7 @@ class LabelOutputPreview extends StatefulWidget {
     this.outputCaptureController,
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+    this.zoomToolbarBackgroundColor,
     this.zoomController,
     this.autoFitWidth = false,
   });
@@ -38,6 +39,7 @@ class LabelOutputPreview extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
+  final Color? zoomToolbarBackgroundColor;
   final LabelSheetZoomController? zoomController;
   final bool autoFitWidth;
 
@@ -110,6 +112,7 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
                 allowObjectPanel: false,
                 showObjectPanelOpenButton: false,
                 zoomToolbarPlacement: widget.zoomToolbarPlacement,
+                zoomToolbarBackgroundColor: widget.zoomToolbarBackgroundColor,
                 zoomController: widget.zoomController,
               ),
             ),

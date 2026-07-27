@@ -8,6 +8,8 @@ import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 void main() {
   test('validation follows legacy name width type order', () {
@@ -166,6 +168,59 @@ void main() {
     table.onRowSelected!(table.rows.single, 0);
     await tester.pumpAndSettle();
     expect(find.byType(LabelOutputPreview), findsOneWidget);
+    final preview = tester.widget<LabelOutputPreview>(
+      find.byType(LabelOutputPreview),
+    );
+    expect(
+      preview.zoomToolbarBackgroundColor,
+      blockingModelessDialogBackgroundColor,
+    );
+    final previewSheet = tester.widget<LabelSheetWorkbench>(
+      find.descendant(
+        of: find.byType(LabelOutputPreview),
+        matching: find.byType(LabelSheetWorkbench),
+      ),
+    );
+    expect(previewSheet.hideToolbar, isTrue);
+    expect(previewSheet.hideRowColumnHeaderLabels, isTrue);
+    expect(previewSheet.hideSelectionHighlight, isTrue);
+    expect(previewSheet.copyOnlyContextMenu, isTrue);
+    expect(previewSheet.canEditObjects, isFalse);
+    expect(previewSheet.allowObjectPanel, isFalse);
+    expect(previewSheet.showObjectPanelOpenButton, isFalse);
+    expect(
+      previewSheet.zoomToolbarPlacement,
+      LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+    );
+    expect(
+      previewSheet.zoomToolbarBackgroundColor,
+      blockingModelessDialogBackgroundColor,
+    );
+    final zoomToolbarBackground = tester.widget<ColoredBox>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('label-sheet-zoom-toolbar')),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(
+      zoomToolbarBackground.color,
+      blockingModelessDialogBackgroundColor,
+    );
+    final initialPreviewWidth = tester
+        .getSize(find.byKey(const ValueKey('nutritionBoxPreviewPane')))
+        .width;
+    tester.widget<VerticalPaneSplitter>(
+      find.byKey(const ValueKey('nutritionBoxPreviewSplitter')),
+    ).onDrag(-40);
+    await tester.pump();
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('nutritionBoxPreviewPane')))
+          .width,
+      initialPreviewWidth + 40,
+    );
 
     final modifyButton = tester.widget<IconButton>(
       find.byKey(const ValueKey('nutritionBoxModifyButton')),

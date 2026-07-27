@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+const Color blockingModelessDialogBackgroundColor = Color(0xffece6f0);
+
 int _blockingModelessOverlayDialogSequence = 0;
 
 /// Shared wrapper for every modeless dialog overlay in Label Manager.
@@ -181,7 +183,7 @@ class BlockingModelessDialogFrame extends StatelessWidget {
           height: height,
           clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(
-            color: Color(0xffece6f0),
+            color: blockingModelessDialogBackgroundColor,
             borderRadius: BorderRadius.all(Radius.circular(12)),
             boxShadow: [
               BoxShadow(
