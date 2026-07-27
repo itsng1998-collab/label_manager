@@ -3390,7 +3390,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           builder: (context, child) => BlockingModelessDialogFrame(
             title: '관리자 복사',
             width: 820,
-            height: 460,
+            height: 448,
             onClose: _closeAdminCopyDialog,
             closeEnabled: !_adminCopyController.writeBusy,
             child: child!,

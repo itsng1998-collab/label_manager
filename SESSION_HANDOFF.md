@@ -1,3 +1,10 @@
+# 완료: 관리자 복사 하단 여백 제거
+- 원인: frame 높이 460px에서 title bar를 제외한 content 424px가 실제 콘텐츠보다 커 하단 버튼 아래 불필요한 공간이 남는다.
+- 측정: content 최소 높이는 padding 포함 412px이며 384px에서는 28px overflow가 발생했다.
+- 편집: title bar 36px를 포함한 frame 높이를 최소 448px로 줄이고 버튼 하단에는 content padding 16px만 남도록 치수 테스트를 조정했다.
+- 검증: 실제 frame content 크기 `820x412`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 12 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
+
 # 완료: 관리자 복사 힌트와 닫기 버튼 복원
 - 레거시 기준: `※ 복사할 내용이 있는 라벨크기를 선택해주세요!!` 힌트와 하단 `복사`, `닫기` 버튼이 함께 있다.
 - 편집: 원본/대상 아래에 힌트 라벨을 추가하고 하단 우측에 닫기 버튼을 배치했다. 닫기는 title bar와 동일한 close callback을 호출하며 복사 작업 중에는 비활성화된다.

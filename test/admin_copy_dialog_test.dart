@@ -27,7 +27,7 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             width: 820,
-            height: 424,
+            height: 412,
             child: AdminCopyDialogContent(
               controller: AdminCopyController(),
               initialCooperator: cooperator,
@@ -110,7 +110,7 @@ void main() {
     expect(brandCheckbox.right, lessThanOrEqualTo(brandLabel.left));
     expect(
       tester.getBottomRight(find.byKey(const ValueKey('adminCopyExecute'))).dy,
-      lessThan(430),
+      lessThanOrEqualTo(396),
     );
   });
 
