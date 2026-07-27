@@ -751,6 +751,7 @@ class _FloatingCard extends StatelessWidget {
 
 class _FloatingCloseButton extends StatefulWidget {
   const _FloatingCloseButton({
+    super.key,
     required this.onPressed,
     required this.onHoverChanged,
   });
@@ -1148,6 +1149,7 @@ class _MoveHandleBodyState extends State<_MoveHandleBody> {
             const SizedBox(width: 4),
           ],
           _FloatingCloseButton(
+            key: const ValueKey('preview-floating-close-button'),
             onPressed: widget.onClose,
             onHoverChanged: (hovered) {
               if (_closeHovered == hovered) return;

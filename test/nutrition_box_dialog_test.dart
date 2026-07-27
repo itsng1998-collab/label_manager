@@ -5,6 +5,7 @@ import 'package:label_manager/models/nutrition_box.dart';
 import 'package:label_manager/models/nutrition_type.dart';
 import 'package:label_manager/page_home/nutrition_box_dialog.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
@@ -166,7 +167,8 @@ void main() {
       find.byKey(const ValueKey('nutritionBoxManagerTable')),
     );
     table.onRowSelected!(table.rows.single, 0);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(LabelOutputPreview), findsOneWidget);
     final preview = tester.widget<LabelOutputPreview>(
       find.byType(LabelOutputPreview),
@@ -188,6 +190,8 @@ void main() {
     expect(previewSheet.canEditObjects, isFalse);
     expect(previewSheet.allowObjectPanel, isFalse);
     expect(previewSheet.showObjectPanelOpenButton, isFalse);
+    expect(previewSheet.initialWorkbook!.activeSheet.showGridLines, isFalse);
+    expect(previewSheet.zoomToolbarUseIcons, isTrue);
     expect(
       previewSheet.zoomToolbarPlacement,
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
@@ -207,6 +211,12 @@ void main() {
     expect(
       zoomToolbarBackground.color,
       blockingModelessDialogBackgroundColor,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('nutritionBoxManagerToolbar')))
+          .height,
+      34,
     );
     final initialPreviewWidth = tester
         .getSize(find.byKey(const ValueKey('nutritionBoxPreviewPane')))
@@ -235,6 +245,70 @@ void main() {
     expect(editor.toolbarItems, isNot(contains(fortuneToolbarObjectPanelCommand)));
     expect(editor.toolbarItems, isNot(contains(labelSheetSaveToolbarCommand)));
     expect(find.text('RTF 편집'), findsNothing);
+  });
+
+  testWidgets('legacy RTF preview floats and restores from zoom toolbar', (
+    tester,
+  ) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NutritionBoxDialogContent(
+            controller: controller,
+            onCommitOutcomeUnknown: () {},
+            loadBoxes: () async => const [
+              NutritionBox(
+                id: 1,
+                typeId: 2,
+                typeName: '기본형',
+                name: 'RTF 표',
+                rtf: r'{\rtf1\ansi Calories 100}',
+                width: 75,
+              ),
+            ],
+            loadTypes: () async => const [],
+            loadColumns: (_) async => const [],
+            insert: ({required typeId, required name, required rtf, required width}) async {},
+            update: ({required boxId, required typeId, required name, required rtf, required width}) async {},
+            delete: (_) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final table = tester.widget<FortuneTable<NutritionBox>>(
+      find.byKey(const ValueKey('nutritionBoxManagerTable')),
+    );
+    table.onRowSelected!(table.rows.single, 0);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('preview-floating-close-button')),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    final restoreButton = find.byKey(
+      const ValueKey('nutritionBoxRtfPreviewRestore'),
+    );
+    final restoreOpacity = tester.widget<AnimatedOpacity>(
+      find.ancestor(
+        of: restoreButton,
+        matching: find.byType(AnimatedOpacity),
+      ),
+    );
+    expect(restoreOpacity.opacity, 1);
+    expect(find.byType(LabelSheetRtfPreview), findsNothing);
+
+    await tester.tap(restoreButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
   });
 
   testWidgets('editor saves current workbook data in rtf column', (tester) async {

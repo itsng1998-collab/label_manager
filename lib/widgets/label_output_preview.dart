@@ -27,6 +27,7 @@ class LabelOutputPreview extends StatefulWidget {
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomToolbarBackgroundColor,
+    this.zoomToolbarUseIcons = false,
     this.zoomController,
     this.autoFitWidth = false,
   });
@@ -40,6 +41,7 @@ class LabelOutputPreview extends StatefulWidget {
   final LabelSheetOutputCaptureController? outputCaptureController;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final Color? zoomToolbarBackgroundColor;
+  final bool zoomToolbarUseIcons;
   final LabelSheetZoomController? zoomController;
   final bool autoFitWidth;
 
@@ -113,6 +115,7 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
                 showObjectPanelOpenButton: false,
                 zoomToolbarPlacement: widget.zoomToolbarPlacement,
                 zoomToolbarBackgroundColor: widget.zoomToolbarBackgroundColor,
+                zoomToolbarUseIcons: widget.zoomToolbarUseIcons,
                 zoomController: widget.zoomController,
               ),
             ),

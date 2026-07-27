@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,9 @@ import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/nutrition_box.dart';
 import 'package:label_manager/models/nutrition_type.dart';
+import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -186,6 +191,10 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   String _baselineRtf = '';
   double _managerPreviewFraction = 0;
   bool _managerPreviewWidthChangedByUser = false;
+  final GlobalKey _rtfPreviewRestoreKey = GlobalKey();
+  PreviewFloatingWindow? _rtfPreviewWindow;
+  String? _rtfPreviewData;
+  bool _rtfPreviewClosedByUser = false;
 
   bool get _inEditor => _mode != null;
   bool get _busy => _loading || widget.controller.writeBusy;
@@ -211,6 +220,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
 
   @override
   void dispose() {
+    _rtfPreviewWindow?.dispose();
     _nameController.dispose();
     _widthController.dispose();
     super.dispose();
@@ -227,6 +237,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
             ? restoreIndex
             : null;
       });
+          _syncSelectedRtfPreview();
     } catch (error) {
       if (showError && mounted) {
         await _showMessage(error.toString());
@@ -246,6 +257,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       return;
     }
     setState(() => _loading = true);
+    _rtfPreviewWindow?.hide();
     try {
       final types = await widget.loadTypes();
       final typeId = selected?.typeId;
@@ -390,6 +402,77 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     );
   }
 
+  void _selectManagerRow(int index) {
+    setState(() => _selectedIndex = index);
+    _syncSelectedRtfPreview();
+  }
+
+  void _syncSelectedRtfPreview() {
+    final selected = _selectedBox;
+    final data = selected?.rtf;
+    if (!labelSheetLooksLikeRichEditRtf(data)) {
+      _disposeRtfPreviewWindow();
+      return;
+    }
+    final rtf = data!;
+    if (_rtfPreviewData != rtf) {
+      _disposeRtfPreviewWindow();
+      _rtfPreviewData = rtf;
+      _rtfPreviewClosedByUser = false;
+      _rtfPreviewWindow = PreviewFloatingWindow(
+        initialSize: Size(
+          LabelSheetRtfPreview.pixelsForMm(selected!.width) + 8,
+          LabelSheetRtfPreview.pixelsForMm(100) + 8,
+        ),
+        tooltip: 'RTF 미리보기',
+        onCloseRequested: _closeRtfPreviewWindow,
+      );
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _rtfPreviewClosedByUser || _rtfPreviewData != rtf) {
+        return;
+      }
+      _rtfPreviewWindow?.show(
+        context,
+        child: LabelSheetRtfPreview(
+          key: ValueKey('nutrition-box-rtf-preview:${rtf.hashCode}'),
+          rtf: rtf,
+          widthMm: selected!.width,
+          heightMm: 100,
+        ),
+      );
+    });
+  }
+
+  Future<void> _closeRtfPreviewWindow() async {
+    final window = _rtfPreviewWindow;
+    if (window == null || !window.isVisible) return;
+    final target = _rtfPreviewRestoreRect() ?? window.rect.center & Size.zero;
+    await window.hideToRect(target.inflate(1));
+    if (!mounted) return;
+    setState(() => _rtfPreviewClosedByUser = true);
+  }
+
+  ui.Rect? _rtfPreviewRestoreRect() {
+    final context = _rtfPreviewRestoreKey.currentContext;
+    final renderObject = context?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
+  }
+
+  void _restoreRtfPreviewWindow() {
+    if (_rtfPreviewWindow == null || _rtfPreviewData == null) return;
+    setState(() => _rtfPreviewClosedByUser = false);
+    _syncSelectedRtfPreview();
+  }
+
+  void _disposeRtfPreviewWindow() {
+    _rtfPreviewWindow?.dispose();
+    _rtfPreviewWindow = null;
+    _rtfPreviewData = null;
+    _rtfPreviewClosedByUser = false;
+  }
+
   Future<void> _runWrite({
     required Future<void> Function() write,
     required Future<void> Function() onSuccess,
@@ -452,8 +535,10 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            SizedBox(
+              key: const ValueKey('nutritionBoxManagerToolbar'),
+              height: 34,
+              child: Row(
               children: [
                 IconButton(
                   key: const ValueKey('nutritionBoxAddButton'),
@@ -462,6 +547,11 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                       ? null
                       : () => _openEditor(NutritionBoxEditorMode.create),
                   icon: const Icon(Icons.add),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 30,
+                    height: 30,
+                  ),
                 ),
                 IconButton(
                   key: const ValueKey('nutritionBoxModifyButton'),
@@ -470,14 +560,50 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                       ? null
                       : () => _openEditor(NutritionBoxEditorMode.edit),
                   icon: const Icon(Icons.edit_outlined),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 30,
+                    height: 30,
+                  ),
                 ),
                 IconButton(
                   key: const ValueKey('nutritionBoxDeleteButton'),
                   tooltip: '영양성분표 삭제',
                   onPressed: _busy ? null : _deleteSelected,
                   icon: const Icon(Icons.delete_outline),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 30,
+                    height: 30,
+                  ),
                 ),
+                const Spacer(),
+                SizedBox(
+                  key: _rtfPreviewRestoreKey,
+                  width: 28,
+                  height: 28,
+                  child: IgnorePointer(
+                    ignoring: !_rtfPreviewClosedByUser,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 180),
+                      opacity: _rtfPreviewClosedByUser ? 1 : 0,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 180),
+                        scale: _rtfPreviewClosedByUser ? 1 : 0.75,
+                        child: IconButton(
+                          key: const ValueKey('nutritionBoxRtfPreviewRestore'),
+                          tooltip: 'RTF 미리보기 다시 보기',
+                          onPressed: _restoreRtfPreviewWindow,
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.preview, size: 18),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 116),
               ],
+            ),
             ),
             Expanded(
               child: LayoutBuilder(
@@ -518,10 +644,9 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                           fillRemaining: true,
                         ),
                       ],
-                      onRowSelected: (_, index) =>
-                          setState(() => _selectedIndex = index),
+                      onRowSelected: (_, index) => _selectManagerRow(index),
                       onRowDoubleTap: (_, index) {
-                        setState(() => _selectedIndex = index);
+                        _selectManagerRow(index);
                         _openEditor(NutritionBoxEditorMode.edit);
                       },
                       autoFitColumns: false,
@@ -712,10 +837,18 @@ class NutritionBoxSheetPreview extends StatefulWidget {
 class _NutritionBoxSheetPreviewState extends State<NutritionBoxSheetPreview> {
   late Future<FortuneWorkbook> _workbook = _loadWorkbook();
 
-  Future<FortuneWorkbook> _loadWorkbook() => nutritionBoxWorkbookFromData(
-    widget.data,
-    widthMm: widget.widthMm,
-  );
+  Future<FortuneWorkbook> _loadWorkbook() async {
+    final workbook = await nutritionBoxWorkbookFromData(
+      widget.data,
+      widthMm: widget.widthMm,
+    );
+    return workbook.copyWith(
+      sheets: [
+        for (final sheet in workbook.sheets)
+          sheet.copyWith(showGridLines: false),
+      ],
+    );
+  }
 
   @override
   void didUpdateWidget(covariant NutritionBoxSheetPreview oldWidget) {
@@ -742,6 +875,7 @@ class _NutritionBoxSheetPreviewState extends State<NutritionBoxSheetPreview> {
       barcodeObjectIds: const [],
       autoFitWidth: true,
       zoomToolbarBackgroundColor: blockingModelessDialogBackgroundColor,
+      zoomToolbarUseIcons: true,
     ),
   );
 }

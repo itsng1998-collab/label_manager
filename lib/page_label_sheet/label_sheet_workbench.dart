@@ -1912,6 +1912,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.showObjectPanelOpenButton = true,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.zoomToolbarBackgroundColor,
+    this.zoomToolbarUseIcons = false,
     this.zoomController,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
@@ -1957,6 +1958,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool showObjectPanelOpenButton;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final Color? zoomToolbarBackgroundColor;
+  final bool zoomToolbarUseIcons;
   final LabelSheetZoomController? zoomController;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
@@ -3963,7 +3965,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         mainAxisSize: MainAxisSize.min,
         children: [
           _LabelSheetZoomButton(
-            label: '-',
+            child: widget.zoomToolbarUseIcons
+                ? const Icon(Icons.remove, size: 16)
+                : const Text(
+                    '-',
+                    style: TextStyle(
+                      fontSize: 20,
+                      height: 1,
+                      color: Color(0xff5f6368),
+                    ),
+                  ),
             onPressed: () => _stepLabelSheetZoom(-10),
           ),
           const SizedBox(width: 4),
@@ -4001,13 +4012,24 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             ),
           ),
           const SizedBox(width: 2),
-          const Text(
-            '%',
-            style: TextStyle(fontSize: 13, color: Color(0xff222222)),
-          ),
+          widget.zoomToolbarUseIcons
+              ? const Icon(Icons.percent, size: 13, color: Color(0xff222222))
+              : const Text(
+                  '%',
+                  style: TextStyle(fontSize: 13, color: Color(0xff222222)),
+                ),
           const SizedBox(width: 4),
           _LabelSheetZoomButton(
-            label: '+',
+            child: widget.zoomToolbarUseIcons
+                ? const Icon(Icons.add, size: 16)
+                : const Text(
+                    '+',
+                    style: TextStyle(
+                      fontSize: 20,
+                      height: 1,
+                      color: Color(0xff5f6368),
+                    ),
+                  ),
             onPressed: () => _stepLabelSheetZoom(10),
           ),
         ],
@@ -4576,9 +4598,14 @@ class _ClosedLoopDialogFocus extends StatelessWidget {
 }
 
 class _LabelSheetZoomButton extends StatefulWidget {
-  const _LabelSheetZoomButton({required this.label, required this.onPressed});
+  const _LabelSheetZoomButton({
+    this.label,
+    this.child,
+    required this.onPressed,
+  }) : assert(label != null || child != null);
 
-  final String label;
+  final String? label;
+  final Widget? child;
   final VoidCallback onPressed;
 
   @override
@@ -4617,14 +4644,16 @@ class _LabelSheetZoomButtonState extends State<_LabelSheetZoomButton> {
             width: 23,
             height: 25,
             child: Center(
-              child: Text(
-                widget.label,
-                style: const TextStyle(
-                  fontSize: 20,
-                  height: 1,
-                  color: Color(0xff5f6368),
-                ),
-              ),
+              child:
+                  widget.child ??
+                  Text(
+                    widget.label!,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      height: 1,
+                      color: Color(0xff5f6368),
+                    ),
+                  ),
             ),
           ),
         ),
