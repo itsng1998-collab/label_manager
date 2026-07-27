@@ -3,6 +3,7 @@
 - 편집: 거래처 관리의 접속 버튼/처리 함수/콜백 타입과 `HomePage`까지 이어진 전용 전달 경로를 제거했다. 협력업체 선택 및 추가/수정/삭제 기능은 유지한다.
 - 검증: 전체 workspace 정적 오류 없음. 거래처 dialog/DAO, 관리자 접속 세션, 사용자 관리 테스트 22 passed, 0 failed. 접속 관련 잔여 참조는 버튼 부재를 확인하는 회귀 assertion뿐이다.
 - stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `lib/home_page_manager.dart`, `lib/home_page.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
+- 구현 커밋: `7ad7ebe` (`거래처 관리 접속 기능 제거`).
 
 # 완료: 로그인 공지 이미지 폭 복원
 - 원인: `bc68d3f` 공지 표시 공용화 전 로그인 화면은 공지 본문과 광고 이미지가 1:1이었으나, 공용 `NoticeDisplayPanel`이 2:1로 고정되어 이미지 영역이 좁아졌다.
