@@ -1,3 +1,10 @@
+# 완료: 발행 통계 조회 후 주원료 column 폭 유지
+- 원인: 발행 통계 `FortuneTable.autoFitColumns=true`와 `searchValue.autoFit=true` 때문에 조회 row가 렌더링되면 긴 주원료 내용 기준으로 초기 420px 폭을 다시 계산했다.
+- 편집 완료: 검색 항목이 `주원료`일 때 `searchValue` column의 `autoFit=false`를 적용해 조회 전후 420px를 유지한다. 다른 검색 항목은 기존 auto-fit을 유지한다.
+- 테스트 보강: 실제 결과 row 렌더링 후 `searchValue.initialWidth=420`, `autoFit=false`인지 검증한다.
+- 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+
 # 완료: 발행 통계 주원료 column 초기 폭 일치
 - 품목관리 기준: 주원료 column은 최소화 설정이 없을 때 초기 폭 420px를 사용한다.
 - 편집 완료: 품목관리의 420px 값을 공용 `itemManagerExpandedElementColumnWidth`로 분리하고, 발행 통계에서 검색 항목이 `주원료`일 때 같은 값을 사용한다. 다른 검색 항목은 기존 180px를 유지한다.

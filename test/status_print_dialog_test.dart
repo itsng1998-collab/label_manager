@@ -263,6 +263,15 @@ void main() {
     await tester.tap(find.text('조회'));
     await tester.pumpAndSettle();
 
+    final renderedTable = tester.widget<FortuneTable<StatusPrintTableRow>>(
+      find.byType(FortuneTable<StatusPrintTableRow>),
+    );
+    final renderedElementColumn = renderedTable.columns.singleWhere(
+      (column) => column.id == 'searchValue',
+    );
+    expect(renderedElementColumn.initialWidth, 420);
+    expect(renderedElementColumn.autoFit, isFalse);
+
     const total = StatusPrintTableRow.summary(
       kind: StatusPrintRowKind.total,
       label: '[총 발행 매수]',
