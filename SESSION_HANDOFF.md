@@ -5,6 +5,7 @@
 - 편집: 두 preview에 전달할 workbook만 복제해 모든 sheet의 `showGridLines=false`를 적용하고 원본 이력 workbook은 변경하지 않는다.
 - 테스트 추가: 실제 pointer를 10px씩 네 차례 drag할 때마다 splitter 중심과 테이블 높이가 포인터 누적 이동을 정확히 따르는지, 원본 workbook을 보존하면서 preview grid가 숨겨지는지 검증한다.
 - 검증 완료: `test/common_label_history_dialog_test.dart` 3개 통과, 수정 Dart 파일 3개 정적 오류 없음, `git diff --check` 통과.
+- 기능 커밋: `1fea264` (`공용라벨 이력 스플리터와 미리보기 마감`).
 - 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
 
 # 완료: 공용라벨 수정 이력 미리보기 영역 조정
