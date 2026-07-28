@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
-class HorizontalPaneSplitter extends StatelessWidget {
+class HorizontalPaneSplitter extends StatefulWidget {
   const HorizontalPaneSplitter({
     super.key,
     required this.height,
     required this.onDrag,
+    this.onDragStart,
   });
 
   final double height;
   final ValueChanged<double> onDrag;
+  final VoidCallback? onDragStart;
+
+  @override
+  State<HorizontalPaneSplitter> createState() =>
+      _HorizontalPaneSplitterState();
+}
+
+class _HorizontalPaneSplitterState extends State<HorizontalPaneSplitter> {
+  double? _dragStartGlobalY;
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +26,19 @@ class HorizontalPaneSplitter extends StatelessWidget {
       cursor: SystemMouseCursors.resizeUpDown,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onVerticalDragUpdate: (details) => onDrag(details.delta.dy),
+        onVerticalDragStart: (details) {
+          _dragStartGlobalY = details.globalPosition.dy;
+          widget.onDragStart?.call();
+        },
+        onVerticalDragUpdate: (details) {
+          final startGlobalY = _dragStartGlobalY;
+          if (startGlobalY == null) return;
+          widget.onDrag(details.globalPosition.dy - startGlobalY);
+        },
+        onVerticalDragEnd: (_) => _dragStartGlobalY = null,
+        onVerticalDragCancel: () => _dragStartGlobalY = null,
         child: Container(
-          height: height,
+          height: widget.height,
           decoration: BoxDecoration(
             color: Theme.of(
               context,

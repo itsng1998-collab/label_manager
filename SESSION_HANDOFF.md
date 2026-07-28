@@ -1,3 +1,12 @@
+# 완료: 공용라벨 수정 이력 splitter·preview 마감
+- 원인: splitter가 매 update의 작은 delta를 rebuild 시점의 높이에 더해 이벤트 병합/clamp 상황에서 포인터 총 이동량과 pane 이동량이 어긋날 수 있었다.
+- 편집: 공용 `HorizontalPaneSplitter`가 drag 시작 global Y 대비 누적 이동량을 전달하고, dialog는 drag 시작 테이블 높이에 누적값을 더하도록 변경했다.
+- 편집: 변경 전/후 외곽선 색을 일반 회색 `#9E9E9E`에서 light gray `#D3D3D3`로 변경했다.
+- 편집: 두 preview에 전달할 workbook만 복제해 모든 sheet의 `showGridLines=false`를 적용하고 원본 이력 workbook은 변경하지 않는다.
+- 테스트 추가: 실제 pointer를 10px씩 네 차례 drag할 때마다 splitter 중심과 테이블 높이가 포인터 누적 이동을 정확히 따르는지, 원본 workbook을 보존하면서 preview grid가 숨겨지는지 검증한다.
+- 검증 완료: `test/common_label_history_dialog_test.dart` 3개 통과, 수정 Dart 파일 3개 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 공용라벨 수정 이력 미리보기 영역 조정
 - 편집 예정/완료: 고정 220px 테이블과 두 미리보기 사이를 공용 `HorizontalPaneSplitter`로 분리해 위아래 높이를 드래그 조정하도록 했다. 테이블 최소 120px, 미리보기 최소 140px를 유지한다.
 - 파일별 편집: `LabelSheetZoomToolbar.backgroundColor` 선택 API를 추가하되 기본색은 유지하고, 공용라벨 이력의 두 zoom toolbar만 `blockingModelessDialogBackgroundColor`를 사용한다.

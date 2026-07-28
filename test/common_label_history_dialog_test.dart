@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:label_manager/models/common_label_history.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
@@ -40,6 +41,19 @@ void main() {
     innerIp: '192.168.0.2',
     outerIp: '127.0.0.1',
   );
+
+  test('history preview hides grid lines without changing source workbook', () {
+    final source = fs.FortuneWorkbook(
+      sheets: [
+        fs.FortuneSheet(id: 'sheet1', name: 'Sheet 1', showGridLines: true),
+      ],
+    );
+
+    final preview = commonLabelHistoryPreviewWorkbook(source)!;
+
+    expect(source.activeSheet.showGridLines, isTrue);
+    expect(preview.activeSheet.showGridLines, isFalse);
+  });
 
   testWidgets('system admin cascades customer and loads both previews', (
     tester,
@@ -94,11 +108,18 @@ void main() {
       const ValueKey('common-label-history-table-pane'),
     );
     expect(tester.getSize(tablePane).height, 220);
-    tester.widget<HorizontalPaneSplitter>(
-      find.byKey(const ValueKey('common-label-history-splitter')),
-    ).onDrag(40);
-    await tester.pump();
-    expect(tester.getSize(tablePane).height, 260);
+    final splitter = find.byKey(
+      const ValueKey('common-label-history-splitter'),
+    );
+    final initialSplitterCenter = tester.getCenter(splitter);
+    final gesture = await tester.startGesture(initialSplitterCenter);
+    for (var step = 1; step <= 4; step += 1) {
+      await gesture.moveBy(const Offset(0, 10));
+      await tester.pump();
+      expect(tester.getSize(tablePane).height, 220 + step * 10);
+      expect(tester.getCenter(splitter).dy, initialSplitterCenter.dy + step * 10);
+    }
+    await gesture.up();
 
     final beforePreview = find.byKey(
       const ValueKey('common-label-history-before-preview'),

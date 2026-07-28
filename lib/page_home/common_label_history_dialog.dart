@@ -34,7 +34,16 @@ typedef CommonLabelHistoryPreviewLoader =
       required int height,
     });
 
-  const Color commonLabelHistoryPreviewBorderColor = Color(0xFF9E9E9E);
+  const Color commonLabelHistoryPreviewBorderColor = Color(0xFFD3D3D3);
+
+  fs.FortuneWorkbook? commonLabelHistoryPreviewWorkbook(
+    fs.FortuneWorkbook? workbook,
+  ) => workbook?.copyWith(
+    sheets: [
+      for (final sheet in workbook.sheets)
+        sheet.copyWith(showGridLines: false),
+    ],
+  );
 
 Future<fs.FortuneWorkbook?> loadCommonLabelHistoryPreview(
   CommonLabelHistoryPayload payload, {
@@ -109,6 +118,7 @@ class _CommonLabelHistoryDialogContentState
   bool _loadingPreview = false;
   int _previewGeneration = 0;
   double _tableHeight = 220;
+  double _tableHeightAtDragStart = 220;
   final LabelSheetZoomController _beforeZoomController =
       LabelSheetZoomController(initialPercent: 100, minPercent: 20, maxPercent: 500);
   final LabelSheetZoomController _afterZoomController =
@@ -250,8 +260,8 @@ class _CommonLabelHistoryDialogContentState
       ]);
       if (!mounted || generation != _previewGeneration) return;
       setState(() {
-        _beforeWorkbook = workbooks[0];
-        _afterWorkbook = workbooks[1];
+        _beforeWorkbook = commonLabelHistoryPreviewWorkbook(workbooks[0]);
+        _afterWorkbook = commonLabelHistoryPreviewWorkbook(workbooks[1]);
       });
     } finally {
       if (mounted && generation == _previewGeneration) {
@@ -345,12 +355,16 @@ class _CommonLabelHistoryDialogContentState
                     HorizontalPaneSplitter(
                       key: const ValueKey('common-label-history-splitter'),
                       height: _splitterHeight,
-                      onDrag: (delta) {
+                      onDragStart: () {
+                        _tableHeightAtDragStart = tableHeight;
+                      },
+                      onDrag: (totalDelta) {
                         setState(() {
-                          _tableHeight = (tableHeight + delta).clamp(
-                            _minimumTableHeight,
-                            maxTableHeight,
-                          );
+                          _tableHeight =
+                              (_tableHeightAtDragStart + totalDelta).clamp(
+                                _minimumTableHeight,
+                                maxTableHeight,
+                              );
                         });
                       },
                     ),
