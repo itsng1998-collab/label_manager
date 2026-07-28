@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
@@ -373,22 +374,32 @@ class _SearchPrintSettingsDialogState
             Expanded(
               child: _busy && _draft == null
                   ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      itemCount: columns.length,
-                      itemBuilder: (context, index) {
-                        final column = columns[index];
-                        return CheckboxListTile(
-                          value: column.searchPrint,
-                          title: Text(column.columnName),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          onChanged: _busy
+                  : FortuneTable<TColumn>(
+                      key: const ValueKey('searchPrintSettingsTable'),
+                      rows: columns,
+                      columns: [
+                        FortuneTableColumn<TColumn>(
+                          id: 'searchPrint',
+                          header: '검색 여부',
+                          initialWidth: 120,
+                          text: (_) => '',
+                          checkboxValue: (column) => column.searchPrint,
+                          onCheckboxChanged: _busy
                               ? null
-                              : (value) => _draft?.setSearchPrint(
-                                    column.columnId,
-                                    value ?? false,
-                                  ),
-                        );
-                      },
+                              : (column, value) => _draft?.setSearchPrint(
+                                  column.columnId,
+                                  value,
+                                ),
+                        ),
+                        FortuneTableColumn<TColumn>(
+                          id: 'columnName',
+                          header: '항목명',
+                          text: (column) => column.columnName,
+                          fillRemaining: true,
+                        ),
+                      ],
+                      autoFitColumns: false,
+                      fillLastColumn: true,
                     ),
             ),
           ],

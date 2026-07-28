@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
@@ -162,6 +163,39 @@ void main() {
     expect(
       FocusManager.instance.primaryFocus?.debugLabel,
       'SearchPrintSettingsInitialFocus',
+    );
+    final table = tester.widget<FortuneTable<TColumn>>(
+      find.byKey(const ValueKey('searchPrintSettingsTable')),
+    );
+    expect(table.rows, columns);
+    expect(table.columns.map((column) => column.header), ['검색 여부', '항목명']);
+    expect(table.columns.first.checkboxValue!(table.rows.first), isFalse);
+    table.columns.first.onCheckboxChanged!(table.rows.first, true);
+    await tester.pump();
+    final checkedTable = tester.widget<FortuneTable<TColumn>>(
+      find.byKey(const ValueKey('searchPrintSettingsTable')),
+    );
+    expect(
+      checkedTable.columns.first.checkboxValue!(checkedTable.rows.first),
+      isTrue,
+    );
+    await tester.tap(find.text('전체 해제'));
+    await tester.pump();
+    final uncheckedTable = tester.widget<FortuneTable<TColumn>>(
+      find.byKey(const ValueKey('searchPrintSettingsTable')),
+    );
+    expect(
+      uncheckedTable.columns.first.checkboxValue!(uncheckedTable.rows.first),
+      isFalse,
+    );
+    await tester.tap(find.text('전체 선택'));
+    await tester.pump();
+    final allCheckedTable = tester.widget<FortuneTable<TColumn>>(
+      find.byKey(const ValueKey('searchPrintSettingsTable')),
+    );
+    expect(
+      allCheckedTable.columns.first.checkboxValue!(allCheckedTable.rows.first),
+      isTrue,
     );
     expect(find.text('취소'), findsOneWidget);
     expect(find.text('닫기'), findsNothing);
