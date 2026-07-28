@@ -4,6 +4,7 @@
 - 편집 완료: 본 조회의 두 날짜와 상세 조회의 `RICH_ID_CHANGE_DELETE_DATE`, `RICH_COLID_CHANGE_DELETE_DATE`를 원본 날짜형 그대로 SELECT하고 Dart mapper에서 문자열화한다.
 - 테스트 보강: DateTime 결과 매핑과 본/상세 SQL에 날짜형 `COLLATE`가 다시 포함되지 않는지 검증한다.
 - 검증 완료: `flutter test test/status_print_test.dart test/status_print_dialog_test.dart` 7개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
+- 기능 커밋: `6f14bfc` (`발행 통계 날짜형 조회 오류 수정`).
 - 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
 
 # 완료: 발행 통계 초기화 무한 진행바 수정
