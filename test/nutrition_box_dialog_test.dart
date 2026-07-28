@@ -242,8 +242,11 @@ void main() {
     );
     expect(editor.allowObjectPanel, isFalse);
     expect(editor.showObjectPanelOpenButton, isFalse);
+    expect(editor.hideRowColumnHeaders, isFalse);
+    expect(editor.hideRowColumnHeaderLabels, isFalse);
     expect(editor.toolbarItems, isNot(contains(fortuneToolbarObjectPanelCommand)));
     expect(editor.toolbarItems, isNot(contains(labelSheetSaveToolbarCommand)));
+    expect(editor.toolbarItems, isNot(contains(labelSheetPrintToolbarCommand)));
     expect(find.text('RTF 편집'), findsNothing);
     expect(
       tester.getTopLeft(

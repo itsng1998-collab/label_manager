@@ -69,6 +69,7 @@ LabelSize _nutritionBoxLabelSize(String data, int widthMm) => LabelSize(
 final List<String> _nutritionBoxSheetToolbarItems = List.unmodifiable([
   for (final item in labelSheetToolbarItems)
     if (item != labelSheetSaveToolbarCommand &&
+        item != labelSheetPrintToolbarCommand &&
         item != fortuneToolbarObjectPanelCommand)
       item,
 ]);
@@ -762,7 +763,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                           int.tryParse(_widthController.text) ?? 100,
                         ),
                         toolbarItems: _nutritionBoxSheetToolbarItems,
-                        hideRowColumnHeaderLabels: true,
+                        hideRowColumnHeaderLabels: false,
                         rulerCornerSizeLabelUsesAsterisk: true,
                         disableSheetRulerGuideInteraction: true,
                         hideStatisticBar: true,
