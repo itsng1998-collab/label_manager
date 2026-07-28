@@ -255,6 +255,25 @@ void main() {
         ).dx,
       ),
     );
+    final editorSheetRect = tester.getRect(
+      find.byKey(const ValueKey('nutritionBoxEditorSheet')),
+    );
+    final editorZoomToolbarRect = tester.getRect(
+      find.byKey(const ValueKey('nutritionBoxEditorZoomToolbar')),
+    );
+    expect(editorZoomToolbarRect.top, greaterThan(editorSheetRect.bottom));
+    expect(editorZoomToolbarRect.left, editorSheetRect.left);
+    final editorSheet = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
+    );
+    expect(
+      editorSheet.zoomToolbarPlacement,
+      LabelSheetZoomToolbarPlacement.hidden,
+    );
+    final editorZoomToolbar = tester.widget<LabelSheetZoomToolbar>(
+      find.byType(LabelSheetZoomToolbar),
+    );
+    expect(editorZoomToolbar.controller, same(editorSheet.zoomController));
     expect(find.text('취소'), findsOneWidget);
     expect(find.text('닫기'), findsNothing);
   });

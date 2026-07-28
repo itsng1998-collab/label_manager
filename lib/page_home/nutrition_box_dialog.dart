@@ -181,6 +181,8 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   List<NutritionTypeColumn> _columns = const [];
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _widthController = TextEditingController();
+  final LabelSheetZoomController _editorZoomController =
+      LabelSheetZoomController();
   String _rtf = '';
   FortuneWorkbook? _editorWorkbook;
   int? _baselineTypeId;
@@ -221,6 +223,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     _rtfPreviewWindow?.dispose();
     _nameController.dispose();
     _widthController.dispose();
+    _editorZoomController.dispose();
     super.dispose();
   }
 
@@ -742,31 +745,56 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
               child: Row(
                 children: [
                   Expanded(
-                    child: DecoratedBox(
-                      key: const ValueKey('nutritionBoxEditorSheet'),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).dividerColor),
-                      ),
-                      child: LabelSheetWorkbench(
-                        key: ValueKey('nutritionBoxSheet:${_editingBoxId ?? 'new'}'),
-                        initialWorkbook: _editorWorkbook,
-                        labelSize: _nutritionBoxLabelSize(
-                          _rtf,
-                          int.tryParse(_widthController.text) ?? 100,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: DecoratedBox(
+                            key: const ValueKey('nutritionBoxEditorSheet'),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(context).dividerColor,
+                              ),
+                            ),
+                            child: LabelSheetWorkbench(
+                              key: ValueKey(
+                                'nutritionBoxSheet:${_editingBoxId ?? 'new'}',
+                              ),
+                              initialWorkbook: _editorWorkbook,
+                              labelSize: _nutritionBoxLabelSize(
+                                _rtf,
+                                int.tryParse(_widthController.text) ?? 100,
+                              ),
+                              toolbarItems: _nutritionBoxSheetToolbarItems,
+                              hideRowColumnHeaderLabels: true,
+                              rulerCornerSizeLabelUsesAsterisk: true,
+                              disableSheetRulerGuideInteraction: true,
+                              hideStatisticBar: true,
+                              allowObjectPanel: false,
+                              showObjectPanelOpenButton: false,
+                              zoomToolbarPlacement:
+                                  LabelSheetZoomToolbarPlacement.hidden,
+                              zoomController: _editorZoomController,
+                              onUserWorkbookChanged: (workbook) {
+                                _editorWorkbook = workbook;
+                                _rtf = labelSheetEncodeWorkbookSave(workbook);
+                                _syncDirty();
+                              },
+                            ),
+                          ),
                         ),
-                        toolbarItems: _nutritionBoxSheetToolbarItems,
-                        hideRowColumnHeaderLabels: true,
-                        rulerCornerSizeLabelUsesAsterisk: true,
-                        disableSheetRulerGuideInteraction: true,
-                        hideStatisticBar: true,
-                        allowObjectPanel: false,
-                        showObjectPanelOpenButton: false,
-                        onUserWorkbookChanged: (workbook) {
-                          _editorWorkbook = workbook;
-                          _rtf = labelSheetEncodeWorkbookSave(workbook);
-                          _syncDirty();
-                        },
-                      ),
+                        const SizedBox(height: 8),
+                        Align(
+                          key: const ValueKey(
+                            'nutritionBoxEditorZoomToolbar',
+                          ),
+                          alignment: Alignment.centerLeft,
+                          child: LabelSheetZoomToolbar(
+                            controller: _editorZoomController,
+                            backgroundColor:
+                                blockingModelessDialogBackgroundColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 12),
