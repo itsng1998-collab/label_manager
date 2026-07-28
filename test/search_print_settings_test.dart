@@ -163,6 +163,22 @@ void main() {
       FocusManager.instance.primaryFocus?.debugLabel,
       'SearchPrintSettingsInitialFocus',
     );
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('닫기'), findsNothing);
+    expect(
+      tester
+          .getCenter(
+            find.byKey(const ValueKey('searchPrintSettingsCancelButton')),
+          )
+          .dx,
+      lessThan(
+        tester
+            .getCenter(
+              find.byKey(const ValueKey('searchPrintSettingsApplyButton')),
+            )
+            .dx,
+      ),
+    );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);

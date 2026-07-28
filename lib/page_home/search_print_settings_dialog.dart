@@ -296,9 +296,17 @@ class _SearchPrintSettingsDialogState
               )
             else
               const Spacer(),
-            TextButton(onPressed: _busy ? null : _requestClose, child: const Text('닫기')),
+            TextButton(
+              key: const ValueKey('searchPrintSettingsCancelButton'),
+              onPressed: _busy ? null : _requestClose,
+              child: const Text('취소'),
+            ),
             const SizedBox(width: 8),
-            FilledButton(onPressed: _busy ? null : _apply, child: const Text('적용')),
+            FilledButton(
+              key: const ValueKey('searchPrintSettingsApplyButton'),
+              onPressed: _busy ? null : _apply,
+              child: const Text(' 적용'),
+            ),
           ],
         ),
       ),

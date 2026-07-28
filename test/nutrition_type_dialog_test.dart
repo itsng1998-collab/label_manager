@@ -135,6 +135,22 @@ void main() {
       find.byKey(const ValueKey('nutritionTypeDraftTable')),
     );
     expect(table.rows.map((row) => row.keyword).toList(), ['N09', 'N10']);
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('닫기'), findsNothing);
+    expect(
+      tester
+          .getCenter(
+            find.byKey(const ValueKey('nutritionTypeDraftCancelButton')),
+          )
+          .dx,
+      lessThan(
+        tester
+            .getCenter(
+              find.byKey(const ValueKey('nutritionTypeDraftSaveButton')),
+            )
+            .dx,
+      ),
+    );
 
     await tester.tap(find.byKey(const ValueKey('nutritionTypeDraftSaveButton')));
     await tester.pumpAndSettle();

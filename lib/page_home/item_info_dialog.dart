@@ -371,6 +371,12 @@ class _ItemInfoDialogContentState extends State<ItemInfoDialogContent> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            TextButton(
+              key: const ValueKey('itemInfoCloseButton'),
+              onPressed: widget.controller.writeBusy ? null : widget.onClose,
+              child: const Text('취소'),
+            ),
+            const SizedBox(width: 8),
             FilledButton.icon(
               key: const ValueKey('itemInfoSaveButton'),
               onPressed:
@@ -379,12 +385,6 @@ class _ItemInfoDialogContentState extends State<ItemInfoDialogContent> {
                   : null,
               icon: const Icon(Icons.save_outlined),
               label: const Text('저장'),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              key: const ValueKey('itemInfoCloseButton'),
-              onPressed: widget.controller.writeBusy ? null : widget.onClose,
-              child: const Text('닫기'),
             ),
           ],
         ),

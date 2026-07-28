@@ -432,17 +432,17 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            FilledButton.icon(
-            key: const ValueKey('adminCopyExecute'),
-            onPressed: _copyEnabled && !_busy ? _copy : null,
-            icon: const Icon(Icons.copy_all_outlined),
-            label: Text(widget.controller.writeBusy ? '복사 중' : '복사'),
-          ),
-            const SizedBox(width: 8),
             OutlinedButton(
               key: const ValueKey('adminCopyClose'),
               onPressed: _busy ? null : widget.onClose,
-              child: const Text('닫기'),
+              child: const Text('취소'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              key: const ValueKey('adminCopyExecute'),
+              onPressed: _copyEnabled && !_busy ? _copy : null,
+              icon: const Icon(Icons.copy_all_outlined),
+              label: Text(widget.controller.writeBusy ? '복사 중' : '복사'),
             ),
           ],
         ),

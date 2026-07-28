@@ -686,7 +686,11 @@ class _NutritionTypeDialogContentState extends State<NutritionTypeDialogContent>
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: _busy ? null : _closeEditor, child: const Text('닫기')),
+                  TextButton(
+                    key: const ValueKey('nutritionTypeDraftCancelButton'),
+                    onPressed: _busy ? null : _closeEditor,
+                    child: const Text('취소'),
+                  ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
                     key: const ValueKey('nutritionTypeDraftSaveButton'),

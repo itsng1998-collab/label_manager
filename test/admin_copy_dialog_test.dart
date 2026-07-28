@@ -126,6 +126,14 @@ void main() {
       find.text('※ 복사할 내용이 있는 라벨크기를 선택해주세요!!'),
       findsOneWidget,
     );
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('닫기'), findsNothing);
+    expect(
+      tester.getCenter(find.byKey(const ValueKey('adminCopyClose'))).dx,
+      lessThan(
+        tester.getCenter(find.byKey(const ValueKey('adminCopyExecute'))).dx,
+      ),
+    );
     await tester.tap(find.byKey(const ValueKey('adminCopyClose')));
     await tester.pump();
     expect(closeCount, 1);

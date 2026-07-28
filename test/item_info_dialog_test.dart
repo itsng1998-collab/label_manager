@@ -115,10 +115,12 @@ void main() {
       onClose: () => closeCalls += 1,
     );
 
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('닫기'), findsNothing);
     expect(
-      tester.getCenter(find.byKey(const ValueKey('itemInfoSaveButton'))).dx,
+      tester.getCenter(find.byKey(const ValueKey('itemInfoCloseButton'))).dx,
       lessThan(
-        tester.getCenter(find.byKey(const ValueKey('itemInfoCloseButton'))).dx,
+        tester.getCenter(find.byKey(const ValueKey('itemInfoSaveButton'))).dx,
       ),
     );
     await tester.tap(find.byKey(const ValueKey('itemInfoCloseButton')));
