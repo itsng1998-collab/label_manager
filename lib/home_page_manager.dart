@@ -22,6 +22,7 @@ import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/ui_scale.dart';
+import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/column_base.dart';

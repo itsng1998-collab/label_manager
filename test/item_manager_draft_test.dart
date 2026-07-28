@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column_content.dart';

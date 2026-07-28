@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
+import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
@@ -13,25 +14,6 @@ import 'package:label_manager/page_home/item_manager_table_dimensions.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
-
-bool itemManagerCanPersistDynamicCell({
-  required bool canManageItemStructure,
-  required bool commandBusy,
-  required bool hasDraftRow,
-}) {
-  return canManageItemStructure && !commandBusy && hasDraftRow;
-}
-
-String itemManagerDeleteConfirmationMessage({
-  required String firstItemName,
-  required int selectedCount,
-}) {
-  assert(selectedCount > 0);
-  if (selectedCount == 1) {
-    return "선택한 '$firstItemName'를 삭제하시겠습니까?";
-  }
-  return "선택한 '$firstItemName' 외 ${selectedCount - 1}개 항목을 모두 삭제하시겠습니까?";
-}
 
 class ItemManageController {
   Object? _owner;
