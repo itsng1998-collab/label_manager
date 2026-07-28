@@ -4,6 +4,7 @@
 - 편집: 협력업체/거래처 dropdown에 `isExpanded: true`를 적용하고 항목 텍스트를 ellipsis 처리했다. 긴 이름 fixture로 고정 폭 내 렌더링 회귀 테스트를 추가했다.
 - 검증: 긴 필터 이름을 포함한 `test/login_history_dialog_test.dart` 3 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
 - stage/commit 대상: `lib/page_login/login_history_page.dart`, `test/login_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `be91e07` (`사용자 접속 이력 필터 넘침 수정`).
 - 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
 
 # 완료: 사용자 접속 이력 dropdown assertion 수정
