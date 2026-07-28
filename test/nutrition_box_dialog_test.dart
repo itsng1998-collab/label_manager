@@ -248,11 +248,11 @@ void main() {
     expect(
       tester.getTopLeft(
         find.byKey(const ValueKey('nutritionBoxEditorSheet')),
-      ).dy,
+      ).dx,
       lessThan(
         tester.getTopLeft(
           find.byKey(const ValueKey('nutritionBoxTypeColumns')),
-        ).dy,
+        ).dx,
       ),
     );
     expect(find.text('취소'), findsOneWidget);

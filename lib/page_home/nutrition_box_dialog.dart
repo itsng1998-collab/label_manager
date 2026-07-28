@@ -739,55 +739,61 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: DecoratedBox(
-                key: const ValueKey('nutritionBoxEditorSheet'),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: LabelSheetWorkbench(
-                  key: ValueKey('nutritionBoxSheet:${_editingBoxId ?? 'new'}'),
-                  initialWorkbook: _editorWorkbook,
-                  labelSize: _nutritionBoxLabelSize(
-                    _rtf,
-                    int.tryParse(_widthController.text) ?? 100,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DecoratedBox(
+                      key: const ValueKey('nutritionBoxEditorSheet'),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).dividerColor),
+                      ),
+                      child: LabelSheetWorkbench(
+                        key: ValueKey('nutritionBoxSheet:${_editingBoxId ?? 'new'}'),
+                        initialWorkbook: _editorWorkbook,
+                        labelSize: _nutritionBoxLabelSize(
+                          _rtf,
+                          int.tryParse(_widthController.text) ?? 100,
+                        ),
+                        toolbarItems: _nutritionBoxSheetToolbarItems,
+                        hideRowColumnHeaderLabels: true,
+                        rulerCornerSizeLabelUsesAsterisk: true,
+                        disableSheetRulerGuideInteraction: true,
+                        hideStatisticBar: true,
+                        allowObjectPanel: false,
+                        showObjectPanelOpenButton: false,
+                        onUserWorkbookChanged: (workbook) {
+                          _editorWorkbook = workbook;
+                          _rtf = labelSheetEncodeWorkbookSave(workbook);
+                          _syncDirty();
+                        },
+                      ),
+                    ),
                   ),
-                  toolbarItems: _nutritionBoxSheetToolbarItems,
-                  hideRowColumnHeaderLabels: true,
-                  rulerCornerSizeLabelUsesAsterisk: true,
-                  disableSheetRulerGuideInteraction: true,
-                  hideStatisticBar: true,
-                  allowObjectPanel: false,
-                  showObjectPanelOpenButton: false,
-                  onUserWorkbookChanged: (workbook) {
-                    _editorWorkbook = workbook;
-                    _rtf = labelSheetEncodeWorkbookSave(workbook);
-                    _syncDirty();
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 180,
-              child: FortuneTable<NutritionTypeColumn>(
-                key: const ValueKey('nutritionBoxTypeColumns'),
-                rows: _columns,
-                columns: [
-                  FortuneTableColumn<NutritionTypeColumn>(
-                    id: 'keyword',
-                    header: 'Keyword',
-                    text: (row) => row.keyword,
-                    initialWidth: 180,
-                  ),
-                  FortuneTableColumn<NutritionTypeColumn>(
-                    id: 'name',
-                    header: '성분명',
-                    text: (row) => row.name,
-                    fillRemaining: true,
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 360,
+                    child: FortuneTable<NutritionTypeColumn>(
+                      key: const ValueKey('nutritionBoxTypeColumns'),
+                      rows: _columns,
+                      columns: [
+                        FortuneTableColumn<NutritionTypeColumn>(
+                          id: 'keyword',
+                          header: 'Keyword',
+                          text: (row) => row.keyword,
+                          initialWidth: 180,
+                        ),
+                        FortuneTableColumn<NutritionTypeColumn>(
+                          id: 'name',
+                          header: '성분명',
+                          text: (row) => row.name,
+                          fillRemaining: true,
+                        ),
+                      ],
+                      autoFitColumns: false,
+                      fillLastColumn: true,
+                    ),
                   ),
                 ],
-                autoFitColumns: false,
-                fillLastColumn: true,
               ),
             ),
             const SizedBox(height: 12),
