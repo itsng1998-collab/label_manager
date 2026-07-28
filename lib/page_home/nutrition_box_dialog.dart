@@ -174,6 +174,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
 
   List<NutritionBox> _boxes = const [];
   int? _selectedIndex;
+  bool _initialBoxesLoaded = false;
   bool _loading = true;
   NutritionBoxEditorMode? _mode;
   int? _editingBoxId;
@@ -237,7 +238,10 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         _boxes = rows;
         _selectedIndex = restoreIndex != null && restoreIndex < rows.length
             ? restoreIndex
+            : !_initialBoxesLoaded && rows.isNotEmpty
+            ? 0
             : null;
+        _initialBoxesLoaded = true;
       });
           _syncSelectedRtfPreview();
     } catch (error) {

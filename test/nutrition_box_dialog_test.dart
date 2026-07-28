@@ -166,8 +166,7 @@ void main() {
     final table = tester.widget<FortuneTable<NutritionBox>>(
       find.byKey(const ValueKey('nutritionBoxManagerTable')),
     );
-    table.onRowSelected!(table.rows.single, 0);
-    await tester.pump();
+    expect(table.selectedIndex, 0);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(LabelOutputPreview), findsOneWidget);
     final preview = tester.widget<LabelOutputPreview>(
@@ -315,14 +314,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final table = tester.widget<FortuneTable<NutritionBox>>(
       find.byKey(const ValueKey('nutritionBoxManagerTable')),
     );
-    table.onRowSelected!(table.rows.single, 0);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    expect(table.selectedIndex, 0);
     expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
 
     await tester.tap(
@@ -389,14 +387,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final table = tester.widget<FortuneTable<NutritionBox>>(
       find.byKey(const ValueKey('nutritionBoxManagerTable')),
     );
-    table.onRowSelected!(table.rows.first, 0);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    expect(table.selectedIndex, 0);
     await tester.dragFrom(
       tester.getCenter(
         find.byKey(const ValueKey('floating-resize-bottom-right')),
