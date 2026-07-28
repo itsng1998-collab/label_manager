@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:intl/intl.dart';
-import 'package:label_manager/models/item_manager_draft.dart';
+import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_xlsx_import.dart';

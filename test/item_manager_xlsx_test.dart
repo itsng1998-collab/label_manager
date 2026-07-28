@@ -4,7 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/item_manager_draft.dart';
+import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 

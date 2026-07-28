@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
+import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manager_table_dimensions.dart';
