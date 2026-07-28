@@ -32,6 +32,16 @@ void main() {
     test('scoped column query uses one XML rowset parameter', () {
       expect(TColumnContentDAO.SelectByItemIds, contains('@itemIdsXml'));
       expect(TColumnContentDAO.SelectByItemIds, contains("nodes('/items/id')"));
+      expect(
+        TColumnContentDAO.SelectByItemIds,
+        contains('DECLARE @ScopedItemIds TABLE'),
+      );
+      expect(TColumnContentDAO.SelectByItemIds, contains('PRIMARY KEY'));
+      expect(
+        TColumnContentDAO.SelectByItemIds,
+        contains('INNER JOIN @ScopedItemIds S'),
+      );
+      expect(TColumnContentDAO.SelectByItemIds, contains('OPTION (RECOMPILE)'));
       expect(TColumnContentDAO.SelectByItemIds, isNot(contains(' IN (')));
       expect(
         TColumnContentDAO.itemIdsXml([3, 1, 3, 0, -1]),

@@ -109,11 +109,14 @@ class TColumnContentDAO extends DAO {
 	''';
 
   static const String SelectByItemIds = '''
-    DECLARE @ScopedItemIds XML = @itemIdsXml;
-    WITH ScopedItemIds AS (
-      SELECT ItemIdNode.value('.', 'INT') AS RICH_ITEM_ID
-      FROM @ScopedItemIds.nodes('/items/id') AS ItemIds(ItemIdNode)
-    )
+    DECLARE @ItemIdsXmlValue XML = @itemIdsXml;
+    DECLARE @ScopedItemIds TABLE (
+      RICH_ITEM_ID INT NOT NULL PRIMARY KEY
+    );
+    INSERT INTO @ScopedItemIds (RICH_ITEM_ID)
+    SELECT ItemIdNode.value('.', 'INT')
+    FROM @ItemIdsXmlValue.nodes('/items/id') AS ItemIds(ItemIdNode);
+
     SELECT
       P1.RICH_COL_CONTENT_ID AS RICH_COL_CONTENT_ID,
       P1.RICH_COLUMN_ID AS RICH_COLUMN_ID,
@@ -121,11 +124,12 @@ class TColumnContentDAO extends DAO {
       P1.RICH_EDITABLE AS RICH_EDITABLE,
       COALESCE(CONVERT(NVARCHAR(3000), P1.RICH_COL_CONTENT_DATA COLLATE ${DAO.CP949}), N'') AS RICH_COL_CONTENT_DATA
     FROM BM_RICH_COL_CONTENT P1
-    INNER JOIN ScopedItemIds S ON P1.RICH_ITEM_ID=S.RICH_ITEM_ID
+    INNER JOIN @ScopedItemIds S ON P1.RICH_ITEM_ID=S.RICH_ITEM_ID
     INNER JOIN BM_RICH_ITEM P2 ON P1.RICH_ITEM_ID=P2.RICH_ITEM_ID
     INNER JOIN BM_RICH_COLUMN P3 ON P1.RICH_COLUMN_ID=P3.RICH_COLUMN_ID
     ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID,
       P3.RICH_COLUMN_ORDER, P3.RICH_COLUMN_ID ASC
+    OPTION (RECOMPILE)
   ''';
 
   static Future<Map<ColumnItemKey, TColumnContent>?> selectByLabelSizeId(int labelSizeId) async {
