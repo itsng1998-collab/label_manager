@@ -3,6 +3,7 @@
 - 편집 완료: 검색 항목이 `주원료`일 때 `searchValue` column의 `autoFit=false`를 적용해 조회 전후 420px를 유지한다. 다른 검색 항목은 기존 auto-fit을 유지한다.
 - 테스트 보강: 실제 결과 row 렌더링 후 `searchValue.initialWidth=420`, `autoFit=false`인지 검증한다.
 - 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
+- 기능 커밋: `412fbc6` (`발행 통계 조회 후 주원료 폭 유지`).
 - 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
 
 # 완료: 발행 통계 주원료 column 초기 폭 일치
