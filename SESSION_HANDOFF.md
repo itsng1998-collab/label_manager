@@ -1,3 +1,10 @@
+# 완료: 영양성분표 RTF 다시보기 아이콘 간격 조정
+- 원인: manager toolbar의 다시보기 아이콘 뒤 고정 여백이 preview 확대/축소 영역 폭만큼만 확보되어 두 영역이 바로 붙어 보인다.
+- `nutrition_box_dialog.dart`: 확대/축소 영역 예약 폭 116px와 다시보기 시각 간격 12px를 별도 상수로 분리하고, trailing space를 128px로 늘려 아이콘을 왼쪽으로 이동했다.
+- `nutrition_box_dialog_test.dart`: RTF viewer를 닫은 상태에서 다시보기 trailing space가 128px인지 검증한다.
+- 검증: 영양성분표 dialog 테스트 10건 통과. 수정 2개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
+- 기능 커밋: `1d6b84d` (`영양성분표 RTF 다시보기 간격 조정`).
+
 # 완료: 영양성분표 AI 변환 dialog 최상단 표시
 - 원인: `LabelSheetWorkbench`의 AI image import가 일반 `showDialog` route를 사용해 `OverlayEntry` 기반 영양성분표 modeless dialog 아래에 배치된다.
 - `label_sheet_workbench.dart`: 기본값이 false인 `imageImportUseRootOverlay` 옵션을 추가했다. 활성화 시 공용 `showBlockingModelessOverlayDialog`로 AI image import를 root overlay 최상단에 표시하고, 취소/적용 결과를 overlay `close(result)`로 반환한다. 기존 화면은 일반 `showDialog`를 유지한다.
