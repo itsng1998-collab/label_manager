@@ -1,3 +1,11 @@
+# 완료: 검색출력 설정 FortuneTable 전환
+- 편집 완료: 검색출력 설정의 `CheckboxListTile` 목록을 row 번호, `검색 여부` 체크박스, `항목명`으로 구성한 `FortuneTable<TColumn>`로 교체했다.
+- 기능 유지: 개별 체크는 기존 `SearchPrintSettingsDraft.setSearchPrint`에 연결하고 전체 선택/해제, 브랜드·라벨 전환, 적용·취소 및 dirty 흐름은 그대로 유지한다.
+- 테스트 보강: FortuneTable row/column 구성, 개별 체크, 전체 선택/해제 후 draft 기반 checked 상태 갱신을 검증한다.
+- 검증: 포맷 전후 `test/search_print_settings_test.dart` 5건 통과. 수정한 소스/테스트 정적 오류 없음.
+- 기존 사용자 변경 파일은 stage/commit에서 제외한다.
+- 기능 커밋: `3f501ee` (`검색출력 설정 FortuneTable 전환`).
+
 # 완료: 영양성분표 목록 첫 행 자동 선택
 - 편집 완료: 영양성분표 목록의 첫 성공 로드에서 row가 있으면 index 0을 자동 선택한다. 이후 저장/삭제 reload의 기존 선택 복원 정책은 유지한다.
 - 테스트 변경: 관리자/RTF 미리보기 테스트의 수동 첫 행 선택을 제거하고 최초 렌더링 직후 `selectedIndex=0`인지 검증한다. RTF preview가 초기 선택과 함께 시작되므로 해당 테스트는 유한 pump로 대기한다.
