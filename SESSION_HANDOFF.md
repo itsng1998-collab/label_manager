@@ -1,3 +1,10 @@
+# 완료: 업데이트 메시지 공지·이미지 비율 통일
+- 편집 완료: 업데이트 메시지의 `NoticeDisplayPanel`에 로그인 다이얼로그와 같은 `contentFlex=1`, `adFlex=1`을 적용해 공지와 이미지 영역을 1:1로 배치했다.
+- 테스트 보강: 일반 사용자 업데이트 메시지에서 `notice-content-area`와 `notice-ad-area`의 실제 폭이 같은지 검증한다.
+- 검증: 포맷 전후 `test/notice_menu_dao_test.dart`, `test/startup_dialog_test.dart` 총 14건 통과. 수정한 소스/테스트 정적 오류 없음.
+- 기존 사용자 변경 파일은 stage/commit에서 제외한다.
+- 기능 커밋: `e7ff06a` (`업데이트 메시지 공지 이미지 비율 통일`).
+
 # 완료: 검색출력 설정 FortuneTable 전환
 - 편집 완료: 검색출력 설정의 `CheckboxListTile` 목록을 row 번호, `검색 여부` 체크박스, `항목명`으로 구성한 `FortuneTable<TColumn>`로 교체했다.
 - 기능 유지: 개별 체크는 기존 `SearchPrintSettingsDraft.setSearchPrint`에 연결하고 전체 선택/해제, 브랜드·라벨 전환, 적용·취소 및 dirty 흐름은 그대로 유지한다.
