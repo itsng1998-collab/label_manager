@@ -270,6 +270,34 @@ void main() {
     }
   });
 
+  test('app menu work gate covers item queries and every page editor', () {
+    expect(
+      appMenuWorkBlocked(
+        itemManagerQueryDepth: 0,
+        itemEditing: false,
+        autoItemUpdateEditing: false,
+        scaleOutputEditing: false,
+      ),
+      isFalse,
+    );
+    for (final blockedState in const [
+      (1, false, false, false),
+      (0, true, false, false),
+      (0, false, true, false),
+      (0, false, false, true),
+    ]) {
+      expect(
+        appMenuWorkBlocked(
+          itemManagerQueryDepth: blockedState.$1,
+          itemEditing: blockedState.$2,
+          autoItemUpdateEditing: blockedState.$3,
+          scaleOutputEditing: blockedState.$4,
+        ),
+        isTrue,
+      );
+    }
+  });
+
   test('item manager formats single and multiple delete confirmations', () {
     expect(
       itemManagerDeleteConfirmationMessage(

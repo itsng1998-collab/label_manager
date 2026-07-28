@@ -118,6 +118,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('all blocked commands disable wide and overflow menu buttons', (
+    tester,
+  ) async {
+    final blockedStates = {
+      for (final entry in visibleStates.entries)
+        entry.key: AppMenuCommandState(
+          visible: entry.value.visible,
+          enabled: false,
+        ),
+    };
+
+    await pumpMenu(
+      tester,
+      size: const Size(1200, 800),
+      states: blockedStates,
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const ValueKey('app-menu-group-file')),
+      ).onPressed,
+      isNull,
+    );
+
+    await pumpMenu(
+      tester,
+      size: const Size(600, 720),
+      states: blockedStates,
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const ValueKey('app-menu-overflow')),
+      ).onPressed,
+      isNull,
+    );
+  });
+
   testWidgets('file popup shows only the session login command', (
     tester,
   ) async {

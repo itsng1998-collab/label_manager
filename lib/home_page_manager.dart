@@ -132,6 +132,18 @@ bool labelPrintTabSelectionBlocked({
   required bool itemDraftDirty,
 }) => hasActiveEditing || itemDraftCommandBusy || itemDraftDirty;
 
+@visibleForTesting
+bool appMenuWorkBlocked({
+  required int itemManagerQueryDepth,
+  required bool itemEditing,
+  required bool autoItemUpdateEditing,
+  required bool scaleOutputEditing,
+}) =>
+    itemManagerQueryDepth > 0 ||
+    itemEditing ||
+    autoItemUpdateEditing ||
+    scaleOutputEditing;
+
 bool homeTabTapBlocked({
   required Object? currentTabValue,
   required bool itemDraftContextChangeBlocked,
@@ -455,6 +467,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _autoItemUpdateCommandBusy = false;
   bool _commonLabelSheetDirty = false;
   bool _labelColumnEditCommandBusy = false;
+  int _itemManagerQueryDepth = 0;
   final ItemElementCommitQueue _itemElementCommitQueue =
       ItemElementCommitQueue();
   final CooperatorManagerController _cooperatorManagerController =
@@ -647,6 +660,12 @@ class _HomePageManagerState extends State<HomePageManager> {
   void _syncAppMenuWorkState() {
     widget.appMenuController.updateWorkState(
       hasScaleOutputLabelSize: _effectiveLabelSize != null,
+      workBlocked: appMenuWorkBlocked(
+        itemManagerQueryDepth: _itemManagerQueryDepth,
+        itemEditing: _itemManageController.hasActiveEditing,
+        autoItemUpdateEditing: _autoItemUpdatePageController.hasActiveEditing,
+        scaleOutputEditing: _scaleOutputPageController.hasActiveEditing,
+      ),
       busyCommands: {
         if (_labelPrintSessionController.busy)
           AppMenuCommandId.labelPrintSettings,
@@ -654,6 +673,10 @@ class _HomePageManagerState extends State<HomePageManager> {
           AppMenuCommandId.scaleOutputPrinterSettings,
       },
     );
+  }
+
+  void _handlePageEditingChanged() {
+    _syncAppMenuWorkState();
   }
 
   void _logItemDraftCancelDebug(String event, {int? traceId}) {
@@ -1599,6 +1622,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     bool forceReload = false,
     bool skipDraftContextGuard = false,
   }) async {
+    _itemManagerQueryDepth += 1;
+    _syncAppMenuWorkState();
     final trace = ItemManagerDebugLog.nextTrace('sessionLoad');
     ItemManagerDebugLog.event(
       'sessionLoad',
@@ -1836,6 +1861,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _showItemManagerLoadFailure();
       return false;
     } finally {
+      _itemManagerQueryDepth -= 1;
+      _syncAppMenuWorkState();
       debugLog(END);
     }
   }
@@ -4472,6 +4499,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         content: ItemManage(
           key: ValueKey('items:$_labelContentKey'),
           controller: _itemManageController,
+          onEditingChanged: _handlePageEditingChanged,
           onReady: () => _handleItemManagerReady(itemManagerReadyGeneration),
           items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
           selectedIndex: _selectedItemIndex,
@@ -4579,6 +4607,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             columns: TColumn.datas ?? const <TColumn>[],
             draftController: _autoItemUpdateDraftController,
             controller: _autoItemUpdatePageController,
+            onEditingChanged: _handlePageEditingChanged,
             onTableRectChanged: _handleItemTableRectChanged,
             sourceRows: _autoItemUpdateSourceRows(),
             sourceReady: _autoItemUpdateSourceReady,
@@ -4598,6 +4627,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         content: ScaleOutputPage(
           controller: _scaleOutputSessionController,
           pageController: _scaleOutputPageController,
+          onEditingChanged: _handlePageEditingChanged,
           previewBuilder: _buildScaleOutputPreview,
           onPrinterSettings: _openScaleOutputPrinterSettings,
           onScaleSettings: _openScaleConnectSettings,

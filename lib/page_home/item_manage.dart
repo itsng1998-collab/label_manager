@@ -108,6 +108,7 @@ class ItemManage extends StatefulWidget {
   final bool commandBusy;
   final bool canEdit;
   final ItemManageController? controller;
+  final VoidCallback? onEditingChanged;
   final ValueChanged<Set<int>>? onPublishCheckedItemIdsChanged;
   final Future<void> Function(TColumnBase column, bool checked)?
   onMinColumnCheckChanged;
@@ -138,6 +139,7 @@ class ItemManage extends StatefulWidget {
     this.commandBusy = false,
     this.canEdit = true,
     this.controller,
+    this.onEditingChanged,
     this.onPublishCheckedItemIdsChanged,
     this.onMinColumnCheckChanged,
     this.onReady,
@@ -230,6 +232,7 @@ class _ItemManageState extends State<ItemManage> {
 
   void _handleEditingStateChanged() {
     if (mounted) setState(() {});
+    widget.onEditingChanged?.call();
   }
 
   void _handleDraftChanged() {

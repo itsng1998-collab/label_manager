@@ -1,3 +1,22 @@
+# 완료: 조회·편집 중 AppBar 메뉴 비활성화
+- 원인: `AppMenuController`는 개별 command busy/context block만 전달받아 품목 조회와 페이지 테이블 편집 상태를 메뉴 전체에 반영하지 않는다.
+- 편집 예정: 메뉴 정책에 전체 작업 차단 상태를 추가하고, 품목 세션 조회 및 품목관리/자동품목갱신/저울출력 편집 상태를 `HomePageManager`에서 동기화한다.
+- 현재 편집: `AppMenuPolicyContext.workBlocked`와 `AppMenuController.updateWorkState(workBlocked:)`를 추가해 로그인/로그아웃 포함 모든 표시 command와 실행 경로를 차단하도록 했다.
+- 파일별 편집: `ItemManage`, `AutoItemUpdatePage`, `ScaleOutputPage`가 편집 상태 변경 callback을 전달하고 `HomePageManager`가 품목 조회 깊이 및 세 페이지 편집 상태를 AppMenu 전체 차단 상태로 동기화한다.
+- 파일별 편집: `AppMenuBar`는 그룹 내 활성 command가 없으면 wide 그룹 버튼, overflow 버튼 및 submenu도 비활성화한다.
+- 1차 검증: AppMenu controller/policy 테스트 15 passed. 수정한 페이지와 manager 정적 오류 없음.
+- 검증 이슈: VS Code 테스트 어댑터가 `app_menu_bar_test.dart` 단독 실행을 `0 passed / 0 failed`로 반환해 widget test를 발견하지 못했다.
+- 검증 실행 예정: `.\\flutter.ps1 test test/app_menu_bar_test.dart test/app_menu_controller_test.dart test/app_menu_policy_test.dart test/automatic_item_update_page_test.dart` 후 전체 정적 분석.
+- 2차 검증 실패/수정: 현재 Flutter SDK의 `SubmenuButton`이 `enabled` 매개변수를 지원하지 않아 컴파일 실패했다. 해당 인자를 제거하고 wide 그룹/전체 overflow 버튼 비활성화는 유지했다.
+- 테스트 추가: `appMenuWorkBlocked` 순수 helper로 품목 조회 및 품목관리/자동품목갱신/저울출력 편집 상태 각각이 메뉴를 차단하는지 검증한다.
+- 2차 검증: 메뉴/AppMenu/자동품목갱신 관련 root 테스트 정상 종료. `test/fortune_table_test.dart` 56 passed.
+- 검증 실행 직전: `C:\\Flutter\\bin\\flutter.bat analyze`로 전체 workspace 정적 분석을 실행한다.
+- 정적 분석: 오류 0건. 기존 warning/info 28건 때문에 exit code 1이며 이번 변경에서 추가된 경고는 없다.
+- 최종 검증: 메뉴 3개/자동품목갱신/품목관리 관련 테스트 117 passed, `git diff --check` 오류 없음.
+- stage/commit 대상: AppMenu controller/policy/bar, `HomePageManager`, 품목관리/자동품목갱신/저울출력 페이지, AppMenu 및 HomePageManager 관련 테스트, `SESSION_HANDOFF.md`.
+- 제외: 사용자 변경 `lib/home_page.dart`, `lib/page_home/nutrition_box_dialog.dart`, `lib/page_home/nutrition_type_dialog.dart`, `test/nutrition_type_dialog_test.dart`, unrelated `test/scale_output_test.dart`.
+- 기존 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 영양성분 RTF Viewer 레이어 수정
 - 확인: 최신 로그에서 RTF Viewer route가 생성됐지만 영양성분 dialog가 root `OverlayEntry`라 Navigator route 기반 Viewer가 dialog 뒤에 가려졌다.
 - 편집: 공용라벨관리와 동일하게 `PreviewFloatingWindow(usePortalHost: true)`와 `wrapPortalHost`를 연결해 root modeless dialog 위에 표시되도록 변경했다.

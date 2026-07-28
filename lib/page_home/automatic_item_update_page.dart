@@ -57,6 +57,7 @@ class AutoItemUpdatePage extends StatefulWidget {
     required this.columns,
     this.draftController,
     this.controller,
+    this.onEditingChanged,
     this.onTableRectChanged,
     this.sourceRows = const <AutoItemUpdateSourceSeed>[],
     this.sourceReady = false,
@@ -72,6 +73,7 @@ class AutoItemUpdatePage extends StatefulWidget {
   final List<TColumn> columns;
   final AutoItemUpdateDraftController? draftController;
   final AutoItemUpdatePageController? controller;
+  final VoidCallback? onEditingChanged;
   final ValueChanged<Rect>? onTableRectChanged;
   final List<AutoItemUpdateSourceSeed> sourceRows;
   final bool sourceReady;
@@ -133,6 +135,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     super.initState();
     widget.draftController?.addListener(_handleDraftChanged);
     _selectionController.addListener(_handleSelectionChanged);
+    _editingController.addListener(_handleEditingChanged);
     _attachController();
     _syncDraftSelection();
   }
@@ -161,6 +164,10 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     );
   }
 
+  void _handleEditingChanged() {
+    widget.onEditingChanged?.call();
+  }
+
   void _syncDraftSelection() {
     final controller = widget.draftController;
     if (controller == null) {
@@ -180,6 +187,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   void dispose() {
     widget.draftController?.removeListener(_handleDraftChanged);
     _selectionController.removeListener(_handleSelectionChanged);
+    _editingController.removeListener(_handleEditingChanged);
     _selectionController.dispose();
     _focusController.dispose();
     _sourcePaneFocusNode.dispose();

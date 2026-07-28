@@ -112,4 +112,34 @@ void main() {
       isTrue,
     );
   });
+
+  test('work block disables every visible command and prevents execution', () async {
+    final controller = AppMenuController();
+    var callCount = 0;
+    controller.attach(
+      owner: Object(),
+      handlers: {
+        AppMenuCommandId.logout: () => callCount += 1,
+        AppMenuCommandId.editItemInfo: () => callCount += 1,
+      },
+    );
+    controller.updateSession(userGrade: UserGrade.MANAGER_USER);
+
+    controller.updateWorkState(
+      hasScaleOutputLabelSize: true,
+      workBlocked: true,
+    );
+
+    expect(controller.commandStates[AppMenuCommandId.logout]!.enabled, isFalse);
+    expect(
+      controller.commandStates[AppMenuCommandId.editItemInfo]!.enabled,
+      isFalse,
+    );
+    await controller.execute(AppMenuCommandId.editItemInfo);
+    expect(callCount, 0);
+
+    controller.updateWorkState(hasScaleOutputLabelSize: true);
+    await controller.execute(AppMenuCommandId.editItemInfo);
+    expect(callCount, 1);
+  });
 }

@@ -118,6 +118,9 @@ class _AppMenuBarState extends State<AppMenuBar> {
   Widget _buildGroupAnchor(AppMenuGroup group) {
     final presentation = _groupPresentation(group);
     final controller = _groupControllers[group]!;
+    final enabled = _visibleCommands(group).any(
+      (command) => widget.commandStates[command.id]?.enabled == true,
+    );
     return MenuAnchor(
       controller: controller,
       useRootOverlay: true,
@@ -128,7 +131,9 @@ class _AppMenuBarState extends State<AppMenuBar> {
         key: ValueKey('app-menu-group-${group.name}'),
         tooltip: presentation.label,
         icon: Icon(presentation.icon),
-        onPressed: menuController.isOpen
+        onPressed: !enabled
+            ? null
+            : menuController.isOpen
             ? menuController.close
             : menuController.open,
       ),
@@ -136,6 +141,11 @@ class _AppMenuBarState extends State<AppMenuBar> {
   }
 
   Widget _buildOverflowAnchor(List<AppMenuGroup> visibleGroups) {
+    final enabled = visibleGroups.any(
+      (group) => _visibleCommands(group).any(
+        (command) => widget.commandStates[command.id]?.enabled == true,
+      ),
+    );
     return MenuAnchor(
       controller: _overflowController,
       useRootOverlay: true,
@@ -154,7 +164,9 @@ class _AppMenuBarState extends State<AppMenuBar> {
         key: const ValueKey('app-menu-overflow'),
         tooltip: '메뉴',
         icon: const Icon(Icons.more_vert),
-        onPressed: menuController.isOpen
+        onPressed: !enabled
+            ? null
+            : menuController.isOpen
             ? menuController.close
             : menuController.open,
       ),

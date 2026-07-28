@@ -7,6 +7,7 @@ class AppMenuPolicyContext {
     this.isAdminConnect = false,
     this.isCoopAdminConnect = false,
     this.isFirstConnectByAdmin = false,
+    this.workBlocked = false,
     this.busyCommands = const <AppMenuCommandId>{},
     this.contextBlockedCommands = const <AppMenuCommandId>{},
     this.hasScaleOutputLabelSize = false,
@@ -16,6 +17,7 @@ class AppMenuPolicyContext {
   final bool isAdminConnect;
   final bool isCoopAdminConnect;
   final bool isFirstConnectByAdmin;
+  final bool workBlocked;
   final Set<AppMenuCommandId> busyCommands;
   final Set<AppMenuCommandId> contextBlockedCommands;
   final bool hasScaleOutputLabelSize;
@@ -72,13 +74,13 @@ class AppMenuPolicy {
     if (id == AppMenuCommandId.login) {
       return AppMenuCommandState(
         visible: !context.isLoggedIn,
-        enabled: !context.isLoggedIn,
+        enabled: !context.isLoggedIn && !context.workBlocked,
       );
     }
     if (id == AppMenuCommandId.logout) {
       return AppMenuCommandState(
         visible: context.isLoggedIn,
-        enabled: context.isLoggedIn,
+        enabled: context.isLoggedIn && !context.workBlocked,
       );
     }
     if (!allows(command.permission)) {
@@ -94,7 +96,9 @@ class AppMenuPolicy {
       );
     }
 
-    final enabled = !context.busyCommands.contains(id) &&
+    final enabled =
+        !context.workBlocked &&
+        !context.busyCommands.contains(id) &&
         !context.contextBlockedCommands.contains(id);
     return AppMenuCommandState(visible: true, enabled: enabled);
   }

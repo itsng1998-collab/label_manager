@@ -299,6 +299,7 @@ class ScaleOutputPage extends StatefulWidget {
     required this.onConnect,
     required this.onDisconnect,
     this.pageController,
+    this.onEditingChanged,
     this.useScale = false,
     this.busy = false,
   });
@@ -318,6 +319,7 @@ class ScaleOutputPage extends StatefulWidget {
   final VoidCallback onConnect;
   final VoidCallback onDisconnect;
   final ScaleOutputPageController? pageController;
+  final VoidCallback? onEditingChanged;
   final bool useScale;
   final bool busy;
 
@@ -360,6 +362,8 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
     super.initState();
     _lastSelectedItemId = widget.controller.selectedItemId;
     widget.controller.addListener(_handleChanged);
+    _weightFocusNode.addListener(_handleEditingChanged);
+    _priceFocusNode.addListener(_handleEditingChanged);
     _attachController();
     _syncTextControllers(force: true);
   }
@@ -395,6 +399,8 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
   @override
   void dispose() {
     widget.controller.removeListener(_handleChanged);
+    _weightFocusNode.removeListener(_handleEditingChanged);
+    _priceFocusNode.removeListener(_handleEditingChanged);
     widget.pageController?.detach(this);
     _selectionController.dispose();
     _focusController.dispose();
@@ -404,6 +410,10 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
     _priceController.dispose();
     _zoomController.dispose();
     super.dispose();
+  }
+
+  void _handleEditingChanged() {
+    widget.onEditingChanged?.call();
   }
 
   void _handleChanged() {

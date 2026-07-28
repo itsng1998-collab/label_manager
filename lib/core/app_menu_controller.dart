@@ -17,6 +17,7 @@ class AppMenuController extends ChangeNotifier {
   bool _isCoopAdminConnect = false;
   bool _isFirstConnectByAdmin = false;
   bool _hasScaleOutputLabelSize = false;
+  bool _workBlocked = false;
   Set<AppMenuCommandId> _busyCommands = const {};
   Set<AppMenuCommandId> _contextBlockedCommands = const {};
 
@@ -27,6 +28,7 @@ class AppMenuController extends ChangeNotifier {
         isAdminConnect: _isAdminConnect,
         isCoopAdminConnect: _isCoopAdminConnect,
         isFirstConnectByAdmin: _isFirstConnectByAdmin,
+        workBlocked: _workBlocked,
         hasScaleOutputLabelSize: _hasScaleOutputLabelSize,
         busyCommands: {..._busyCommands, ..._runningCommands},
         contextBlockedCommands: _contextBlockedCommands,
@@ -75,15 +77,18 @@ class AppMenuController extends ChangeNotifier {
 
   void updateWorkState({
     required bool hasScaleOutputLabelSize,
+    bool workBlocked = false,
     Set<AppMenuCommandId> busyCommands = const {},
     Set<AppMenuCommandId> contextBlockedCommands = const {},
   }) {
     if (_hasScaleOutputLabelSize == hasScaleOutputLabelSize &&
+        _workBlocked == workBlocked &&
         setEquals(_busyCommands, busyCommands) &&
         setEquals(_contextBlockedCommands, contextBlockedCommands)) {
       return;
     }
     _hasScaleOutputLabelSize = hasScaleOutputLabelSize;
+    _workBlocked = workBlocked;
     _busyCommands = Set.unmodifiable(busyCommands);
     _contextBlockedCommands = Set.unmodifiable(contextBlockedCommands);
     notifyListeners();

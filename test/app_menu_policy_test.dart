@@ -146,6 +146,18 @@ void main() {
     expect(blocked.disabledReason, isNull);
   });
 
+  test('work block disables login, logout, and regular visible commands', () {
+    const loggedOut = AppMenuPolicyContext(workBlocked: true);
+    const loggedIn = AppMenuPolicyContext(
+      userGrade: UserGrade.MANAGER_USER,
+      workBlocked: true,
+    );
+
+    expect(state(loggedOut, AppMenuCommandId.login).enabled, isFalse);
+    expect(state(loggedIn, AppMenuCommandId.logout).enabled, isFalse);
+    expect(state(loggedIn, AppMenuCommandId.editItemInfo).enabled, isFalse);
+  });
+
   test('editable is based on the actual grade, not session flags', () {
     const clientConnect = AppMenuPolicyContext(
       userGrade: UserGrade.CLIENT_USER,
