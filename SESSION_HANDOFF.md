@@ -5,6 +5,7 @@
 - 테스트 보강: 초기 라벨사이즈 `[1000, 2000]`의 검색 컬럼 loader가 1회만 호출되는지 검증한다.
 - 검증 실행: `flutter test test/status_print_dialog_test.dart test/status_print_test.dart`.
 - 검증 완료: 발행 통계 dialog/모델 테스트 7개 통과, 수정 Dart 파일 3개 정적 오류 없음, `git diff --check` 통과.
+- 기능 커밋: `b747244` (`발행 통계 초기화 조회 최적화`).
 - 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
 
 # 완료: 공용라벨 수정 이력 preview 시작 위치 조정
