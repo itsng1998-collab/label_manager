@@ -4,6 +4,7 @@
 - 편집: 협력업체/거래처 dropdown value를 객체 identity 대신 각각 `cooperatorId`/`customerId`로 변경하고, 테스트 loader가 별도 객체를 반환하도록 실제 DAO 조건을 재현했다.
 - 검증: `test/login_history_dialog_test.dart` 2 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
 - stage/commit 대상: `lib/page_login/login_history_page.dart`, `test/login_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `fbdb6c4` (`사용자 접속 이력 선택값 오류 수정`).
 - 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
 
 # 완료: 사용자 관리 협력업체 영역 왼쪽 정렬
