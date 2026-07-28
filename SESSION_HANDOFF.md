@@ -1,3 +1,11 @@
+# 완료: 품목별 정보 편집 하단 닫기 버튼 추가
+- 편집 완료: `ItemInfoDialogContent`에 `onClose` callback과 하단 `닫기` 버튼을 추가하고, 저장 버튼 왼쪽에 8px 간격으로 배치했다.
+- 동작: 하단 닫기는 상단 X와 동일한 `_requestCloseItemInfoDialog`를 호출해 미저장 변경 확인을 재사용하며 저장 중에는 비활성화된다.
+- 테스트 추가: 하단 닫기 버튼이 dialog close callback을 한 번 호출하는지 검증한다.
+- 검증: `flutter test test/item_info_dialog_test.dart test/item_info_batch_test.dart` 총 4건 통과. 수정 파일 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+- 기능 커밋: `b3ea610` (`품목별 정보 편집 닫기 버튼 추가`).
+
 # 완료: 브랜드 선택 후 데이터 로드 지연 수정
 - 최신 로그 `app_2026-07-28_15-39-24.log`: `BrandDAO.selectByCustomerIdByBrandOrder` 자체는 37ms로 정상이다. 후속 `TColumnContentDAO.selectScopedByItemIds`가 26개 품목/338개 content 조회에 24,529ms, 같은 DB isolate의 heartbeat가 13,949ms 대기했다.
 - 원인 경로: 7월 10일 읽기 스냅샷 작업에서 market 품목 scope 보존을 위해 도입된 XML nodes CTE query. 날짜 조건 최적화와 직접 관련이 없다.
