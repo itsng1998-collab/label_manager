@@ -1,3 +1,11 @@
+# 완료: 기존 미커밋 Dart 정적 분석 정리
+- 확인: `home_page.dart`의 변경되지 않는 상태 필드 2개 final화, `nutrition_box_dialog.dart`의 불필요한 foundation import 제거, 영양성분 형식/저울출력 테스트 callback의 미사용 매개변수 이름 정리다.
+- 정적 확인: 수정된 5개 파일 모두 오류 없음. 두 final 필드는 선언 외 대입이 없고, import 제거 후 `visibleForTesting`도 정상 해석된다.
+- 검증: 영양성분표, 영양성분 형식, 저울출력 집중 테스트 총 31건 통과. `git diff --check` 통과.
+- 전체 workspace 진단에는 이번 파일과 무관한 기존 미사용 선언/import 경고 16건이 `home_page_manager.dart`, `automatic_item_update_page.dart`, 테스트 2개, `third_party/fortune_sheet`에 남아 있어 범위 밖으로 유지한다.
+- 커밋 대상: 위 5개 파일만 stage하고 기존 완료 기능과 분리한다.
+- 기능 커밋: `6097f12` (`Dart 정적 분석 경고 정리`).
+
 # 완료: 업데이트 메시지 공지·이미지 비율 통일
 - 편집 완료: 업데이트 메시지의 `NoticeDisplayPanel`에 로그인 다이얼로그와 같은 `contentFlex=1`, `adFlex=1`을 적용해 공지와 이미지 영역을 1:1로 배치했다.
 - 테스트 보강: 일반 사용자 업데이트 메시지에서 `notice-content-area`와 `notice-ad-area`의 실제 폭이 같은지 검증한다.
