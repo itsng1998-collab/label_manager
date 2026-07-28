@@ -1,3 +1,12 @@
+# 완료: 발행 통계 초기화 무한 진행바 수정
+- 로그 원인: 최신 로그에서 `TColumnDAO.selectByLabelSizeId` 관련 시작/종료가 1,106건 발생해 dialog 초기화가 라벨사이즈별 컬럼 N+1 조회를 기다리고 있었다.
+- 레거시 대조: `CStatusPrintModel`은 브랜드별 라벨사이즈 배열을 `SelectNameOrderByLabelSizeArray` 한 번에 전달한다.
+- 편집 완료: `TColumnDAO.selectNamesByLabelSizeIds` batch API를 추가하고, 발행 통계는 전체 라벨사이즈 ID를 한 번 전달해 DISTINCT 컬럼명만 조회한다.
+- 테스트 보강: 초기 라벨사이즈 `[1000, 2000]`의 검색 컬럼 loader가 1회만 호출되는지 검증한다.
+- 검증 실행: `flutter test test/status_print_dialog_test.dart test/status_print_test.dart`.
+- 검증 완료: 발행 통계 dialog/모델 테스트 7개 통과, 수정 Dart 파일 3개 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+
 # 완료: 공용라벨 수정 이력 preview 시작 위치 조정
 - 편집 완료: 테이블과 preview 사이 splitter 높이를 8px에서 7px로 줄여 변경 전/후 preview 전체 영역의 시작 y를 1px 위로 이동했다.
 - 테스트 추가: 테이블 하단과 preview 상단 사이 간격이 정확히 7px인지 검증한다.

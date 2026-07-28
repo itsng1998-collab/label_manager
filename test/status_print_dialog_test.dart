@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
-import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
@@ -40,54 +37,6 @@ void main() {
     labelSizeName: '라벨 2',
   );
 
-  TColumn column(int labelSizeId, String name) => TColumn(
-    columnType: const TColumnType(code: 0, name: '기본', order: 0),
-    keyword: '',
-    columnName: name,
-    useMissingKeywordCheck: false,
-    useMinColumnCheck: false,
-    columnId: 1,
-    labelSizeId: labelSizeId,
-    order: 0,
-    width: 0,
-    height: 0,
-    barcodeType: BarcodeType.Code128,
-    useBarcodeCheckDigit: false,
-    showBarcodeNum: false,
-    showQRCodeText: false,
-    qrTextAlignment: QRTextAlignment.ALIGN_LEFT,
-    useUserDefineQRData: false,
-    userDefineQRData: '',
-    userDefineQRText: '',
-    pixelSize: 0,
-    title: '',
-    visible: true,
-    qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
-    natriumJoinString: '',
-    qrTextFontSize: 0,
-    qrTextFontName: '',
-    qrCodeScalePercent: 0,
-    timeBarcodeType: 0,
-    autoInc: false,
-    autoIncSize: 0,
-    autoIncSave: false,
-    autoIncRange: 0,
-    autoIncZeroDel: false,
-    autoIncUpdate: false,
-    searchPrint: false,
-    userDefineBarcodeText: '',
-    lineCheck: 0,
-    lineSize: 0,
-    gs1ai: '',
-    formatOption: 0,
-    useGS1Code: false,
-    containColumns: '',
-    showGS1Code: false,
-    rotate: 0,
-    useDateRange: false,
-    dateRange: '',
-  );
-
   StatusPrintRow result({bool deleted = false}) => StatusPrintRow(
     statusId: 'status-1',
     printDate: '2025-01-02 03:04:05',
@@ -107,6 +56,7 @@ void main() {
     StatusPrintDetailQuery? queryDetail,
     StatusPrintCustomerLoader? loadCustomers,
     StatusPrintBrandLoader? loadBrands,
+    StatusPrintColumnNamesLoader? loadColumnNames,
   }) async {
     await tester.binding.setSurfaceSize(const Size(1600, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -157,11 +107,13 @@ void main() {
                   ),
                 ],
             },
-            loadColumns: (labelSizeId) async => [
-              column(labelSizeId, '원산지'),
-              column(labelSizeId, '원산지'),
-              column(labelSizeId, labelSizeId == 1000 ? '가격' : '중량'),
-            ],
+            loadColumnNames:
+                loadColumnNames ??
+                (labelSizeIds) async => [
+                  '원산지',
+                  if (labelSizeIds.contains(1000)) '가격',
+                  if (labelSizeIds.contains(2000)) '중량',
+                ],
           ),
         ),
       ),
@@ -173,6 +125,8 @@ void main() {
     'system admin cascade uses selected customer and default partial element',
     (tester) async {
       var queryCount = 0;
+      var columnLoadCount = 0;
+      List<int>? loadedColumnLabelSizeIds;
       StatusPrintQuerySpec? received;
       await pumpContent(
         tester,
@@ -182,6 +136,11 @@ void main() {
           received = spec;
           return const [];
         },
+        loadColumnNames: (labelSizeIds) async {
+          columnLoadCount += 1;
+          loadedColumnLabelSizeIds = labelSizeIds;
+          return const ['원산지', '가격', '중량'];
+        },
       );
 
       expect(find.text('협력업체'), findsOneWidget);
@@ -189,6 +148,8 @@ void main() {
       expect(find.text('[전체 보기]'), findsNWidgets(2));
       expect(find.text(statusPrintElementColumn), findsWidgets);
       expect(queryCount, 0);
+      expect(columnLoadCount, 1);
+      expect(loadedColumnLabelSizeIds, [1000, 2000]);
 
       await tester.tap(
         find.widgetWithText(

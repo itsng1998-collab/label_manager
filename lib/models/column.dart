@@ -418,6 +418,41 @@ class TColumnDAO extends DAO {
     }
   }
 
+  static Future<List<String>> selectNamesByLabelSizeIds(
+    List<int> labelSizeIds,
+  ) async {
+    final uniqueIds = labelSizeIds.toSet().toList(growable: false);
+    if (uniqueIds.isEmpty) return const [];
+
+    final parameters = <String, dynamic>{};
+    final placeholders = <String>[];
+    for (var index = 0; index < uniqueIds.length; index += 1) {
+      final name = 'labelSizeId$index';
+      placeholders.add('@$name');
+      parameters[name] = uniqueIds[index];
+    }
+    final sql = '''
+SELECT DISTINCT
+  COALESCE(CONVERT(NVARCHAR(50), RICH_COLUMN_NAME COLLATE ${DAO.CP949}), N'') AS RICH_COLUMN_NAME
+FROM BM_RICH_COLUMN
+WHERE RICH_LABELSIZE_ID IN (${placeholders.join(', ')})
+ORDER BY RICH_COLUMN_NAME
+''';
+
+    debugLog('$START, labelSizeCount:${uniqueIds.length}');
+    try {
+      final result = await DbClient.instance.getDataWithParams(sql, parameters);
+      final names = DAO.getRowsFromResult(result)
+          .map((row) => (row['RICH_COLUMN_NAME'] ?? '').toString())
+          .toList(growable: false);
+      debugLog(END);
+      return names;
+    } catch (error) {
+      debugLog('$END, $error');
+      throw Exception(error);
+    }
+  }
+
   static Future<void> updateMinColumnCheck({
     required int labelSizeId,
     required TColumn column,

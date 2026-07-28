@@ -25,8 +25,8 @@ typedef StatusPrintCustomerLoader =
 typedef StatusPrintBrandLoader = Future<List<Brand>?> Function(int customerId);
 typedef StatusPrintLabelSizeLoader =
     Future<List<LabelSize>?> Function(int brandId);
-typedef StatusPrintColumnLoader = Future<List<TColumn>?> Function(
-  int labelSizeId,
+typedef StatusPrintColumnNamesLoader = Future<List<String>> Function(
+  List<int> labelSizeIds,
 );
 
 const Color statusPrintTotalColor = Color(0xFFD7E4BC);
@@ -80,7 +80,7 @@ class StatusPrintDialogContent extends StatefulWidget {
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
     this.loadBrands = BrandDAO.selectByCustomerIdByBrandOrder,
     this.loadLabelSizes = LabelSizeDAO.selectByBrandIdByLabelSizeOrder,
-    this.loadColumns = TColumnDAO.selectByLabelSizeId,
+    this.loadColumnNames = TColumnDAO.selectNamesByLabelSizeIds,
   });
 
   final UserGrade userGrade;
@@ -92,7 +92,7 @@ class StatusPrintDialogContent extends StatefulWidget {
   final StatusPrintCustomerLoader loadCustomers;
   final StatusPrintBrandLoader loadBrands;
   final StatusPrintLabelSizeLoader loadLabelSizes;
-  final StatusPrintColumnLoader loadColumns;
+  final StatusPrintColumnNamesLoader loadColumnNames;
 
   @override
   State<StatusPrintDialogContent> createState() =>
@@ -188,15 +188,12 @@ class _StatusPrintDialogContentState extends State<StatusPrintDialogContent> {
   }
 
   Future<void> _loadSearchColumns(List<LabelSize> labelSizes) async {
-    final groups = await Future.wait([
-      for (final labelSize in labelSizes)
-        widget.loadColumns(labelSize.labelSizeId),
+    final loadedNames = await widget.loadColumnNames([
+      for (final labelSize in labelSizes) labelSize.labelSizeId,
     ]);
     final names = <String>{statusPrintElementColumn};
-    for (final group in groups) {
-      for (final column in group ?? const <TColumn>[]) {
-        if (column.columnName.isNotEmpty) names.add(column.columnName);
-      }
+    for (final name in loadedNames) {
+      if (name.isNotEmpty) names.add(name);
     }
     _searchColumns = names.toList(growable: false);
     if (!_searchColumns.contains(_selectedSearchColumn)) {
