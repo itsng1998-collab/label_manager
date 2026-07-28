@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
@@ -7,6 +10,8 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/nutrition_box.dart';
 import 'package:label_manager/models/nutrition_type.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_ai_import_temp.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
@@ -15,11 +20,23 @@ import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
+import 'package:path/path.dart' as p;
 
 typedef NutritionBoxListLoader = Future<List<NutritionBox>> Function();
 typedef NutritionBoxTypeListLoader = Future<List<NutritionType>> Function();
 typedef NutritionBoxTypeColumnsLoader =
   Future<List<NutritionTypeColumn>> Function(int typeId);
+typedef NutritionBoxWorkbookLoader = Future<FortuneWorkbook> Function(
+  String data, {
+  required int widthMm,
+});
+typedef NutritionBoxRtfCapture = Future<LabelSheetNativeRtfPngImage?> Function(
+  String rtf, {
+  required int widthMm,
+  required int heightMm,
+});
+typedef NutritionBoxRtfAiFileWriter =
+    Future<({String fileName, String filePath})> Function(Uint8List bytes);
 typedef NutritionBoxWriter = Future<void> Function({
   required int typeId,
   required String name,
@@ -79,6 +96,18 @@ String? nutritionBoxValidationMessage(String name, int width, int? typeId) {
   if (width == 0) return '너비를 입력하셔야 합니다 !!';
   if (typeId == null) return '영양성분 형식을 선택하세요';
   return null;
+}
+
+Future<({String fileName, String filePath})>
+nutritionBoxWriteRtfAiImage(Uint8List bytes) async {
+  final directory = await labelSheetAiImportTempDirectory().create(
+    recursive: true,
+  );
+  final fileName =
+      'nutrition_box_rtf_ai_${DateTime.now().microsecondsSinceEpoch}.png';
+  final file = File(p.join(directory.path, fileName));
+  await file.writeAsBytes(bytes, flush: true);
+  return (fileName: fileName, filePath: file.path);
 }
 
 enum NutritionBoxEditorMode { create, edit }
@@ -146,6 +175,9 @@ class NutritionBoxDialogContent extends StatefulWidget {
     this.loadBoxes = NutritionBoxDAO.selectAll,
     this.loadTypes = NutritionTypeDAO.selectTypesById,
     this.loadColumns = NutritionTypeDAO.selectColumns,
+    this.loadWorkbook = nutritionBoxWorkbookFromData,
+    this.captureRtfForAi = LabelSheetRtfPreview.captureNativeOriginal,
+    this.writeRtfAiImage = nutritionBoxWriteRtfAiImage,
     this.insert = NutritionBoxDAO.insert,
     this.update = NutritionBoxDAO.update,
     this.delete = NutritionBoxDAO.delete,
@@ -156,6 +188,9 @@ class NutritionBoxDialogContent extends StatefulWidget {
   final NutritionBoxListLoader loadBoxes;
   final NutritionBoxTypeListLoader loadTypes;
   final NutritionBoxTypeColumnsLoader loadColumns;
+  final NutritionBoxWorkbookLoader loadWorkbook;
+  final NutritionBoxRtfCapture captureRtfForAi;
+  final NutritionBoxRtfAiFileWriter writeRtfAiImage;
   final NutritionBoxWriter insert;
   final NutritionBoxUpdater update;
   final NutritionBoxDeleter delete;
@@ -184,6 +219,8 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   final TextEditingController _widthController = TextEditingController();
   final LabelSheetZoomController _editorZoomController =
       LabelSheetZoomController();
+    final LabelSheetImageImportController _editorImageImportController =
+      LabelSheetImageImportController();
   String _rtf = '';
   FortuneWorkbook? _editorWorkbook;
   int? _baselineTypeId;
@@ -196,6 +233,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   PreviewFloatingWindow? _rtfPreviewWindow;
   String? _rtfPreviewData;
   bool _rtfPreviewClosedByUser = false;
+  bool _rtfPreviewHiddenForSheetDialog = false;
 
   bool get _inEditor => _mode != null;
   bool get _busy => _loading || widget.controller.writeBusy;
@@ -262,7 +300,6 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       return;
     }
     setState(() => _loading = true);
-    _rtfPreviewWindow?.hide();
     try {
       final types = await widget.loadTypes();
       final typeId = selected?.typeId;
@@ -270,7 +307,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
           ? <NutritionTypeColumn>[]
           : await widget.loadColumns(typeId);
       final sourceRtf = selected?.rtf ?? '';
-      final workbook = await nutritionBoxWorkbookFromData(
+      final workbook = await widget.loadWorkbook(
         sourceRtf,
         widthMm: selected?.width ?? 100,
       );
@@ -440,6 +477,9 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         tooltip: 'RTF 미리보기',
         child: preview,
         onCloseRequested: _closeRtfPreviewWindow,
+        headerAction: RtfPreviewAiConvertButton(
+          onPressed: _handleRtfPreviewAiConvert,
+        ),
         usePortalHost: true,
       );
       if (mounted) setState(() {});
@@ -466,6 +506,57 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     if (_rtfPreviewWindow == null || _rtfPreviewData == null) return;
     setState(() => _rtfPreviewClosedByUser = false);
     _syncSelectedRtfPreview();
+  }
+
+  Future<void> _handleRtfPreviewAiConvert() async {
+    final rtf = _rtfPreviewData;
+    if (!mounted || rtf == null || !labelSheetLooksLikeRichEditRtf(rtf)) {
+      return;
+    }
+    if (!_inEditor || !_editorImageImportController.isAttached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('수정 화면에서 AI 변환을 사용할 수 있습니다.')),
+      );
+      return;
+    }
+    final widthMm = int.tryParse(_widthController.text) ?? 100;
+    final capture = await widget.captureRtfForAi(
+      rtf,
+      widthMm: widthMm,
+      heightMm: 100,
+    );
+    if (!mounted) return;
+    if (capture == null || capture.bytes.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('RTF 미리보기 이미지를 만들 수 없습니다.')));
+      return;
+    }
+    final imageFile = await widget.writeRtfAiImage(capture.bytes);
+    if (!mounted) return;
+    await _editorImageImportController.openWithImageFile(
+      bytes: capture.bytes,
+      fileName: imageFile.fileName,
+      filePath: imageFile.filePath,
+      mimeType: 'image/png',
+    );
+  }
+
+  Future<void> _handleEditorSheetDialogOpening() async {
+    final window = _rtfPreviewWindow;
+    if (window == null || !window.isVisible) return;
+    _rtfPreviewHiddenForSheetDialog = true;
+    window.hide();
+    if (mounted) setState(() {});
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  void _handleEditorSheetDialogClosed() {
+    if (!_rtfPreviewHiddenForSheetDialog) return;
+    _rtfPreviewHiddenForSheetDialog = false;
+    if (!mounted || _rtfPreviewClosedByUser || _rtfPreviewData == null) return;
+    _rtfPreviewWindow?.show(context);
+    setState(() {});
   }
 
   Future<void> _runWrite({
@@ -690,10 +781,6 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       ),
     ),
     );
-    final rtfPreviewWindow = _rtfPreviewWindow;
-    if (rtfPreviewWindow != null) {
-      result = rtfPreviewWindow.wrapPortalHost(child: result);
-    }
     return result;
   }
 
@@ -775,6 +862,9 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                         zoomToolbarPlacement:
                             LabelSheetZoomToolbarPlacement.hidden,
                         zoomController: _editorZoomController,
+                        imageImportController: _editorImageImportController,
+                        onBeforeSheetDialog: _handleEditorSheetDialogOpening,
+                        onSheetDialogClosed: _handleEditorSheetDialogClosed,
                         onUserWorkbookChanged: (workbook) {
                           _editorWorkbook = workbook;
                           _rtf = labelSheetEncodeWorkbookSave(workbook);
@@ -836,8 +926,11 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   );
 
   @override
-  Widget build(BuildContext context) =>
-      _inEditor ? _buildEditor() : _buildManager();
+  Widget build(BuildContext context) {
+    final content = _inEditor ? _buildEditor() : _buildManager();
+    final rtfPreviewWindow = _rtfPreviewWindow;
+    return rtfPreviewWindow?.wrapPortalHost(child: content) ?? content;
+  }
 }
 
 class NutritionBoxSheetPreview extends StatefulWidget {

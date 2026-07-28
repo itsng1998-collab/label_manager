@@ -4961,7 +4961,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         onMoved: _handleCommonLabelPreviewMoved,
         onResizeCompleted: _handleRtfPreviewWindowResizeCompleted,
         onCloseRequested: _handleCommonLabelPreviewCloseRequested,
-        headerAction: _RtfPreviewAiConvertButton(
+        headerAction: RtfPreviewAiConvertButton(
           onPressed: () => unawaited(_handleRtfPreviewAiConvert()),
         ),
         usePortalHost: true,
@@ -7943,73 +7943,6 @@ Gs1AiDefinition? _itemManagerGs1Definition(TColumn column) {
       ? ai.substring(0, ai.length - 1)
       : '';
   return Gs1AiDefinitions.values[definitionCode];
-}
-
-class _RtfPreviewAiConvertButton extends StatefulWidget {
-  const _RtfPreviewAiConvertButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  State<_RtfPreviewAiConvertButton> createState() =>
-      _RtfPreviewAiConvertButtonState();
-}
-
-class _RtfPreviewAiConvertButtonState
-    extends State<_RtfPreviewAiConvertButton> {
-  bool _hovered = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _pressed
-        ? const Color(0xFF9AA0A6)
-        : _hovered
-        ? const Color(0xFFDADCE0)
-        : Colors.transparent;
-    final textColor = _pressed
-        ? const Color(0xFF202124)
-        : _hovered
-        ? const Color(0xFF3C4043)
-        : const Color(0xFF5F6368);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      opaque: true,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _pressed = false;
-      }),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapCancel: () => setState(() => _pressed = false),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTap: widget.onPressed,
-        child: SizedBox(
-          height: 14,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(7),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              'AI 변환',
-              style: TextStyle(
-                fontSize: 9,
-                height: 1,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _ItemPreviewPanel extends StatefulWidget {

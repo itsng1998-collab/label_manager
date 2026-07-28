@@ -1,9 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:image/image.dart' as imglib;
 import 'package:label_manager/models/nutrition_box.dart';
 import 'package:label_manager/models/nutrition_type.dart';
 import 'package:label_manager/page_home/nutrition_box_dialog.dart';
+import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
@@ -11,6 +16,7 @@ import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test('validation follows legacy name width type order', () {
@@ -342,6 +348,138 @@ void main() {
     await tester.tap(restoreButton);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
+    expect(find.byType(RtfPreviewAiConvertButton), findsOneWidget);
+  });
+
+  testWidgets('legacy RTF preview remains visible while editing', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final controller = NutritionBoxDialogController();
+    var captureCalls = 0;
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BlockingModelessDialog(
+            child: NutritionBoxDialogContent(
+              controller: controller,
+              onCommitOutcomeUnknown: () {},
+              loadBoxes: () async => const [
+                NutritionBox(
+                  id: 1,
+                  typeId: 2,
+                  typeName: '기본형',
+                  name: 'RTF 표',
+                  rtf: r'{\rtf1\ansi Calories 100}',
+                  width: 75,
+                ),
+              ],
+              loadTypes: () async => const [
+                NutritionType(id: 2, name: '기본형'),
+              ],
+              loadColumns: (_) async => const [],
+              loadWorkbook: (data, {required widthMm}) async =>
+                  FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(id: 'nutrition', name: 'Nutrition'),
+                    ],
+                  ),
+              captureRtfForAi:
+                  (rtf, {required widthMm, required heightMm}) async {
+                    captureCalls += 1;
+                    return LabelSheetNativeRtfPngImage(
+                        width: 1,
+                        height: 1,
+                        bytes: Uint8List.fromList(
+                          imglib.encodePng(imglib.Image(width: 1, height: 1)),
+                        ),
+                      );
+                  },
+              writeRtfAiImage: (bytes) async => (
+                fileName: 'nutrition_box_rtf_ai_test.png',
+                filePath: '.tmp/nutrition_box_rtf_ai_test.png',
+              ),
+              insert:
+                  ({
+                    required typeId,
+                    required name,
+                    required rtf,
+                    required width,
+                  }) async {},
+              update:
+                  ({
+                    required boxId,
+                    required typeId,
+                    required name,
+                    required rtf,
+                    required width,
+                  }) async {},
+              delete: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
+
+    tester
+        .widget<IconButton>(
+          find.byKey(const ValueKey('nutritionBoxModifyButton')),
+        )
+        .onPressed!();
+    for (
+      var attempt = 0;
+      attempt < 20 &&
+          find
+              .byKey(const ValueKey('nutritionBoxEditorSheet'))
+              .evaluate()
+              .isEmpty;
+      attempt += 1
+    ) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(
+      find.byKey(const ValueKey('nutritionBoxEditorSheet')),
+      findsOneWidget,
+    );
+    expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
+    expect(find.byType(RtfPreviewAiConvertButton), findsOneWidget);
+    expect(
+      tester
+          .widget<LabelSheetWorkbench>(find.byType(LabelSheetWorkbench))
+          .imageImportController
+          ?.isAttached,
+      isTrue,
+    );
+
+    final conversion = Future<void>.sync(
+      tester
+          .widget<RtfPreviewAiConvertButton>(
+            find.byType(RtfPreviewAiConvertButton),
+          )
+          .onPressed,
+    );
+    for (
+      var attempt = 0;
+      attempt < 20 && find.text('라벨 이미지 가져오기').evaluate().isEmpty;
+      attempt += 1
+    ) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(captureCalls, 1);
+    expect(find.text('라벨 이미지 가져오기'), findsOneWidget);
+    expect(find.byType(LabelSheetRtfPreview), findsNothing);
+
+    await tester.tap(find.text('취소').last);
+    await tester.pump();
+    await conversion;
     expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
   });
 
