@@ -115,6 +115,12 @@ void main() {
       onClose: () => closeCalls += 1,
     );
 
+    expect(
+      tester.getCenter(find.byKey(const ValueKey('itemInfoSaveButton'))).dx,
+      lessThan(
+        tester.getCenter(find.byKey(const ValueKey('itemInfoCloseButton'))).dx,
+      ),
+    );
     await tester.tap(find.byKey(const ValueKey('itemInfoCloseButton')));
     await tester.pump();
 
