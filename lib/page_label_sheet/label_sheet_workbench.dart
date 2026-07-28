@@ -87,9 +87,14 @@ class LabelSheetZoomController extends ValueNotifier<int> {
 }
 
 class LabelSheetZoomToolbar extends StatefulWidget {
-  const LabelSheetZoomToolbar({super.key, required this.controller});
+  const LabelSheetZoomToolbar({
+    super.key,
+    required this.controller,
+    this.backgroundColor = const Color(0xFFF7F8FA),
+  });
 
   final LabelSheetZoomController controller;
+  final Color backgroundColor;
 
   @override
   State<LabelSheetZoomToolbar> createState() => _LabelSheetZoomToolbarState();
@@ -143,7 +148,7 @@ class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xFFF7F8FA),
+    color: widget.backgroundColor,
     child: Row(
       key: const ValueKey('label-sheet-zoom-toolbar'),
       mainAxisSize: MainAxisSize.min,

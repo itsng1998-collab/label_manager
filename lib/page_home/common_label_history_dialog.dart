@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart'
   show FortuneTable, FortuneTableColumn;
@@ -12,6 +14,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/horizontal_pane_splitter.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
@@ -30,6 +33,8 @@ typedef CommonLabelHistoryPreviewLoader =
       required int width,
       required int height,
     });
+
+  const Color commonLabelHistoryPreviewBorderColor = Color(0xFF9E9E9E);
 
 Future<fs.FortuneWorkbook?> loadCommonLabelHistoryPreview(
   CommonLabelHistoryPayload payload, {
@@ -86,6 +91,9 @@ class CommonLabelHistoryDialogContent extends StatefulWidget {
 
 class _CommonLabelHistoryDialogContentState
     extends State<CommonLabelHistoryDialogContent> {
+  static const double _splitterHeight = 8;
+  static const double _minimumTableHeight = 120;
+  static const double _minimumPreviewHeight = 140;
   late DateTime _startDate;
   late DateTime _endDate;
   List<Cooperator> _cooperators = const [];
@@ -100,6 +108,7 @@ class _CommonLabelHistoryDialogContentState
   bool _querying = false;
   bool _loadingPreview = false;
   int _previewGeneration = 0;
+  double _tableHeight = 220;
   final LabelSheetZoomController _beforeZoomController =
       LabelSheetZoomController(initialPercent: 100, minPercent: 20, maxPercent: 500);
   final LabelSheetZoomController _afterZoomController =
@@ -291,57 +300,97 @@ class _CommonLabelHistoryDialogContentState
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 220,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: FortuneTable<CommonLabelHistory>(
-                    rows: _rows,
-                    columns: _columns,
-                    onRowSelected: _selectRow,
-                    autoFitColumns: true,
-                    fillLastColumn: true,
-                    keyboardSelectionShortcutsEnabled: false,
-                  ),
-                ),
-                if (_initializing || _querying)
-                  const Positioned.fill(
-                    child: ColoredBox(
-                      color: Color(0x55FFFFFF),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _HistoryPreviewPane(
-                    key: const ValueKey('common-label-history-before-preview'),
-                    title: '변경 전',
-                    workbook: _beforeWorkbook,
-                    hintText: _previewHint('변경 전'),
-                    identityKey: 'before-${_selectedRow?.logId ?? 0}',
-                    zoomController: _beforeZoomController,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _HistoryPreviewPane(
-                    key: const ValueKey('common-label-history-after-preview'),
-                    title: '변경 후',
-                    workbook: _afterWorkbook,
-                    hintText: _previewHint('변경 후'),
-                    identityKey: 'after-${_selectedRow?.logId ?? 0}',
-                    zoomController: _afterZoomController,
-                  ),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxTableHeight = math.max(
+                  _minimumTableHeight,
+                  constraints.maxHeight -
+                      _splitterHeight -
+                      _minimumPreviewHeight,
+                );
+                final tableHeight = _tableHeight.clamp(
+                  _minimumTableHeight,
+                  maxTableHeight,
+                );
+                return Column(
+                  children: [
+                    SizedBox(
+                      key: const ValueKey('common-label-history-table-pane'),
+                      height: tableHeight,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: FortuneTable<CommonLabelHistory>(
+                              rows: _rows,
+                              columns: _columns,
+                              onRowSelected: _selectRow,
+                              autoFitColumns: true,
+                              fillLastColumn: true,
+                              keyboardSelectionShortcutsEnabled: false,
+                            ),
+                          ),
+                          if (_initializing || _querying)
+                            const Positioned.fill(
+                              child: ColoredBox(
+                                color: Color(0x55FFFFFF),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    HorizontalPaneSplitter(
+                      key: const ValueKey('common-label-history-splitter'),
+                      height: _splitterHeight,
+                      onDrag: (delta) {
+                        setState(() {
+                          _tableHeight = (tableHeight + delta).clamp(
+                            _minimumTableHeight,
+                            maxTableHeight,
+                          );
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _HistoryPreviewPane(
+                              key: const ValueKey(
+                                'common-label-history-before-preview',
+                              ),
+                              title: '변경 전',
+                              workbook: _beforeWorkbook,
+                              hintText: _previewHint('변경 전'),
+                              identityKey:
+                                  'before-${_selectedRow?.logId ?? 0}',
+                              zoomController: _beforeZoomController,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _HistoryPreviewPane(
+                              key: const ValueKey(
+                                'common-label-history-after-preview',
+                              ),
+                              title: '변경 후',
+                              workbook: _afterWorkbook,
+                              hintText: _previewHint('변경 후'),
+                              identityKey:
+                                  'after-${_selectedRow?.logId ?? 0}',
+                              zoomController: _afterZoomController,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -503,7 +552,7 @@ class _HistoryPreviewPane extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: commonLabelHistoryPreviewBorderColor),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -519,7 +568,10 @@ class _HistoryPreviewPane extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
-                LabelSheetZoomToolbar(controller: zoomController),
+                LabelSheetZoomToolbar(
+                  controller: zoomController,
+                  backgroundColor: blockingModelessDialogBackgroundColor,
+                ),
               ],
             ),
           ),

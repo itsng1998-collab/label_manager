@@ -1,3 +1,15 @@
+# 완료: 공용라벨 수정 이력 미리보기 영역 조정
+- 편집 예정/완료: 고정 220px 테이블과 두 미리보기 사이를 공용 `HorizontalPaneSplitter`로 분리해 위아래 높이를 드래그 조정하도록 했다. 테이블 최소 120px, 미리보기 최소 140px를 유지한다.
+- 파일별 편집: `LabelSheetZoomToolbar.backgroundColor` 선택 API를 추가하되 기본색은 유지하고, 공용라벨 이력의 두 zoom toolbar만 `blockingModelessDialogBackgroundColor`를 사용한다.
+- 파일별 편집: 변경 전/후 preview 외곽선을 테마 dark divider 대신 일반 회색 `#9E9E9E`로 변경했다.
+- 테스트 추가: splitter 40px drag에 따른 테이블 높이 변화, 두 preview 외곽선 색, zoom toolbar 배경색을 검증한다.
+- 1차 검증 실패/수정: preview 최소 220px는 테스트 dialog의 기본 테이블 높이를 207px로 clamp해 확대 여유가 없었다. 최소 140px로 조정해 기본 220px와 양방향 drag 범위를 확보했다.
+- 2차 검증: 공용라벨 이력 dialog 테스트 2 passed, 수정 파일 정적 오류 없음. VS Code 테스트 어댑터는 대형 toolbar 파일의 `external zoom toolbar controls label sheet`를 발견하지 못했다.
+- 최종 검증: 공용라벨 이력 dialog 테스트 2 passed, Flutter CLI standalone zoom toolbar 회귀 1 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
+- stage/commit 대상: `lib/widgets/horizontal_pane_splitter.dart`, `lib/page_home/common_label_history_dialog.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/common_label_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 검증 예정: `test/common_label_history_dialog_test.dart`, zoom toolbar 회귀 테스트, 수정 파일 정적 오류, `git diff --check`.
+- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 공용라벨 수정 이력 거래처 필터 수정
 - 로그 확인: 최신 `.tmp/log/app_2026-07-28_12-44-14.log` 조회에서 SQL Server 42S22 `RICH_CUSTOMER_ID` 열 이름 오류가 발생했다.
 - 레거시 확인: `.tmp/LabelManager/LabelManager/CommonLabelLog.cpp`는 로그 `A`와 브랜드 `B`를 조인하고 `RICH_CUSTOMER_ID`를 무수식으로 필터링한다. 해당 컬럼은 로그가 아니라 브랜드 테이블에 있어 레거시 SQL에서는 `B.RICH_CUSTOMER_ID`로 해석된다.

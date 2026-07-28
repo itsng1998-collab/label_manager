@@ -5,6 +5,9 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_home/common_label_history_dialog.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/horizontal_pane_splitter.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {
@@ -86,6 +89,37 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    final tablePane = find.byKey(
+      const ValueKey('common-label-history-table-pane'),
+    );
+    expect(tester.getSize(tablePane).height, 220);
+    tester.widget<HorizontalPaneSplitter>(
+      find.byKey(const ValueKey('common-label-history-splitter')),
+    ).onDrag(40);
+    await tester.pump();
+    expect(tester.getSize(tablePane).height, 260);
+
+    final beforePreview = find.byKey(
+      const ValueKey('common-label-history-before-preview'),
+    );
+    final previewFrame = tester.widget<DecoratedBox>(
+      find.descendant(of: beforePreview, matching: find.byType(DecoratedBox)).first,
+    );
+    final frameDecoration = previewFrame.decoration as BoxDecoration;
+    expect(
+      (frameDecoration.border as Border).top.color,
+      commonLabelHistoryPreviewBorderColor,
+    );
+    for (final toolbar in find.byType(LabelSheetZoomToolbar).evaluate()) {
+      final coloredBox = tester.widget<ColoredBox>(
+        find.descendant(
+          of: find.byWidget(toolbar.widget),
+          matching: find.byType(ColoredBox),
+        ).first,
+      );
+      expect(coloredBox.color, blockingModelessDialogBackgroundColor);
+    }
 
     expect(queryCount, 0);
     expect(find.byType(ModelessDropdownFormField<Cooperator>), findsOneWidget);
