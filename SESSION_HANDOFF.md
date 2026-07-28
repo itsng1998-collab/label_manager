@@ -1,3 +1,10 @@
+# 완료: 품목별 정보 편집 저장·닫기 버튼 위치 교환
+- 편집 완료: 하단 액션 순서를 `닫기 → 저장`에서 `저장 → 닫기`로 변경했다. 기존 동작과 8px 간격은 유지한다.
+- 테스트 보강: 저장 버튼의 실제 중심 X 좌표가 닫기 버튼보다 왼쪽인지 검증한다.
+- 검증: `flutter test test/item_info_dialog_test.dart test/item_info_batch_test.dart` 총 4건 통과. 수정 파일 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+- 기능 커밋: `52dea92` (`품목별 정보 편집 버튼 위치 교환`).
+
 # 완료: 품목별 정보 편집 하단 닫기 버튼 추가
 - 편집 완료: `ItemInfoDialogContent`에 `onClose` callback과 하단 `닫기` 버튼을 추가하고, 저장 버튼 왼쪽에 8px 간격으로 배치했다.
 - 동작: 하단 닫기는 상단 X와 동일한 `_requestCloseItemInfoDialog`를 호출해 미저장 변경 확인을 재사용하며 저장 중에는 비활성화된다.
