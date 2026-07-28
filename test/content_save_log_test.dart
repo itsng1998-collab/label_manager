@@ -31,8 +31,16 @@ void main() {
   test('content save log query keeps legacy date customer and ordering', () {
     final sql = ContentSaveLogDAO.selectBetweenDatesAndCustomerSql;
     expect(sql, contains('FROM BM_CONTENT_SAVE_LOG'));
-    expect(sql, contains('SAVE_DATE_YYYYMMDD BETWEEN @startDate AND @endDate'));
+    expect(
+      sql,
+      contains(
+        'SAVE_DATE_YYYYMMDD BETWEEN CONVERT(VARCHAR(8), @startDate)\n'
+        '      AND CONVERT(VARCHAR(8), @endDate)',
+      ),
+    );
     expect(sql, contains('CUST_ID=@customerId'));
+    expect(sql, isNot(contains('CONVERT(VARCHAR(8), SAVE_DATE_YYYYMMDD)')));
+    expect(sql, isNot(contains('CONVERT(NVARCHAR(8), SAVE_DATE_YYYYMMDD)')));
     expect(sql, contains('ORDER BY SAVE_DATE ASC'));
     expect(sql, isNot(contains('ORDER BY SAVE_DATE ASC,')));
   });
