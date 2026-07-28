@@ -3,6 +3,7 @@
 - 편집: selector `Wrap`을 `Alignment.centerLeft`의 `Align`으로 감싸 콘텐츠 왼쪽에서 시작하도록 하고 실제 협력업체 라벨 시작 좌표 테스트를 추가했다.
 - 검증: `test/user_manager_dialog_test.dart` 8 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
 - stage/commit 대상: `lib/page_home/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `61fe573` (`사용자 관리 범위 선택 왼쪽 정렬`).
 - 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
 
 # 완료: 조회·편집 중 AppBar 메뉴 비활성화
