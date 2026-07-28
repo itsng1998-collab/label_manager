@@ -15,7 +15,7 @@
 - 최종 검증: 메뉴 3개/자동품목갱신/품목관리 관련 테스트 117 passed, `git diff --check` 오류 없음.
 - stage/commit 대상: AppMenu controller/policy/bar, `HomePageManager`, 품목관리/자동품목갱신/저울출력 페이지, AppMenu 및 HomePageManager 관련 테스트, `SESSION_HANDOFF.md`.
 - 제외: 사용자 변경 `lib/home_page.dart`, `lib/page_home/nutrition_box_dialog.dart`, `lib/page_home/nutrition_type_dialog.dart`, `test/nutrition_type_dialog_test.dart`, unrelated `test/scale_output_test.dart`.
-- 기존 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+- 구현 커밋: `f807d4d` (`조회 및 편집 중 앱바 메뉴 비활성화`).
 
 # 완료: 영양성분 RTF Viewer 레이어 수정
 - 확인: 최신 로그에서 RTF Viewer route가 생성됐지만 영양성분 dialog가 root `OverlayEntry`라 Navigator route 기반 Viewer가 dialog 뒤에 가려졌다.
