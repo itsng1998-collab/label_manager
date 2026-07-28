@@ -738,32 +738,9 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
               ],
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 180,
-              child: FortuneTable<NutritionTypeColumn>(
-                key: const ValueKey('nutritionBoxTypeColumns'),
-                rows: _columns,
-                columns: [
-                  FortuneTableColumn<NutritionTypeColumn>(
-                    id: 'keyword',
-                    header: 'Keyword',
-                    text: (row) => row.keyword,
-                    initialWidth: 180,
-                  ),
-                  FortuneTableColumn<NutritionTypeColumn>(
-                    id: 'name',
-                    header: '성분명',
-                    text: (row) => row.name,
-                    fillRemaining: true,
-                  ),
-                ],
-                autoFitColumns: false,
-                fillLastColumn: true,
-              ),
-            ),
-            const SizedBox(height: 12),
             Expanded(
               child: DecoratedBox(
+                key: const ValueKey('nutritionBoxEditorSheet'),
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).dividerColor),
                 ),
@@ -790,10 +767,34 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
               ),
             ),
             const SizedBox(height: 12),
+            SizedBox(
+              height: 180,
+              child: FortuneTable<NutritionTypeColumn>(
+                key: const ValueKey('nutritionBoxTypeColumns'),
+                rows: _columns,
+                columns: [
+                  FortuneTableColumn<NutritionTypeColumn>(
+                    id: 'keyword',
+                    header: 'Keyword',
+                    text: (row) => row.keyword,
+                    initialWidth: 180,
+                  ),
+                  FortuneTableColumn<NutritionTypeColumn>(
+                    id: 'name',
+                    header: '성분명',
+                    text: (row) => row.name,
+                    fillRemaining: true,
+                  ),
+                ],
+                autoFitColumns: false,
+                fillLastColumn: true,
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(onPressed: _busy ? null : _closeEditor, child: const Text('닫기')),
+                TextButton(onPressed: _busy ? null : _closeEditor, child: const Text('취소')),
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   key: const ValueKey('nutritionBoxSaveButton'),

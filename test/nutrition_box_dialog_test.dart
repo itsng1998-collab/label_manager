@@ -245,6 +245,18 @@ void main() {
     expect(editor.toolbarItems, isNot(contains(fortuneToolbarObjectPanelCommand)));
     expect(editor.toolbarItems, isNot(contains(labelSheetSaveToolbarCommand)));
     expect(find.text('RTF 편집'), findsNothing);
+    expect(
+      tester.getTopLeft(
+        find.byKey(const ValueKey('nutritionBoxEditorSheet')),
+      ).dy,
+      lessThan(
+        tester.getTopLeft(
+          find.byKey(const ValueKey('nutritionBoxTypeColumns')),
+        ).dy,
+      ),
+    );
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.text('닫기'), findsNothing);
   });
 
   testWidgets('legacy RTF preview floats and restores from zoom toolbar', (
