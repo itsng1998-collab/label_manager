@@ -1,3 +1,10 @@
+# 완료: 영양성분표 추가 초기값 비우기
+- 원인: `_openEditor()`가 create/edit 구분 없이 현재 선택 행을 source로 사용해 추가 화면에 수정 대상의 형식·명칭·폭·RTF가 채워진다.
+- `nutrition_box_dialog.dart`: edit 모드에서만 선택 행을 source로 사용하고 create 모드는 null source로 분리했다. 추가 시 ID/type/name/width/RTF를 비우고 신규 빈 workbook으로 시작한다.
+- `nutrition_box_dialog_test.dart`: 기존 행이 자동 선택된 상태에서도 추가 진입 시 type null, name/width/RTF 빈 값, 빈 sheet인지 검증한다.
+- 검증: 영양성분표 dialog 테스트 11건 통과. 수정 2개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
+- 기능 커밋: `8acd63c` (`영양성분표 추가 초기값 비우기`)
+
 # 완료: 영양성분표 RTF 다시보기 아이콘 간격 조정
 - 원인: manager toolbar의 다시보기 아이콘 뒤 고정 여백이 preview 확대/축소 영역 폭만큼만 확보되어 두 영역이 바로 붙어 보인다.
 - `nutrition_box_dialog.dart`: 확대/축소 영역 예약 폭 116px와 다시보기 시각 간격 12px를 별도 상수로 분리하고, trailing space를 128px로 늘려 아이콘을 왼쪽으로 이동했다.
