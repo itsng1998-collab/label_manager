@@ -30,7 +30,14 @@ void main() {
     expect(PrintLogDAO.selectSql, contains('BM_RICH_PRINT_LOG'));
     expect(
       PrintLogDAO.selectSql,
-      contains('RICH_DATE_YYYYMMDD BETWEEN @startDate AND @endDate'),
+      contains(
+        'RICH_DATE_YYYYMMDD BETWEEN CONVERT(VARCHAR(8), @startDate)\n'
+        '      AND CONVERT(VARCHAR(8), @endDate)',
+      ),
+    );
+    expect(
+      PrintLogDAO.selectSql,
+      isNot(contains('CONVERT(VARCHAR(8), RICH_DATE_YYYYMMDD)')),
     );
     expect(PrintLogDAO.selectSql, isNot(contains('COOP')));
     expect(PrintLogDAO.sumSql, isNot(contains('ORDER BY')));
@@ -89,7 +96,13 @@ void main() {
       customerName: '거래처 1',
       labelSizeName: '라벨 1',
     );
-    expect(labelSize.sql, contains('RICH_DATE_YYYYMMDD BETWEEN'));
+    expect(
+      labelSize.sql,
+      contains(
+        'RICH_DATE_YYYYMMDD BETWEEN CONVERT(VARCHAR(8), @startDate) '
+        'AND CONVERT(VARCHAR(8), @endDate)',
+      ),
+    );
     expect(labelSize.sql, contains('RICH_CUSTOMER_NAME=@customerName'));
     expect(labelSize.sql, contains('RICH_LABELSIZE_NAME=@labelSizeName'));
     expect(labelSize.sql, isNot(contains('@searchText')));

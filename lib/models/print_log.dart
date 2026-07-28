@@ -150,7 +150,8 @@ class PrintLogDAO extends DAO {
       COALESCE(CONVERT(NVARCHAR(30), RICH_PRINT_APPENDANT), N'') AS APPENDANT,
       COALESCE(CONVERT(NVARCHAR(20), RICH_ITEM_ID), N'') AS ITEM_ID
     FROM BM_RICH_PRINT_LOG
-    WHERE RICH_DATE_YYYYMMDD BETWEEN @startDate AND @endDate
+    WHERE RICH_DATE_YYYYMMDD BETWEEN CONVERT(VARCHAR(8), @startDate)
+      AND CONVERT(VARCHAR(8), @endDate)
   ''';
 
   static const String sumSql = '''
@@ -252,7 +253,10 @@ class PrintLogDAO extends DAO {
     final params = <String, dynamic>{};
     final conditions = <String>[];
     if (startDate != null && endDate != null) {
-      conditions.add('AND RICH_DATE_YYYYMMDD BETWEEN @startDate AND @endDate');
+      conditions.add(
+        'AND RICH_DATE_YYYYMMDD BETWEEN CONVERT(VARCHAR(8), @startDate) '
+        'AND CONVERT(VARCHAR(8), @endDate)',
+      );
       params['startDate'] = startDate;
       params['endDate'] = endDate;
     }
