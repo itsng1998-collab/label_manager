@@ -1,3 +1,11 @@
+# 완료: 영양성분표 추가 시 RTF viewer 숨김
+- 원인: 선택 행의 RTF floating viewer가 create editor 전환 뒤에도 공통 portal host에 남아 표시된다.
+- 수정: create editor 진입이 확정될 때 floating viewer를 숨기고, edit 진입 시 viewer 유지 동작은 보존한다.
+- 테스트: 기존 create 회귀 테스트에 RTF 행 선택 시 viewer 표시, 추가 진입 후 viewer 미표시 검증을 추가했다.
+- focused 검증: `create editor ignores selected row and starts empty` 1건 통과.
+- 전체 검증: `test/nutrition_box_dialog_test.dart` 11건 통과. 수정 2개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
+- 기능 커밋: `33d6013` (`영양성분표 추가 시 RTF 미리보기 숨김`)
+
 # 완료: 영양성분표 추가 초기값 비우기
 - 원인: `_openEditor()`가 create/edit 구분 없이 현재 선택 행을 source로 사용해 추가 화면에 수정 대상의 형식·명칭·폭·RTF가 채워진다.
 - `nutrition_box_dialog.dart`: edit 모드에서만 선택 행을 source로 사용하고 create 모드는 null source로 분리했다. 추가 시 ID/type/name/width/RTF를 비우고 신규 빈 workbook으로 시작한다.
