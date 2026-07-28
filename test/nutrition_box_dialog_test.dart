@@ -255,14 +255,14 @@ void main() {
         ).dx,
       ),
     );
-    final editorSheetRect = tester.getRect(
-      find.byKey(const ValueKey('nutritionBoxEditorSheet')),
-    );
     final editorZoomToolbarRect = tester.getRect(
       find.byKey(const ValueKey('nutritionBoxEditorZoomToolbar')),
     );
-    expect(editorZoomToolbarRect.top, greaterThan(editorSheetRect.bottom));
-    expect(editorZoomToolbarRect.left, editorSheetRect.left);
+    final saveButtonRect = tester.getRect(
+      find.byKey(const ValueKey('nutritionBoxSaveButton')),
+    );
+    expect(editorZoomToolbarRect.center.dy, saveButtonRect.center.dy);
+    expect(editorZoomToolbarRect.right, lessThan(saveButtonRect.left));
     final editorSheet = tester.widget<LabelSheetWorkbench>(
       find.byType(LabelSheetWorkbench),
     );
