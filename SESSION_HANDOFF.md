@@ -1,3 +1,11 @@
+# 완료: 사용자 접속 이력 dropdown assertion 수정
+- 로그 확인: `.tmp/log/app_2026-07-28_12-32-08.log`에서 12:33:24 `LoginHistoryDialogContent`의 협력업체 `DropdownButtonFormField`가 선택값 일치 항목 0개 assertion으로 실패했다.
+- 원인: `Cooperator`/`Customer` 모델은 값 equality가 없는데 초기 로그인 객체와 DAO가 새로 만든 객체를 dropdown value로 직접 비교했다. 기존 테스트는 동일한 `const` 객체 canonicalization으로 문제를 가렸다.
+- 편집: 협력업체/거래처 dropdown value를 객체 identity 대신 각각 `cooperatorId`/`customerId`로 변경하고, 테스트 loader가 별도 객체를 반환하도록 실제 DAO 조건을 재현했다.
+- 검증: `test/login_history_dialog_test.dart` 2 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
+- stage/commit 대상: `lib/page_login/login_history_page.dart`, `test/login_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 사용자 관리 협력업체 영역 왼쪽 정렬
 - 원인: 상단 범위 selector `Wrap`이 `Column`의 기본 가운데 정렬에서 자식 총폭만큼 축소되어 협력업체 그룹이 중앙에서 시작했다.
 - 편집: selector `Wrap`을 `Alignment.centerLeft`의 `Align`으로 감싸 콘텐츠 왼쪽에서 시작하도록 하고 실제 협력업체 라벨 시작 좌표 테스트를 추가했다.

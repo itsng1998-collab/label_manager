@@ -178,8 +178,8 @@ class _LoginHistoryDialogContentState
               if (_isSystemAdmin)
                 SizedBox(
                   width: 210,
-                  child: DropdownButtonFormField<Cooperator>(
-                    initialValue: _selectedCooperator,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedCooperator?.id,
                     decoration: const InputDecoration(
                       labelText: '협력업체',
                       isDense: true,
@@ -187,21 +187,25 @@ class _LoginHistoryDialogContentState
                     items: [
                       for (final cooperator in _cooperators)
                         DropdownMenuItem(
-                          value: cooperator,
+                          value: cooperator.id,
                           child: Text(cooperator.name),
                         ),
                     ],
                     onChanged: _initializing || _querying
                         ? null
-                        : _changeCooperator,
+                        : (id) => _changeCooperator(
+                            _cooperators.firstWhere(
+                              (cooperator) => cooperator.id == id,
+                            ),
+                          ),
                   ),
                 ),
               if (_isSystemAdmin || _isCoopAdmin)
                 SizedBox(
                   width: 230,
-                  child: DropdownButtonFormField<Customer>(
+                  child: DropdownButtonFormField<int>(
                     key: ValueKey(_selectedCooperator?.id),
-                    initialValue: _selectedCustomer,
+                    initialValue: _selectedCustomer?.customerId,
                     decoration: const InputDecoration(
                       labelText: '거래처',
                       isDense: true,
@@ -209,13 +213,17 @@ class _LoginHistoryDialogContentState
                     items: [
                       for (final customer in _customers)
                         DropdownMenuItem(
-                          value: customer,
+                          value: customer.customerId,
                           child: Text(customer.customerName),
                         ),
                     ],
                     onChanged: _initializing || _querying
                         ? null
-                        : (value) => setState(() => _selectedCustomer = value),
+                        : (id) => setState(
+                            () => _selectedCustomer = _customers.firstWhere(
+                              (customer) => customer.customerId == id,
+                            ),
+                          ),
                   ),
                 ),
               FilledButton.icon(

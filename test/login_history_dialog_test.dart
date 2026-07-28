@@ -30,10 +30,10 @@ void main() {
               initialCooperator: initialCooperator,
               initialCustomer: initialCustomer,
               query: query,
-              loadCooperators: () async => const [
+              loadCooperators: () async => [
                 Cooperator(id: 'coop1', name: '협력업체 1'),
               ],
-              loadCustomers: (_) async => const [
+              loadCustomers: (_) async => [
                 Customer(
                   customerId: 10,
                   cooperatorId: 'coop1',
