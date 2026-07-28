@@ -1,3 +1,11 @@
+# 완료: 영양성분표 AI 변환 dialog 최상단 표시
+- 원인: `LabelSheetWorkbench`의 AI image import가 일반 `showDialog` route를 사용해 `OverlayEntry` 기반 영양성분표 modeless dialog 아래에 배치된다.
+- `label_sheet_workbench.dart`: 기본값이 false인 `imageImportUseRootOverlay` 옵션을 추가했다. 활성화 시 공용 `showBlockingModelessOverlayDialog`로 AI image import를 root overlay 최상단에 표시하고, 취소/적용 결과를 overlay `close(result)`로 반환한다. 기존 화면은 일반 `showDialog`를 유지한다.
+- `nutrition_box_dialog.dart`: 영양성분표 editor의 workbench에서 `imageImportUseRootOverlay: true`를 사용한다.
+- `nutrition_box_dialog_test.dart`: image import controller attachment와 root-overlay 옵션을 함께 검증하고, AI dialog 열기/취소 후 RTF viewer 복원을 확인한다.
+- 검증: 영양성분표, 라벨시트 toolbar, 공용 blocking modeless dialog, 앱 메뉴 관련 테스트 총 31건 통과. 수정 3개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
+- 기능 커밋: `672cfcf` (`영양성분표 AI 변환 다이얼로그 최상단 표시`).
+
 # 완료: 영양성분표 RTF viewer 수정 중 유지 및 AI 변환
 - 원인: `_openEditor()`가 수정 진입 전에 RTF floating window를 숨기고, portal host도 manager 화면에만 있어 editor 전환 시 viewer가 유지되지 않는다.
 - 수정: `nutrition_box_dialog.dart`에서 RTF 수정 진입 시 viewer를 숨기지 않고 manager/editor 공통 build가 같은 portal host를 유지하게 했다.
