@@ -10,6 +10,10 @@ typedef PreviewFloatingRectChanged =
     void Function(Rect rect, {required bool isResizing});
 typedef PreviewFloatingMoved = void Function(Rect rect);
 
+bool previewFloatingWindowDebugLogEnabled = const bool.fromEnvironment(
+  'LABEL_MANAGER_PREVIEW_FLOATING_DEBUG',
+);
+
 /// Floating preview window.
 /// Show/hide via [show] and [hide]. Call [dispose] from the owner.
 class PreviewFloatingWindow {
@@ -76,6 +80,9 @@ class PreviewFloatingWindow {
   int? get debugRouteId => _route?.debugId;
 
   static void _log(String message) {
+    if (!previewFloatingWindowDebugLogEnabled) {
+      return;
+    }
     debugLog(message, skipFrames: 1);
   }
 
@@ -1085,20 +1092,8 @@ class _MoveHandleBodyState extends State<_MoveHandleBody> {
                 if (_closeHovered) return;
                 _moveCount += 1;
                 _accDelta += d.delta;
-                PreviewFloatingWindow._log(
-                  'move update count=$_moveCount delta=${PreviewFloatingWindow._formatOffset(d.delta)} '
-                  'acc=${PreviewFloatingWindow._formatOffset(_accDelta)} '
-                  'global=${PreviewFloatingWindow._formatOffset(d.globalPosition)} '
-                  'local=${PreviewFloatingWindow._formatOffset(d.localPosition)} '
-                  'isResizing=${widget.isResizingListenable.value}',
-                );
                 if (!widget.isResizingListenable.value) {
                   widget.onMove(d.delta);
-                } else {
-                  PreviewFloatingWindow._log(
-                    'move update blocked count=$_moveCount '
-                    'delta=${PreviewFloatingWindow._formatOffset(d.delta)}',
-                  );
                 }
               },
               onPanEnd: (_) {
@@ -1290,14 +1285,6 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           _accDelta = event.position - _startGlobalPosition!;
           _moveCount += 1;
           final computed = widget.computeRect(_startRect!, _accDelta);
-          PreviewFloatingWindow._log(
-            'resize move handle=${widget.name} pointer=${event.pointer} '
-            'count=$_moveCount global=${PreviewFloatingWindow._formatOffset(event.position)} '
-            'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
-            'delta=${PreviewFloatingWindow._formatOffset(_accDelta)} '
-            'start=${PreviewFloatingWindow._formatRect(_startRect!)} '
-            'next=${PreviewFloatingWindow._formatRect(computed)}',
-          );
           widget.onResize(computed);
         },
         onPointerUp: (event) {

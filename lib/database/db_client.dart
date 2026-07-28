@@ -7,6 +7,7 @@ import 'package:label_manager/utils/debug_logger.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 import 'db_isolate.dart';
+import 'db_sql_log_policy.dart';
 import 'drivers/db_driver.dart';
 
 @visibleForTesting
@@ -357,7 +358,9 @@ class DbClient {
 
   Future<T> _sendToIsolate<T>(
     DbIsolateAction action,
-    Map<String, dynamic> payload,
+    Map<String, dynamic> payload, {
+    bool logRequest = true,
+  }
   ) async {
     if (_disconnecting && action != DbIsolateAction.disconnect) {
       throw StateError('DB client is disconnecting.');
@@ -367,7 +370,9 @@ class DbClient {
       throw StateError('DB client is disconnecting.');
     }
     final responsePort = ReceivePort();
-    _log('Isolate 요청: $action, payload=${_maskPayload(payload)}');
+    if (logRequest) {
+      _log('Isolate 요청: $action, payload=${_maskPayload(payload)}');
+    }
     if (action == DbIsolateAction.connect) {
       _log('Isolate 연결 문자열(mask): ${_maskConnectionString(payload)}');
     }
@@ -389,7 +394,9 @@ class DbClient {
     } finally {
       responsePort.close();
     }
-    _log('Isolate 응답: $action, success=${res.success}');
+    if (logRequest) {
+      _log('Isolate 응답: $action, success=${res.success}');
+    }
     if (res.success) {
       return res.result as T;
     }
@@ -479,14 +486,21 @@ class DbClient {
   }
 
   Future<Object> getData(String sql) async {
-    _log('getData 요청 시작');
-    _debugPrintSql(sql);
+    final logRequest = !isDbConnectionProbeSql(sql);
+    if (logRequest) {
+      _log('getData 요청 시작');
+      _debugPrintSql(sql);
+    }
     final sw = Stopwatch()..start();
-    final result = await _sendToIsolate<Object>(DbIsolateAction.query, {
-      'sql': sql,
-    });
+    final result = await _sendToIsolate<Object>(
+      DbIsolateAction.query,
+      {'sql': sql},
+      logRequest: logRequest,
+    );
     sw.stop();
-    _log('getData 요청 완료 (${sw.elapsedMilliseconds}ms)');
+    if (logRequest) {
+      _log('getData 요청 완료 (${sw.elapsedMilliseconds}ms)');
+    }
     return result;
   }
 

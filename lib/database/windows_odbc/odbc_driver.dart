@@ -6,6 +6,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/utils/debug_logger.dart';
 
+import '../db_sql_log_policy.dart';
 import '../drivers/db_driver.dart';
 import 'odbc_bindings.dart';
 import 'odbc_error.dart';
@@ -123,7 +124,9 @@ class OdbcMssqlDriver implements DbDriver {
       final paramBindings = <_BoundParameter>[];
       try {
         if (params == null || params.isEmpty) {
-          _log('[OdbcMssqlDriver] sql: $sql');
+          if (!isDbConnectionProbeSql(sql)) {
+            _log('[OdbcMssqlDriver] sql: $sql');
+          }
           sqlPtr = sql.toNativeUtf16();
           final rc = bindings.sqlExecDirectW(
             stmt.handle,
