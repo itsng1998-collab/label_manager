@@ -150,6 +150,15 @@ void main() {
       expect(queryCount, 0);
       expect(columnLoadCount, 1);
       expect(loadedColumnLabelSizeIds, [1000, 2000]);
+      final initialTable = tester.widget<FortuneTable<StatusPrintTableRow>>(
+        find.byType(FortuneTable<StatusPrintTableRow>),
+      );
+      expect(
+        initialTable.columns
+            .singleWhere((column) => column.id == 'searchValue')
+            .initialWidth,
+        420,
+      );
 
       await tester.tap(
         find.widgetWithText(

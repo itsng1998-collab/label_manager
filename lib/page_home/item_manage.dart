@@ -9,6 +9,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/page_home/item_manager_table_dimensions.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -167,7 +168,6 @@ class _ItemManageState extends State<ItemManage> {
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
   static const double _minimizedHeaderColumnWidth = 70;
-  static const double _expandedElementColumnWidth = 420;
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -1270,7 +1270,7 @@ class _ItemManageState extends State<ItemManage> {
   double _elementColumnWidth(TColumnBase? column) =>
       column?.useMinColumnCheck == true
       ? _minimizedHeaderColumnWidth
-      : _expandedElementColumnWidth;
+      : itemManagerExpandedElementColumnWidth;
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final publishSelectionEnabled =

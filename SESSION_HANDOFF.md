@@ -1,3 +1,10 @@
+# 완료: 발행 통계 주원료 column 초기 폭 일치
+- 품목관리 기준: 주원료 column은 최소화 설정이 없을 때 초기 폭 420px를 사용한다.
+- 편집 완료: 품목관리의 420px 값을 공용 `itemManagerExpandedElementColumnWidth`로 분리하고, 발행 통계에서 검색 항목이 `주원료`일 때 같은 값을 사용한다. 다른 검색 항목은 기존 180px를 유지한다.
+- 테스트 보강: 발행 통계 초기 `searchValue` column 폭이 420px인지 검증한다.
+- 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 4개 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+
 # 완료: 발행 통계 datetime COLLATE 조회 오류 수정
 - 이미지/로그 원인: `StatusPrintDAO.select`가 `datetime`인 `RICH_PRINT_DATE`에 `COLLATE Korean_Wansung_CI_AS`를 직접 적용해 SQL Server native 447이 발생했다.
 - 레거시 대조: `CStatusPrintDAO::SelectDLG`는 `RICH_PRINT_DATE`, `RICH_ID_CHANGE_DELETE_DATE`를 원본 그대로 SELECT하고 recordset `GetString()`으로 읽는다.
