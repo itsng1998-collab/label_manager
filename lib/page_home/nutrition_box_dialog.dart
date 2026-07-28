@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -411,68 +409,56 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     final selected = _selectedBox;
     final data = selected?.rtf;
     if (!labelSheetLooksLikeRichEditRtf(data)) {
-      _disposeRtfPreviewWindow();
+      _rtfPreviewData = null;
+      _rtfPreviewClosedByUser = false;
+      _rtfPreviewWindow?.setChild(null);
+      _rtfPreviewWindow?.hide();
       return;
     }
     final rtf = data!;
-    if (_rtfPreviewData != rtf) {
-      _disposeRtfPreviewWindow();
-      _rtfPreviewData = rtf;
-      _rtfPreviewClosedByUser = false;
+    final preview = LabelSheetRtfPreview(
+      key: ValueKey('nutrition-box-rtf-preview:${rtf.hashCode}'),
+      rtf: rtf,
+      widthMm: selected!.width,
+      heightMm: 100,
+    );
+    _rtfPreviewData = rtf;
+    final existingWindow = _rtfPreviewWindow;
+    if (existingWindow == null) {
       _rtfPreviewWindow = PreviewFloatingWindow(
         initialSize: Size(
-          LabelSheetRtfPreview.pixelsForMm(selected!.width) + 8,
+          LabelSheetRtfPreview.pixelsForMm(selected.width) + 8,
           LabelSheetRtfPreview.pixelsForMm(100) + 8,
         ),
         tooltip: 'RTF 미리보기',
+        child: preview,
         onCloseRequested: _closeRtfPreviewWindow,
         usePortalHost: true,
       );
       if (mounted) setState(() {});
+    } else {
+      existingWindow.setChild(preview);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _rtfPreviewClosedByUser || _rtfPreviewData != rtf) {
         return;
       }
-      _rtfPreviewWindow?.show(
-        context,
-        child: LabelSheetRtfPreview(
-          key: ValueKey('nutrition-box-rtf-preview:${rtf.hashCode}'),
-          rtf: rtf,
-          widthMm: selected!.width,
-          heightMm: 100,
-        ),
-      );
+      _rtfPreviewWindow?.show(context);
     });
   }
 
-  Future<void> _closeRtfPreviewWindow() async {
+  void _closeRtfPreviewWindow() {
     final window = _rtfPreviewWindow;
     if (window == null || !window.isVisible) return;
-    final target = _rtfPreviewRestoreRect() ?? window.rect.center & Size.zero;
-    await window.hideToRect(target.inflate(1));
+    window.hide();
     if (!mounted) return;
     setState(() => _rtfPreviewClosedByUser = true);
-  }
-
-  ui.Rect? _rtfPreviewRestoreRect() {
-    final context = _rtfPreviewRestoreKey.currentContext;
-    final renderObject = context?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
-    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
   }
 
   void _restoreRtfPreviewWindow() {
     if (_rtfPreviewWindow == null || _rtfPreviewData == null) return;
     setState(() => _rtfPreviewClosedByUser = false);
     _syncSelectedRtfPreview();
-  }
-
-  void _disposeRtfPreviewWindow() {
-    _rtfPreviewWindow?.dispose();
-    _rtfPreviewWindow = null;
-    _rtfPreviewData = null;
-    _rtfPreviewClosedByUser = false;
   }
 
   Future<void> _runWrite({

@@ -294,7 +294,7 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey('preview-floating-close-button')),
     );
-    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
     final restoreButton = find.byKey(
       const ValueKey('nutritionBoxRtfPreviewRestore'),
     );
@@ -311,6 +311,73 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
+  });
+
+  testWidgets('RTF row change keeps resized floating preview window', (
+    tester,
+  ) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BlockingModelessDialog(
+            child: NutritionBoxDialogContent(
+              controller: controller,
+              onCommitOutcomeUnknown: () {},
+              loadBoxes: () async => const [
+                NutritionBox(
+                  id: 1,
+                  typeId: 2,
+                  typeName: '기본형',
+                  name: 'RTF 표 1',
+                  rtf: r'{\rtf1\ansi Calories 100}',
+                  width: 75,
+                ),
+                NutritionBox(
+                  id: 2,
+                  typeId: 2,
+                  typeName: '기본형',
+                  name: 'RTF 표 2',
+                  rtf: r'{\rtf1\ansi Calories 200}',
+                  width: 90,
+                ),
+              ],
+              loadTypes: () async => const [],
+              loadColumns: (_) async => const [],
+              insert: ({required typeId, required name, required rtf, required width}) async {},
+              update: ({required boxId, required typeId, required name, required rtf, required width}) async {},
+              delete: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final table = tester.widget<FortuneTable<NutritionBox>>(
+      find.byKey(const ValueKey('nutritionBoxManagerTable')),
+    );
+    table.onRowSelected!(table.rows.first, 0);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.dragFrom(
+      tester.getCenter(
+        find.byKey(const ValueKey('floating-resize-bottom-right')),
+      ) - const Offset(5, 5),
+      const Offset(80, 60),
+    );
+    await tester.pump();
+    final resizedSize = tester.getSize(find.byType(LabelSheetRtfPreview));
+
+    table.onRowSelected!(table.rows.last, 1);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.getSize(find.byType(LabelSheetRtfPreview)), resizedSize);
+    expect(tester.widget<LabelSheetRtfPreview>(find.byType(LabelSheetRtfPreview)).rtf, contains('200'));
   });
 
   testWidgets('editor saves current workbook data in rtf column', (tester) async {
