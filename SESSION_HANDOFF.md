@@ -1,3 +1,11 @@
+# 완료: 발행 통계 datetime COLLATE 조회 오류 수정
+- 이미지/로그 원인: `StatusPrintDAO.select`가 `datetime`인 `RICH_PRINT_DATE`에 `COLLATE Korean_Wansung_CI_AS`를 직접 적용해 SQL Server native 447이 발생했다.
+- 레거시 대조: `CStatusPrintDAO::SelectDLG`는 `RICH_PRINT_DATE`, `RICH_ID_CHANGE_DELETE_DATE`를 원본 그대로 SELECT하고 recordset `GetString()`으로 읽는다.
+- 편집 완료: 본 조회의 두 날짜와 상세 조회의 `RICH_ID_CHANGE_DELETE_DATE`, `RICH_COLID_CHANGE_DELETE_DATE`를 원본 날짜형 그대로 SELECT하고 Dart mapper에서 문자열화한다.
+- 테스트 보강: DateTime 결과 매핑과 본/상세 SQL에 날짜형 `COLLATE`가 다시 포함되지 않는지 검증한다.
+- 검증 완료: `flutter test test/status_print_test.dart test/status_print_dialog_test.dart` 7개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+
 # 완료: 발행 통계 초기화 무한 진행바 수정
 - 로그 원인: 최신 로그에서 `TColumnDAO.selectByLabelSizeId` 관련 시작/종료가 1,106건 발생해 dialog 초기화가 라벨사이즈별 컬럼 N+1 조회를 기다리고 있었다.
 - 레거시 대조: `CStatusPrintModel`은 브랜드별 라벨사이즈 배열을 `SelectNameOrderByLabelSizeArray` 한 번에 전달한다.

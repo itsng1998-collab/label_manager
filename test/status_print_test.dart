@@ -13,10 +13,12 @@ void main() {
   test('status print row keeps status id and deletion state', () {
     final row = StatusPrintRow.fromMap({
       'STATUS_ID': '10-20-30',
+      'PRINT_DATE': DateTime(2025, 1, 2, 3, 4, 5),
       'PRINT_COUNT': '4',
-      'ITEM_CHANGE_DELETE_DATE': '2025-01-03',
+      'ITEM_CHANGE_DELETE_DATE': DateTime(2025, 1, 3),
     });
     expect(row.statusId, '10-20-30');
+    expect(row.printDate, '2025-01-02 03:04:05.000');
     expect(row.printCount, 4);
     expect(row.deleted, isTrue);
   });
@@ -27,6 +29,10 @@ void main() {
     expect(sql, isNot(contains('JOIN BM_RICH_STATUS_DATA')));
     expect(sql, contains('S.RICH_PRINT_ITEM_ELEMENT LIKE @searchText'));
     expect(sql, contains('S.RICH_DATE_YYYYMMDD BETWEEN @startDate AND @endDate'));
+    expect(sql, contains('S.RICH_PRINT_DATE AS PRINT_DATE'));
+    expect(sql, contains('S.RICH_ID_CHANGE_DELETE_DATE AS ITEM_CHANGE_DELETE_DATE'));
+    expect(sql, isNot(contains('RICH_PRINT_DATE COLLATE')));
+    expect(sql, isNot(contains('RICH_ID_CHANGE_DELETE_DATE COLLATE')));
     expect(sql, endsWith('ORDER BY S.RICH_PRINT_DATE'));
     expect(sql, isNot(contains('SUM(')));
     expect(base.parameters['searchText'], '%%');
@@ -60,6 +66,14 @@ void main() {
     expect(
       StatusPrintDAO.selectDetailRowsSql,
       contains('RICH_COLID_CHANGE_DELETE_DATE'),
+    );
+    expect(
+      StatusPrintDAO.selectDetailItemSql,
+      isNot(contains('RICH_ID_CHANGE_DELETE_DATE COLLATE')),
+    );
+    expect(
+      StatusPrintDAO.selectDetailRowsSql,
+      isNot(contains('RICH_COLID_CHANGE_DELETE_DATE COLLATE')),
     );
     expect(StatusPrintDAO.selectDetailRowsSql, isNot(contains('ORDER BY')));
   });
