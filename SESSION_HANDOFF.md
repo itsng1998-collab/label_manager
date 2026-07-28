@@ -1,3 +1,14 @@
+# 완료: 브랜드 선택 후 데이터 로드 지연 수정
+- 최신 로그 `app_2026-07-28_15-39-24.log`: `BrandDAO.selectByCustomerIdByBrandOrder` 자체는 37ms로 정상이다. 후속 `TColumnContentDAO.selectScopedByItemIds`가 26개 품목/338개 content 조회에 24,529ms, 같은 DB isolate의 heartbeat가 13,949ms 대기했다.
+- 원인 경로: 7월 10일 읽기 스냅샷 작업에서 market 품목 scope 보존을 위해 도입된 XML nodes CTE query. 날짜 조건 최적화와 직접 관련이 없다.
+- 편집 완료: market scope와 단일 XML parameter 계약은 유지하면서 XML ID를 `PRIMARY KEY` table variable에 한 번 materialize하고 본 조회는 정수 키 table과 join한다. SQL Server 2017이 실제 scope cardinality로 계획을 만들도록 `OPTION (RECOMPILE)`을 적용했다. DB migration은 하지 않는다.
+- 테스트 보강: XML parameter, table variable materialization, PK 및 scoped join 계약을 검증한다.
+- 검증: `flutter test test/item_manager_read_snapshot_test.dart test/item_manager_draft_test.dart` 총 29건 통과. 수정한 모델/테스트 파일 정적 오류 없음.
+- 정적 검증: 수정 파일 오류 없음, `git diff --check` 통과.
+- 사용자 재검증 필요: 동일 브랜드를 다시 선택한 뒤 `TColumnContentDAO.selectScopedByItemIds` 완료 시간을 최신 로그에서 확인한다.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+- 기능 커밋: `b48c97a` (`브랜드 후속 품목 데이터 조회 최적화`).
+
 # 완료: 발행내용보기 날짜 조건 조회 최적화
 - 최신 로그 `app_2026-07-28_15-32-58.log`: `BM_RICH_PRINT_LOG` 조회가 15:33:39.885에 시작됐으나 마지막 기록 15:33:40.690까지 완료 응답이 없고 DB isolate heartbeat도 대기했다.
 - 확인된 스키마: `RICH_DATE_YYYYMMDD VARCHAR(8) NOT NULL`. 레거시는 non-Unicode 날짜 리터럴을 사용하지만 Flutter ODBC는 문자열을 `SQL_WVARCHAR`로 바인딩한다.
