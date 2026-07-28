@@ -1,3 +1,11 @@
+# 완료: 공용라벨 수정 이력 거래처 필터 수정
+- 로그 확인: 최신 `.tmp/log/app_2026-07-28_12-44-14.log` 조회에서 SQL Server 42S22 `RICH_CUSTOMER_ID` 열 이름 오류가 발생했다.
+- 레거시 확인: `.tmp/LabelManager/LabelManager/CommonLabelLog.cpp`는 로그 `A`와 브랜드 `B`를 조인하고 `RICH_CUSTOMER_ID`를 무수식으로 필터링한다. 해당 컬럼은 로그가 아니라 브랜드 테이블에 있어 레거시 SQL에서는 `B.RICH_CUSTOMER_ID`로 해석된다.
+- 원인/편집: Flutter 포팅 쿼리가 존재하지 않는 `A.RICH_CUSTOMER_ID`로 잘못 한정했다. 이를 `B.RICH_CUSTOMER_ID`로 수정하고 잘못된 alias가 다시 들어오지 않도록 SQL 회귀 테스트를 추가했다.
+- 검증: 공용라벨 이력 모델/dialog 테스트 4 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음. 최신 로그의 실패 SQL과 레거시 `CommonLabelLog.cpp`를 직접 대조했다.
+- stage/commit 대상: `lib/models/common_label_history.dart`, `test/common_label_history_test.dart`, `SESSION_HANDOFF.md`.
+- 데이터베이스 마이그레이션은 수행하지 않는다. 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 사용자 접속 이력 필터 overflow 수정
 - 로그 확인: `.tmp/log/app_2026-07-28_12-41-12.log`에서 12:41:32 거래처 `DropdownButtonFormField<int>` 내부 Row가 제한 폭 192.7px보다 14px 넘쳐 렌더링 오류가 발생했다.
 - 원인: 고정 폭 selector에서 Material dropdown이 항목 텍스트의 intrinsic width를 사용하고, 선택 항목 텍스트에도 overflow 제한이 없었다.

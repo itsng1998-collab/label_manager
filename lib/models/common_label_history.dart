@@ -106,7 +106,7 @@ class CommonLabelHistoryDAO extends DAO {
     FROM BM_RICH_LABELSIZE_FORM_LOG A
     INNER JOIN BM_RICH_BRAND B ON A.RICH_BRAND_ID=B.RICH_BRAND_ID
     WHERE A.RICH_MOD_DATE BETWEEN @startDate AND @endDate
-      AND A.RICH_CUSTOMER_ID=@customerId
+      AND B.RICH_CUSTOMER_ID=@customerId
   ''';
 
   static Future<List<CommonLabelHistory>> selectBetweenDatesAndCustomer({

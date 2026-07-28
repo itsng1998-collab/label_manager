@@ -30,7 +30,8 @@ void main() {
       contains('INNER JOIN BM_RICH_BRAND B ON A.RICH_BRAND_ID=B.RICH_BRAND_ID'),
     );
     expect(sql, contains('A.RICH_MOD_DATE BETWEEN @startDate AND @endDate'));
-    expect(sql, contains('A.RICH_CUSTOMER_ID=@customerId'));
+    expect(sql, contains('B.RICH_CUSTOMER_ID=@customerId'));
+    expect(sql, isNot(contains('A.RICH_CUSTOMER_ID')));
     expect(sql, contains('A.RICH_MOD_LOG_ID'));
     expect(sql, contains('A.RICH_FORM_SHEET'));
     expect(sql, contains('A.RICH_ALTER_FORM_SHEET'));
