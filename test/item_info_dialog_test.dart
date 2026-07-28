@@ -57,6 +57,7 @@ void main() {
     required ItemInfoLoader load,
     ItemInfoSaver? save,
     ValueChanged<List<ItemOfMarket>>? onCommitted,
+    VoidCallback? onClose,
   }) async {
     await tester.binding.setSurfaceSize(const Size(1400, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -73,6 +74,7 @@ void main() {
             save: save ?? (_) async {},
             onCommitted: onCommitted ?? (_) {},
             onCommitOutcomeUnknown: () {},
+            onClose: onClose ?? () {},
           ),
         ),
       ),
@@ -101,6 +103,22 @@ void main() {
       find.byKey(const ValueKey('itemInfoSaveButton')),
     );
     expect(save.onPressed, isNull);
+  });
+
+  testWidgets('bottom close button requests dialog close', (tester) async {
+    var closeCalls = 0;
+    await pumpContent(
+      tester,
+      marketId: 7,
+      labelSizeId: 3,
+      load: (_, _) async => [item()],
+      onClose: () => closeCalls += 1,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('itemInfoCloseButton')));
+    await tester.pump();
+
+    expect(closeCalls, 1);
   });
 
   testWidgets('dependent edit saves batch and keeps committed rows', (

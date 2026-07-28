@@ -3859,6 +3859,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             labelSizeId: hasContext ? _effectiveLabelSize?.labelSizeId : null,
             onCommitted: _handleItemInfoCommitted,
             onCommitOutcomeUnknown: _closeItemInfoDialog,
+            onClose: _requestCloseItemInfoDialog,
           ),
         ),
       ),

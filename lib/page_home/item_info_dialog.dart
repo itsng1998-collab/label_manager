@@ -109,6 +109,7 @@ class ItemInfoDialogContent extends StatefulWidget {
     required this.labelSizeId,
     required this.onCommitted,
     required this.onCommitOutcomeUnknown,
+    required this.onClose,
     this.load = ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId,
     this.save = ItemOfMarketDAO.updateItemInfoBatch,
   });
@@ -118,6 +119,7 @@ class ItemInfoDialogContent extends StatefulWidget {
   final int? labelSizeId;
   final ValueChanged<List<ItemOfMarket>> onCommitted;
   final VoidCallback onCommitOutcomeUnknown;
+  final VoidCallback onClose;
   final ItemInfoLoader load;
   final ItemInfoSaver save;
 
@@ -369,6 +371,12 @@ class _ItemInfoDialogContentState extends State<ItemInfoDialogContent> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            TextButton(
+              key: const ValueKey('itemInfoCloseButton'),
+              onPressed: widget.controller.writeBusy ? null : widget.onClose,
+              child: const Text('닫기'),
+            ),
+            const SizedBox(width: 8),
             FilledButton.icon(
               key: const ValueKey('itemInfoSaveButton'),
               onPressed:
