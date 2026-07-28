@@ -1,3 +1,14 @@
+# 완료: 데이터내용 이력 0건 조회 지연 수정
+- 로그 확인: filter 초기화는 0.3초 미만이지만 `BM_CONTENT_SAVE_LOG` 0건 조회가 69,638ms 소요됐다. 정상적인 UI 지연이 아니다.
+- 원인: Windows ODBC binder가 날짜 문자열을 `SQL_WVARCHAR`로 전달하지만 레거시는 `SAVE_DATE_YYYYMMDD`를 `VARCHAR` 리터럴로 비교한다. SQL Server가 VARCHAR 날짜 column을 암시적 Unicode 변환하면 인덱스 seek가 차단될 수 있다.
+- 편집 완료: column에는 함수를 적용하지 않고 `@startDate`, `@endDate`만 `VARCHAR(8)`로 명시 변환해 레거시 타입 비교와 sargable predicate를 유지한다. 거래처 조건은 기존 동작을 유지하며 DB migration은 하지 않는다.
+- 테스트 보강: 날짜 column 변환 없이 parameter 쪽만 변환하는 SQL인지 검증한다.
+- 검증: `flutter test test/content_save_log_test.dart test/content_save_history_dialog_test.dart` 총 5건 통과. 첫 실행은 새 assertion 닫는 괄호 누락으로 컴파일 실패했으며 문법 수정 후 성공했다. 거래처 변환을 제외한 최종 형태에서도 동일 명령으로 5건 재통과했다.
+- 정적 검증: 수정한 모델/테스트 파일 오류 없음, `git diff --check` 통과.
+- 사용자 재검증 필요: 동일 기간/거래처 조회 후 최신 로그의 `getDataWithParams 요청 완료` 시간을 확인한다.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+- 기능 커밋: `09d8d62` (`데이터내용 이력 날짜 조건 조회 최적화`).
+
 # 완료: 발행 통계 조회 후 라벨사이즈·주원료 폭 배분
 - 원인: `FortuneTable.fillLastColumn=true`가 남는 가로 폭을 마지막 `라벨사이즈` column에 배분해 내용보다 넓게 표시했다.
 - 편집 완료: `라벨사이즈`는 기존 content auto-fit을 유지하고, 검색 항목이 `주원료`일 때 `searchValue.fillRemaining=true`를 적용해 420px 기준 폭에 남는 공간을 더한다.
