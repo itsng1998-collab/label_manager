@@ -27,6 +27,7 @@ Future<void> main(List<String> args) async {
   DebugLogger.setVersion('FSDBG-2026-07-25-common-label-sync-v33');
 
   try {
+    // 이전 실행에서 남은 AI 가져오기 임시 파일을 정리한다.
     await clearLabelSheetAiImportStartupTempDirectory();
   } catch (e, stackTrace) {
     DebugLogger.log('AI import temp cleanup failed: $e\n$stackTrace');
@@ -38,6 +39,7 @@ Future<void> main(List<String> args) async {
   // 앱 시작 시 라이프사이클 옵저버를 1회 등록
   LifecycleManager.instance.ensureInitialized();
 
+  // 시스템에서 사라진 기본 프린터 설정을 앱 시작을 막지 않고 정리한다.
   unawaited(LabelPrinterPreferences.removePreferredPrinterIfMissing());
 
   // OS 로케일에 맞춰 날짜/시간 포맷터를 초기화한다.
