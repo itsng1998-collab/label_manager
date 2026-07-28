@@ -132,7 +132,7 @@ void main() {
         elementRtf: r'{\rtf1 changed}',
       );
       controller.stageAppendItems([_seed(itemId: 30, itemName: '추가 품목 1')]);
-      final addedKeys = controller.applyStagedRows();
+      controller.applyStagedRows();
       controller.deleteRows({'update:20'});
 
       controller.restoreBackup(

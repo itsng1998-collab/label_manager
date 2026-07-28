@@ -1133,17 +1133,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     ];
   }
 
-  Future<void> _applyAutoItemUpdateStagedRows() async {
-    final controller = _autoItemUpdateDraftController;
-    if (controller == null || _autoItemUpdateCommandBusy) {
-      return;
-    }
-    controller.applyStagedRows();
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
   bool get _autoItemUpdateSourceReady {
     final customerId = Customer.instance?.customerId;
     final labelSize = _currentLabelSize;
@@ -5637,7 +5626,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     ScaleOutputUnit? renderUnit,
     required DateTime referenceAt,
   }) {
-    final columns = TColumn.datas ?? const <TColumn>[];
     final base = renderUnit?.projectedColumnValues ??
         _baselineOutputProjectedColumnValues(
           itemId: row.itemId,

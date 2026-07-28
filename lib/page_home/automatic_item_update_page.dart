@@ -450,25 +450,6 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     }
   }
 
-  void _selectSourceRange(int startIndex, int endIndex) {
-    final start = startIndex < endIndex ? startIndex : endIndex;
-    final end = startIndex > endIndex ? startIndex : endIndex;
-    final next = <int>{};
-    for (var rowIndex = start; rowIndex <= end; rowIndex += 1) {
-      final row = widget.sourceRows[rowIndex];
-      if (_canSelectSourceRow(row)) {
-        next.add(row.itemId);
-      }
-    }
-    _selectedSourceItemIds
-      ..clear()
-      ..addAll(next);
-    _sourceAnchorIndex = startIndex;
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
   void _handleSourcePointerDown(
     AutoItemUpdateSourceSeed row,
     int index,
@@ -517,30 +498,6 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     _sourcePointerMoved = false;
     _deferSourceSingleSelection = false;
     _deferredSourceSelectionIndex = null;
-  }
-
-  int? _sourceRowIndexForGlobalPosition(Offset globalPosition) {
-    final context = _sourceTableViewportKey.currentContext;
-    if (context == null) {
-      return null;
-    }
-    final renderObject = context.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) {
-      return null;
-    }
-    final localPosition = renderObject.globalToLocal(globalPosition);
-    if (localPosition.dx < 0 ||
-        localPosition.dy < _sourceHeaderHeight ||
-        localPosition.dx > renderObject.size.width ||
-        localPosition.dy > renderObject.size.height) {
-      return null;
-    }
-    final rowIndex =
-        ((localPosition.dy - _sourceHeaderHeight) / _sourceRowHeight).floor();
-    if (rowIndex < 0 || rowIndex >= widget.sourceRows.length) {
-      return null;
-    }
-    return rowIndex;
   }
 
   Widget _buildSourceList() {
