@@ -1,3 +1,14 @@
+# 완료: 영양성분표 RTF viewer 수정 중 유지 및 AI 변환
+- 원인: `_openEditor()`가 수정 진입 전에 RTF floating window를 숨기고, portal host도 manager 화면에만 있어 editor 전환 시 viewer가 유지되지 않는다.
+- 수정: `nutrition_box_dialog.dart`에서 RTF 수정 진입 시 viewer를 숨기지 않고 manager/editor 공통 build가 같은 portal host를 유지하게 했다.
+- `preview_floating_window.dart`: 공용라벨관리의 `AI 변환` header button을 `RtfPreviewAiConvertButton` 공용 widget으로 이동했다.
+- `home_page_manager.dart`: 기존 공용라벨 RTF viewer가 공용 AI 변환 버튼을 그대로 사용하도록 교체했다.
+- `nutrition_box_dialog.dart`: 유지된 RTF viewer에 공용 AI 변환 버튼을 추가하고, RTF native PNG를 temp 파일로 저장해 editor의 `LabelSheetImageImportController`로 전달한다. AI dialog 동안 viewer를 숨기고 닫은 뒤 같은 window를 복원한다.
+- AI 분석 결과는 기존 `LabelSheetWorkbench.onUserWorkbookChanged`를 통해 `_editorWorkbook`과 저장용 `_rtf`에 반영된다. manager 상태에서 누르면 수정 화면 진입 안내를 표시한다.
+- `nutrition_box_dialog_test.dart`: RTF viewer 수정 중 유지, AI 버튼 표시, image import controller attachment, 실제 AI import dialog 열기/취소 후 viewer 복원을 검증한다.
+- 검증: 영양성분표, 앱 메뉴, 라벨시트 toolbar 관련 테스트 총 31건 통과. 수정 4개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
+- 기능 커밋: `f6045c3` (`영양성분표 RTF 수정 중 AI 변환 지원`).
+
 # 완료: 고빈도 로그 성능 저하 제거
 - 원인: `PreviewFloatingWindow`의 이동/크기 조절 포인터 업데이트마다 `debugLog()`가 호출되어 스택 파싱, 타임스탬프 생성, 파일 버퍼 기록이 반복된다.
 - 추가 원인: 최신 로그 2,808줄 중 연결 확인 `SELECT 1`이 180회 실행됐고, client/ODBC 양쪽에서 heartbeat당 최소 6줄, 총 1,080줄을 생성했다.
