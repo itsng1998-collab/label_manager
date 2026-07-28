@@ -1,3 +1,10 @@
+# 완료: 사용자 관리 협력업체 영역 왼쪽 정렬
+- 원인: 상단 범위 selector `Wrap`이 `Column`의 기본 가운데 정렬에서 자식 총폭만큼 축소되어 협력업체 그룹이 중앙에서 시작했다.
+- 편집: selector `Wrap`을 `Alignment.centerLeft`의 `Align`으로 감싸 콘텐츠 왼쪽에서 시작하도록 하고 실제 협력업체 라벨 시작 좌표 테스트를 추가했다.
+- 검증: `test/user_manager_dialog_test.dart` 8 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
+- stage/commit 대상: `lib/page_home/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 조회·편집 중 AppBar 메뉴 비활성화
 - 원인: `AppMenuController`는 개별 command busy/context block만 전달받아 품목 조회와 페이지 테이블 편집 상태를 메뉴 전체에 반영하지 않는다.
 - 편집 예정: 메뉴 정책에 전체 작업 차단 상태를 추가하고, 품목 세션 조회 및 품목관리/자동품목갱신/저울출력 편집 상태를 `HomePageManager`에서 동기화한다.

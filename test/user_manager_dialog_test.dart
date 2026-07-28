@@ -49,6 +49,14 @@ void main() {
   testWidgets('scope selectors show aligned labels', (tester) async {
     await _pumpManager(tester);
 
+    final scopeRect = tester.getRect(
+      find.byKey(const ValueKey('userScopeSelectors')),
+    );
+    final cooperatorLabelRect = tester.getRect(
+      find.byKey(const ValueKey('userCooperatorLabel')),
+    );
+    expect(cooperatorLabelRect.left, scopeRect.left);
+
     for (final pair in const [
       (ValueKey('userCooperatorLabel'), ValueKey('userCooperatorSelector')),
       (ValueKey('userCustomerLabel'), ValueKey('userCustomerSelector')),

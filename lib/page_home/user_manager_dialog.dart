@@ -442,11 +442,14 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         children: [
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+          Align(
+            key: const ValueKey('userScopeSelectors'),
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -532,7 +535,8 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
                   const Text('전체 표시'),
                 ],
               ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Row(
