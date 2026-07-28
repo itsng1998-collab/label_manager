@@ -27,8 +27,8 @@ void main() {
             loadTypes: loadTypes ?? (() async => const []),
             loadTypesById: loadTypesById ?? (() async => const []),
             loadColumns: loadColumns ?? ((_) async => const []),
-            insert: insert ?? ((_, __) async {}),
-            update: update ?? ((_, __, ___) async {}),
+            insert: insert ?? ((_, _) async {}),
+            update: update ?? ((_, _, _) async {}),
             delete: delete ?? ((_) async {}),
           ),
         ),
@@ -109,7 +109,7 @@ void main() {
         insertCalls += 1;
         insertedRows = rows;
       },
-      update: (_, __, ___) async {
+      update: (_, _, _) async {
         updateCalls += 1;
       },
     );

@@ -668,7 +668,7 @@ class _NutritionTypeDialogContentState extends State<NutritionTypeDialogContent>
                       id: 'name',
                       header: '성분명',
                       text: (row) => row.name,
-                      isTextEditable: (_, __) => !_busy,
+                      isTextEditable: (_, _) => !_busy,
                       onTextCommitted: (_, index, value) {
                         _updateDetailName(index, value);
                       },

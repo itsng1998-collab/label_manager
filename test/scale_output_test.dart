@@ -179,7 +179,7 @@ void main() {
         home: Scaffold(
           body: ScaleOutputPage(
             controller: controller,
-            previewBuilder: (_, __) => const SizedBox.shrink(),
+            previewBuilder: (_, _) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
             onReloadAll: () {},
@@ -252,7 +252,7 @@ void main() {
           body: ScaleOutputPage(
             controller: controller,
             pageController: pageController,
-            previewBuilder: (_, __) => const SizedBox.shrink(),
+            previewBuilder: (_, _) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
             onReloadAll: () {},
@@ -288,7 +288,7 @@ void main() {
         home: Scaffold(
           body: ScaleOutputPage(
             controller: controller,
-            previewBuilder: (_, __) => const SizedBox.shrink(),
+            previewBuilder: (_, _) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
             onReloadAll: () {},
@@ -341,7 +341,7 @@ void main() {
         home: Scaffold(
           body: ScaleOutputPage(
             controller: controller,
-            previewBuilder: (_, __) => const SizedBox.shrink(),
+            previewBuilder: (_, _) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
             onReloadAll: () => reloadAllCount += 1,
@@ -401,7 +401,7 @@ void main() {
         home: Scaffold(
           body: ScaleOutputPage(
             controller: controller,
-            previewBuilder: (_, __) => const SizedBox.shrink(),
+            previewBuilder: (_, _) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
             onReloadAll: () {},

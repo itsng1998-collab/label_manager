@@ -51,9 +51,9 @@ class _HomePageState extends State<HomePage> {
   bool _disconnectCleanupDone = false;
   bool _isExiting = false;
   bool _loggedIn = false;
-  bool _contextSwitching = false;
+  final bool _contextSwitching = false;
   bool _searchPrintModeActive = false;
-  int _managerSessionGeneration = 0;
+  final int _managerSessionGeneration = 0;
   Future<void>? _loginToServerDbFuture;
   LifecycleExitSnapshotProvider? _exitSnapshotProvider;
   // 선택 상태
