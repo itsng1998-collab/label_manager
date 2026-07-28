@@ -18,6 +18,8 @@ void main() {
     WidgetTester tester, {
     required UserGrade grade,
     required LoginHistoryQuery query,
+    String cooperatorName = '협력업체 1',
+    String customerName = '거래처 1',
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -31,13 +33,13 @@ void main() {
               initialCustomer: initialCustomer,
               query: query,
               loadCooperators: () async => [
-                Cooperator(id: 'coop1', name: '협력업체 1'),
+                Cooperator(id: 'coop1', name: cooperatorName),
               ],
               loadCustomers: (_) async => [
                 Customer(
                   customerId: 10,
                   cooperatorId: 'coop1',
-                  customerName: '거래처 1',
+                  customerName: customerName,
                 ),
               ],
             ),
@@ -106,6 +108,21 @@ void main() {
     expect(find.text('거래처'), findsNothing);
     expect(find.text('조회'), findsOneWidget);
     expect(queryCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long filter names stay within fixed selector widths', (
+    tester,
+  ) async {
+    await pumpContent(
+      tester,
+      grade: UserGrade.SYSTEM_ADMIN_USER,
+      query: ({required startDate, required endDate, required customerId}) async =>
+          const <LoginLog>[],
+      cooperatorName: '아주 긴 협력업체 이름이 선택 영역을 넘어가는 경우',
+      customerName: '아주 긴 거래처 이름이 선택 영역을 넘어가는 경우',
+    );
+
     expect(tester.takeException(), isNull);
   });
 }

@@ -1,3 +1,11 @@
+# 완료: 사용자 접속 이력 필터 overflow 수정
+- 로그 확인: `.tmp/log/app_2026-07-28_12-41-12.log`에서 12:41:32 거래처 `DropdownButtonFormField<int>` 내부 Row가 제한 폭 192.7px보다 14px 넘쳐 렌더링 오류가 발생했다.
+- 원인: 고정 폭 selector에서 Material dropdown이 항목 텍스트의 intrinsic width를 사용하고, 선택 항목 텍스트에도 overflow 제한이 없었다.
+- 편집: 협력업체/거래처 dropdown에 `isExpanded: true`를 적용하고 항목 텍스트를 ellipsis 처리했다. 긴 이름 fixture로 고정 폭 내 렌더링 회귀 테스트를 추가했다.
+- 검증: 긴 필터 이름을 포함한 `test/login_history_dialog_test.dart` 3 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
+- stage/commit 대상: `lib/page_login/login_history_page.dart`, `test/login_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
+
 # 완료: 사용자 접속 이력 dropdown assertion 수정
 - 로그 확인: `.tmp/log/app_2026-07-28_12-32-08.log`에서 12:33:24 `LoginHistoryDialogContent`의 협력업체 `DropdownButtonFormField`가 선택값 일치 항목 0개 assertion으로 실패했다.
 - 원인: `Cooperator`/`Customer` 모델은 값 equality가 없는데 초기 로그인 객체와 DAO가 새로 만든 객체를 dropdown value로 직접 비교했다. 기존 테스트는 동일한 `const` 객체 canonicalization으로 문제를 가렸다.

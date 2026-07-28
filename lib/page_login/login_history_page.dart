@@ -180,6 +180,7 @@ class _LoginHistoryDialogContentState
                   width: 210,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedCooperator?.id,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: '협력업체',
                       isDense: true,
@@ -188,7 +189,10 @@ class _LoginHistoryDialogContentState
                       for (final cooperator in _cooperators)
                         DropdownMenuItem(
                           value: cooperator.id,
-                          child: Text(cooperator.name),
+                          child: Text(
+                            cooperator.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                     onChanged: _initializing || _querying
@@ -206,6 +210,7 @@ class _LoginHistoryDialogContentState
                   child: DropdownButtonFormField<int>(
                     key: ValueKey(_selectedCooperator?.id),
                     initialValue: _selectedCustomer?.customerId,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: '거래처',
                       isDense: true,
@@ -214,7 +219,10 @@ class _LoginHistoryDialogContentState
                       for (final customer in _customers)
                         DropdownMenuItem(
                           value: customer.customerId,
-                          child: Text(customer.customerName),
+                          child: Text(
+                            customer.customerName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                     onChanged: _initializing || _querying
