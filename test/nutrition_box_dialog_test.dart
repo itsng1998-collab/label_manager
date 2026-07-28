@@ -451,13 +451,11 @@ void main() {
     );
     expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
     expect(find.byType(RtfPreviewAiConvertButton), findsOneWidget);
-    expect(
-      tester
-          .widget<LabelSheetWorkbench>(find.byType(LabelSheetWorkbench))
-          .imageImportController
-          ?.isAttached,
-      isTrue,
+    final editorSheet = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
     );
+    expect(editorSheet.imageImportController?.isAttached, isTrue);
+    expect(editorSheet.imageImportUseRootOverlay, isTrue);
 
     final conversion = Future<void>.sync(
       tester

@@ -1926,6 +1926,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.printerListProvider,
     this.barcodeRenderer,
     this.imageImportController,
+    this.imageImportUseRootOverlay = false,
     this.editingLifecycleController,
     this.outputCaptureController,
     this.outputCaptureOwnerToken,
@@ -1972,6 +1973,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final LabelPrinterListProvider? printerListProvider;
   final FortuneBarcodeRenderer? barcodeRenderer;
   final LabelSheetImageImportController? imageImportController;
+  final bool imageImportUseRootOverlay;
   final LabelSheetEditingLifecycleController? editingLifecycleController;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final Object? outputCaptureOwnerToken;
@@ -4098,6 +4100,28 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         fortuneSheetGridClientPhysicalSize(sheet) ??
         const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
     try {
+      if (widget.imageImportUseRootOverlay) {
+        return await showBlockingModelessOverlayDialog<_LabelImageImportAction>(
+          context: context,
+          builder: (_, close) => _LabelImageImportDialog(
+            sheet: sheet,
+            physicalSize: physicalSize,
+            initialImage:
+                initialImage ??
+                _tryLoadLabelImageImportSelection(
+                  prefs.getString(_labelSheetImageImportFilePathPrefsKey),
+                ),
+            initialApiKey:
+                prefs.getString(_labelSheetGeminiApiKeyPrefsKey) ?? '',
+            initialModel:
+                prefs.getString(_labelSheetGeminiModelPrefsKey) ??
+                labelSheetDefaultGeminiModel,
+            initialPrompt:
+                prefs.getString(_labelSheetGeminiPromptPrefsKey) ?? '',
+            close: close,
+          ),
+        );
+      }
       return await showDialog<_LabelImageImportAction>(
         context: context,
         barrierDismissible: false,
@@ -4863,6 +4887,7 @@ class _LabelImageImportDialog extends StatefulWidget {
     required this.initialApiKey,
     required this.initialModel,
     required this.initialPrompt,
+    this.close,
   });
 
   final FortuneSheet sheet;
@@ -4871,6 +4896,7 @@ class _LabelImageImportDialog extends StatefulWidget {
   final String initialApiKey;
   final String initialModel;
   final String initialPrompt;
+  final ValueChanged<_LabelImageImportAction?>? close;
 
   @override
   State<_LabelImageImportDialog> createState() =>
@@ -4893,6 +4919,15 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
   bool _loadingGeminiModels = false;
   int _modelLoadGeneration = 0;
   String? _errorLog;
+
+  void _close([_LabelImageImportAction? result]) {
+    final close = widget.close;
+    if (close != null) {
+      close(result);
+      return;
+    }
+    Navigator.of(context).pop(result);
+  }
 
   @override
   void initState() {
@@ -4917,7 +4952,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       width: 640,
       height: dialogHeight,
       closeIcon: const _LabelImageImportCloseIcon(),
-      onClose: _analyzing ? () {} : () => Navigator.of(context).pop(),
+      onClose: _analyzing ? () {} : _close,
       footer: _buildFooter(),
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
@@ -5149,7 +5184,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
             height: 30,
             child: _LabelImageImportFooterButton(
               label: '취소',
-              onPressed: _analyzing ? null : () => Navigator.of(context).pop(),
+              onPressed: _analyzing ? null : _close,
             ),
           ),
           const SizedBox(width: 5),
@@ -5213,7 +5248,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       if (!mounted) {
         return;
       }
-      Navigator.of(context).pop(
+      _close(
         _LabelImageImportAction(
           apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),

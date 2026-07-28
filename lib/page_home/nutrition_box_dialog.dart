@@ -863,6 +863,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                             LabelSheetZoomToolbarPlacement.hidden,
                         zoomController: _editorZoomController,
                         imageImportController: _editorImageImportController,
+                        imageImportUseRootOverlay: true,
                         onBeforeSheetDialog: _handleEditorSheetDialogOpening,
                         onSheetDialogClosed: _handleEditorSheetDialogClosed,
                         onUserWorkbookChanged: (workbook) {
