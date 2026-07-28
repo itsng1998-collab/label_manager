@@ -3,6 +3,7 @@
 - 편집 완료: `라벨사이즈`는 기존 content auto-fit을 유지하고, 검색 항목이 `주원료`일 때 `searchValue.fillRemaining=true`를 적용해 420px 기준 폭에 남는 공간을 더한다.
 - 테스트 보강: 결과 렌더링 후 라벨사이즈가 auto-fit이며 fill 대상이 아닌지, 주원료가 fill 대상이고 실제 420px 이상인지, 라벨사이즈 실제 폭이 기존 130px보다 작은지 검증한다.
 - 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
+- 기능 커밋: `d2b8bc7` (`발행 통계 조회 컬럼 폭 배분 조정`).
 - 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
 
 # 완료: 발행 통계 조회 후 주원료 column 폭 유지
