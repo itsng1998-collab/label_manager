@@ -2,7 +2,7 @@
 - `clearLabelSheetAiImportStartupTempDirectory()`에 이전 실행의 AI 가져오기 임시 파일 정리 목적을 주석으로 명시했다.
 - `removePreferredPrinterIfMissing()`에 앱 시작을 막지 않는 기본 프린터 설정 정리 목적을 주석으로 명시했다.
 - 검증: `main.dart` 정적 진단 오류 없음.
-- 커밋 예정: `main.dart`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `f2db5f9` (`앱 시작 처리 주석 보강`).
 
 # 완료: 기존 미커밋 Dart 정적 분석 정리
 - 확인: `home_page.dart`의 변경되지 않는 상태 필드 2개 final화, `nutrition_box_dialog.dart`의 불필요한 foundation import 제거, 영양성분 형식/저울출력 테스트 callback의 미사용 매개변수 이름 정리다.
