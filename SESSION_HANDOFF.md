@@ -1,3 +1,9 @@
+# 진행 중: UI/비즈니스 로직 분리 및 미사용 코드·리소스 정리
+- 범위: `lib` 전체를 기능군별 단계로 정리한다. UI widget과 업무 계산·상태·저장 로직을 분리하고, 비즈니스 함수는 조회/변환/검증/저장 등 같은 그룹끼리 배치한다.
+- 삭제 원칙: analyzer와 전체 참조 검색으로 미사용 코드·소스·리소스 후보를 확인한다. 외부 진입점, 배포 스크립트, 런타임 동적 참조 가능성이 있는 파일은 사용자 확인 후 삭제한다.
+- 사용자 변경 보존: 작업 시작 시 미커밋 상태인 `nutrition_box_dialog.dart`, `nutrition_type_dialog.dart`, `common_label_history_dialog_test.dart`의 각 1줄 삭제는 수정·stage·commit하지 않는다.
+- 현재 단계: 프로젝트 규칙, 대형 파일, 의존/리소스 참조, analyzer 결과 감사 중.
+
 # 완료: 영양성분표 추가 시 RTF viewer 숨김
 - 원인: 선택 행의 RTF floating viewer가 create editor 전환 뒤에도 공통 portal host에 남아 표시된다.
 - 수정: create editor 진입이 확정될 때 floating viewer를 숨기고, edit 진입 시 viewer 유지 동작은 보존한다.
