@@ -271,6 +271,35 @@ void main() {
     );
     expect(renderedElementColumn.initialWidth, 420);
     expect(renderedElementColumn.autoFit, isFalse);
+    expect(renderedElementColumn.fillRemaining, isTrue);
+    final renderedLabelSizeColumn = renderedTable.columns.singleWhere(
+      (column) => column.id == 'labelSize',
+    );
+    expect(renderedLabelSizeColumn.autoFit, isTrue);
+    expect(renderedLabelSizeColumn.fillRemaining, isFalse);
+
+    double renderedWidthBetween(String leftColumnId, String rightColumnId) {
+      return tester
+              .getCenter(
+                find.byKey(
+                  ValueKey('fortune_table_column_resize_$rightColumnId'),
+                ),
+              )
+              .dx -
+          tester
+              .getCenter(
+                find.byKey(
+                  ValueKey('fortune_table_column_resize_$leftColumnId'),
+                ),
+              )
+              .dx;
+    }
+
+    expect(
+      renderedWidthBetween('item', 'searchValue'),
+      greaterThanOrEqualTo(420),
+    );
+    expect(renderedWidthBetween('brand', 'labelSize'), lessThan(130));
 
     const total = StatusPrintTableRow.summary(
       kind: StatusPrintRowKind.total,

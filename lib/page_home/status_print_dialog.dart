@@ -617,12 +617,14 @@ class _StatusPrintDialogContentState extends State<StatusPrintDialogContent> {
       required String Function(StatusPrintTableRow row) text,
       double width = 130,
       bool autoFit = true,
+      bool fillRemaining = false,
     }) => FortuneTableColumn(
       id: id,
       header: header,
       text: text,
       initialWidth: width,
       autoFit: autoFit,
+      fillRemaining: fillRemaining,
       onDoubleTap: (row, index) => _showDetail(row),
     );
 
@@ -652,6 +654,7 @@ class _StatusPrintDialogContentState extends State<StatusPrintDialogContent> {
             ? itemManagerExpandedElementColumnWidth
             : 180,
         autoFit: _selectedSearchColumn != statusPrintElementColumn,
+        fillRemaining: _selectedSearchColumn == statusPrintElementColumn,
       ),
       column(
         id: 'brand',
