@@ -1,3 +1,14 @@
+# 완료: 고빈도 로그 성능 저하 제거
+- 원인: `PreviewFloatingWindow`의 이동/크기 조절 포인터 업데이트마다 `debugLog()`가 호출되어 스택 파싱, 타임스탬프 생성, 파일 버퍼 기록이 반복된다.
+- 추가 원인: 최신 로그 2,808줄 중 연결 확인 `SELECT 1`이 180회 실행됐고, client/ODBC 양쪽에서 heartbeat당 최소 6줄, 총 1,080줄을 생성했다.
+- `preview_floating_window.dart`: 상세 진단 로그를 기본 비활성화하고 `LABEL_MANAGER_PREVIEW_FLOATING_DEBUG` dart-define으로만 활성화했다. 이동/resize 매 포인터 업데이트 로그는 제거했다.
+- `db_sql_log_policy.dart`: `SELECT 1`/`SELECT 1;` 연결 probe를 판별하는 공용 정책을 추가했다.
+- `db_client.dart`: 연결 probe 실행과 오류 전달은 유지하면서 시작/SQL/isolate 요청·응답/완료 로그를 생략했다.
+- `windows_odbc/odbc_driver.dart`: 연결 probe의 중복 SQL 로그를 생략했다. 일반 SQL 로그는 유지한다.
+- `db_sql_log_policy_test.dart`: probe와 일반 SELECT 판별을 고정했다.
+- 검증: DB 로그 정책, 연결 monitor, ODBC parameter, 앱 메뉴, floating preview 관련 집중 테스트 총 25건 통과. 수정 5개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
+- 기능 커밋: `fac8ba2` (`고빈도 로그 성능 저하 제거`).
+
 # 완료: main.dart 시작 처리 주석 보강
 - `clearLabelSheetAiImportStartupTempDirectory()`에 이전 실행의 AI 가져오기 임시 파일 정리 목적을 주석으로 명시했다.
 - `removePreferredPrinterIfMissing()`에 앱 시작을 막지 않는 기본 프린터 설정 정리 목적을 주석으로 명시했다.
