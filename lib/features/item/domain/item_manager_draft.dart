@@ -5,7 +5,7 @@ import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
-import 'package:label_manager/models/item_manager_save.dart';
+import 'package:label_manager/features/item/data/item_manager_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 
