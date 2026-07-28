@@ -4,6 +4,7 @@
 - 원인/편집: Flutter 포팅 쿼리가 존재하지 않는 `A.RICH_CUSTOMER_ID`로 잘못 한정했다. 이를 `B.RICH_CUSTOMER_ID`로 수정하고 잘못된 alias가 다시 들어오지 않도록 SQL 회귀 테스트를 추가했다.
 - 검증: 공용라벨 이력 모델/dialog 테스트 4 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음. 최신 로그의 실패 SQL과 레거시 `CommonLabelLog.cpp`를 직접 대조했다.
 - stage/commit 대상: `lib/models/common_label_history.dart`, `test/common_label_history_test.dart`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `60a91f2` (`공용라벨 수정 이력 거래처 필터 수정`).
 - 데이터베이스 마이그레이션은 수행하지 않는다. 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
 
 # 완료: 사용자 접속 이력 필터 overflow 수정
