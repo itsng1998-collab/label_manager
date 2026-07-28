@@ -316,6 +316,9 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       );
       final sheetData = labelSheetEncodeWorkbookSave(workbook);
       if (!mounted) return;
+      if (mode == NutritionBoxEditorMode.create) {
+        _rtfPreviewWindow?.hide();
+      }
       setState(() {
         _mode = mode;
         _editingBoxId = source?.id;

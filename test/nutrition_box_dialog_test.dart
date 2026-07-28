@@ -621,6 +621,7 @@ void main() {
           .selectedIndex,
       0,
     );
+    expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
 
     tester
         .widget<IconButton>(
@@ -639,6 +640,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
+    expect(find.byType(LabelSheetRtfPreview), findsNothing);
     expect(loadedData, isEmpty);
     expect(loadedWidth, 100);
     expect(
