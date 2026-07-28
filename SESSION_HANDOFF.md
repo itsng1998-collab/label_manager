@@ -3,6 +3,7 @@
 - 편집 완료: 품목관리의 420px 값을 공용 `itemManagerExpandedElementColumnWidth`로 분리하고, 발행 통계에서 검색 항목이 `주원료`일 때 같은 값을 사용한다. 다른 검색 항목은 기존 180px를 유지한다.
 - 테스트 보강: 발행 통계 초기 `searchValue` column 폭이 420px인지 검증한다.
 - 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 4개 정적 오류 없음, `git diff --check` 통과.
+- 기능 커밋: `aa91088` (`발행 통계 주원료 컬럼 폭 일치`).
 - 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
 
 # 완료: 발행 통계 datetime COLLATE 조회 오류 수정
