@@ -205,6 +205,8 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
   static const double _managerInitialPreviewWidth = 360;
   static const double _managerMinTableWidth = 420;
   static const double _managerMinPreviewWidth = 280;
+  static const double _managerZoomToolbarReserveWidth = 116;
+  static const double _managerRtfRestoreGap = 12;
 
   List<NutritionBox> _boxes = const [];
   int? _selectedIndex;
@@ -688,7 +690,11 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 116),
+                const SizedBox(
+                  key: ValueKey('nutritionBoxRtfRestoreTrailingSpace'),
+                  width:
+                      _managerZoomToolbarReserveWidth + _managerRtfRestoreGap,
+                ),
               ],
             ),
             ),

@@ -344,6 +344,16 @@ void main() {
     );
     expect(restoreOpacity.opacity, 1);
     expect(find.byType(LabelSheetRtfPreview), findsNothing);
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey('nutritionBoxRtfRestoreTrailingSpace'),
+            ),
+          )
+          .width,
+      128,
+    );
 
     await tester.tap(restoreButton);
     await tester.pump();
