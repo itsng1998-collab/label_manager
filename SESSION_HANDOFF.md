@@ -7,7 +7,7 @@
 - 2차 검증: 공용라벨 이력 dialog 테스트 2 passed, 수정 파일 정적 오류 없음. VS Code 테스트 어댑터는 대형 toolbar 파일의 `external zoom toolbar controls label sheet`를 발견하지 못했다.
 - 최종 검증: 공용라벨 이력 dialog 테스트 2 passed, Flutter CLI standalone zoom toolbar 회귀 1 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
 - stage/commit 대상: `lib/widgets/horizontal_pane_splitter.dart`, `lib/page_home/common_label_history_dialog.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/common_label_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
-- 검증 예정: `test/common_label_history_dialog_test.dart`, zoom toolbar 회귀 테스트, 수정 파일 정적 오류, `git diff --check`.
+- 구현 커밋: `6f14326` (`공용라벨 이력 미리보기 영역 조정`).
 - 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
 
 # 완료: 공용라벨 수정 이력 거래처 필터 수정
