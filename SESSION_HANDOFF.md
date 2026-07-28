@@ -1,3 +1,14 @@
+# 완료: 발행내용보기 날짜 조건 조회 최적화
+- 최신 로그 `app_2026-07-28_15-32-58.log`: `BM_RICH_PRINT_LOG` 조회가 15:33:39.885에 시작됐으나 마지막 기록 15:33:40.690까지 완료 응답이 없고 DB isolate heartbeat도 대기했다.
+- 확인된 스키마: `RICH_DATE_YYYYMMDD VARCHAR(8) NOT NULL`. 레거시는 non-Unicode 날짜 리터럴을 사용하지만 Flutter ODBC는 문자열을 `SQL_WVARCHAR`로 바인딩한다.
+- 편집 완료: 목록 query와 같은 DAO의 합계 query에서 날짜 column은 그대로 두고 날짜 parameter만 `VARCHAR(8)`로 변환해 sargable predicate를 유지한다. DB migration은 하지 않는다.
+- 테스트 보강: 목록·합계 query의 parameter 변환 및 날짜 column 무변환을 검증한다.
+- 검증: `test/print_log_test.dart`, `test/print_history_dialog_test.dart` 총 6건 통과. 수정한 모델/테스트 파일 정적 오류 없음.
+- 정적 검증: `git diff --check` 통과.
+- 사용자 재검증 필요: 동일 기간/거래처 조회 후 최신 로그에서 실제 완료 시간을 확인한다.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+- 기능 커밋: `0ac50fd` (`발행내용보기 날짜 조건 조회 최적화`).
+
 # 완료: 데이터내용 이력 0건 조회 지연 수정
 - 로그 확인: filter 초기화는 0.3초 미만이지만 `BM_CONTENT_SAVE_LOG` 0건 조회가 69,638ms 소요됐다. 정상적인 UI 지연이 아니다.
 - 원인: Windows ODBC binder가 날짜 문자열을 `SQL_WVARCHAR`로 전달하지만 레거시는 `SAVE_DATE_YYYYMMDD`를 `VARCHAR` 리터럴로 비교한다. SQL Server가 VARCHAR 날짜 column을 암시적 Unicode 변환하면 인덱스 seek가 차단될 수 있다.
