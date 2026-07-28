@@ -100,7 +100,7 @@ class CommonLabelHistoryDialogContent extends StatefulWidget {
 
 class _CommonLabelHistoryDialogContentState
     extends State<CommonLabelHistoryDialogContent> {
-  static const double _splitterHeight = 8;
+  static const double _splitterHeight = 7;
   static const double _minimumTableHeight = 120;
   static const double _minimumPreviewHeight = 140;
   late DateTime _startDate;

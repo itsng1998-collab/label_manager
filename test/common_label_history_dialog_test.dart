@@ -124,6 +124,10 @@ void main() {
     final beforePreview = find.byKey(
       const ValueKey('common-label-history-before-preview'),
     );
+    expect(
+      tester.getTopLeft(beforePreview).dy,
+      tester.getBottomLeft(tablePane).dy + 7,
+    );
     final previewFrame = tester.widget<DecoratedBox>(
       find.descendant(of: beforePreview, matching: find.byType(DecoratedBox)).first,
     );

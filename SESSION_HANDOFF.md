@@ -1,3 +1,9 @@
+# 완료: 공용라벨 수정 이력 preview 시작 위치 조정
+- 편집 완료: 테이블과 preview 사이 splitter 높이를 8px에서 7px로 줄여 변경 전/후 preview 전체 영역의 시작 y를 1px 위로 이동했다.
+- 테스트 추가: 테이블 하단과 preview 상단 사이 간격이 정확히 7px인지 검증한다.
+- 검증 완료: `test/common_label_history_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
+- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
+
 # 완료: 공용라벨 수정 이력 splitter·preview 마감
 - 원인: splitter가 매 update의 작은 delta를 rebuild 시점의 높이에 더해 이벤트 병합/clamp 상황에서 포인터 총 이동량과 pane 이동량이 어긋날 수 있었다.
 - 편집: 공용 `HorizontalPaneSplitter`가 drag 시작 global Y 대비 누적 이동량을 전달하고, dialog는 drag 시작 테이블 높이에 누적값을 더하도록 변경했다.
