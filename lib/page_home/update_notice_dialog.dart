@@ -217,6 +217,8 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
               child: NoticeDisplayPanel(
                 version: _version,
                 content: _message,
+                contentFlex: 1,
+                adFlex: 1,
                 initialFocusNode: _initialFocusNode,
                 editable: _isAdministrator,
                 onVersionChanged: (value) {

@@ -154,6 +154,10 @@ void main() {
       tester.widget<EditableText>(find.byType(EditableText).first).focusNode.hasFocus,
       isTrue,
     );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('notice-content-area'))).width,
+      tester.getSize(find.byKey(const ValueKey('notice-ad-area'))).width,
+    );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
