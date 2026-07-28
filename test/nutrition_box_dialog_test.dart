@@ -557,6 +557,122 @@ void main() {
     expect(tester.widget<LabelSheetRtfPreview>(find.byType(LabelSheetRtfPreview)).rtf, contains('200'));
   });
 
+  testWidgets('create editor ignores selected row and starts empty', (
+    tester,
+  ) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    String? loadedData;
+    int? loadedWidth;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NutritionBoxDialogContent(
+            controller: controller,
+            onCommitOutcomeUnknown: () {},
+            loadBoxes: () async => const [
+              NutritionBox(
+                id: 1,
+                typeId: 2,
+                typeName: '기본형',
+                name: '기존표',
+                rtf: r'{\rtf1\ansi Existing}',
+                width: 75,
+              ),
+            ],
+            loadTypes: () async => const [
+              NutritionType(id: 2, name: '기본형'),
+            ],
+            loadColumns: (_) async => const [],
+            loadWorkbook: (data, {required widthMm}) async {
+              loadedData = data;
+              loadedWidth = widthMm;
+              return FortuneWorkbook(
+                sheets: [FortuneSheet(id: 'nutrition', name: 'Nutrition')],
+              );
+            },
+            insert:
+                ({
+                  required typeId,
+                  required name,
+                  required rtf,
+                  required width,
+                }) async {},
+            update:
+                ({
+                  required boxId,
+                  required typeId,
+                  required name,
+                  required rtf,
+                  required width,
+                }) async {},
+            delete: (_) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      tester
+          .widget<FortuneTable<NutritionBox>>(
+            find.byKey(const ValueKey('nutritionBoxManagerTable')),
+          )
+          .selectedIndex,
+      0,
+    );
+
+    tester
+        .widget<IconButton>(
+          find.byKey(const ValueKey('nutritionBoxAddButton')),
+        )
+        .onPressed!();
+    for (
+      var attempt = 0;
+      attempt < 20 &&
+          find
+              .byKey(const ValueKey('nutritionBoxEditorSheet'))
+              .evaluate()
+              .isEmpty;
+      attempt += 1
+    ) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(loadedData, isEmpty);
+    expect(loadedWidth, 100);
+    expect(
+      tester
+          .widget<ModelessDropdownFormField<int>>(
+            find.byKey(const ValueKey('nutritionBoxTypeSelector')),
+          )
+          .initialValue,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('nutritionBoxNameField')),
+          )
+          .controller
+          ?.text,
+      isEmpty,
+    );
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('nutritionBoxWidthField')),
+          )
+          .controller
+          ?.text,
+      isEmpty,
+    );
+    final editor = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
+    );
+    expect(editor.initialWorkbook?.activeSheet.cells, isEmpty);
+  });
+
   testWidgets('editor saves current workbook data in rtf column', (tester) async {
     final controller = NutritionBoxDialogController();
     addTearDown(controller.dispose);

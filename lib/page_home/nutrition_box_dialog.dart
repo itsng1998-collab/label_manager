@@ -301,28 +301,29 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
       await _showMessage('수정할 영양성분표를 선택해주세요!');
       return;
     }
+    final source = mode == NutritionBoxEditorMode.edit ? selected : null;
     setState(() => _loading = true);
     try {
       final types = await widget.loadTypes();
-      final typeId = selected?.typeId;
+      final typeId = source?.typeId;
       final columns = typeId == null
           ? <NutritionTypeColumn>[]
           : await widget.loadColumns(typeId);
-      final sourceRtf = selected?.rtf ?? '';
+      final sourceRtf = source?.rtf ?? '';
       final workbook = await widget.loadWorkbook(
         sourceRtf,
-        widthMm: selected?.width ?? 100,
+        widthMm: source?.width ?? 100,
       );
       final sheetData = labelSheetEncodeWorkbookSave(workbook);
       if (!mounted) return;
       setState(() {
         _mode = mode;
-        _editingBoxId = selected?.id;
+        _editingBoxId = source?.id;
         _selectedTypeId = typeId;
         _types = types;
         _columns = columns;
-        _nameController.text = selected?.name ?? '';
-        _widthController.text = '${selected?.width ?? 0}';
+        _nameController.text = source?.name ?? '';
+        _widthController.text = source == null ? '' : '${source.width}';
         _rtf = sheetData;
         _editorWorkbook = workbook;
         _baselineTypeId = typeId;
