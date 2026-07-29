@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/content_save_log.dart';
+import 'package:label_manager/features/content_save_history/data/content_save_log_dao.dart';
+import 'package:label_manager/features/content_save_history/domain/content_save_log.dart';
 
 void main() {
   test('content save log codec keeps string grade and pairs shorter wire', () {
