@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_xlsx_import.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_xlsx_import.dart';
 
 void main() {
   test('imports xlsx values, styles, structure, links and rich text', () {

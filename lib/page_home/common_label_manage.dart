@@ -9,8 +9,8 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_page.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 const double commonLabelRightPaneInitialWidth = 350.0;

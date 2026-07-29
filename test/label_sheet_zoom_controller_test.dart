@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 
 void main() {
   test('zoom controller preserves default bounds', () {

@@ -1,6 +1,6 @@
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 
 class SearchReplaceElementValue {
   const SearchReplaceElementValue({

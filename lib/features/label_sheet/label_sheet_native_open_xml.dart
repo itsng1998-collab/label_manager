@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as image;
-import 'package:label_manager/page_label_sheet/label_sheet_open_xml_export.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_open_xml_export.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 const MethodChannel labelSheetNativeOpenXmlChannel = MethodChannel(

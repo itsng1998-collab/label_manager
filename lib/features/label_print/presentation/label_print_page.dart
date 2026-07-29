@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 

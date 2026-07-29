@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 
 int labelOutputPreviewValuesFingerprint(Map<int, String>? values) {
   if (values == null || values.isEmpty) return 0;
