@@ -3,7 +3,7 @@ import 'package:label_manager/features/login/data/user_dao.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 
 typedef AdminConnectMarketLoader = Future<List<Market>> Function(

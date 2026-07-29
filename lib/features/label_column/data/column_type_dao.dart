@@ -1,6 +1,6 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 
 TColumnType columnTypeFromRow(Map<String, dynamic> row) {
   return TColumnType(

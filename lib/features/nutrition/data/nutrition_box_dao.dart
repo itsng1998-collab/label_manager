@@ -1,7 +1,7 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 
 class NutritionBoxDAO extends DAO {
   static const String selectSql =

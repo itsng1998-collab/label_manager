@@ -1,6 +1,6 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/search_and_replace/domain/item_detail.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 
 ItemDetail itemDetailFromRow(Map<String, dynamic> row) {
   String stringValue(String key) => (row[key] ?? '').toString();

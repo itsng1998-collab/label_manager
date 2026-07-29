@@ -1,6 +1,6 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/search_print/domain/search_print.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 
 class SearchPrintDAO extends DAO {
   static const String selectSql = '''

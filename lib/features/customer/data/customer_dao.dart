@@ -1,7 +1,7 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 Customer customerFromRow(Map<String, dynamic> row) {

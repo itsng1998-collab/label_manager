@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/login_history/data/login_log_dao.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 
 void main() {

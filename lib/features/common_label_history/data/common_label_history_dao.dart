@@ -1,6 +1,6 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/common_label_history/domain/common_label_history.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 class CommonLabelHistoryDAO extends DAO {

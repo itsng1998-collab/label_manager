@@ -4,7 +4,7 @@ import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 ItemOfMarket itemOfMarketFromRow(Map<String, dynamic> row) {

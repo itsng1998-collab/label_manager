@@ -6,7 +6,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/core/barcode.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 TColumn tColumnFromRow(Map<String, dynamic> row) {

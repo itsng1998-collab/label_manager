@@ -1,6 +1,6 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 
 Gs1AiDefinition gs1AiDefinitionFromRow(Map<String, dynamic> row) {
   int number(String key) {

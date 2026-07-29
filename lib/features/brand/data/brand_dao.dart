@@ -2,7 +2,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 Brand brandFromRow(Map<String, dynamic> row) {

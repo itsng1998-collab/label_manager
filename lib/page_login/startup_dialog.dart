@@ -14,7 +14,7 @@ import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/database/db_connection_status.dart';
 import 'package:label_manager/database/db_result_utils.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';

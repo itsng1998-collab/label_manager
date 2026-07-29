@@ -4,7 +4,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/database/dao.dart';
 
 Cooperator cooperatorFromRow(Map<String, dynamic> row) {
   String stringValue(String key) => (row[key] ?? '').toString();
