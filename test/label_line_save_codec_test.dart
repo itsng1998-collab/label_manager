@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 
 void main() {
   test('label save features append lines and fortune shapes', () {

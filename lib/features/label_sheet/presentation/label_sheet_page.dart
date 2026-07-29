@@ -14,7 +14,7 @@ import 'package:label_manager/features/label_sheet/domain/label_sheet_required_k
 import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/snackbar.dart';
