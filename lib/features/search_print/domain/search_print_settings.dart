@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:label_manager/models/label_column_edit.dart';
+import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/column.dart';
 
 class SearchPrintSettingsDraft extends ChangeNotifier {

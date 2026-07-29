@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:label_manager/features/label_column/data/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
+import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 

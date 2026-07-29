@@ -64,7 +64,7 @@ import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/models/label_column_edit.dart';
+import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/features/label_column/data/label_column_save.dart';
 import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';

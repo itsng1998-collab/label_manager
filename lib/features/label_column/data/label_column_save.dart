@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/label_column/data/label_column_candidates.dart';
+import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/dao.dart';
-import 'package:label_manager/models/label_column_edit.dart';
 
 class LabelColumnSchemaCapabilities {
   const LabelColumnSchemaCapabilities({
