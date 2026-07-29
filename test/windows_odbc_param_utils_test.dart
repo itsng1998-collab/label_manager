@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/database/windows_odbc/odbc_bindings.dart';
 import 'package:label_manager/database/windows_odbc/odbc_driver.dart';
 import 'package:label_manager/database/windows_odbc/odbc_param_utils.dart';
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 
 void main() {
   group('prepareStatement', () {

@@ -2,296 +2,48 @@
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
 import 'package:label_manager/core/app.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/db_result_utils.dart';
+import 'package:label_manager/features/date_setup/domain/date_manager.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
+import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
-import 'dao.dart';
-import 'package:label_manager/features/date_setup/domain/date_manager.dart';
-import 'package:label_manager/core/user.dart';
 
-class LabelSizeCommon {
-  final int width;
-  final int height;
-  final String rtf;
-
-  const LabelSizeCommon({
-    required this.width,
-    required this.height,
-    required this.rtf,
-  });
-
-  LabelSizeCommon copyWith({int? width, int? height, String? rtf}) {
-    return LabelSizeCommon(
-      width: width ?? this.width,
-      height: height ?? this.height,
-      rtf: rtf ?? this.rtf,
-    );
+LabelSize labelSizeFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+  int number(String key) {
+    final value = row[key];
+    return value is num ? value.toInt() : int.tryParse('$value') ?? 0;
   }
 
-  @override
-  String toString() => 'Width: $width, Height: $height, RTF: $rtf';
-}
-
-class LabelSizeSetup {
-  final bool readOnly;
-  final bool useMakeDate;
-  final bool useMakeTime;
-  final bool useValidDate;
-  final bool useValidTime;
-  final PrintDateFormat makingDateFormat;
-  final PrintTimeFormat makingTimeFormat;
-  final PrintDateFormat validDateFormat;
-  final PrintTimeFormat validTimeFormat;
-  final String strMakeDate;
-  final String strMakeTime;
-  final String strValidDate;
-  final String strValidTime;
-
-  // 저울
-  final bool useScale;
-
-  const LabelSizeSetup({
-    required this.readOnly,
-    required this.useMakeDate,
-    required this.useMakeTime,
-    required this.useValidDate,
-    required this.useValidTime,
-    required this.makingDateFormat,
-    required this.makingTimeFormat,
-    required this.validDateFormat,
-    required this.validTimeFormat,
-    required this.strMakeDate,
-    required this.strMakeTime,
-    required this.strValidDate,
-    required this.strValidTime,
-    required this.useScale,
-  });
-
-  LabelSizeSetup copyWith({bool? useScale}) => LabelSizeSetup(
-    readOnly: readOnly,
-    useMakeDate: useMakeDate,
-    useMakeTime: useMakeTime,
-    useValidDate: useValidDate,
-    useValidTime: useValidTime,
-    makingDateFormat: makingDateFormat,
-    makingTimeFormat: makingTimeFormat,
-    validDateFormat: validDateFormat,
-    validTimeFormat: validTimeFormat,
-    strMakeDate: strMakeDate,
-    strMakeTime: strMakeTime,
-    strValidDate: strValidDate,
-    strValidTime: strValidTime,
-    useScale: useScale ?? this.useScale,
-  );
-
-  LabelSizeSetup copyWithDateSetup(LabelSizeDateSetupUpdate update) =>
-      LabelSizeSetup(
-        readOnly: readOnly,
-        useMakeDate: update.useMakeDate,
-        useMakeTime: update.useMakeTime,
-        useValidDate: update.useValidDate,
-        useValidTime: update.useValidTime,
-        makingDateFormat: update.makingDateFormat,
-        makingTimeFormat: update.makingTimeFormat,
-        validDateFormat: update.validDateFormat,
-        validTimeFormat: update.validTimeFormat,
-        strMakeDate: update.strMakeDate,
-        strMakeTime: update.strMakeTime,
-        strValidDate: update.strValidDate,
-        strValidTime: update.strValidTime,
-        useScale: useScale,
-      );
-
-  @override
-  String toString() =>
-      'ReadOnly: $readOnly, '
-      'UseMakeDate: $useMakeDate, UseMakeTime: $useMakeTime, '
-      'UseValidDate: $useValidDate, UseValidTime: $useValidTime, '
-      'MakingDateFormat: $makingDateFormat, MakingTimeFormat: $makingTimeFormat, '
-      'ValidDateFormat: $validDateFormat, ValidTimeFormat: $validTimeFormat, '
-      'StrMakeDate: $strMakeDate, StrMakeTime: $strMakeTime, '
-      'StrValidDate: $strValidDate, StrValidTime: $strValidTime, UseScale: $useScale';
-}
-
-class LabelSizeDateSetupUpdate {
-  const LabelSizeDateSetupUpdate({
-    required this.useMakeDate,
-    required this.useMakeTime,
-    required this.useValidDate,
-    required this.useValidTime,
-    required this.makingDateFormat,
-    required this.makingTimeFormat,
-    required this.validDateFormat,
-    required this.validTimeFormat,
-    required this.strMakeDate,
-    required this.strMakeTime,
-    required this.strValidDate,
-    required this.strValidTime,
-  });
-
-  factory LabelSizeDateSetupUpdate.fromSetup(LabelSizeSetup setup) =>
-      LabelSizeDateSetupUpdate(
-        useMakeDate: setup.useMakeDate,
-        useMakeTime: setup.useMakeTime,
-        useValidDate: setup.useValidDate,
-        useValidTime: setup.useValidTime,
-        makingDateFormat: setup.makingDateFormat,
-        makingTimeFormat: setup.makingTimeFormat,
-        validDateFormat: setup.validDateFormat,
-        validTimeFormat: setup.validTimeFormat,
-        strMakeDate: setup.strMakeDate,
-        strMakeTime: setup.strMakeTime,
-        strValidDate: setup.strValidDate,
-        strValidTime: setup.strValidTime,
-      );
-
-  final bool useMakeDate;
-  final bool useMakeTime;
-  final bool useValidDate;
-  final bool useValidTime;
-  final PrintDateFormat makingDateFormat;
-  final PrintTimeFormat makingTimeFormat;
-  final PrintDateFormat validDateFormat;
-  final PrintTimeFormat validTimeFormat;
-  final String strMakeDate;
-  final String strMakeTime;
-  final String strValidDate;
-  final String strValidTime;
-
-  Map<String, dynamic> toParams() => {
-    'useMakeDate': useMakeDate ? 1 : 0,
-    'useMakeTime': useMakeTime ? 1 : 0,
-    'useValidDate': useValidDate ? 1 : 0,
-    'useValidTime': useValidTime ? 1 : 0,
-    'makeDateType': makingDateFormat.index,
-    'makeTimeType': makingTimeFormat.index,
-    'validDateType': validDateFormat.index,
-    'validTimeType': validTimeFormat.index,
-    'userMakeDate': strMakeDate,
-    'userMakeTime': strMakeTime,
-    'userValidDate': strValidDate,
-    'userValidTime': strValidTime,
-  };
-}
-
-class LabelSize {
-  static List<LabelSize>? datas;
-
-  final int labelSizeId;
-  final int brandId;
-  final String labelSizeName;
-  final LabelSizeCommon? labelSizeCommon;
-  final LabelSizeSetup? labelSizeSetup;
-  final bool hasInvalidDateSetupValues;
-
-  const LabelSize({
-    required this.labelSizeId,
-    required this.brandId,
-    required this.labelSizeName,
-    this.labelSizeCommon,
-    this.labelSizeSetup,
-    this.hasInvalidDateSetupValues = false,
-  });
-
-  static void setDatas(List<LabelSize>? values) {
-    datas = values;
+  T enumValue<T>(List<T> values, String key) {
+    final index = number(key);
+    return index >= 0 && index < values.length ? values[index] : values.first;
   }
 
-  static LabelSize? replaceCachedFormData(
-    int labelSizeId,
-    int? width,
-    int? height,
-    String formData,
-  ) {
-    final current = datas;
-    if (current == null) return null;
-    for (var index = 0; index < current.length; index += 1) {
-      final labelSize = current[index];
-      if (labelSize.labelSizeId != labelSizeId) continue;
-      final common = labelSize.labelSizeCommon;
-      if (common == null) return labelSize;
-      final updated = labelSize.copyWith(
-        labelSizeCommon: common.copyWith(
-          width: width,
-          height: height,
-          rtf: formData,
-        ),
-      );
-      final next = [...current];
-      next[index] = updated;
-      datas = next;
-      return updated;
-    }
-    return null;
+  bool invalidEnumIndex<T>(List<T> values, String key) {
+    final index = number(key);
+    return index < 0 || index >= values.length;
   }
 
-  static LabelSize replaceCachedDateSetup(LabelSize updated) {
-    final current = datas;
-    if (current == null) return updated;
-    final index = current.indexWhere(
-      (value) => value.labelSizeId == updated.labelSizeId,
-    );
-    if (index < 0) return updated;
-    final next = [...current];
-    next[index] = updated;
-    datas = next;
-    return updated;
-  }
-
-  LabelSize copyWith({
-    int? labelSizeId,
-    int? brandId,
-    String? labelSizeName,
-    LabelSizeCommon? labelSizeCommon,
-    LabelSizeSetup? labelSizeSetup,
-    bool? hasInvalidDateSetupValues,
-  }) {
-    return LabelSize(
-      labelSizeId: labelSizeId ?? this.labelSizeId,
-      brandId: brandId ?? this.brandId,
-      labelSizeName: labelSizeName ?? this.labelSizeName,
-      labelSizeCommon: labelSizeCommon ?? this.labelSizeCommon,
-      labelSizeSetup: labelSizeSetup ?? this.labelSizeSetup,
-        hasInvalidDateSetupValues:
-          hasInvalidDateSetupValues ?? this.hasInvalidDateSetupValues,
-    );
-  }
-
-  factory LabelSize.fromMap(Map<String, dynamic> map) {
-    String s(String key) => (map[key] ?? '').toString();
-    int number(String key) {
-      final value = map[key];
-      return value is num ? value.toInt() : int.tryParse('$value') ?? 0;
-    }
-
-    T enumValue<T>(List<T> values, String key) {
-      final index = number(key);
-      return index >= 0 && index < values.length ? values[index] : values.first;
-    }
-
-    bool invalidEnumIndex<T>(List<T> values, String key) {
-      final index = number(key);
-      return index < 0 || index >= values.length;
-    }
-
-    final labelSizeId = map['LABELSIZE_ID'];
-    final brandId = map['BRAND_ID'];
-    final labelSizeName = s('LABELSIZE_NAME');
-
-    final labelSizeCommon = LabelSizeCommon(
-      width: map['FORM_WIDTH'],
-      height: map['FORM_HEIGHT'],
-      rtf: s('FORM_DATA'),
-    );
-
-    final labelSizeSetup = LabelSizeSetup(
-      readOnly: map['SETUP_READONLY'] != 0,
-      useMakeDate: map['SETUP_USE_MAKEDATE'] != 0,
-      useMakeTime: map['SETUP_USE_MAKETIME'] != 0,
-      useValidDate: map['SETUP_USE_VALIDDATE'] != 0,
-      useValidTime: map['SETUP_USE_VALIDTIME'] != 0,
+  return LabelSize(
+    labelSizeId: row['LABELSIZE_ID'],
+    brandId: row['BRAND_ID'],
+    labelSizeName: stringValue('LABELSIZE_NAME'),
+    labelSizeCommon: LabelSizeCommon(
+      width: row['FORM_WIDTH'],
+      height: row['FORM_HEIGHT'],
+      rtf: stringValue('FORM_DATA'),
+    ),
+    labelSizeSetup: LabelSizeSetup(
+      readOnly: row['SETUP_READONLY'] != 0,
+      useMakeDate: row['SETUP_USE_MAKEDATE'] != 0,
+      useMakeTime: row['SETUP_USE_MAKETIME'] != 0,
+      useValidDate: row['SETUP_USE_VALIDDATE'] != 0,
+      useValidTime: row['SETUP_USE_VALIDTIME'] != 0,
       makingDateFormat: enumValue(
         PrintDateFormat.values,
         'SETUP_MAKEDATE_TYPE',
@@ -308,52 +60,18 @@ class LabelSize {
         PrintTimeFormat.values,
         'SETUP_VALIDTIME_TYPE',
       ),
-      strMakeDate: s('USER_MAKEDATE'),
-      strMakeTime: s('USER_MAKETIME'),
-      strValidDate: s('USER_VALIDDATE'),
-      strValidTime: s('USER_VALIDTIME'),
-      useScale: map['SETUP_USE_SCALE'] != 0,
-    );
-
-    return LabelSize(
-      labelSizeId: labelSizeId,
-      brandId: brandId,
-      labelSizeName: labelSizeName,
-      labelSizeCommon: labelSizeCommon,
-      labelSizeSetup: labelSizeSetup,
-      hasInvalidDateSetupValues:
-          invalidEnumIndex(
-            PrintDateFormat.values,
-            'SETUP_MAKEDATE_TYPE',
-          ) ||
-          invalidEnumIndex(
-            PrintTimeFormat.values,
-            'SETUP_MAKETIME_TYPE',
-          ) ||
-          invalidEnumIndex(
-            PrintDateFormat.values,
-            'SETUP_VALIDDATE_TYPE',
-          ) ||
-          invalidEnumIndex(
-            PrintTimeFormat.values,
-            'SETUP_VALIDTIME_TYPE',
-          ),
-    );
-  }
-
-  @override
-  String toString() =>
-      'LabelSizeId: $labelSizeId, BrandId: $brandId, LabelSizeName: $labelSizeName';
-}
-
-class LabelSizeOrderUpdate {
-  const LabelSizeOrderUpdate({
-    required this.labelSizeId,
-    required this.labelSizeOrder,
-  });
-
-  final int labelSizeId;
-  final int labelSizeOrder;
+      strMakeDate: stringValue('USER_MAKEDATE'),
+      strMakeTime: stringValue('USER_MAKETIME'),
+      strValidDate: stringValue('USER_VALIDDATE'),
+      strValidTime: stringValue('USER_VALIDTIME'),
+      useScale: row['SETUP_USE_SCALE'] != 0,
+    ),
+    hasInvalidDateSetupValues:
+        invalidEnumIndex(PrintDateFormat.values, 'SETUP_MAKEDATE_TYPE') ||
+        invalidEnumIndex(PrintTimeFormat.values, 'SETUP_MAKETIME_TYPE') ||
+        invalidEnumIndex(PrintDateFormat.values, 'SETUP_VALIDDATE_TYPE') ||
+        invalidEnumIndex(PrintTimeFormat.values, 'SETUP_VALIDTIME_TYPE'),
+  );
 }
 
 class LabelSizeDAO extends DAO {
@@ -454,7 +172,6 @@ class LabelSizeDAO extends DAO {
         END CATCH
       ''';
 
-  // WHERE 절: Brand ID로 조회 (Integer)
   static const String WhereSqlBrandId = '''
 	  WHERE RICH_BRAND_ID=@brandId
   ''';
@@ -478,7 +195,7 @@ class LabelSizeDAO extends DAO {
         {'brandId': brandId},
       );
 
-      final labelSizes = DAO.mapRows(res, LabelSize.fromMap);
+      final labelSizes = DAO.mapRows(res, labelSizeFromRow);
 
       debugLog(END);
       return labelSizes;
@@ -497,7 +214,7 @@ class LabelSizeDAO extends DAO {
       '$SelectSql $WhereSqlLabelSizeId',
       {'labelSizeId': labelSizeId},
     );
-    final latest = DAO.mapRow(latestResult, LabelSize.fromMap);
+    final latest = DAO.mapRow(latestResult, labelSizeFromRow);
     if (latest?.labelSizeSetup == null) {
       throw StateError('저장할 라벨 날짜 설정을 찾을 수 없습니다.');
     }
@@ -633,7 +350,7 @@ class LabelSizeDAO extends DAO {
         'labelSizeOrder': labelSizeOrder,
       });
 
-      final inserted = DAO.mapRow(res, LabelSize.fromMap);
+      final inserted = DAO.mapRow(res, labelSizeFromRow);
       if (inserted == null) {
         throw Exception(
           '${runtimeLogTag()} Insert failed for labelSizeName:$labelSizeName',

@@ -8,7 +8,7 @@ import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/search_print/domain/search_print_settings.dart';
 import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 const _baseType = TColumnType(
   code: TColumnType.TYPE_BASE,

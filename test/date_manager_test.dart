@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/date_setup/domain/date_manager.dart';
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/data/label_size_dao.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 void main() {
   test('date and time custom previews replace legacy tokens', () {
@@ -21,7 +22,7 @@ void main() {
   });
 
   test('invalid date setup indexes use defaults and expose warning state', () {
-    final labelSize = LabelSize.fromMap({
+    final labelSize = labelSizeFromRow({
       'LABELSIZE_ID': 1,
       'BRAND_ID': 2,
       'LABELSIZE_NAME': '테스트',

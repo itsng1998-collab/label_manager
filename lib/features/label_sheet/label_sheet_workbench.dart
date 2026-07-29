@@ -11,7 +11,7 @@ import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_zxing/flutter_zxing.dart' as zxing;
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as imglib;
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_import_model.dart';

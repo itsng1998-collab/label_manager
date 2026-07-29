@@ -3,7 +3,7 @@ import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 int resolveLabelPrintCopies({
   required ItemOfMarket item,

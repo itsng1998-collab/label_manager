@@ -25,7 +25,7 @@ import 'package:label_manager/core/user.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'database/db_connection_status_icon.dart';
 import 'home_page_manager.dart';
 import 'page_login/startup_dialog.dart';

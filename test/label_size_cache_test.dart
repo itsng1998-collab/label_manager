@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 void main() {
   tearDown(() {
