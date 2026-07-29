@@ -239,15 +239,3 @@ class BarcodeDataHelper {
   static String _padLeft(String s, int width, String ch) =>
       (s.length >= width) ? s : ch * (width - s.length) + s;
 }
-
-class Barcode {
-  final BarcodeType type;
-  final String name;
-
-  const Barcode({required this.type, required this.name});
-
-  @override
-  String toString() {
-    return 'type: $type, name: $name';
-  }
-}
