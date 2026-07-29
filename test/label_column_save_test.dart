@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/label_column/application/label_column_save_service.dart';
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/barcode.dart';
@@ -328,7 +329,7 @@ void main() {
       );
 
       await expectLater(
-        LabelColumnSaveDao.saveDialogAndReload(
+        executeLabelColumnSaveAndReload(
           command,
           save: (_) async => throw const DbCommitOutcomeUnknown('unknown'),
           reload: () async {
@@ -357,7 +358,7 @@ void main() {
       );
 
       await expectLater(
-        LabelColumnSaveDao.saveDialogAndReload(
+        executeLabelColumnSaveAndReload(
           command,
           save: (_) async => saved = true,
           reload: () async => false,

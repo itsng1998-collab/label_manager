@@ -64,8 +64,8 @@ import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/features/label_column/application/label_column_save_service.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
-import 'package:label_manager/features/label_column/data/label_column_save.dart';
 import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/app_menu_command.dart';
@@ -2979,7 +2979,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
     setState(() => _labelColumnEditCommandBusy = true);
     try {
-      await LabelColumnSaveDao.saveDialogAndReload(
+      await executeLabelColumnSaveAndReload(
         command,
         reload: () => _handleLabelSizeChanged(labelSize, forceReload: true),
       );
@@ -5759,7 +5759,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               workingColumns: workingColumns,
             );
             List<TColumn>? reloaded;
-            await LabelColumnSaveDao.saveDialogAndReload(
+            await executeLabelColumnSaveAndReload(
               command,
               reload: () async {
                 reloaded = await TColumnDAO.selectByLabelSizeId(labelSizeId);
