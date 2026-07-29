@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/common_label_history.dart';
+import 'package:label_manager/features/common_label_history/data/common_label_history_dao.dart';
+import 'package:label_manager/features/common_label_history/domain/common_label_history.dart';
 
 void main() {
   test('common label history keeps log id and prefers nonempty sheet', () {

@@ -5,7 +5,8 @@ import 'package:fortune_sheet/fortune_sheet.dart'
   show FortuneTable, FortuneTableColumn;
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:intl/intl.dart';
-import 'package:label_manager/models/common_label_history.dart';
+import 'package:label_manager/features/common_label_history/data/common_label_history_dao.dart';
+import 'package:label_manager/features/common_label_history/domain/common_label_history.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/models/cooperator.dart';

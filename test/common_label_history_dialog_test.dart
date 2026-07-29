@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
-import 'package:label_manager/models/common_label_history.dart';
+import 'package:label_manager/features/common_label_history/domain/common_label_history.dart';
+import 'package:label_manager/features/common_label_history/presentation/common_label_history_dialog.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/user.dart';
-import 'package:label_manager/page_home/common_label_history_dialog.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';

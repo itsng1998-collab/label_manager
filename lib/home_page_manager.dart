@@ -96,7 +96,7 @@ import 'package:label_manager/features/nutrition/presentation/nutrition_type_dia
 import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
 import 'package:label_manager/page_home/update_notice_dialog.dart';
 import 'package:label_manager/features/label_column/presentation/label_column_edit_dialog.dart';
-import 'package:label_manager/page_home/common_label_history_dialog.dart';
+import 'package:label_manager/features/common_label_history/presentation/common_label_history_dialog.dart';
 import 'package:label_manager/features/content_save_history/presentation/content_save_history_dialog.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/features/print_history/presentation/print_history_dialog.dart';
