@@ -29,7 +29,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_ai_im
 import 'package:label_manager/features/label_sheet/domain/label_sheet_required_keyword.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_page.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_model.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_native_open_xml.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_native_open_xml.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_open_xml_export.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_rtf_preview.dart';
