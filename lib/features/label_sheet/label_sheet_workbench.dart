@@ -13,6 +13,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_ai_im
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_codec.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_import_layout.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
@@ -35,227 +36,9 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
-const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 const double _labelSheetZoomToolbarRightInset = 124.0;
 const double _labelSheetObjectPanelMinWidth = 160.0;
 const double _labelSheetObjectPanelInitialWidth = 160.0;
-
-FortuneSheet _labelSheetWithPreservedGridClientSize(
-  FortuneSheet importedSheet,
-  FortuneSheet currentSheet,
-) {
-  if (fortuneSheetGridClientPhysicalSize(importedSheet) != null) {
-    return importedSheet.copyWith();
-  }
-  final currentSize = fortuneSheetGridClientPhysicalSize(currentSheet);
-  if (currentSize == null) {
-    return importedSheet.copyWith();
-  }
-  return importedSheet.copyWith(
-    extraFields: {
-      ...importedSheet.extraFields,
-      fortuneSheetGridClientWidthMmKey: currentSize.widthMm,
-      fortuneSheetGridClientHeightMmKey: currentSize.heightMm,
-    },
-  );
-}
-
-// 변환 규칙 C(스케일): 물리 라벨 크기에 맞춰 폭 우선으로 스케일하고, 폭 대비 비율로
-// 높이를 맞춘다(규칙 5). 폭 기준 축소로 문자가 실물 프린트 기준 최소 가독 크기(규칙 7)를
-// 밑돌면 인쇄 영역을 벗어나더라도 다시 키운다(규칙 6). 세부 규칙은
-// label_sheet_xlsx_import.dart 상단 규칙 주석 참조.
-FortuneSheet _labelSheetScaledToPhysicalWidth(
-  FortuneSheet sheet, {
-  required FortuneSheet currentSheet,
-}) {
-  final physicalSize =
-      fortuneSheetGridClientPhysicalSize(sheet) ??
-      fortuneSheetGridClientPhysicalSize(currentSheet);
-  if (physicalSize == null) {
-    return sheet.copyWith();
-  }
-  final sourceWidth = _labelSheetAxisLogicalTotalSizeForCount(
-    sheet.columnWidths,
-    sheet.columnCount,
-    sheet.defaultColWidth,
-  );
-  final sourceHeight = _labelSheetAxisLogicalTotalSizeForCount(
-    sheet.rowHeights,
-    sheet.rowCount,
-    sheet.defaultRowHeight,
-  );
-  if (sourceWidth <= 0 || sourceHeight <= 0) {
-    return sheet.copyWith();
-  }
-  final targetWidth = physicalSize.logicalSize.width;
-  final widthScale = _labelSheetAxisScaleForTarget(
-    sourceWidth,
-    targetWidth,
-    sheet.columnCount,
-  );
-  final minFontSize = _labelSheetMinimumFontSize(sheet);
-  final minReadableFontSize = fortuneMillimetersToLogicalPixels(
-    _labelSheetImportMinReadableFontHeightMm,
-  );
-  final readableScale = minFontSize == null || minFontSize <= 0
-      ? widthScale
-      : minReadableFontSize / minFontSize;
-  final scale = math.max(widthScale, readableScale);
-  final scaledSheet = _labelSheetScaleSheet(sheet, scale);
-  final scaledWidth = _labelSheetAxisLogicalTotalSizeForCount(
-    scaledSheet.columnWidths,
-    scaledSheet.columnCount,
-    scaledSheet.defaultColWidth,
-  );
-  final scaledHeight = _labelSheetAxisLogicalTotalSizeForCount(
-    scaledSheet.rowHeights,
-    scaledSheet.rowCount,
-    scaledSheet.defaultRowHeight,
-  );
-  final scaledMinFontSize = _labelSheetMinimumFontSize(scaledSheet);
-  final overflowLogical = scaledWidth - targetWidth;
-  final overflowMm = overflowLogical <= 0
-      ? 0.0
-      : overflowLogical / fortuneMillimetersToLogicalPixels(1);
-  debugLog(
-    'label sheet import physical scale '
-    'sourceLogical=${sourceWidth}x$sourceHeight '
-    'targetWidth=$targetWidth physicalSizeMm=${physicalSize.widthMm}x${physicalSize.heightMm} '
-    'widthScale=$widthScale readableScale=$readableScale scale=$scale '
-    'minFontSize=$minFontSize scaledMinFontSize=$scaledMinFontSize '
-    'minReadableMm=$_labelSheetImportMinReadableFontHeightMm '
-    'minReadableLogical=$minReadableFontSize '
-    'scaledLogical=${scaledWidth}x$scaledHeight overflowWidth=${scaledWidth > targetWidth} '
-    'overflowLogical=$overflowLogical overflowMm=$overflowMm',
-    skipFrames: 1,
-  );
-  return scaledSheet;
-}
-
-FortuneSheet _labelSheetScaleSheet(FortuneSheet sheet, double scale) {
-  if (!scale.isFinite || scale <= 0) {
-    return sheet.copyWith();
-  }
-  return sheet.copyWith(
-    rowHeights: _labelSheetScaleAxis(sheet.rowHeights, scale),
-    columnWidths: _labelSheetScaleAxis(sheet.columnWidths, scale),
-    defaultRowHeight: _labelSheetScaleNullable(sheet.defaultRowHeight, scale),
-    defaultColWidth: _labelSheetScaleNullable(sheet.defaultColWidth, scale),
-    cells: {
-      for (final entry in sheet.cells.entries)
-        entry.key: _labelSheetScaleCell(entry.value, scale),
-    },
-  );
-}
-
-Map<int, double> _labelSheetScaleAxis(Map<int, double> values, double scale) {
-  return {
-    for (final entry in values.entries)
-      entry.key: math.max(1.0, entry.value * scale),
-  };
-}
-
-double? _labelSheetScaleNullable(double? value, double scale) {
-  if (value == null) {
-    return null;
-  }
-  return math.max(1.0, value * scale);
-}
-
-FortuneCell _labelSheetScaleCell(FortuneCell cell, double scale) {
-  return cell.copyWith(
-    fontSize: _labelSheetScaleNullable(cell.fontSize, scale),
-    inlineRuns: cell.inlineRuns
-        ?.map((run) => _labelSheetScaleInlineRun(run, scale))
-        .toList(),
-    extraFields: _labelSheetScaleTextExtraFields(cell.extraFields, scale),
-  );
-}
-
-FortuneInlineTextRun _labelSheetScaleInlineRun(
-  FortuneInlineTextRun run,
-  double scale,
-) {
-  return run.copyWith(
-    fontSize: _labelSheetScaleNullable(run.fontSize, scale),
-    extraFields: _labelSheetScaleTextExtraFields(run.extraFields, scale),
-  );
-}
-
-Map<String, Object?> _labelSheetScaleTextExtraFields(
-  Map<String, Object?> values,
-  double scale,
-) {
-  final scaled = <String, Object?>{...values};
-  final letterSpacing = _labelSheetNumber(values['letterSpacing']);
-  if (letterSpacing != null) {
-    scaled['letterSpacing'] = letterSpacing * scale;
-  }
-  return scaled;
-}
-
-double? _labelSheetNumber(Object? value) {
-  if (value is num) {
-    return value.toDouble();
-  }
-  return double.tryParse('$value');
-}
-
-double? _labelSheetMinimumFontSize(FortuneSheet sheet) {
-  double? minFontSize;
-  void add(double? value) {
-    if (value == null || !value.isFinite || value <= 0) {
-      return;
-    }
-    minFontSize = minFontSize == null ? value : math.min(minFontSize!, value);
-  }
-
-  for (final cell in sheet.cells.values) {
-    add(cell.fontSize);
-    for (final run in cell.inlineRuns ?? const <FortuneInlineTextRun>[]) {
-      add(run.fontSize);
-    }
-  }
-  return minFontSize;
-}
-
-double _labelSheetAxisLogicalTotalSizeForCount(
-  Map<int, double> sizes,
-  int? count,
-  double? defaultSize,
-) {
-  final resolvedCount = count ?? _labelSheetAxisCount(sizes);
-  if (resolvedCount <= 0) {
-    return _labelSheetAxisLogicalTotalSize(sizes);
-  }
-  final fallback = defaultSize ?? 0;
-  var total = 0.0;
-  for (var index = 0; index < resolvedCount; index += 1) {
-    total += (sizes[index] ?? fallback) + 1;
-  }
-  return total;
-}
-
-double _labelSheetAxisScaleForTarget(
-  double sourceTotal,
-  double targetTotal,
-  int? count,
-) {
-  if (sourceTotal <= 0 || targetTotal <= 0) {
-    return 1;
-  }
-  final gridLineCount = math.max(0, count ?? 0);
-  final sourceContent = math.max(1.0, sourceTotal - gridLineCount);
-  final targetContent = math.max(1.0, targetTotal - gridLineCount);
-  return targetContent / sourceContent;
-}
-
-int _labelSheetAxisCount(Map<int, double> sizes) {
-  if (sizes.isEmpty) {
-    return 0;
-  }
-  return sizes.keys.reduce(math.max) + 1;
-}
 
 void _logImportedSheetApplySample(FortuneSheet sheet) {
   final gridSize = fortuneSheetGridClientPhysicalSize(sheet);
@@ -263,12 +46,12 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     sheet.columnWidths,
   );
   final rowLogicalHeight = _labelSheetAxisLogicalTotalSize(sheet.rowHeights);
-  final countedColumnLogicalWidth = _labelSheetAxisLogicalTotalSizeForCount(
+  final countedColumnLogicalWidth = labelSheetAxisLogicalTotalSizeForCount(
     sheet.columnWidths,
     sheet.columnCount,
     sheet.defaultColWidth,
   );
-  final countedRowLogicalHeight = _labelSheetAxisLogicalTotalSizeForCount(
+  final countedRowLogicalHeight = labelSheetAxisLogicalTotalSizeForCount(
     sheet.rowHeights,
     sheet.rowCount,
     sheet.defaultRowHeight,
@@ -465,7 +248,7 @@ String _labelSheetAxisBoundarySampleForCount(
   double? defaultSize, {
   int limit = 30,
 }) {
-  final resolvedCount = count ?? _labelSheetAxisCount(sizes);
+  final resolvedCount = count ?? labelSheetAxisCount(sizes);
   if (resolvedCount <= 0) {
     return '-';
   }
@@ -489,7 +272,7 @@ List<String> _labelSheetAxisBoundarySamplesForCount(
   int? count,
   double? defaultSize,
 ) {
-  final resolvedCount = count ?? _labelSheetAxisCount(sizes);
+  final resolvedCount = count ?? labelSheetAxisCount(sizes);
   if (resolvedCount <= 0) {
     return const <String>['-'];
   }
@@ -2800,7 +2583,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       importedWorkbook.activeSheet,
     );
     final currentGridSize = fortuneSheetGridClientPhysicalSize(currentSheet);
-    final sizedImportedSheet = _labelSheetWithPreservedGridClientSize(
+    final sizedImportedSheet = labelSheetImportWithPreservedGridClientSize(
       importedWorkbook.activeSheet.copyWith(
         id: currentSheet.id,
         name: currentSheet.name,
@@ -2812,7 +2595,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       currentSheet,
     );
     final importedSheet = scaleToPhysicalWidth
-        ? _labelSheetScaledToPhysicalWidth(
+        ? labelSheetScaleImportedToPhysicalWidth(
             sizedImportedSheet,
             currentSheet: currentSheet,
           )
