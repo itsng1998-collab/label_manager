@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/date_manager.dart';
+import 'package:label_manager/features/date_setup/domain/date_manager.dart';
 import 'package:label_manager/models/label_size.dart';
 
 void main() {

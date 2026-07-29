@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:label_manager/models/date_manager.dart';
+import 'package:label_manager/features/date_setup/domain/date_manager.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 

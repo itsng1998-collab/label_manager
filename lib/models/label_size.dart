@@ -7,7 +7,7 @@ import 'package:label_manager/database/db_result_utils.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
 import 'dao.dart';
-import 'date_manager.dart';
+import 'package:label_manager/features/date_setup/domain/date_manager.dart';
 import 'last_connect.dart';
 import 'user.dart';
 
