@@ -32,7 +32,7 @@ import 'package:label_manager/features/label_sheet/label_sheet_import_model.dart
 import 'package:label_manager/features/label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_open_xml_export.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview.dart';
+import 'package:label_manager/features/label_sheet/presentation/label_sheet_rtf_preview.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
