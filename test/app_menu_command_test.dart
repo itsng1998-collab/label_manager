@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 
 void main() {
   test('inventory has one runtime entry for every stable command ID', () {

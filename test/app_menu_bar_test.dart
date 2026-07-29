@@ -3,8 +3,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/app_shortcut_blocker.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/core/ui_scale.dart';
-import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/widgets/preview_floating_window.dart';
 import 'package:label_manager/widgets/app_menu_bar.dart';
 

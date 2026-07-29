@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/core/app_menu_policy.dart';
-import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/core/user.dart';
 
 typedef AppMenuCommandHandler = FutureOr<void> Function();

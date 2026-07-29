@@ -19,7 +19,7 @@ import 'package:label_manager/features/login_history/data/login_log_dao.dart';
 import 'package:label_manager/features/login_history/domain/login_log.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/features/last_connect/domain/last_connect.dart';
-import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/models/market.dart';

@@ -72,7 +72,7 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/features/label_column/application/label_column_save_service.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/market.dart';
-import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/core/user.dart';

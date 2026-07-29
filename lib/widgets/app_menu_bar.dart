@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:label_manager/models/app_menu_command.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 
 class AppMenuBar extends StatefulWidget {
   const AppMenuBar({
