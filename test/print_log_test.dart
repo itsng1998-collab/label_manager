@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/print_log.dart';
+import 'package:label_manager/features/print_history/data/print_log_dao.dart';
+import 'package:label_manager/features/print_history/domain/print_log.dart';
 
 void main() {
   test('print log codec keeps legacy row and detail wires', () {
