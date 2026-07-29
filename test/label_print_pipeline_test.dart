@@ -5,7 +5,7 @@ import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
-import 'package:label_manager/printing/label_print_pipeline.dart';
+import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
 
 void main() {
   test('units exclude zero copies and preserve row and copy order', () {

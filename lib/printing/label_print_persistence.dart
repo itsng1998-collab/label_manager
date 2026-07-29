@@ -7,7 +7,7 @@ import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
-import 'package:label_manager/printing/label_print_pipeline.dart';
+import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
 
 enum LabelPrintPersistenceState {
   notAttempted,

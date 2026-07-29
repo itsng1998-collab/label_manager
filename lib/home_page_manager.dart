@@ -63,7 +63,7 @@ import 'package:label_manager/features/search_print/data/search_print.dart';
 import 'package:label_manager/features/search_print/domain/search_print.dart';
 import 'package:label_manager/features/search_print/domain/search_print_settings.dart';
 import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
-import 'package:label_manager/printing/label_print_pipeline.dart';
+import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_print_persistence.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
