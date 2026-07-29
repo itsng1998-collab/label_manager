@@ -25,7 +25,7 @@ import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/utils/on_messages.dart';
+import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;

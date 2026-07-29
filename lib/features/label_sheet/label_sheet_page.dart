@@ -17,7 +17,7 @@ import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/utils/on_messages.dart';
+import 'package:label_manager/widgets/snackbar.dart';
 
 @visibleForTesting
 List<String> labelSheetMissingRequiredKeywordNames(

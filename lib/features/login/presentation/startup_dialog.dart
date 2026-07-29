@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:label_manager/utils/on_messages.dart';
+import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/core/bootstrap.dart';
 
 import 'package:label_manager/core/app.dart';

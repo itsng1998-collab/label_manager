@@ -3,7 +3,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_server_connect_info.dart';
 import 'package:label_manager/features/login/application/startup_db_connector.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/utils/on_messages.dart';
+import 'package:label_manager/widgets/snackbar.dart';
 
 class StartupDbHelper {
   StartupDbHelper({StartupDbConnector? connector})
