@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
@@ -9,7 +10,9 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_impor
 import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_components.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_preview.dart';
+import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:path/path.dart' as p;
 
 const XTypeGroup _labelSheetImageImportFileGroup = XTypeGroup(
   label: 'Label image',
@@ -39,6 +42,39 @@ class LabelSheetImageImportSelection {
   final String mimeType;
   final String fileName;
   final String filePath;
+}
+
+Future<LabelSheetImageImportSelection?> loadLabelSheetImageImportSelection(
+  String? path,
+) async {
+  final normalizedPath = path?.trim();
+  if (normalizedPath == null || normalizedPath.isEmpty) {
+    return null;
+  }
+  try {
+    final file = File(normalizedPath);
+    if (!await file.exists()) {
+      return null;
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      return null;
+    }
+    final fileName = p.basename(normalizedPath);
+    return LabelSheetImageImportSelection(
+      bytes: bytes,
+      mimeType: labelSheetImageImportMimeTypeForName(fileName),
+      fileName: fileName,
+      filePath: normalizedPath,
+    );
+  } catch (error, stackTrace) {
+    debugLog(
+      'label image import previous file load failed: '
+      'path=$normalizedPath error=$error\n$stackTrace',
+      skipFrames: 1,
+    );
+    return null;
+  }
 }
 
 class LabelSheetImageImportAction {

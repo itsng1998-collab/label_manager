@@ -3086,6 +3086,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final settings = await loadLabelSheetImageImportSettings(
       defaultModel: labelSheetDefaultGeminiModel,
     );
+    final persistedImage =
+        initialImage ??
+        await loadLabelSheetImageImportSelection(settings.filePath);
     await _notifyBeforeSheetDialog();
     if (!mounted) {
       return null;
@@ -3102,9 +3105,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           builder: (_, close) => LabelSheetImageImportDialog(
             sheet: sheet,
             physicalSize: physicalSize,
-            initialImage:
-                initialImage ??
-                _tryLoadLabelImageImportSelection(settings.filePath),
+            initialImage: persistedImage,
               initialApiKey: settings.apiKey,
               initialModel: settings.model,
               initialPrompt: settings.prompt,
@@ -3119,9 +3120,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         builder: (_) => LabelSheetImageImportDialog(
           sheet: sheet,
           physicalSize: physicalSize,
-          initialImage:
-              initialImage ??
-              _tryLoadLabelImageImportSelection(settings.filePath),
+          initialImage: persistedImage,
             initialApiKey: settings.apiKey,
             initialModel: settings.model,
             initialPrompt: settings.prompt,
@@ -3129,39 +3128,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
     } finally {
       widget.onSheetDialogClosed?.call();
-    }
-  }
-
-  LabelSheetImageImportSelection? _tryLoadLabelImageImportSelection(
-    String? path,
-  ) {
-    final normalizedPath = path?.trim();
-    if (normalizedPath == null || normalizedPath.isEmpty) {
-      return null;
-    }
-    try {
-      final file = File(normalizedPath);
-      if (!file.existsSync()) {
-        return null;
-      }
-      final bytes = file.readAsBytesSync();
-      if (bytes.isEmpty) {
-        return null;
-      }
-      final fileName = p.basename(normalizedPath);
-      return LabelSheetImageImportSelection(
-        bytes: bytes,
-        mimeType: labelSheetImageImportMimeTypeForName(fileName),
-        fileName: fileName,
-        filePath: normalizedPath,
-      );
-    } catch (error, stackTrace) {
-      debugLog(
-        'label image import previous file load failed: '
-        'path=$normalizedPath error=$error\n$stackTrace',
-        skipFrames: 1,
-      );
-      return null;
     }
   }
 
