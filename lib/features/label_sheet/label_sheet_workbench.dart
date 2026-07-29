@@ -40,12 +40,6 @@ bool labelSheetWriteRtfOpenXmlTestFileEnabled = false;
 const String labelSheetSaveToolbarCommand = 'label-sheet-save';
 const String labelSheetPrintToolbarCommand = 'label-sheet-print';
 
-enum LabelSheetZoomToolbarPlacement {
-  sheetToolbarEnd,
-  previewTabAreaEnd,
-  hidden,
-}
-
 const int _labelSheetDefaultPhysicalWidthMm = 100;
 const int _labelSheetDefaultPhysicalHeightMm = 100;
 

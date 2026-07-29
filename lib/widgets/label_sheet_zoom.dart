@@ -5,6 +5,12 @@ const int labelSheetDefaultZoomPercent = 100;
 const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
 
+enum LabelSheetZoomToolbarPlacement {
+  sheetToolbarEnd,
+  previewTabAreaEnd,
+  hidden,
+}
+
 class LabelSheetZoomController extends ValueNotifier<int> {
   LabelSheetZoomController({
     int initialPercent = labelSheetDefaultZoomPercent,
