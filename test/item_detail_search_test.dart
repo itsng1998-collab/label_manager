@@ -1,10 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/search_and_replace/data/item_detail_dao.dart';
 import 'package:label_manager/models/item.dart';
-import 'package:label_manager/models/item_detail.dart';
 
 void main() {
+  test('item detail row maps database values', () {
+    final detail = itemDetailFromRow(const {
+      'ITEM_ID': '11',
+      'LABELSIZE_ID': 22,
+      'ITEM_NAME': '품목',
+      'LABELSIZE_NAME': '라벨',
+      'ELEMENT': '원재료',
+      'ELEMENT_SHEET': '{"sheet":1}',
+      'BRAND_ID': '33',
+      'BRAND_NAME': '브랜드',
+    });
+
+    expect(detail.itemId, 11);
+    expect(detail.labelSizeId, 22);
+    expect(detail.elementSheet, '{"sheet":1}');
+    expect(detail.brandId, 33);
+  });
+
   test('item detail search stays in customer and optional filters', () {
-    final sql = ItemDetailDAO.SearchByItemNameSql;
+    final sql = ItemDetailDAO.searchByItemNameSql;
     expect(sql, contains('B.RICH_CUSTOMER_ID=@customerId'));
     expect(sql, contains('@useBrand=0 OR B.RICH_BRAND_ID=@brandId'));
     expect(sql, contains('@useLabelSize=0 OR L.RICH_LABELSIZE_ID=@labelSizeId'));
@@ -13,7 +31,7 @@ void main() {
   });
 
   test('element search uses current sheet with legacy RTF fallback', () {
-    final sql = ItemDetailDAO.SearchByElementSql;
+    final sql = ItemDetailDAO.searchByElementSql;
     expect(sql, contains("NULLIF(I.RICH_ELEMENT_SHEET, '')"));
     expect(sql, contains('I.RICH_ELEMENT_RTF'));
     expect(sql, contains("I.RICH_ELEMENT LIKE N'%' + @query + N'%'"));

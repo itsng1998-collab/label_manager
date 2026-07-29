@@ -1,4 +1,4 @@
-import 'package:label_manager/models/item_detail.dart';
+import 'package:label_manager/features/search_and_replace/domain/item_detail.dart';
 
 class SearchReplaceEditTarget {
   const SearchReplaceEditTarget({

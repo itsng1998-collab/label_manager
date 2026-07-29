@@ -1,49 +1,25 @@
-// ignore_for_file: constant_identifier_names
-
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/search_and_replace/domain/item_detail.dart';
 import 'package:label_manager/models/dao.dart';
 
-enum ItemDetailSearchType { itemName, element }
-
-class ItemDetail {
-  const ItemDetail({
-    required this.itemId,
-    required this.labelSizeId,
-    required this.itemName,
-    required this.labelSizeName,
-    required this.element,
-    required this.elementSheet,
-    required this.brandId,
-    required this.brandName,
-  });
-
-  final int itemId;
-  final int labelSizeId;
-  final String itemName;
-  final String labelSizeName;
-  final String element;
-  final String elementSheet;
-  final int brandId;
-  final String brandName;
-
-  factory ItemDetail.fromMap(Map<String, dynamic> map) {
-    String stringValue(String key) => (map[key] ?? '').toString();
-    int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
-    return ItemDetail(
-      itemId: intValue('ITEM_ID'),
-      labelSizeId: intValue('LABELSIZE_ID'),
-      itemName: stringValue('ITEM_NAME'),
-      labelSizeName: stringValue('LABELSIZE_NAME'),
-      element: stringValue('ELEMENT'),
-      elementSheet: stringValue('ELEMENT_SHEET'),
-      brandId: intValue('BRAND_ID'),
-      brandName: stringValue('BRAND_NAME'),
-    );
-  }
+ItemDetail itemDetailFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+  int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
+  return ItemDetail(
+    itemId: intValue('ITEM_ID'),
+    labelSizeId: intValue('LABELSIZE_ID'),
+    itemName: stringValue('ITEM_NAME'),
+    labelSizeName: stringValue('LABELSIZE_NAME'),
+    element: stringValue('ELEMENT'),
+    elementSheet: stringValue('ELEMENT_SHEET'),
+    brandId: intValue('BRAND_ID'),
+    brandName: stringValue('BRAND_NAME'),
+  );
 }
 
 class ItemDetailDAO extends DAO {
-  static const String _SelectSql = '''
+  static const selectSql =
+      '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), I.RICH_ITEM_ID), N'') AS ITEM_ID,
       COALESCE(CONVERT(NVARCHAR(20), I.RICH_LABELSIZE_ID), N'') AS LABELSIZE_ID,
@@ -67,14 +43,16 @@ class ItemDetailDAO extends DAO {
       AND (@useLabelSize=0 OR L.RICH_LABELSIZE_ID=@labelSizeId)
   ''';
 
-  static const String SearchByItemNameSql = '''
-    $_SelectSql
+  static const searchByItemNameSql =
+      '''
+    $selectSql
       AND I.RICH_ITEM_NAME LIKE N'%' + @query + N'%'
     ORDER BY B.RICH_BRAND_ID ASC
   ''';
 
-  static const String SearchByElementSql = '''
-    $_SelectSql
+  static const searchByElementSql =
+      '''
+    $selectSql
       AND I.RICH_ELEMENT LIKE N'%' + @query + N'%'
     ORDER BY B.RICH_BRAND_ID ASC
   ''';
@@ -88,8 +66,8 @@ class ItemDetailDAO extends DAO {
   }) async {
     final result = await DbClient.instance.getDataWithParams(
       type == ItemDetailSearchType.itemName
-          ? SearchByItemNameSql
-          : SearchByElementSql,
+          ? searchByItemNameSql
+          : searchByElementSql,
       {
         'customerId': customerId,
         'query': type == ItemDetailSearchType.element
@@ -101,7 +79,7 @@ class ItemDetailDAO extends DAO {
         'labelSizeId': labelSizeId ?? -1,
       },
     );
-    return DAO.mapRows(result, ItemDetail.fromMap);
+    return DAO.mapRows(result, itemDetailFromRow);
   }
 
   static String escapeElementLikePattern(String value) {
