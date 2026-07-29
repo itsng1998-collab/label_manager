@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/notice.dart';
+import 'package:label_manager/features/update_notice/data/notice_dao.dart';
+import 'package:label_manager/features/update_notice/domain/notice.dart';
+import 'package:label_manager/features/update_notice/presentation/update_notice_dialog.dart';
 import 'package:label_manager/models/user.dart';
-import 'package:label_manager/page_home/update_notice_dialog.dart';
 
 void main() {
   test('target users follow legacy customer name order', () {
-    expect(NoticeDAO.SelectTargetUsersSql, contains('C.RICH_COOP_ID=@cooperatorId'));
-    expect(NoticeDAO.SelectTargetUsersSql, contains('ORDER BY C.RICH_NAME'));
+    expect(NoticeDAO.selectTargetUsersSql, contains('C.RICH_COOP_ID=@cooperatorId'));
+    expect(NoticeDAO.selectTargetUsersSql, contains('ORDER BY C.RICH_NAME'));
   });
 
   test('administrator target statements update only active notice fields', () {
@@ -19,14 +20,14 @@ void main() {
     );
     expect(selected.params, {'userId': 'user1', 'message': '공지'});
     expect(selected.sql, contains('UN_STATE=0'));
-    expect(NoticeDAO.UpdateAllSql, contains('UN_STATE=2'));
-    expect(NoticeDAO.UpdateCooperatorSql, contains('UN_COOP_ID=@cooperatorId'));
-    expect(NoticeDAO.UpdateAllSql, isNot(contains('UN_VERSION')));
+    expect(NoticeDAO.updateAllSql, contains('UN_STATE=2'));
+    expect(NoticeDAO.updateCooperatorSql, contains('UN_COOP_ID=@cooperatorId'));
+    expect(NoticeDAO.updateAllSql, isNot(contains('UN_VERSION')));
   });
 
   test('regular user statement never updates message', () {
-    expect(NoticeDAO.UpdateUserStateSql, contains('UN_STATE=@state'));
-    expect(NoticeDAO.UpdateUserStateSql, isNot(contains('UN_MSG')));
+    expect(NoticeDAO.updateUserStateSql, contains('UN_STATE=@state'));
+    expect(NoticeDAO.updateUserStateSql, isNot(contains('UN_MSG')));
   });
 
   test('selected user mode rejects an empty selection before DML', () {

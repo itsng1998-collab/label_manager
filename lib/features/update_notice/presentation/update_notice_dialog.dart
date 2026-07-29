@@ -3,17 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/notice.dart';
+import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/notice_display.dart';
-
-enum UpdateNoticeSaveTarget {
-  selectedUsers,
-  allCooperators,
-  currentCooperator,
-  currentUser,
-}
 
 class UpdateNoticeDialogController extends ChangeNotifier {
   bool _dirty = false;
@@ -40,36 +33,6 @@ class UpdateNoticeDialogController extends ChangeNotifier {
   }
 
   void discard() => setDirty(false);
-}
-
-UpdateNoticeSaveTarget resolveUpdateNoticeSaveTarget({
-  required UserGrade grade,
-  required bool selectUsers,
-  required bool allCooperators,
-}) {
-  if (grade != UserGrade.SYSTEM_ADMIN_USER &&
-      grade != UserGrade.COOP_ADMIN_USER) {
-    return UpdateNoticeSaveTarget.currentUser;
-  }
-  if (selectUsers) return UpdateNoticeSaveTarget.selectedUsers;
-  if (grade == UserGrade.SYSTEM_ADMIN_USER && allCooperators) {
-    return UpdateNoticeSaveTarget.allCooperators;
-  }
-  return UpdateNoticeSaveTarget.currentCooperator;
-}
-
-class UpdateNoticeSaveRequest {
-  const UpdateNoticeSaveRequest({
-    required this.target,
-    required this.message,
-    required this.selectedUserIds,
-    required this.dontShowAgain,
-  });
-
-  final UpdateNoticeSaveTarget target;
-  final String? message;
-  final List<String> selectedUserIds;
-  final bool dontShowAgain;
 }
 
 class UpdateNoticeDialog extends StatefulWidget {

@@ -69,7 +69,8 @@ import 'package:label_manager/features/label_column/domain/label_column_edit.dar
 import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/app_menu_command.dart';
-import 'package:label_manager/models/notice.dart';
+import 'package:label_manager/features/update_notice/data/notice_dao.dart';
+import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_ai_import_temp.dart';
@@ -94,7 +95,7 @@ import 'package:label_manager/page_home/search_and_replace_dialog.dart';
 import 'package:label_manager/page_home/item_info_dialog.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_type_dialog.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
-import 'package:label_manager/page_home/update_notice_dialog.dart';
+import 'package:label_manager/features/update_notice/presentation/update_notice_dialog.dart';
 import 'package:label_manager/features/label_column/presentation/label_column_edit_dialog.dart';
 import 'package:label_manager/features/common_label_history/presentation/common_label_history_dialog.dart';
 import 'package:label_manager/features/content_save_history/presentation/content_save_history_dialog.dart';
