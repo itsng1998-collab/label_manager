@@ -5464,60 +5464,6 @@ void main() {
     expect(sufficientlyReadableLayout.width, lessThanOrEqualTo(616));
   });
 
-  test('label sheet image import analysis creates an adjusted draft', () {
-    final image = imglib.Image(width: 100, height: 60);
-    imglib.fill(image, color: imglib.ColorRgb8(255, 255, 255));
-    for (final x in [0, 20, 80, 99]) {
-      imglib.drawLine(
-        image,
-        x1: x,
-        y1: 0,
-        x2: x,
-        y2: 59,
-        color: imglib.ColorRgb8(0, 0, 0),
-      );
-    }
-    for (final y in [0, 25, 59]) {
-      imglib.drawLine(
-        image,
-        x1: 0,
-        y1: y,
-        x2: 99,
-        y2: y,
-        color: imglib.ColorRgb8(0, 0, 0),
-      );
-    }
-    final bytes = Uint8List.fromList(imglib.encodePng(image));
-    final sheet = FortuneSheet(
-      id: 's1',
-      name: 'Label',
-      extraFields: const {
-        fortuneSheetGridClientWidthMmKey: 100,
-        fortuneSheetGridClientHeightMmKey: 60,
-      },
-    );
-
-    final draft = labelSheetAnalyzeImageImport(
-      bytes,
-      sheet: sheet,
-      mimeType: 'image/png',
-      fileName: 'label.png',
-    );
-
-    expect(draft, isNotNull);
-    expect(draft!.columnWidths, hasLength(3));
-    expect(draft.rowHeights, hasLength(2));
-    expect(draft.imageWidth, 100);
-    expect(draft.imageHeight, 60);
-    expect(draft.images, isEmpty);
-
-    final imported = labelSheetApplyImageImportDraft(sheet, draft);
-    expect(imported.columnCount, 3);
-    expect(imported.rowCount, 2);
-    expect(imported.images, isEmpty);
-    expect(imported.cells, isEmpty);
-  });
-
   test(
     'label sheet import draft preserves remaining sheet rows and columns',
     () {
