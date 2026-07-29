@@ -9,7 +9,7 @@ import 'package:label_manager/features/common_label_history/data/common_label_hi
 import 'package:label_manager/features/common_label_history/domain/common_label_history.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/core/user.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/features/market/presentation/market_manager_dialog.dart';

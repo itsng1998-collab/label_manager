@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/managed_user/domain/managed_user.dart';
 import 'package:label_manager/features/market/domain/market.dart';

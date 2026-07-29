@@ -5,7 +5,7 @@ import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/content_save_history/data/content_save_log_dao.dart';
 import 'package:label_manager/features/content_save_history/domain/content_save_log.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';

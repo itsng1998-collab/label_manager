@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:label_manager/features/common_label_history/domain/common_label_history.dart';
 import 'package:label_manager/features/common_label_history/presentation/common_label_history_dialog.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';

@@ -2,9 +2,18 @@
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/models/dao.dart';
+
+Cooperator cooperatorFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+
+  return Cooperator(
+    id: stringValue('COOP_ID'),
+    name: stringValue('NAME'),
+  );
+}
 
 class CooperatorDAO extends DAO {
   static const String selectSql = '''
@@ -42,7 +51,7 @@ class CooperatorDAO extends DAO {
       final result = await DbClient.instance.getData(selectSql);
       final rows = DAO.getRowsFromResult(result)
           .whereType<Map>()
-          .map((row) => Cooperator.fromMap(Map<String, dynamic>.from(row)))
+          .map((row) => cooperatorFromRow(Map<String, dynamic>.from(row)))
           .toList(growable: false);
       debugLog(END);
       return rows;
@@ -63,7 +72,7 @@ class CooperatorDAO extends DAO {
       final map = DAO.getRowMapFromResult(res);
 
       debugLog(END);
-      return Cooperator.fromMap(map!);
+      return cooperatorFromRow(map!);
     }
     catch (e) {
       debugLog('$END, $e');

@@ -8,7 +8,7 @@ import 'package:label_manager/features/print_history/data/print_log_dao.dart';
 import 'package:label_manager/features/print_history/domain/print_log.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
