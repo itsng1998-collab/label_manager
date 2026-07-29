@@ -36,11 +36,12 @@ import 'package:label_manager/features/automatic_item_update/domain/automatic_it
 import 'package:label_manager/features/automatic_item_update/presentation/automatic_item_update_page.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/data/gs1_ai_dao.dart';
+import 'package:label_manager/features/label_column/application/column_type_loader.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
-import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/cooperator.dart';
@@ -1257,7 +1258,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     void afterSnackBarVisible() async {
       try {
         debugLog(START);
-        await TColumnType.init();
+        await initializeColumnTypes();
         Gs1AiDefinitions.set(await Gs1AiDAO.selectAll());
         final brands = await BrandDAO.selectByCustomerIdByBrandOrder(
           Customer.instance!.customerId,

@@ -1,9 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/label_column/data/column_type_dao.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
 
 void main() {
+  test('column type row maps database values', () {
+    final type = columnTypeFromRow(const {
+      'RICH_COLUMN_TYPE_CODE': 3,
+      'RICH_COLUMN_TYPE_NAME': '바코드',
+      'RICH_COLUMN_TYPE_ORDER': 4,
+    });
+
+    expect(type.code, 3);
+    expect(type.name, '바코드');
+    expect(type.order, 4);
+  });
+
   group('TColumn.fromMap', () {
     setUp(() {
       TColumnType.datas = const <TColumnType>[

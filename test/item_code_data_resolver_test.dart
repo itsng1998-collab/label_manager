@@ -3,7 +3,7 @@ import 'package:label_manager/features/gs1/data/gs1_ai_dao.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 
 void main() {

@@ -5,7 +5,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 

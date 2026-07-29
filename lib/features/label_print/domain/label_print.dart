@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 

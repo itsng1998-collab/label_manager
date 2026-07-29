@@ -1,7 +1,7 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 
 class TColumnBase {
   final TColumnType columnType;

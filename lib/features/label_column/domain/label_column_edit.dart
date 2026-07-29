@@ -1,7 +1,7 @@
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 
 enum LabelColumnEditMode { normal, reorder, userItemEdit }
 

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 
 class FixedColumnType {
   const FixedColumnType({required this.id, required this.name});

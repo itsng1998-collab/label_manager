@@ -1,7 +1,7 @@
 import 'package:label_manager/features/label_sheet/domain/label_sheet_required_keyword.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_base.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 
 List<String> commonLabelBarcodeObjectIdsFor(
   List<TColumnBase> specialColumns,

@@ -17,7 +17,7 @@ import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';

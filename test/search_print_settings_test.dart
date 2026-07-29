@@ -5,7 +5,7 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/search_print/domain/search_print_settings.dart';
 import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
 import 'package:label_manager/models/label_size.dart';
