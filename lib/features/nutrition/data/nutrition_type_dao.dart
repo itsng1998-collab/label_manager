@@ -2,59 +2,26 @@ import 'dart:convert';
 
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 import 'package:label_manager/models/dao.dart';
 
-class NutritionType {
-  const NutritionType({required this.id, required this.name});
-
-  final int id;
-  final String name;
-
-  factory NutritionType.fromMap(Map<String, dynamic> map) => NutritionType(
-    id: int.tryParse((map['NUTTYPE_ID'] ?? '').toString()) ?? 0,
-    name: (map['NUTTYPE_NAME'] ?? '').toString(),
-  );
-}
-
-class NutritionTypeColumn {
-  const NutritionTypeColumn({
-    required this.id,
-    required this.keyword,
-    required this.name,
-  });
-
-  final int id;
-  final String keyword;
-  final String name;
-
-  NutritionTypeColumn copyWith({String? name}) => NutritionTypeColumn(
-    id: id,
-    keyword: keyword,
-    name: name ?? this.name,
-  );
-
-  factory NutritionTypeColumn.fromMap(Map<String, dynamic> map) =>
-      NutritionTypeColumn(
-        id: int.tryParse((map['NUTCOL_ID'] ?? '').toString()) ?? 0,
-        keyword: (map['NUTCOL_KEYWORD'] ?? '').toString(),
-        name: (map['NUTCOL_NAME'] ?? '').toString(),
-      );
-}
-
 class NutritionTypeDAO extends DAO {
-  static const String selectTypesSql = '''
+  static const String selectTypesSql =
+      '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), RICH_NUTTYPE_ID), N'') AS NUTTYPE_ID,
       COALESCE(CONVERT(NVARCHAR(50), RICH_NUTTYPE_NAME COLLATE ${DAO.CP949}), N'') AS NUTTYPE_NAME
     FROM BM_RICH_NUTTYPE
   ''';
 
-  static const String selectTypesByIdSql = '''
+  static const String selectTypesByIdSql =
+      '''
     $selectTypesSql
     ORDER BY RICH_NUTTYPE_ID
   ''';
 
-  static const String selectColumnsSql = '''
+  static const String selectColumnsSql =
+      '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), RICH_NUTCOL_ID), N'') AS NUTCOL_ID,
       COALESCE(CONVERT(NVARCHAR(10), RICH_NUTCOL_KEYWORD COLLATE ${DAO.CP949}), N'') AS NUTCOL_KEYWORD,
@@ -133,10 +100,9 @@ class NutritionTypeDAO extends DAO {
   }
 
   static Future<List<NutritionTypeColumn>> selectColumns(int typeId) async {
-    final result = await DbClient.instance.getDataWithParams(
-      selectColumnsSql,
-      {'typeId': typeId},
-    );
+    final result = await DbClient.instance.getDataWithParams(selectColumnsSql, {
+      'typeId': typeId,
+    });
     return DAO.mapRows(result, NutritionTypeColumn.fromMap);
   }
 
@@ -164,18 +130,14 @@ class NutritionTypeDAO extends DAO {
   static DbTransactionStatement deleteStatement(int typeId) =>
       DbTransactionStatement(sql: deleteSql, params: {'typeId': typeId});
 
-  static Future<void> insert(
-    String name,
-    List<NutritionTypeColumn> columns,
-  ) => DbClient.instance.transaction([insertStatement(name, columns)]);
+  static Future<void> insert(String name, List<NutritionTypeColumn> columns) =>
+      DbClient.instance.transaction([insertStatement(name, columns)]);
 
   static Future<void> update(
     int typeId,
     String name,
     List<NutritionTypeColumn> columns,
-  ) => DbClient.instance.transaction([
-    updateStatement(typeId, name, columns),
-  ]);
+  ) => DbClient.instance.transaction([updateStatement(typeId, name, columns)]);
 
   static Future<void> delete(int typeId) =>
       DbClient.instance.transaction([deleteStatement(typeId)]);

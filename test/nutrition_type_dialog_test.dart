@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/models/nutrition_type.dart';
-import 'package:label_manager/page_home/nutrition_type_dialog.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
+import 'package:label_manager/features/nutrition/presentation/nutrition_type_dialog.dart';
 
 void main() {
   Future<void> pumpDialog(

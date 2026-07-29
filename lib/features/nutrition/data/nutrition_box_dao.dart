@@ -1,40 +1,11 @@
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
 import 'package:label_manager/models/dao.dart';
 
-class NutritionBox {
-  const NutritionBox({
-    required this.id,
-    required this.typeId,
-    required this.typeName,
-    required this.name,
-    required this.rtf,
-    required this.width,
-  });
-
-  final int id;
-  final int typeId;
-  final String typeName;
-  final String name;
-  final String rtf;
-  final int width;
-
-  factory NutritionBox.fromMap(Map<String, dynamic> map) {
-    String stringValue(String key) => (map[key] ?? '').toString();
-    int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
-    return NutritionBox(
-      id: intValue('NUTBOX_ID'),
-      typeId: intValue('NUTTYPE_ID'),
-      typeName: stringValue('NUTTYPE_NAME'),
-      name: stringValue('NUTBOX_NAME'),
-      rtf: stringValue('NUTBOX_DATA'),
-      width: intValue('NUTBOX_WIDTH'),
-    );
-  }
-}
-
 class NutritionBoxDAO extends DAO {
-  static const String selectSql = '''
+  static const String selectSql =
+      '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), B.RICH_NUTBOX_ID), N'') AS NUTBOX_ID,
       COALESCE(CONVERT(NVARCHAR(20), T.RICH_NUTTYPE_ID), N'') AS NUTTYPE_ID,

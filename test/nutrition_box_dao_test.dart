@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/nutrition_box.dart';
+import 'package:label_manager/features/nutrition/data/nutrition_box_dao.dart';
 
 void main() {
   test('manager query joins type and keeps legacy type id order', () {

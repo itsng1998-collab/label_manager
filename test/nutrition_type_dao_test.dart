@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/nutrition_type.dart';
+import 'package:label_manager/features/nutrition/data/nutrition_type_dao.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 
 void main() {
   const columns = [

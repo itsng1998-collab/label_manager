@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/nutrition_type.dart';
+import 'package:label_manager/features/nutrition/data/nutrition_type_dao.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
