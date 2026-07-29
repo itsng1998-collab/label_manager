@@ -4,10 +4,10 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
 import 'barcode.dart';
-import 'column_base.dart';
 
 enum QRTextAlignment {
   ALIGN_LEFT(0),

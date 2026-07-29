@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/label_sheet/application/common_label_connections.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_base.dart';
+import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
 

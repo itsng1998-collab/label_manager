@@ -1,5 +1,4 @@
-// UTF-8, 한국어 주석
-// ignore_for_file: constant_identifier_names, non_constant_identifier_names
+// ignore_for_file: non_constant_identifier_names
 
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 
@@ -20,5 +19,5 @@ class TColumnBase {
 
   @override
   String toString() =>
-    '${columnType.toString()}, keyword: $keyword, columnName: $columnName, useMissingKeywordCheck: $useMissingKeywordCheck, useMinColumnCheck: $useMinColumnCheck';
+      '${columnType.toString()}, keyword: $keyword, columnName: $columnName, useMissingKeywordCheck: $useMissingKeywordCheck, useMinColumnCheck: $useMinColumnCheck';
 }

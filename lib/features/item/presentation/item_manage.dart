@@ -4,7 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
-import 'package:label_manager/models/column_base.dart';
+import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';

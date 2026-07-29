@@ -6,7 +6,7 @@ import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_base.dart';
+import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/customer.dart';
