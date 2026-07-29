@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/item/application/item_manager_save_service.dart';
+import 'package:label_manager/features/item/data/item_manager_save.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/models/additional_item.dart';
@@ -80,6 +82,34 @@ void main() {
         ),
         isNull,
       );
+    });
+
+    test('save service builds command and preserves selected item', () async {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+      ]);
+      controller.updateItemName('item:10', '수정 품목');
+      controller.setSelection(const ['item:20'], anchorRowKey: 'item:20');
+      ItemManagerSaveCommand? savedCommand;
+
+      final execution = await executeItemManagerSave(
+        controller: controller,
+        labelSizeId: 4,
+        targetMarketIds: const [3, 4],
+        save: (command) async {
+          savedCommand = command;
+          return const ItemManagerSaveResult(
+            insertedItemIdsByDraftKey: {},
+          );
+        },
+      );
+
+      expect(savedCommand, same(execution.command));
+      expect(execution.command.targetMarketIds, [3, 4]);
+      expect(execution.command.existingRows.single.itemName, '수정 품목');
+      expect(execution.selectedItemId, 20);
+      expect(execution.selectedRowIndex, 1);
     });
 
     test('builds existing rows without mutating display models', () {

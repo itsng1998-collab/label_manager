@@ -23,14 +23,14 @@ import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/features/item/application/item_manager_session_loader.dart';
+import 'package:label_manager/features/item/application/item_manager_save_service.dart';
 import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
-import 'package:label_manager/features/item/data/item_manager_save.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/presentation/item_manage.dart';
 import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
 import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_loader.dart';
-import 'package:label_manager/features/automatic_item_update/data/automatic_item_update_save.dart';
+import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_save_service.dart';
 import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/features/automatic_item_update/presentation/automatic_item_update_page.dart';
 import 'package:label_manager/models/brand.dart';
@@ -993,23 +993,17 @@ class _HomePageManagerState extends State<HomePageManager> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final selectedRowKey = controller.anchorRowKey;
-    final selectedRowIndex = selectedRowKey == null
-        ? -1
-        : controller.rows.indexWhere((row) => row.rowKey == selectedRowKey);
     var reloaded = false;
     setState(() => _autoItemUpdateCommandBusy = true);
     try {
-      final result = await AutoItemUpdateSaveDAO.save(
-        controller.toSaveCommand(),
+      final execution = await executeAutoItemUpdateSave(
+        controller: controller,
       );
-      final nextSelectedRowKey =
-          selectedRowKey != null && controller.hasRowKey(selectedRowKey)
-          ? selectedRowKey
-          : result.insertedUpdateItemIdsByRowKey.keys.firstOrNull;
       reloaded = await _reloadAutoItemUpdateDraftFromDatabase(
-        selectedRowKey: nextSelectedRowKey,
-        fallbackIndex: selectedRowIndex < 0 ? null : selectedRowIndex,
+        selectedRowKey: execution.selectedRowKey,
+        fallbackIndex: execution.selectedRowIndex < 0
+            ? null
+            : execution.selectedRowIndex,
         rebuildTabs: false,
       );
       if (!reloaded) {
@@ -2139,17 +2133,11 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (confirmed != true || !mounted) return;
 
-    final selectedKey = controller.anchorRowKey;
-    final selectedRowIndex = selectedKey == null
-        ? -1
-        : controller.rows.indexWhere((row) => row.rowKey == selectedKey);
-    final selectedRow = selectedRowIndex < 0
-        ? null
-        : controller.rows[selectedRowIndex];
     setState(() => _itemDraftCommandBusy = true);
     var dbSaveCompleted = false;
     try {
-      final command = controller.toSaveCommand(
+      final execution = await executeItemManagerSave(
+        controller: controller,
         labelSizeId: labelSize.labelSizeId,
         targetMarketIds: _itemDraftTargetMarketIds,
       );
@@ -2158,28 +2146,27 @@ class _HomePageManagerState extends State<HomePageManager> {
         'commandBuilt',
         trace: trace,
         fields: {
-          'existing': command.existingRows.length,
-          'new': command.newRows.length,
-          'deleted': command.deletedSourceItemIds.length,
-          'columns': command.columnValues.length,
-          'targetMarkets': command.targetMarketIds.length,
+          'existing': execution.command.existingRows.length,
+          'new': execution.command.newRows.length,
+          'deleted': execution.command.deletedSourceItemIds.length,
+          'columns': execution.command.columnValues.length,
+          'targetMarkets': execution.command.targetMarketIds.length,
         },
       );
-      final result = await ItemManagerSaveDAO.save(command);
       dbSaveCompleted = true;
       ItemManagerDebugLog.event(
         'save',
         'transactionCompleted',
         trace: trace,
-        fields: {'inserted': result.insertedItemIdsByDraftKey.length},
-      );
-      final selectedItemId = resolveItemManagerSavedSelectionItemId(
-        selectedRow: selectedRow,
-        insertedItemIdsByDraftKey: result.insertedItemIdsByDraftKey,
+        fields: {
+          'inserted': execution.result.insertedItemIdsByDraftKey.length,
+        },
       );
       final reloaded = await _reloadItemDraftFromDatabase(
-        selectedItemId: selectedItemId,
-        fallbackIndex: selectedRowIndex < 0 ? null : selectedRowIndex,
+        selectedItemId: execution.selectedItemId,
+        fallbackIndex: execution.selectedRowIndex < 0
+            ? null
+            : execution.selectedRowIndex,
       );
       if (!reloaded) {
         _disposeItemDraftController();

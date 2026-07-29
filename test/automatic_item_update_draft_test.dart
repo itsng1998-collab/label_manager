@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_loader.dart';
+import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_save_service.dart';
+import 'package:label_manager/features/automatic_item_update/data/automatic_item_update_save.dart';
 import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/features/automatic_item_update/domain/update_item.dart';
 
@@ -48,6 +50,28 @@ void main() {
         'update:10',
       );
       expect(resolveAutoItemUpdateLoadedSelection(const []), isNull);
+    });
+
+    test('save service builds command and preserves selected row', () async {
+      final controller = _controller();
+      controller.updateApplyDate('update:10', '20260726');
+      controller.setSelection(const {'update:20'}, anchorRowKey: 'update:20');
+      AutoItemUpdateSaveCommand? savedCommand;
+
+      final execution = await executeAutoItemUpdateSave(
+        controller: controller,
+        save: (command) async {
+          savedCommand = command;
+          return const AutoItemUpdateSaveResult(
+            insertedUpdateItemIdsByRowKey: {},
+          );
+        },
+      );
+
+      expect(savedCommand, same(execution.command));
+      expect(execution.command.existingRows.single.sourceUpdateItemId, 10);
+      expect(execution.selectedRowKey, 'update:20');
+      expect(execution.selectedRowIndex, 1);
     });
 
     test('apply date, element, and cell edits mark an existing row modified', () {
