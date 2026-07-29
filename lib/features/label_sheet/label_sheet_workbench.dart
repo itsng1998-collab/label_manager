@@ -12,10 +12,10 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_ai_im
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_import_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
-import 'package:label_manager/features/label_sheet/application/label_sheet_xlsx_import.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_dialog.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_settings.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
@@ -2856,50 +2856,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<FortuneWorkbook> _readImportedLabelWorkbook(XFile file) async {
-    final extension = _importedLabelFileExtension(file);
     debugLog(
       'label sheet import read start '
-      'name=${file.name} path=${file.path} extension=$extension',
+      'name=${file.name} path=${file.path}',
       skipFrames: 1,
     );
-    if (extension == '.xlsx') {
-      final bytes = await file.readAsBytes();
-      debugLog(
-        'label sheet import read xlsx by extension bytes=${bytes.length}',
-        skipFrames: 1,
-      );
-      return labelSheetNormalizeWorkbookForCurrentSaveFormat(
-        labelSheetWorkbookFromXlsxBytes(bytes),
-      );
-    }
-    if (extension == '.lms') {
-      debugLog('label sheet import read lms by extension', skipFrames: 1);
-      return labelSheetDecodeWorkbookSaveBytes(await file.readAsBytes());
-    }
     final bytes = await file.readAsBytes();
-    debugLog(
-      'label sheet import read unknown extension bytes=${bytes.length}',
-      skipFrames: 1,
+    return labelSheetDecodeImportedWorkbook(
+      bytes: bytes,
+      filePath: file.path,
+      fileName: file.name,
     );
-    if (labelSheetLooksLikeXlsx(bytes)) {
-      debugLog('label sheet import detected xlsx by bytes', skipFrames: 1);
-      return labelSheetNormalizeWorkbookForCurrentSaveFormat(
-        labelSheetWorkbookFromXlsxBytes(bytes),
-      );
-    }
-    debugLog(
-      'label sheet import fallback to lms decode by bytes',
-      skipFrames: 1,
-    );
-    return labelSheetDecodeWorkbookSaveBytes(bytes);
-  }
-
-  String _importedLabelFileExtension(XFile file) {
-    final pathExtension = p.extension(file.path).toLowerCase();
-    if (pathExtension.isNotEmpty) {
-      return pathExtension;
-    }
-    return p.extension(file.name).toLowerCase();
   }
 
   String _suggestedLabelFileName() {
