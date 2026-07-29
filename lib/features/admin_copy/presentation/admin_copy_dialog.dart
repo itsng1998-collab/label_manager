@@ -12,7 +12,7 @@ import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
-import 'package:label_manager/models/market.dart';
+import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 

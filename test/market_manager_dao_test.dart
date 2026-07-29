@@ -2,6 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
 
 void main() {
+  test('market row mapper normalizes string and integer values', () {
+    final mapped = marketFromRow({
+      'MARKET_ID': '10',
+      'CUSTOMER_ID': 20,
+      'NAME': null,
+    });
+
+    expect(mapped.marketId, 10);
+    expect(mapped.customerId, 20);
+    expect(mapped.name, isEmpty);
+  });
+
   test(
     'market insert captures identity and creates current customer mappings',
     () {

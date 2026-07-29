@@ -21,7 +21,7 @@ import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/market.dart';
+import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/login/data/user_dao.dart';
 import 'package:label_manager/utils/log_context.dart';

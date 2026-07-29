@@ -22,7 +22,7 @@ import 'package:label_manager/features/last_connect/domain/last_connect.dart';
 import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/core/user.dart';
-import 'package:label_manager/models/market.dart';
+import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';

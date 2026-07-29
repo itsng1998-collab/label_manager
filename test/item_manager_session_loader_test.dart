@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/application/item_manager_session_loader.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
-import 'package:label_manager/models/market.dart';
+import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/core/user.dart';
 
 void main() {

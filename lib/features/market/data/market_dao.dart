@@ -1,9 +1,20 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/models/dao.dart';
-import 'package:label_manager/models/market.dart';
 import 'package:label_manager/utils/log_context.dart';
+
+Market marketFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+  int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
+
+  return Market(
+    marketId: intValue('MARKET_ID'),
+    customerId: intValue('CUSTOMER_ID'),
+    name: stringValue('NAME'),
+  );
+}
 
 class MarketDAO extends DAO {
   static const String selectSql =
@@ -90,7 +101,7 @@ class MarketDAO extends DAO {
       final map = DAO.getRowMapFromResult(res);
 
       debugLog(END);
-      return Market.fromMap(map!);
+      return marketFromRow(map!);
     } catch (e) {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
@@ -105,7 +116,7 @@ class MarketDAO extends DAO {
         '$selectSql $whereSqlCustomerId $orderByMarketId',
         {'customerId': customerId},
       );
-      final markets = DAO.mapRows(res, Market.fromMap);
+      final markets = DAO.mapRows(res, marketFromRow);
       debugLog(END);
       return markets;
     } catch (e) {
@@ -119,7 +130,7 @@ class MarketDAO extends DAO {
       '$selectSql $whereSqlCustomerId',
       {'customerId': customerId},
     );
-    return DAO.mapRows(result, Market.fromMap);
+    return DAO.mapRows(result, marketFromRow);
   }
 
   static Future<int> insertWithItemMappings(Market market) async {
