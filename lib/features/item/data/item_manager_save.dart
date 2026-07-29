@@ -3,232 +3,30 @@ import 'dart:convert';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/features/item/domain/item_manager_save_command.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
-class ItemManagerNewMappingDefaults {
-  final int gdsNo;
-  final DateTime? dateSaleStart;
-  final DateTime? dateSaleEnd;
-  final double discountPercent;
-  final int discountAmount;
-  final DateTime? dateStartDiscount;
-  final DateTime? dateEndDiscount;
-  final bool useDefineElement;
-  final String rtfText;
-  final bool useLinefeed;
-  final int linefeed;
-  final bool useScaleBarcode;
-  final int printCount;
-  final bool useLabelSize;
-  final int labelSizeWidth;
-  final int labelSizeHeight;
-  final bool useMargin;
-  final double leftMargin;
-  final double rightMargin;
-  final double topMargin;
-  final double leftPush;
-  final double topPush;
+export 'package:label_manager/features/item/domain/item_manager_save_command.dart';
 
-  const ItemManagerNewMappingDefaults({
-    this.gdsNo = 0,
-    this.dateSaleStart,
-    this.dateSaleEnd,
-    this.discountPercent = 0,
-    this.discountAmount = 0,
-    this.dateStartDiscount,
-    this.dateEndDiscount,
-    this.useDefineElement = false,
-    this.rtfText = '',
-    this.useLinefeed = false,
-    this.linefeed = 100,
-    this.useScaleBarcode = false,
-    this.printCount = 1,
-    this.useLabelSize = false,
-    this.labelSizeWidth = 0,
-    this.labelSizeHeight = 0,
-    this.useMargin = false,
-    this.leftMargin = 0,
-    this.rightMargin = 0,
-    this.topMargin = 0,
-    this.leftPush = 0,
-    this.topPush = 0,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'gdsNo': gdsNo,
-      'dateSaleStart': dateSaleStart?.toIso8601String(),
-      'dateSaleEnd': dateSaleEnd?.toIso8601String(),
-      'discountPercent': discountPercent,
-      'discountAmount': discountAmount,
-      'dateStartDiscount': dateStartDiscount?.toIso8601String(),
-      'dateEndDiscount': dateEndDiscount?.toIso8601String(),
-      'useDefineElement': useDefineElement,
-      'rtfText': rtfText,
-      'useLinefeed': useLinefeed,
-      'linefeed': linefeed,
-      'useScaleBarcode': useScaleBarcode,
-      'printCount': printCount,
-      'useLabelSize': useLabelSize,
-      'labelSizeWidth': labelSizeWidth,
-      'labelSizeHeight': labelSizeHeight,
-      'useMargin': useMargin,
-      'leftMargin': leftMargin,
-      'rightMargin': rightMargin,
-      'topMargin': topMargin,
-      'leftPush': leftPush,
-      'topPush': topPush,
-    };
-  }
-}
-
-class ItemManagerExistingRowSave {
-  final int sourceItemId;
-  final String itemName;
-  final String elementPlain;
-  final String elementSheet;
-  final int order;
-
-  const ItemManagerExistingRowSave({
-    required this.sourceItemId,
-    required this.itemName,
-    required this.elementPlain,
-    required this.elementSheet,
-    required this.order,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'sourceItemId': sourceItemId,
-    'itemName': itemName,
-    'elementPlain': elementPlain,
-    'elementSheet': elementSheet,
-    'order': order,
+Map<String, dynamic> itemManagerSaveSqlParams(ItemManagerSaveCommand command) {
+  command.validate();
+  return {
+    'targetMarketIdsXml': _itemManagerIdsXml(
+      'markets',
+      'market',
+      command.targetMarketIds,
+    ),
+    'deletedItemIdsXml': _itemManagerIdsXml(
+      'items',
+      'item',
+      command.deletedSourceItemIds,
+    ),
+    'existingRowsXml': _itemManagerExistingRowsXml(command.existingRows),
+    'newRowsXml': _itemManagerNewRowsXml(command.newRows),
+    'columnValuesXml': _itemManagerColumnValuesXml(command.columnValues),
   };
-}
-
-class ItemManagerNewRowSave {
-  final String draftRowKey;
-  final int labelSizeId;
-  final String itemName;
-  final String elementPlain;
-  final String elementSheet;
-  final int order;
-  final ItemManagerNewMappingDefaults mappingDefaults;
-
-  const ItemManagerNewRowSave({
-    required this.draftRowKey,
-    required this.labelSizeId,
-    required this.itemName,
-    required this.elementPlain,
-    required this.elementSheet,
-    required this.order,
-    this.mappingDefaults = const ItemManagerNewMappingDefaults(),
-  });
-
-  Map<String, dynamic> toJson() => {
-    'draftRowKey': draftRowKey,
-    'labelSizeId': labelSizeId,
-    'itemName': itemName,
-    'elementPlain': elementPlain,
-    'elementSheet': elementSheet,
-    'order': order,
-    ...mappingDefaults.toJson(),
-  };
-}
-
-class ItemManagerColumnValueSave {
-  final int? sourceItemId;
-  final String? draftRowKey;
-  final int columnId;
-  final bool editable;
-  final String dataString;
-
-  const ItemManagerColumnValueSave({
-    this.sourceItemId,
-    this.draftRowKey,
-    required this.columnId,
-    this.editable = true,
-    required this.dataString,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'sourceItemId': sourceItemId,
-    'draftRowKey': draftRowKey,
-    'columnId': columnId,
-    'editable': editable,
-    'dataString': dataString,
-  };
-}
-
-class ItemManagerSaveCommand {
-  final List<int> targetMarketIds;
-  final List<int> deletedSourceItemIds;
-  final List<ItemManagerExistingRowSave> existingRows;
-  final List<ItemManagerNewRowSave> newRows;
-  final List<ItemManagerColumnValueSave> columnValues;
-
-  const ItemManagerSaveCommand({
-    required this.targetMarketIds,
-    this.deletedSourceItemIds = const [],
-    this.existingRows = const [],
-    this.newRows = const [],
-    this.columnValues = const [],
-  });
-
-  void validate() {
-    void requireUniquePositive(Iterable<int> values, String field) {
-      final list = values.toList();
-      if (list.any((value) => value <= 0) ||
-          list.toSet().length != list.length) {
-        throw ArgumentError('$field requires unique positive ids.');
-      }
-    }
-
-    requireUniquePositive(targetMarketIds, 'targetMarketIds');
-    requireUniquePositive(deletedSourceItemIds, 'deletedSourceItemIds');
-    requireUniquePositive(
-      existingRows.map((row) => row.sourceItemId),
-      'existingRows.sourceItemId',
-    );
-    final draftKeys = newRows.map((row) => row.draftRowKey).toList();
-    if (draftKeys.any((key) => key.trim().isEmpty) ||
-        draftKeys.toSet().length != draftKeys.length) {
-      throw ArgumentError('newRows.draftRowKey requires unique values.');
-    }
-    if (newRows.isNotEmpty && targetMarketIds.isEmpty) {
-      throw ArgumentError('New rows require targetMarketIds.');
-    }
-    for (final value in columnValues) {
-      final hasSource = value.sourceItemId != null;
-      final hasDraft = value.draftRowKey?.isNotEmpty == true;
-      if (hasSource == hasDraft || value.columnId <= 0) {
-        throw ArgumentError(
-          'Column values require one row identity and a positive column id.',
-        );
-      }
-    }
-  }
-
-  Map<String, dynamic> toSqlParams() {
-    validate();
-    return {
-      'targetMarketIdsXml': _itemManagerIdsXml(
-        'markets',
-        'market',
-        targetMarketIds,
-      ),
-      'deletedItemIdsXml': _itemManagerIdsXml(
-        'items',
-        'item',
-        deletedSourceItemIds,
-      ),
-      'existingRowsXml': _itemManagerExistingRowsXml(existingRows),
-      'newRowsXml': _itemManagerNewRowsXml(newRows),
-      'columnValuesXml': _itemManagerColumnValuesXml(columnValues),
-    };
-  }
 }
 
 String _itemManagerIdsXml(
@@ -336,12 +134,6 @@ String _itemManagerColumnValuesXml(
 String _itemManagerXmlText(Object? value) => const HtmlEscape(
   HtmlEscapeMode.element,
 ).convert(value?.toString() ?? '');
-
-class ItemManagerSaveResult {
-  final Map<String, int> insertedItemIdsByDraftKey;
-
-  const ItemManagerSaveResult({required this.insertedItemIdsByDraftKey});
-}
 
 class ItemManagerSaveDAO extends DAO {
   static const String saveSql = r'''
@@ -575,7 +367,7 @@ class ItemManagerSaveDAO extends DAO {
     ItemManagerSaveCommand command,
   ) async {
     final trace = ItemManagerDebugLog.nextTrace('saveDao');
-    final params = command.toSqlParams();
+    final params = itemManagerSaveSqlParams(command);
     ItemManagerDebugLog.event(
       'saveDao',
       'transactionStarted',

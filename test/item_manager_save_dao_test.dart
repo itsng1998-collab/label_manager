@@ -53,7 +53,7 @@ void main() {
         ],
       );
 
-      final params = command.toSqlParams();
+      final params = itemManagerSaveSqlParams(command);
       final newRows = params['newRowsXml']! as String;
       expect(params.keys, [
         'targetMarketIdsXml',
@@ -79,33 +79,37 @@ void main() {
 
     test('save command validates row identities before DB access', () {
       expect(
-        () => const ItemManagerSaveCommand(
-          targetMarketIds: [],
-          newRows: [
-            ItemManagerNewRowSave(
-              draftRowKey: 'draft-1',
-              labelSizeId: 4,
-              itemName: '신규',
-              elementPlain: '',
-              elementSheet: '{}',
-              order: 1,
-            ),
-          ],
-        ).toSqlParams(),
+        () => itemManagerSaveSqlParams(
+          const ItemManagerSaveCommand(
+            targetMarketIds: [],
+            newRows: [
+              ItemManagerNewRowSave(
+                draftRowKey: 'draft-1',
+                labelSizeId: 4,
+                itemName: '신규',
+                elementPlain: '',
+                elementSheet: '{}',
+                order: 1,
+              ),
+            ],
+          ),
+        ),
         throwsArgumentError,
       );
       expect(
-        () => const ItemManagerSaveCommand(
-          targetMarketIds: [1],
-          columnValues: [
-            ItemManagerColumnValueSave(
-              sourceItemId: 2,
-              draftRowKey: 'draft-1',
-              columnId: 3,
-              dataString: '',
-            ),
-          ],
-        ).toSqlParams(),
+        () => itemManagerSaveSqlParams(
+          const ItemManagerSaveCommand(
+            targetMarketIds: [1],
+            columnValues: [
+              ItemManagerColumnValueSave(
+                sourceItemId: 2,
+                draftRowKey: 'draft-1',
+                columnId: 3,
+                dataString: '',
+              ),
+            ],
+          ),
+        ),
         throwsArgumentError,
       );
     });

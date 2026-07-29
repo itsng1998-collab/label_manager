@@ -442,7 +442,7 @@ void main() {
       expect(command.columnValues.single.sourceItemId, isNull);
       expect(command.columnValues.single.draftRowKey, added.draftRowKey);
       expect(command.targetMarketIds, [3, 5]);
-      expect(() => command.toSqlParams(), returnsNormally);
+      expect(command.validate, returnsNormally);
     });
 
     test('rejects save while a working row has an empty item name', () {
