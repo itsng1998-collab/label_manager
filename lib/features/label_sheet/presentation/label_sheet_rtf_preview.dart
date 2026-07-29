@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_native_open_xml.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview_debug.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 
 class LabelSheetRtfPreview extends StatefulWidget {
   const LabelSheetRtfPreview({

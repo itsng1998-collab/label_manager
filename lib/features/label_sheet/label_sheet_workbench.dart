@@ -15,7 +15,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_ai_im
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_model.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_open_xml_export.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_xlsx_import.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
