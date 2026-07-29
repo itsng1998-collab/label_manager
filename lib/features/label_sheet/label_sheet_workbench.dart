@@ -17,6 +17,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_impor
 import 'package:label_manager/features/label_sheet/application/label_sheet_open_xml_export.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_xlsx_import.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
@@ -34,16 +35,8 @@ import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-bool labelSheetWriteRtfOpenXmlTestFileEnabled = false;
 const String labelSheetSaveToolbarCommand = 'label-sheet-save';
 const String labelSheetPrintToolbarCommand = 'label-sheet-print';
-
-const int _labelSheetDefaultPhysicalWidthMm = 100;
-const int _labelSheetDefaultPhysicalHeightMm = 100;
-
-int _labelSheetPositivePhysicalSizeOrDefault(int? value, int fallback) {
-  return value != null && value > 0 ? value : fallback;
-}
 
 const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
 const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
@@ -133,122 +126,6 @@ List<String> labelSheetContextMenuItems(
     fortuneToolbarBarcodeCommand,
     ...visible.skip(imageIndex + 1),
   ];
-}
-
-FortuneWorkbook labelSheetWorkbook(
-  FortuneWorkbook base, {
-  LabelSize? labelSize,
-  String? labelRtf,
-}) {
-  if (base.sheets.isEmpty) {
-    return base;
-  }
-  final common = labelSize?.labelSizeCommon;
-  final widthMm = _labelSheetPositivePhysicalSizeOrDefault(
-    common?.width,
-    _labelSheetDefaultPhysicalWidthMm,
-  );
-  final heightMm = _labelSheetPositivePhysicalSizeOrDefault(
-    common?.height,
-    _labelSheetDefaultPhysicalHeightMm,
-  );
-  final activeIndex = base.activeSheetIndex.clamp(0, base.sheets.length - 1);
-  final sheets = [
-    for (var index = 0; index < base.sheets.length; index += 1)
-      index == activeIndex
-          ? _labelSheetSizedSheet(
-              base.sheets[index],
-              labelSize: labelSize,
-              widthMm: widthMm,
-              heightMm: heightMm,
-              labelRtf: labelRtf,
-            )
-          : base.sheets[index].copyWith(),
-  ];
-  return base.copyWith(sheets: sheets);
-}
-
-Future<FortuneWorkbook> labelSheetWorkbookWithRtf(
-  FortuneWorkbook base, {
-  LabelSize? labelSize,
-  String? labelRtf,
-}) async {
-  final sized = labelSheetWorkbook(
-    base,
-    labelSize: labelSize,
-    labelRtf: labelRtf,
-  );
-  if (sized.sheets.isEmpty || !labelSheetLooksLikeRichEditRtf(labelRtf)) {
-    return sized;
-  }
-  final activeIndex = sized.activeSheetIndex.clamp(0, sized.sheets.length - 1);
-  final activeSheet = sized.sheets[activeIndex];
-  final draft = await labelSheetDraftFromRichEditRtfAsync(
-    labelRtf!,
-    sheet: activeSheet,
-    barcodeRenderer: labelSheetBarcodeRenderer,
-  );
-  if (draft == null) {
-    return sized;
-  }
-  if (labelSheetWriteRtfOpenXmlTestFileEnabled) {
-    try {
-      final file = await labelSheetWriteRichEditRtfOpenXmlTestFile(
-        labelRtf,
-        sheet: activeSheet,
-        barcodeRenderer: labelSheetBarcodeRenderer,
-      );
-      if (file == null) {
-        fortuneSheetDebugLog('label RTF Open XML test file skipped');
-      } else {
-        fortuneSheetDebugLog(
-          'label RTF Open XML test file written: ${file.path}',
-        );
-      }
-    } catch (error, stackTrace) {
-      fortuneSheetDebugLog(
-        'label RTF Open XML test file failed: $error\n$stackTrace',
-      );
-    }
-  }
-  final importedSheet = labelSheetApplyImageImportDraft(
-    activeSheet,
-    draft,
-    minRowCount: sized.settings.row,
-    minColumnCount: sized.settings.column,
-  );
-  final importedExtraFields = {
-    ...importedSheet.extraFields,
-    'labelRtfImportSource': true,
-  };
-  final sheets = [
-    for (var index = 0; index < sized.sheets.length; index += 1)
-      index == activeIndex
-          ? importedSheet.copyWith(extraFields: importedExtraFields)
-          : sized.sheets[index].copyWith(),
-  ];
-  return sized.copyWith(sheets: sheets);
-}
-
-FortuneSheet _labelSheetSizedSheet(
-  FortuneSheet sheet, {
-  required LabelSize? labelSize,
-  required int widthMm,
-  required int heightMm,
-  required String? labelRtf,
-}) {
-  final extraFields = {
-    ...sheet.extraFields,
-    fortuneSheetGridClientWidthMmKey: widthMm,
-    fortuneSheetGridClientHeightMmKey: heightMm,
-  };
-  if (labelSheetLooksLikeRichEditRtf(labelRtf)) {
-    extraFields.remove('labelRtfImportSource');
-  }
-  return sheet.copyWith(
-    name: labelSize?.labelSizeName ?? sheet.name,
-    extraFields: extraFields,
-  );
 }
 
 FortuneSheet _labelSheetWithPreservedGridClientSize(
@@ -1637,18 +1514,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final common = widget.labelSize?.labelSizeCommon;
     if (common == null) {
       return const FortuneSheetGridClientPhysicalSize(
-        widthMm: _labelSheetDefaultPhysicalWidthMm,
-        heightMm: _labelSheetDefaultPhysicalHeightMm,
+        widthMm: labelSheetDefaultPhysicalWidthMm,
+        heightMm: labelSheetDefaultPhysicalHeightMm,
       );
     }
     return FortuneSheetGridClientPhysicalSize(
-      widthMm: _labelSheetPositivePhysicalSizeOrDefault(
+      widthMm: labelSheetPositivePhysicalSizeOrDefault(
         common.width,
-        _labelSheetDefaultPhysicalWidthMm,
+        labelSheetDefaultPhysicalWidthMm,
       ),
-      heightMm: _labelSheetPositivePhysicalSizeOrDefault(
+      heightMm: labelSheetPositivePhysicalSizeOrDefault(
         common.height,
-        _labelSheetDefaultPhysicalHeightMm,
+        labelSheetDefaultPhysicalHeightMm,
       ),
     );
   }

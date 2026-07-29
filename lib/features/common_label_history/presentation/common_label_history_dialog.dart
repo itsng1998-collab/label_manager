@@ -14,7 +14,7 @@ import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/horizontal_pane_splitter.dart';
