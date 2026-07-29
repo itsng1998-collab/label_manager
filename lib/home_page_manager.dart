@@ -87,7 +87,7 @@ import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/features/cooperator/presentation/cooperator_manager_dialog.dart';
 import 'package:label_manager/features/customer/presentation/customer_manager_dialog.dart';
-import 'package:label_manager/page_home/market_manager_dialog.dart';
+import 'package:label_manager/features/market/presentation/market_manager_dialog.dart';
 import 'package:label_manager/features/managed_user/presentation/user_manager_dialog.dart';
 import 'package:label_manager/page_home/admin_copy_dialog.dart';
 import 'package:label_manager/page_home/search_and_replace_dialog.dart';

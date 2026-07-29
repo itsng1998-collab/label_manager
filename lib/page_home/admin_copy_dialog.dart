@@ -5,6 +5,7 @@ import 'package:label_manager/models/admin_copy.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
+import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';

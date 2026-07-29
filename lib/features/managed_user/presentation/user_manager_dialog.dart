@@ -4,6 +4,7 @@ import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
+import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/features/managed_user/data/managed_user_dao.dart';
 import 'package:label_manager/features/managed_user/domain/managed_user.dart';
 import 'package:label_manager/models/cooperator.dart';

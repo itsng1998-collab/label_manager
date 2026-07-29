@@ -1,7 +1,7 @@
+import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/models/market.dart';
 
 void main() {
   group('[읽기/스냅샷]', () {
@@ -23,10 +23,10 @@ void main() {
 
     test('customer market query uses only customer condition', () {
       expect(
-        MarketDAO.WhereSqlCustomerId,
+        MarketDAO.whereSqlCustomerId,
         contains('RICH_CUSTOMER_ID=@customerId'),
       );
-      expect(MarketDAO.WhereSqlCustomerId, isNot(contains('RICH_MARKET_ID')));
+      expect(MarketDAO.whereSqlCustomerId, isNot(contains('RICH_MARKET_ID')));
     });
 
     test('scoped column query uses one XML rowset parameter', () {

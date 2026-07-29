@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_resolver.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
+import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/models/admin_access_log.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
@@ -25,7 +26,7 @@ void main() {
 
   test('admin connect queries and log keep legacy ordering and columns', () {
     expect(
-      MarketDAO.SelectSql + MarketDAO.WhereSqlCustomerId,
+      MarketDAO.selectSql + MarketDAO.whereSqlCustomerId,
       isNot(contains('ORDER BY')),
     );
     expect(

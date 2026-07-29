@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
+import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
