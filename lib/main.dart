@@ -14,7 +14,7 @@ import 'core/ui_scale.dart';
 import 'database/db_reconnect_overlay.dart';
 import 'package:label_manager/utils/debug_logger.dart';
 import 'home_page.dart';
-import 'features/label_sheet/label_sheet_ai_import_temp.dart';
+import 'features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'printing/label_printer_preferences.dart';
 
 typedef DebugPrintCallback = void Function(String? message, {int? wrapWidth});

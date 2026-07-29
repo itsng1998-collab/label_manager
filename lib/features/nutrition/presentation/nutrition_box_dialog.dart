@@ -11,7 +11,7 @@ import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
 import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/widgets/preview_floating_window.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_ai_import_temp.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_rtf_preview.dart';
