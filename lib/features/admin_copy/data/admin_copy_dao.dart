@@ -1,43 +1,10 @@
-// ignore_for_file: constant_identifier_names
-
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/features/admin_copy/domain/admin_copy.dart';
 import 'package:label_manager/models/dao.dart';
 
-class AdminLabelSizeCopyCommand {
-  const AdminLabelSizeCopyCommand({
-    required this.sourceLabelSizeId,
-    required this.targetLabelSizeId,
-    required this.overwriteExisting,
-    required this.copyItems,
-    this.targetFirstMarketId,
-  });
-
-  final int sourceLabelSizeId;
-  final int targetLabelSizeId;
-  final bool overwriteExisting;
-  final bool copyItems;
-  final int? targetFirstMarketId;
-}
-
-class AdminBrandCopyCommand {
-  const AdminBrandCopyCommand({
-    required this.sourceBrandId,
-    required this.targetCustomerId,
-    required this.sourceBrandName,
-    required this.copyItems,
-    this.targetFirstMarketId,
-  });
-
-  final int sourceBrandId;
-  final int targetCustomerId;
-  final String sourceBrandName;
-  final bool copyItems;
-  final int? targetFirstMarketId;
-}
-
 class AdminCopyDAO extends DAO {
-  static const String _ColumnNames = '''
+  static const String _columnNames = '''
     RICH_LABELSIZE_ID, RICH_COLUMN_NAME, RICH_KEYWORD,
     RICH_COLUMN_ORDER, RICH_TYPE, RICH_WIDTH, RICH_HEIGHT,
     RICH_BARCODE_TYPE, RICH_USE_BARCODE_CHECKDIGIT,
@@ -55,7 +22,7 @@ class AdminCopyDAO extends DAO {
     RICH_AUTO_INC_UPDATE, RICH_USE_DATERANGE, RICH_DATERANGE
   ''';
 
-  static const String _SourceColumnValues = '''
+  static const String _sourceColumnValues = '''
     C.RICH_COLUMN_NAME, C.RICH_KEYWORD,
     C.RICH_COLUMN_ORDER, C.RICH_TYPE, C.RICH_WIDTH, C.RICH_HEIGHT,
     C.RICH_BARCODE_TYPE, C.RICH_USE_BARCODE_CHECKDIGIT,
@@ -73,7 +40,7 @@ class AdminCopyDAO extends DAO {
     C.RICH_AUTO_INC_UPDATE, C.RICH_USE_DATERANGE, C.RICH_DATERANGE
   ''';
 
-  static const String _CopyLabelSizeValues = '''
+  static const String _copyLabelSizeValues = '''
     T.RICH_FORM_WIDTH=S.RICH_FORM_WIDTH,
     T.RICH_FORM_HEIGHT=S.RICH_FORM_HEIGHT,
     T.RICH_FORM_SHEET=COALESCE(NULLIF(S.RICH_FORM_SHEET, ''), S.RICH_FORM_DATA),
@@ -93,13 +60,14 @@ class AdminCopyDAO extends DAO {
     T.RICH_SETUP_USE_SCALE=S.RICH_SETUP_USE_SCALE
   ''';
 
-  static const String TargetHasColumnsSql = '''
+  static const String targetHasColumnsSql = '''
     SELECT CASE WHEN EXISTS (
       SELECT 1 FROM BM_RICH_COLUMN WHERE RICH_LABELSIZE_ID=@targetLabelSizeId
     ) THEN 1 ELSE 0 END AS HAS_COLUMNS
   ''';
 
-  static const String CopyLabelSizeSql = '''
+  static const String copyLabelSizeSql =
+      '''
     IF @overwriteExisting=1
     BEGIN
       DELETE FROM BM_GS1_COLUMN_INFO
@@ -120,14 +88,14 @@ class AdminCopyDAO extends DAO {
        WHERE RICH_LABELSIZE_ID=@targetLabelSizeId;
     END;
 
-    UPDATE T SET $_CopyLabelSizeValues
+    UPDATE T SET $_copyLabelSizeValues
       FROM BM_RICH_LABELSIZE_FORM T
       INNER JOIN BM_RICH_LABELSIZE_FORM S
         ON S.RICH_LABELSIZE_ID=@sourceLabelSizeId
      WHERE T.RICH_LABELSIZE_ID=@targetLabelSizeId;
 
-    INSERT INTO BM_RICH_COLUMN ($_ColumnNames)
-    SELECT @targetLabelSizeId, $_SourceColumnValues
+    INSERT INTO BM_RICH_COLUMN ($_columnNames)
+    SELECT @targetLabelSizeId, $_sourceColumnValues
       FROM BM_RICH_COLUMN C
      WHERE C.RICH_LABELSIZE_ID=@sourceLabelSizeId;
 
@@ -143,7 +111,8 @@ class AdminCopyDAO extends DAO {
     SELECT @targetLabelSizeId AS TARGET_LABELSIZE_ID;
   ''';
 
-  static const String CopyBrandSql = '''
+  static const String copyBrandSql =
+      '''
     DECLARE @InsertedBrand TABLE (BRAND_ID INT NOT NULL);
     DECLARE @SizeMap TABLE (
       ROW_NO INT IDENTITY(1,1),
@@ -188,14 +157,14 @@ class AdminCopyDAO extends DAO {
       SET @RowNo+=1;
     END;
 
-    UPDATE T SET $_CopyLabelSizeValues
+    UPDATE T SET $_copyLabelSizeValues
       FROM BM_RICH_LABELSIZE_FORM T
       INNER JOIN @SizeMap M ON M.TARGET_LABELSIZE_ID=T.RICH_LABELSIZE_ID
       INNER JOIN BM_RICH_LABELSIZE_FORM S
         ON S.RICH_LABELSIZE_ID=M.SOURCE_LABELSIZE_ID;
 
-    INSERT INTO BM_RICH_COLUMN ($_ColumnNames)
-    SELECT M.TARGET_LABELSIZE_ID, $_SourceColumnValues
+    INSERT INTO BM_RICH_COLUMN ($_columnNames)
+    SELECT M.TARGET_LABELSIZE_ID, $_sourceColumnValues
       FROM @SizeMap M
       INNER JOIN BM_RICH_COLUMN C
         ON C.RICH_LABELSIZE_ID=M.SOURCE_LABELSIZE_ID;
@@ -223,7 +192,7 @@ class AdminCopyDAO extends DAO {
 
   static Future<bool> targetHasColumns(int targetLabelSizeId) async {
     final result = await DbClient.instance.getDataWithParams(
-      TargetHasColumnsSql,
+      targetHasColumnsSql,
       {'targetLabelSizeId': targetLabelSizeId},
     );
     final row = DAO.getRowMapFromResult(result);
@@ -234,7 +203,7 @@ class AdminCopyDAO extends DAO {
     _validateItemTarget(command.copyItems, command.targetFirstMarketId);
     await DbClient.instance.transaction([
       DbTransactionStatement(
-        sql: CopyLabelSizeSql,
+        sql: copyLabelSizeSql,
         params: {
           'sourceLabelSizeId': command.sourceLabelSizeId,
           'targetLabelSizeId': command.targetLabelSizeId,
@@ -251,7 +220,7 @@ class AdminCopyDAO extends DAO {
     _validateItemTarget(command.copyItems, command.targetFirstMarketId);
     await DbClient.instance.transaction([
       DbTransactionStatement(
-        sql: CopyBrandSql,
+        sql: copyBrandSql,
         params: {
           'sourceBrandId': command.sourceBrandId,
           'targetCustomerId': command.targetCustomerId,

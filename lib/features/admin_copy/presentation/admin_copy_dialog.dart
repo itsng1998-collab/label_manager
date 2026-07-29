@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/admin_copy.dart';
+import 'package:label_manager/features/admin_copy/data/admin_copy_dao.dart';
+import 'package:label_manager/features/admin_copy/domain/admin_copy.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';

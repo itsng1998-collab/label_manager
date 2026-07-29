@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/admin_copy.dart';
+import 'package:label_manager/features/admin_copy/data/admin_copy_dao.dart';
+import 'package:label_manager/features/admin_copy/domain/admin_copy.dart';
 
 void main() {
   test('normal copy keeps exact legacy delete and copy scope', () {
-    final sql = AdminCopyDAO.CopyLabelSizeSql;
+    final sql = AdminCopyDAO.copyLabelSizeSql;
     expect(sql, contains('DELETE FROM BM_GS1_COLUMN_INFO'));
     expect(sql, contains('DELETE FROM BM_RICH_COLUMN'));
     expect(sql, contains('DELETE FROM BM_RICH_COL_MIN'));
@@ -16,7 +17,7 @@ void main() {
   });
 
   test('column copy excludes related min check and GS1 tables', () {
-    final sql = AdminCopyDAO.CopyLabelSizeSql;
+    final sql = AdminCopyDAO.copyLabelSizeSql;
     expect(sql, contains('INSERT INTO BM_RICH_COLUMN'));
     expect(sql, isNot(contains('INSERT INTO BM_RICH_COL_MIN')));
     expect(sql, isNot(contains('INSERT INTO BM_RICH_CHECK_COLUMNS')));
@@ -24,7 +25,7 @@ void main() {
   });
 
   test('item procedures keep verified legacy order', () {
-    final sql = AdminCopyDAO.CopyLabelSizeSql;
+    final sql = AdminCopyDAO.copyLabelSizeSql;
     final item = sql.indexOf('EXEC proc_copy_item ');
     final content = sql.indexOf('EXEC proc_copy_item_content');
     final market = sql.indexOf('EXEC proc_copy_item_of_market');
@@ -34,7 +35,7 @@ void main() {
   });
 
   test('brand copy uses output mappings without last-row fallback', () {
-    final sql = AdminCopyDAO.CopyBrandSql;
+    final sql = AdminCopyDAO.copyBrandSql;
     expect(sql, contains('OUTPUT INSERTED.RICH_BRAND_ID'));
     expect(sql, contains('OUTPUT INSERTED.RICH_LABELSIZE_ID'));
     expect(sql, contains('DECLARE @SizeMap TABLE'));
