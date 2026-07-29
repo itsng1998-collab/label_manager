@@ -7,7 +7,7 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_manager_save_command.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
-import 'package:label_manager/utils/item_manager_debug_log.dart';
+import 'package:label_manager/features/item/item_manager_debug_log.dart';
 
 abstract final class ItemManagerLimits {
   static const int maxRows = 10000;

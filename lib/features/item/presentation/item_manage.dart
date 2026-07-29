@@ -13,7 +13,7 @@ import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/item/presentation/item_manager_table_dimensions.dart';
 import 'package:label_manager/core/table_search.dart';
-import 'package:label_manager/utils/item_manager_debug_log.dart';
+import 'package:label_manager/features/item/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 class ItemManageController {

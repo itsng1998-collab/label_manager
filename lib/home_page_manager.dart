@@ -86,7 +86,7 @@ import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/utils/item_manager_debug_log.dart';
+import 'package:label_manager/features/item/item_manager_debug_log.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
