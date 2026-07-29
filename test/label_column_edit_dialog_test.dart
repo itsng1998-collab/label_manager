@@ -9,6 +9,7 @@ import 'package:label_manager/models/label_column_candidates.dart';
 import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/swipe_action_table.dart';
 
 const baseType = TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 1);
 const barcodeColumnType = TColumnType(
@@ -21,6 +22,25 @@ const qrColumnType = TColumnType(
   name: 'QR 코드',
   order: 3,
 );
+
+Future<TestGesture> _startRowDrag(
+  WidgetTester tester,
+  Finder source,
+) async {
+  final gesture = await tester.startGesture(tester.getCenter(source));
+  await tester.pump(swipeActionTableDragStartDelay);
+  return gesture;
+}
+
+Future<void> _dragRowTo(
+  WidgetTester tester,
+  Finder source,
+  Finder target,
+) async {
+  final gesture = await _startRowDrag(tester, source);
+  await gesture.moveTo(tester.getCenter(target));
+  await gesture.up();
+}
 
 TColumn _column(int id, String keyword, {int order = 1}) {
   return TColumn(
@@ -551,10 +571,7 @@ void main() {
     );
     final usedRow = usedRowTexts.first;
     final remove = find.byKey(const Key('label-column-remove'));
-    await tester.drag(
-      usedRow,
-      tester.getCenter(remove) - tester.getCenter(usedRow),
-    );
+    await _dragRowTo(tester, usedRow, remove);
     await tester.pump();
 
     expect(usedRowTexts, findsWidgets);
@@ -589,7 +606,7 @@ void main() {
     expect(tester.widget<IconButton>(remove).onPressed, isNotNull);
 
     final source = find.text('고정 A');
-    final gesture = await tester.startGesture(tester.getCenter(source));
+    final gesture = await _startRowDrag(tester, source);
     await gesture.moveBy(const Offset(-24, 0));
     await tester.pump();
     expect(tester.widget<IconButton>(remove).onPressed, isNull);
@@ -886,10 +903,7 @@ void main() {
     await tester.pump();
     final source = find.text('CUSTOM_A');
     final target = find.byKey(const Key('label-column-remove'));
-    await tester.drag(
-      source,
-      tester.getCenter(target) - tester.getCenter(source),
-    );
+    await _dragRowTo(tester, source, target);
     await tester.pumpAndSettle();
     expect(find.text('CUSTOM_A'), findsNothing);
   });
@@ -911,7 +925,7 @@ void main() {
     final keyword = find.byKey(
       const ValueKey('customer-keyword-drag:customer-column:11'),
     );
-    final keywordDrag = await tester.startGesture(tester.getCenter(keyword));
+    final keywordDrag = await _startRowDrag(tester, keyword);
     await keywordDrag.moveBy(const Offset(20, 0));
     await tester.pump();
 
@@ -944,7 +958,7 @@ void main() {
     final name = find.byKey(
       const ValueKey('customer-name-drag:customer-column:11'),
     );
-    await tester.drag(name, tester.getCenter(remove) - tester.getCenter(name));
+    await _dragRowTo(tester, name, remove);
     await tester.pumpAndSettle();
     expect(name, findsNothing);
   });

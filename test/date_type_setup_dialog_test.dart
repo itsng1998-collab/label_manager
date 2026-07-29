@@ -55,7 +55,7 @@ void main() {
     await tester.pump();
     expect(find.text('2000년 01월 01일'), findsOneWidget);
 
-    await tester.tap(find.text('적용'));
+    await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(result, isNotNull);
     expect(result!.strMakeDate, 'Y년 M월 D일');
@@ -95,7 +95,12 @@ void main() {
       ),
     );
 
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, '적용')).onPressed, isNull);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNull,
+    );
     expect(tester.widget<Checkbox>(find.byType(Checkbox).first).onChanged, isNull);
     expect(tester.widget<TextField>(find.byType(TextField).first).enabled, isFalse);
   });
