@@ -13,7 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
-import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';

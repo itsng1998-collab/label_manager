@@ -1,12 +1,11 @@
-// UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
 class AdditionalItem {
-	final int AdditionalItemId;
-	final int itemId;
-	final String element;
-	final String elementRTF;
-	final int price;
+  final int AdditionalItemId;
+  final int itemId;
+  final String element;
+  final String elementRTF;
+  final int price;
 
   const AdditionalItem({
     required this.AdditionalItemId,
@@ -18,5 +17,5 @@ class AdditionalItem {
 
   @override
   String toString() =>
-    'AdditionalItemId: $AdditionalItemId, itemId: $itemId, element: $element, elementRTF: $elementRTF, price: $price';
+      'AdditionalItemId: $AdditionalItemId, itemId: $itemId, element: $element, elementRTF: $elementRTF, price: $price';
 }

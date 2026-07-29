@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/application/item_manager_order_service.dart';
 import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
-import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
