@@ -11,7 +11,7 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_home/table_search.dart';
+import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:win32/win32.dart';

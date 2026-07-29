@@ -8,7 +8,7 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/scale_output/application/scale_output.dart';
 import 'package:label_manager/features/scale_output/presentation/scale_output_page.dart';
-import 'package:label_manager/page_home/table_search.dart';
+import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 

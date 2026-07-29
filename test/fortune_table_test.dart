@@ -18,7 +18,7 @@ import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/features/item/presentation/item_manage.dart';
-import 'package:label_manager/page_home/table_search.dart';
+import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {

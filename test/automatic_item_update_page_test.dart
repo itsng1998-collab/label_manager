@@ -9,7 +9,7 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/features/automatic_item_update/domain/update_item.dart';
 import 'package:label_manager/features/automatic_item_update/presentation/automatic_item_update_page.dart';
-import 'package:label_manager/page_home/table_search.dart';
+import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 void main() {
