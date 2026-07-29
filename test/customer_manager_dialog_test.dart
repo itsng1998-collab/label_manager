@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/customer/presentation/customer_manager_dialog.dart';
 
 void main() {

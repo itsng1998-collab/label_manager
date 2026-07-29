@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_resolver.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
-import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/login/data/user_dao.dart';
@@ -13,6 +13,18 @@ void main() {
     cooperatorId: 'COOP',
     customerName: '거래처',
   );
+
+  test('customer row mapper normalizes string and integer values', () {
+    final mapped = customerFromRow({
+      'CUSTOMER_ID': '10',
+      'COOP_ID': 20,
+      'NAME': null,
+    });
+
+    expect(mapped.customerId, 10);
+    expect(mapped.cooperatorId, '20');
+    expect(mapped.customerName, isEmpty);
+  });
 
   test('customer CRUD follows verified schema without ordering', () {
     expect(CustomerDAO.insertSql, contains('RICH_COOP_ID, RICH_NAME'));

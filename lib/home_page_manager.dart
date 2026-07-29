@@ -50,7 +50,7 @@ import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/label_column/data/column_dao.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';

@@ -11,7 +11,7 @@ import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';

@@ -7,7 +7,7 @@ import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 typedef CustomerCooperatorLoader = Future<List<Cooperator>> Function();

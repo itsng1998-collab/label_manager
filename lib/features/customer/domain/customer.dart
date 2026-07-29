@@ -17,17 +17,6 @@ class Customer {
     instance = customer;
   }
 
-  factory Customer.fromMap(Map<String, dynamic> map) {
-    String s(String key) => (map[key] ?? '').toString();
-    int i(String key) => int.tryParse(s(key)) ?? 0;
-
-    return Customer(
-      customerId: i('CUSTOMER_ID'),
-      cooperatorId: s('COOP_ID'),
-      customerName: s('NAME'),
-    );
-  }
-
   @override
   String toString() =>
       'CustomerId: $customerId, CoopId: $cooperatorId, CustomerName: $customerName';

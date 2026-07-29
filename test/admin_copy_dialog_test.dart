@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/admin_copy/domain/admin_copy.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/admin_copy/presentation/admin_copy_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';

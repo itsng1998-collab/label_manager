@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/content_save_history/domain/content_save_log.dart';
 import 'package:label_manager/features/content_save_history/presentation/content_save_history_dialog.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 

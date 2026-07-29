@@ -1,8 +1,19 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
+
+Customer customerFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+  int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
+
+  return Customer(
+    customerId: intValue('CUSTOMER_ID'),
+    cooperatorId: stringValue('COOP_ID'),
+    customerName: stringValue('NAME'),
+  );
+}
 
 class CustomerDAO extends DAO {
   static const String selectSql =
@@ -54,7 +65,7 @@ class CustomerDAO extends DAO {
       final rows = DAO
           .getRowsFromResult(result)
           .whereType<Map>()
-          .map((row) => Customer.fromMap(Map<String, dynamic>.from(row)))
+          .map((row) => customerFromRow(Map<String, dynamic>.from(row)))
           .toList(growable: false);
       debugLog(END);
       return rows;
@@ -76,7 +87,7 @@ class CustomerDAO extends DAO {
       final map = DAO.getRowMapFromResult(res);
 
       debugLog(END);
-      return Customer.fromMap(map!);
+      return customerFromRow(map!);
     } catch (e) {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');

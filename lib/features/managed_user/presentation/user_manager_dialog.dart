@@ -8,7 +8,7 @@ import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/features/managed_user/data/managed_user_dao.dart';
 import 'package:label_manager/features/managed_user/domain/managed_user.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
