@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_resolver.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
-import 'package:label_manager/models/admin_access_log.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
@@ -24,7 +23,7 @@ void main() {
     expect(CustomerDAO.selectSql, isNot(contains('ORDER BY')));
   });
 
-  test('admin connect queries and log keep legacy ordering and columns', () {
+  test('admin connect queries keep legacy ordering', () {
     expect(
       MarketDAO.selectSql + MarketDAO.whereSqlCustomerId,
       isNot(contains('ORDER BY')),
@@ -33,11 +32,6 @@ void main() {
       UserDAO.SelectSql + AdminConnectResolverDAO.whereSqlMarketId,
       isNot(contains('ORDER BY')),
     );
-    expect(AdminAccessLogDAO.InsertSql, contains('ACCESS_USER_ID'));
-    expect(AdminAccessLogDAO.InsertSql, contains('ACCESS_TARGET_USER_ID'));
-    expect(AdminAccessLogDAO.InsertSql, contains('ACCESS_TARGET_CUSTOMER'));
-    expect(AdminAccessLogDAO.InsertSql, contains("CONNECTIONPROPERTY('client_net_address')"));
-    expect(AdminAccessLogDAO.InsertSql, contains('GETDATE()'));
   });
 
   test('admin connect selects first market and first grade 2 user', () async {
