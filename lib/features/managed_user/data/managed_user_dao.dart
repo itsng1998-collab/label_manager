@@ -1,46 +1,10 @@
-// ignore_for_file: constant_identifier_names
-
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/managed_user/domain/managed_user.dart';
 import 'package:label_manager/models/dao.dart';
-import 'package:label_manager/models/user.dart';
 import 'package:label_manager/utils/log_context.dart';
 
-class ManagedUser {
-  const ManagedUser({
-    required this.userId,
-    required this.marketId,
-    required this.name,
-    required this.password,
-    required this.grade,
-    required this.marketName,
-    required this.customerName,
-  });
-
-  final String userId;
-  final int marketId;
-  final String name;
-  final String password;
-  final UserGrade grade;
-  final String marketName;
-  final String customerName;
-
-  factory ManagedUser.fromMap(Map<String, dynamic> map) {
-    String text(String key) => (map[key] ?? '').toString();
-    int number(String key) => int.tryParse(text(key)) ?? 0;
-    return ManagedUser(
-      userId: text('USER_ID'),
-      marketId: number('MARKET_ID'),
-      name: text('NAME'),
-      password: text('PASSWORD'),
-      grade: UserGrade.fromCode(number('GRADE')),
-      marketName: text('MARKET_NAME'),
-      customerName: text('CUSTOMER_NAME'),
-    );
-  }
-}
-
 class ManagedUserDAO extends DAO {
-  static const String SelectSql =
+  static const String selectSql =
       '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(30), P1.RICH_USER_ID COLLATE ${DAO.CP949}), N'') AS USER_ID,
@@ -56,28 +20,28 @@ class ManagedUserDAO extends DAO {
     INNER JOIN BM_COOPERATOR P4 ON P3.RICH_COOP_ID=P4.RICH_COOP_ID
   ''';
 
-  static const String WhereMarketSql = '''
+  static const String whereMarketSql = '''
     WHERE P1.RICH_MARKET_ID=@marketId
       AND P1.RICH_USER_GRADE<>0
   ''';
 
-  static const String WhereCooperatorSql = '''
+  static const String whereCooperatorSql = '''
     WHERE P4.RICH_COOP_ID=@cooperatorId
       AND P1.RICH_USER_GRADE<>0
     ORDER BY P3.RICH_CUSTOMER_ID, P2.RICH_MARKET_ID
   ''';
 
-  static const String WhereUserIdSql = '''
+  static const String whereUserIdSql = '''
     WHERE P1.RICH_USER_ID=@userId
   ''';
 
-  static const String InsertSql = '''
+  static const String insertSql = '''
     INSERT INTO BM_USER
       (RICH_USER_ID, RICH_MARKET_ID, RICH_NAME, RICH_PWD, RICH_USER_GRADE)
     VALUES (@userId, @marketId, @name, @password, @grade)
   ''';
 
-  static const String UpdateSql = '''
+  static const String updateSql = '''
     UPDATE BM_USER
        SET RICH_USER_ID=@userId,
            RICH_MARKET_ID=@marketId,
@@ -87,13 +51,13 @@ class ManagedUserDAO extends DAO {
      WHERE RICH_USER_ID=@originalUserId
   ''';
 
-  static const String DeleteSql = '''
+  static const String deleteSql = '''
     DELETE FROM BM_USER WHERE RICH_USER_ID=@userId
   ''';
 
   static Future<List<ManagedUser>> selectByMarketId(int marketId) async {
     final result = await DbClient.instance.getDataWithParams(
-      '$SelectSql $WhereMarketSql',
+      '$selectSql $whereMarketSql',
       {'marketId': marketId},
     );
     return DAO.mapRows(result, ManagedUser.fromMap);
@@ -103,7 +67,7 @@ class ManagedUserDAO extends DAO {
     String cooperatorId,
   ) async {
     final result = await DbClient.instance.getDataWithParams(
-      '$SelectSql $WhereCooperatorSql',
+      '$selectSql $whereCooperatorSql',
       {'cooperatorId': cooperatorId},
     );
     return DAO.mapRows(result, ManagedUser.fromMap);
@@ -111,7 +75,7 @@ class ManagedUserDAO extends DAO {
 
   static Future<ManagedUser?> selectByUserId(String userId) async {
     final result = await DbClient.instance.getDataWithParams(
-      '$SelectSql $WhereUserIdSql',
+      '$selectSql $whereUserIdSql',
       {'userId': userId},
     );
     final row = DAO.getRowMapFromResult(result);
@@ -120,7 +84,7 @@ class ManagedUserDAO extends DAO {
 
   static Future<void> insert(ManagedUser user) async {
     final result = await DbClient.instance.writeDataWithParams(
-      InsertSql,
+      insertSql,
       _params(user),
     );
     if (DAO.affectedRows(result) <= 0) {
@@ -129,7 +93,7 @@ class ManagedUserDAO extends DAO {
   }
 
   static Future<void> update(String originalUserId, ManagedUser user) async {
-    final result = await DbClient.instance.writeDataWithParams(UpdateSql, {
+    final result = await DbClient.instance.writeDataWithParams(updateSql, {
       ..._params(user),
       'originalUserId': originalUserId,
     });
@@ -139,7 +103,7 @@ class ManagedUserDAO extends DAO {
   }
 
   static Future<void> delete(String userId) async {
-    final result = await DbClient.instance.writeDataWithParams(DeleteSql, {
+    final result = await DbClient.instance.writeDataWithParams(deleteSql, {
       'userId': userId,
     });
     if (DAO.affectedRows(result) <= 0) {

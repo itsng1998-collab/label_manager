@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
-import 'package:label_manager/models/managed_user.dart';
+import 'package:label_manager/features/managed_user/domain/managed_user.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
-import 'package:label_manager/page_home/user_manager_dialog.dart';
+import 'package:label_manager/features/managed_user/presentation/user_manager_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {

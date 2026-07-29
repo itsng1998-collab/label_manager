@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/managed_user.dart';
+import 'package:label_manager/features/managed_user/data/managed_user_dao.dart';
+import 'package:label_manager/features/managed_user/domain/managed_user.dart';
 import 'package:label_manager/models/user.dart';
 
 void main() {
@@ -21,10 +22,10 @@ void main() {
   test(
     'managed queries exclude system admin and only coop view is ordered',
     () {
-      expect(ManagedUserDAO.WhereMarketSql, contains('RICH_USER_GRADE<>0'));
-      expect(ManagedUserDAO.WhereMarketSql, isNot(contains('ORDER BY')));
+      expect(ManagedUserDAO.whereMarketSql, contains('RICH_USER_GRADE<>0'));
+      expect(ManagedUserDAO.whereMarketSql, isNot(contains('ORDER BY')));
       expect(
-        ManagedUserDAO.WhereCooperatorSql,
+        ManagedUserDAO.whereCooperatorSql,
         contains('ORDER BY P3.RICH_CUSTOMER_ID, P2.RICH_MARKET_ID'),
       );
     },
@@ -33,11 +34,11 @@ void main() {
   test(
     'managed CRUD stores only legacy fields without credential conversion',
     () {
-      expect(ManagedUserDAO.InsertSql, contains('RICH_PWD'));
-      expect(ManagedUserDAO.InsertSql, contains('RICH_USER_GRADE'));
-      expect(ManagedUserDAO.UpdateSql, contains('@originalUserId'));
-      expect(ManagedUserDAO.DeleteSql, contains('DELETE FROM BM_USER'));
-      expect(ManagedUserDAO.InsertSql, isNot(contains('HASH')));
+      expect(ManagedUserDAO.insertSql, contains('RICH_PWD'));
+      expect(ManagedUserDAO.insertSql, contains('RICH_USER_GRADE'));
+      expect(ManagedUserDAO.updateSql, contains('@originalUserId'));
+      expect(ManagedUserDAO.deleteSql, contains('DELETE FROM BM_USER'));
+      expect(ManagedUserDAO.insertSql, isNot(contains('HASH')));
     },
   );
 }
