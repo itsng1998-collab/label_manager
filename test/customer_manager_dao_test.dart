@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_resolver.dart';
+import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/models/admin_access_log.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
@@ -13,13 +14,13 @@ void main() {
   );
 
   test('customer CRUD follows verified schema without ordering', () {
-    expect(CustomerDAO.InsertSql, contains('RICH_COOP_ID, RICH_NAME'));
-    expect(CustomerDAO.InsertSql, isNot(contains('RICH_CUSTOMER_ID,')));
-    expect(CustomerDAO.InsertSql, isNot(contains('RICH_ETC')));
-    expect(CustomerDAO.UpdateSql, contains('RICH_CUSTOMER_ID=@customerId'));
-    expect(CustomerDAO.DeleteSql, contains('DELETE FROM BM_CUSTOMER'));
-    expect(CustomerDAO.DeleteSql, isNot(contains('BM_MARKET')));
-    expect(CustomerDAO.SelectSql, isNot(contains('ORDER BY')));
+    expect(CustomerDAO.insertSql, contains('RICH_COOP_ID, RICH_NAME'));
+    expect(CustomerDAO.insertSql, isNot(contains('RICH_CUSTOMER_ID,')));
+    expect(CustomerDAO.insertSql, isNot(contains('RICH_ETC')));
+    expect(CustomerDAO.updateSql, contains('RICH_CUSTOMER_ID=@customerId'));
+    expect(CustomerDAO.deleteSql, contains('DELETE FROM BM_CUSTOMER'));
+    expect(CustomerDAO.deleteSql, isNot(contains('BM_MARKET')));
+    expect(CustomerDAO.selectSql, isNot(contains('ORDER BY')));
   });
 
   test('admin connect queries and log keep legacy ordering and columns', () {
