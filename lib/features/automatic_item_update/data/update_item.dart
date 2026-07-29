@@ -3,85 +3,9 @@
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/automatic_item_update/domain/update_item.dart';
+import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'dao.dart';
-
-class UpdateItem {
-  static List<UpdateItem>? datas;
-
-	final int updateItemId;
-	final int itemId;
-	final String itemName;
-	final int labelSizeId;
-	final String element;
-	final String elementRTF;
-	final int price;
-	final DateTime applyDate;
-  final bool isApply;
-
-  const UpdateItem({
-    required this.updateItemId,
-    required this.itemId,
-    required this.itemName,
-    required this.labelSizeId,
-    required this.element,
-    required this.elementRTF,
-    required this.price,
-    required this.applyDate,
-    required this.isApply,
-  });
-
-  static void setDatas(List<UpdateItem>? values) {
-    datas = values;
-  }
-
-  factory UpdateItem.fromMap(Map<String, dynamic> map) {
-    String s(String key) => (map[key] ?? '').toString();
-    int i(String key) => int.tryParse(s(key)) ?? 0;
-    final applyDateText = s('APPLY_DATE');
-    final applyDate = parseUpdateItemApplyDate(applyDateText);
-    if (applyDate == null) {
-      throw FormatException('Invalid APPLY_DATE: $applyDateText');
-    }
-
-    return UpdateItem(
-      updateItemId: i('UPDATE_ITEM_ID'),
-      itemId:       i('ITEM_ID'),
-      itemName:     s('ITEM_NAME'),
-      labelSizeId:  i('LABEL_SIZE_ID'),
-      element:      s('ELEMENT'),
-      elementRTF:   s('ELEMENT_RTF'),
-      price:        i('PRICE'),
-      applyDate:    applyDate,
-      isApply:      parseUpdateItemIsApply(s('IS_APPLY')),
-    );
-  }
-
-  @override
-  String toString() =>
-    'UpdateItemId: $updateItemId, ItemId: $itemId, ItemName: $itemName, LabelSizeId: $labelSizeId, Element: $element, ElementRTF: $elementRTF, Price: $price, ApplyDate: $applyDate, IsApply: $isApply';
-}
-
-DateTime? parseUpdateItemApplyDate(String value) {
-  if (!RegExp(r'^\d{8}$').hasMatch(value)) {
-    return null;
-  }
-  final year = int.tryParse(value.substring(0, 4));
-  final month = int.tryParse(value.substring(4, 6));
-  final day = int.tryParse(value.substring(6, 8));
-  if (year == null || month == null || day == null) {
-    return null;
-  }
-  final parsed = DateTime(year, month, day);
-  if (parsed.year != year || parsed.month != month || parsed.day != day) {
-    return null;
-  }
-  return parsed;
-}
-
-bool parseUpdateItemIsApply(String value) {
-  return value.trim() == '1';
-}
 
 class UpdateItemDAO extends DAO {
   static const String SelectSql = '''

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 
-import 'package:label_manager/models/automatic_item_update_draft.dart';
+import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';

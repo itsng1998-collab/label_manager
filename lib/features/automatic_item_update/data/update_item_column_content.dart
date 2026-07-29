@@ -1,9 +1,8 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
-import 'package:label_manager/models/automatic_item_update_draft.dart';
+import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
+import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
-
-import 'dao.dart';
 
 class UpdateItemColumnContent {
   const UpdateItemColumnContent({

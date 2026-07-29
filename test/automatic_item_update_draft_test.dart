@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/automatic_item_update_draft.dart';
-import 'package:label_manager/models/update_item.dart';
+import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
+import 'package:label_manager/features/automatic_item_update/domain/update_item.dart';
 
 void main() {
   group('[automatic item update draft]', () {
