@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/label_column/data/label_column_candidates.dart';
+import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/label_column_candidates.dart';
 
 const baseType = TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 1);
 const barcodeType = TColumnType(
