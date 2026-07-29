@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
-import 'package:label_manager/models/barcode.dart';
+import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 

@@ -3,7 +3,7 @@
 
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
-import 'package:label_manager/models/barcode.dart';
+import 'package:label_manager/core/barcode.dart';
 
 enum QRTextAlignment {
   ALIGN_LEFT(0),

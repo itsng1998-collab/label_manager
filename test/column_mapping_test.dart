@@ -3,7 +3,7 @@ import 'package:label_manager/features/label_column/data/column_dao.dart';
 import 'package:label_manager/features/label_column/data/column_type_dao.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
-import 'package:label_manager/models/barcode.dart';
+import 'package:label_manager/core/barcode.dart';
 
 void main() {
   test('column type row maps database values', () {
