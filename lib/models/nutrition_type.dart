@@ -42,19 +42,19 @@ class NutritionTypeColumn {
 }
 
 class NutritionTypeDAO extends DAO {
-  static const String SelectTypesSql = '''
+  static const String selectTypesSql = '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), RICH_NUTTYPE_ID), N'') AS NUTTYPE_ID,
       COALESCE(CONVERT(NVARCHAR(50), RICH_NUTTYPE_NAME COLLATE ${DAO.CP949}), N'') AS NUTTYPE_NAME
     FROM BM_RICH_NUTTYPE
   ''';
 
-  static const String SelectTypesByIdSql = '''
-    $SelectTypesSql
+  static const String selectTypesByIdSql = '''
+    $selectTypesSql
     ORDER BY RICH_NUTTYPE_ID
   ''';
 
-  static const String SelectColumnsSql = '''
+  static const String selectColumnsSql = '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), RICH_NUTCOL_ID), N'') AS NUTCOL_ID,
       COALESCE(CONVERT(NVARCHAR(10), RICH_NUTCOL_KEYWORD COLLATE ${DAO.CP949}), N'') AS NUTCOL_KEYWORD,
@@ -64,7 +64,7 @@ class NutritionTypeDAO extends DAO {
     ORDER BY RICH_NUTCOL_ID
   ''';
 
-  static const String InsertSql = '''
+  static const String insertSql = '''
     DECLARE @Details XML=CONVERT(XML, @detailsXml);
     DECLARE @InsertedType TABLE (NUTTYPE_ID INT NOT NULL);
 
@@ -85,7 +85,7 @@ class NutritionTypeDAO extends DAO {
     CROSS JOIN @Details.nodes('/columns/column') X(N);
   ''';
 
-  static const String UpdateSql = '''
+  static const String updateSql = '''
     DECLARE @Details XML=CONVERT(XML, @detailsXml);
 
     UPDATE BM_RICH_NUTTYPE
@@ -109,7 +109,7 @@ class NutritionTypeDAO extends DAO {
     FROM @Details.nodes('/columns/column') X(N);
   ''';
 
-  static const String DeleteSql = '''
+  static const String deleteSql = '''
     DELETE FROM BM_RICH_NUTBOX
      WHERE RICH_NUTBOX_TYPE=@typeId;
 
@@ -123,18 +123,18 @@ class NutritionTypeDAO extends DAO {
   ''';
 
   static Future<List<NutritionType>> selectTypes() async {
-    final result = await DbClient.instance.getData(SelectTypesSql);
+    final result = await DbClient.instance.getData(selectTypesSql);
     return DAO.mapRows(result, NutritionType.fromMap);
   }
 
   static Future<List<NutritionType>> selectTypesById() async {
-    final result = await DbClient.instance.getData(SelectTypesByIdSql);
+    final result = await DbClient.instance.getData(selectTypesByIdSql);
     return DAO.mapRows(result, NutritionType.fromMap);
   }
 
   static Future<List<NutritionTypeColumn>> selectColumns(int typeId) async {
     final result = await DbClient.instance.getDataWithParams(
-      SelectColumnsSql,
+      selectColumnsSql,
       {'typeId': typeId},
     );
     return DAO.mapRows(result, NutritionTypeColumn.fromMap);
@@ -144,7 +144,7 @@ class NutritionTypeDAO extends DAO {
     String name,
     List<NutritionTypeColumn> columns,
   ) => DbTransactionStatement(
-    sql: InsertSql,
+    sql: insertSql,
     params: {'name': name, 'detailsXml': _detailsXml(columns)},
   );
 
@@ -153,7 +153,7 @@ class NutritionTypeDAO extends DAO {
     String name,
     List<NutritionTypeColumn> columns,
   ) => DbTransactionStatement(
-    sql: UpdateSql,
+    sql: updateSql,
     params: {
       'typeId': typeId,
       'name': name,
@@ -162,7 +162,7 @@ class NutritionTypeDAO extends DAO {
   );
 
   static DbTransactionStatement deleteStatement(int typeId) =>
-      DbTransactionStatement(sql: DeleteSql, params: {'typeId': typeId});
+      DbTransactionStatement(sql: deleteSql, params: {'typeId': typeId});
 
   static Future<void> insert(
     String name,

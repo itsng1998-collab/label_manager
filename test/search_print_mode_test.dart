@@ -9,19 +9,19 @@ import 'package:label_manager/page_home/search_print_command.dart';
 
 void main() {
   test('legacy search print SQL keeps exact match and grouped first-row order', () {
-    expect(SearchPrintDAO.SelectSql, contains('B.RICH_ITEM_NAME=@query'));
+    expect(SearchPrintDAO.selectSql, contains('B.RICH_ITEM_NAME=@query'));
     expect(
-      SearchPrintDAO.SelectSql,
+      SearchPrintDAO.selectSql,
       contains('A.RICH_COL_CONTENT_DATA=@query AND F.RICH_SEARCH_PRINT=1'),
     );
-    expect(SearchPrintDAO.SelectSql, contains('BM_RICH_COL_CONTENT A'));
+    expect(SearchPrintDAO.selectSql, contains('BM_RICH_COL_CONTENT A'));
     expect(
-      SearchPrintDAO.SelectSql,
+      SearchPrintDAO.selectSql,
       contains(
         'GROUP BY C.RICH_BRAND_ID, B.RICH_LABELSIZE_ID, A.RICH_ITEM_ID',
       ),
     );
-    expect(SearchPrintDAO.SelectSql.toUpperCase(), isNot(contains('ORDER BY')));
+    expect(SearchPrintDAO.selectSql.toUpperCase(), isNot(contains('ORDER BY')));
   });
 
   test('search result maps legacy print identity', () {

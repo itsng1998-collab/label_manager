@@ -220,9 +220,10 @@ class PreviewFloatingWindow {
 
   Widget wrapPortalHost({required Widget child}) {
     assert(usePortalHost);
-    return OverlayPortal.targetsRootOverlay(
+    return OverlayPortal(
       controller: _portalController,
       overlayChildBuilder: (_) => _buildOverlayContent(),
+      overlayLocation: OverlayChildLocation.rootOverlay,
       child: child,
     );
   }

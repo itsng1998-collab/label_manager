@@ -3,9 +3,9 @@ import 'package:label_manager/models/nutrition_box.dart';
 
 void main() {
   test('manager query joins type and keeps legacy type id order', () {
-    expect(NutritionBoxDAO.SelectSql, contains('INNER JOIN BM_RICH_NUTTYPE'));
-    expect(NutritionBoxDAO.SelectSql, contains('ORDER BY T.RICH_NUTTYPE_ID'));
-    expect(NutritionBoxDAO.SelectSql, isNot(contains('RICH_NUTBOX_ID ASC')));
+    expect(NutritionBoxDAO.selectSql, contains('INNER JOIN BM_RICH_NUTTYPE'));
+    expect(NutritionBoxDAO.selectSql, contains('ORDER BY T.RICH_NUTTYPE_ID'));
+    expect(NutritionBoxDAO.selectSql, isNot(contains('RICH_NUTBOX_ID ASC')));
   });
 
   test('insert stores only four active fields including empty RTF', () {

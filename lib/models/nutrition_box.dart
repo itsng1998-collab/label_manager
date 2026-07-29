@@ -34,7 +34,7 @@ class NutritionBox {
 }
 
 class NutritionBoxDAO extends DAO {
-  static const String SelectSql = '''
+  static const String selectSql = '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), B.RICH_NUTBOX_ID), N'') AS NUTBOX_ID,
       COALESCE(CONVERT(NVARCHAR(20), T.RICH_NUTTYPE_ID), N'') AS NUTTYPE_ID,
@@ -48,7 +48,7 @@ class NutritionBoxDAO extends DAO {
     ORDER BY T.RICH_NUTTYPE_ID
   ''';
 
-  static const String InsertSql = '''
+  static const String insertSql = '''
     INSERT INTO BM_RICH_NUTBOX (
       RICH_NUTBOX_TYPE,
       RICH_NUTBOX_NAME,
@@ -57,7 +57,7 @@ class NutritionBoxDAO extends DAO {
     ) VALUES (@typeId, @name, @rtf, @width);
   ''';
 
-  static const String UpdateSql = '''
+  static const String updateSql = '''
     UPDATE BM_RICH_NUTBOX
        SET RICH_NUTBOX_TYPE=@typeId,
            RICH_NUTBOX_NAME=@name,
@@ -68,7 +68,7 @@ class NutritionBoxDAO extends DAO {
       THROW 51012, 'Nutrition box update count mismatch.', 1;
   ''';
 
-  static const String DeleteSql = '''
+  static const String deleteSql = '''
     DELETE FROM BM_RICH_NUTBOX
      WHERE RICH_NUTBOX_ID=@boxId;
     IF @@ROWCOUNT<>1
@@ -76,7 +76,7 @@ class NutritionBoxDAO extends DAO {
   ''';
 
   static Future<List<NutritionBox>> selectAll() async {
-    final result = await DbClient.instance.getData(SelectSql);
+    final result = await DbClient.instance.getData(selectSql);
     return DAO.mapRows(result, NutritionBox.fromMap);
   }
 
@@ -86,7 +86,7 @@ class NutritionBoxDAO extends DAO {
     required String rtf,
     required int width,
   }) => DbTransactionStatement(
-    sql: InsertSql,
+    sql: insertSql,
     params: {'typeId': typeId, 'name': name, 'rtf': rtf, 'width': width},
   );
 
@@ -97,7 +97,7 @@ class NutritionBoxDAO extends DAO {
     required String rtf,
     required int width,
   }) => DbTransactionStatement(
-    sql: UpdateSql,
+    sql: updateSql,
     params: {
       'boxId': boxId,
       'typeId': typeId,
@@ -108,7 +108,7 @@ class NutritionBoxDAO extends DAO {
   );
 
   static DbTransactionStatement deleteStatement(int boxId) =>
-      DbTransactionStatement(sql: DeleteSql, params: {'boxId': boxId});
+      DbTransactionStatement(sql: deleteSql, params: {'boxId': boxId});
 
   static Future<void> insert({
     required int typeId,

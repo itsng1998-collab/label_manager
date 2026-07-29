@@ -38,7 +38,7 @@ class SearchPrintResult {
 }
 
 class SearchPrintDAO extends DAO {
-  static const String SelectSql = '''
+  static const String selectSql = '''
     SELECT
       C.RICH_BRAND_ID AS BRAND_ID,
       B.RICH_LABELSIZE_ID AS LABELSIZE_ID,
@@ -65,7 +65,7 @@ class SearchPrintDAO extends DAO {
     required String query,
   }) async {
     final result = await DbClient.instance.getDataWithParams(
-      SelectSql,
+      selectSql,
       {'labelSizeId': labelSizeId, 'query': query},
     );
     final row = DAO.getRowMapFromResult(result);

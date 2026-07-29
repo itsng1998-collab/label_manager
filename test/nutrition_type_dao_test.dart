@@ -37,8 +37,14 @@ void main() {
   });
 
   test('manager list stays unordered while templates and details use id order', () {
-    expect(NutritionTypeDAO.SelectTypesSql, isNot(contains('ORDER BY')));
-    expect(NutritionTypeDAO.SelectTypesByIdSql, contains('ORDER BY RICH_NUTTYPE_ID'));
-    expect(NutritionTypeDAO.SelectColumnsSql, contains('ORDER BY RICH_NUTCOL_ID'));
+    expect(NutritionTypeDAO.selectTypesSql, isNot(contains('ORDER BY')));
+    expect(
+      NutritionTypeDAO.selectTypesByIdSql,
+      contains('ORDER BY RICH_NUTTYPE_ID'),
+    );
+    expect(
+      NutritionTypeDAO.selectColumnsSql,
+      contains('ORDER BY RICH_NUTCOL_ID'),
+    );
   });
 }
