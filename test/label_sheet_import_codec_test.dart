@@ -10,6 +10,27 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_impor
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 
 void main() {
+  test('import format uses path before name and ignores extension case', () {
+    expect(
+      labelSheetResolveImportFormat(
+        filePath: 'label.LMS',
+        fileName: 'ignored.xlsx',
+      ),
+      LabelSheetImportFormat.lms,
+    );
+    expect(
+      labelSheetResolveImportFormat(
+        filePath: '',
+        fileName: 'label.XLSX',
+      ),
+      LabelSheetImportFormat.xlsx,
+    );
+    expect(
+      labelSheetResolveImportFormat(filePath: '', fileName: 'label.bin'),
+      LabelSheetImportFormat.unknown,
+    );
+  });
+
   test('import codec decodes lms by extension and unknown bytes', () {
     final bytes = Uint8List.fromList(
       utf8.encode(

@@ -2572,12 +2572,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         await targetPrefs.setString(_labelFileDirectoryPrefsKey, directory);
       }
     }
-    final importExtension =
-        (p.extension(filePath).isNotEmpty
-                ? p.extension(filePath)
-                : p.extension(fileName))
-            .toLowerCase();
-    final scaleToPhysicalWidth = importExtension == '.xlsx';
+    final importFormat = labelSheetResolveImportFormat(
+      filePath: filePath,
+      fileName: fileName,
+    );
+    final scaleToPhysicalWidth = importFormat == LabelSheetImportFormat.xlsx;
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
     final rawImportedGridSize = fortuneSheetGridClientPhysicalSize(
       importedWorkbook.activeSheet,
