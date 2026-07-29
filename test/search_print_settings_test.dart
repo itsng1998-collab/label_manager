@@ -6,9 +6,9 @@ import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/search_print_settings.dart';
+import 'package:label_manager/features/search_print/domain/search_print_settings.dart';
+import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_home/search_print_settings_dialog.dart';
 
 const _baseType = TColumnType(
   code: TColumnType.TYPE_BASE,

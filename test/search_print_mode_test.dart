@@ -4,8 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/models/search_print.dart';
-import 'package:label_manager/page_home/search_print_command.dart';
+import 'package:label_manager/features/search_print/application/search_print_command.dart';
+import 'package:label_manager/features/search_print/data/search_print.dart';
+import 'package:label_manager/features/search_print/domain/search_print.dart';
 
 void main() {
   test('legacy search print SQL keeps exact match and grouped first-row order', () {

@@ -52,8 +52,11 @@ import 'package:label_manager/features/label_print/presentation/label_print_page
 import 'package:label_manager/features/scale_output/application/scale_output.dart';
 import 'package:label_manager/features/scale_output/data/db_scale_connect_info.dart';
 import 'package:label_manager/features/scale_output/presentation/scale_output_page.dart';
-import 'package:label_manager/models/search_print.dart';
-import 'package:label_manager/models/search_print_settings.dart';
+import 'package:label_manager/features/search_print/application/search_print_command.dart';
+import 'package:label_manager/features/search_print/data/search_print.dart';
+import 'package:label_manager/features/search_print/domain/search_print.dart';
+import 'package:label_manager/features/search_print/domain/search_print_settings.dart';
+import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_print_persistence.dart';
@@ -78,8 +81,6 @@ import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview_debug
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/on_messages.dart';
-import 'package:label_manager/page_home/search_print_command.dart';
-import 'package:label_manager/page_home/search_print_settings_dialog.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
