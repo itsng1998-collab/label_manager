@@ -5,9 +5,9 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
+import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
-import 'item.dart';
 
 class ItemOfMarket {
   static List<ItemOfMarket>? datas;

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/search_and_replace/data/item_detail_dao.dart';
-import 'package:label_manager/models/item.dart';
+import 'package:label_manager/features/item/data/item_dao.dart';
+import 'package:label_manager/features/item/domain/item.dart';
 
 void main() {
   test('item detail row maps database values', () {
@@ -58,10 +59,10 @@ void main() {
       ),
     ]);
     expect(statements, hasLength(2));
-    expect(statements.every((value) => value.sql == ItemDAO.UpdateSearchReplaceElementSql), isTrue);
+    expect(statements.every((value) => value.sql == ItemDAO.updateSearchReplaceElementSql), isTrue);
     expect(statements.map((value) => value.params['itemId']), [1, 2]);
-    expect(ItemDAO.UpdateSearchReplaceElementSql, contains('IF @@ROWCOUNT<>1'));
-    expect(ItemDAO.UpdateSearchReplaceElementSql, isNot(contains('RICH_ITEM_NAME')));
-    expect(ItemDAO.UpdateSearchReplaceElementSql, isNot(contains('RICH_PRICE')));
+    expect(ItemDAO.updateSearchReplaceElementSql, contains('IF @@ROWCOUNT<>1'));
+    expect(ItemDAO.updateSearchReplaceElementSql, isNot(contains('RICH_ITEM_NAME')));
+    expect(ItemDAO.updateSearchReplaceElementSql, isNot(contains('RICH_PRICE')));
   });
 }

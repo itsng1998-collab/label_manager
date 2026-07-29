@@ -18,7 +18,8 @@ import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
-import 'package:label_manager/models/item.dart';
+import 'package:label_manager/features/item/data/item_dao.dart';
+import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/widgets/preview_floating_window.dart';
@@ -1245,26 +1246,26 @@ void main() {
       ItemOfMarketDAO.SelectSql,
       contains('NULLIF(P2.RICH_ELEMENT_SHEET, \'\')'),
     );
-    expect(ItemDAO.UpdateElementSheetSql, contains('RICH_ELEMENT=@element'));
+    expect(ItemDAO.updateElementSheetSql, contains('RICH_ELEMENT=@element'));
     expect(
-      ItemDAO.UpdateElementSheetSql,
+      ItemDAO.updateElementSheetSql,
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
     );
-    expect(ItemDAO.UpdateElementSheetSql, isNot(contains('RICH_ELEMENT_RTF')));
+    expect(ItemDAO.updateElementSheetSql, isNot(contains('RICH_ELEMENT_RTF')));
     expect(
-      ItemDAO.AutoMigrateElementSheetSql,
+      ItemDAO.autoMigrateElementSheetSql,
       contains('RICH_ELEMENT=@element'),
     );
     expect(
-      ItemDAO.AutoMigrateElementSheetSql,
+      ItemDAO.autoMigrateElementSheetSql,
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
     );
     expect(
-      ItemDAO.AutoMigrateElementSheetSql,
+      ItemDAO.autoMigrateElementSheetSql,
       contains("RICH_ELEMENT_SHEET IS NULL OR RICH_ELEMENT_SHEET=''"),
     );
     expect(
-      ItemDAO.AutoMigrateElementSheetSql,
+      ItemDAO.autoMigrateElementSheetSql,
       isNot(contains('RICH_ELEMENT_RTF')),
     );
   });

@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
-import 'package:label_manager/models/item.dart';
+import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/features/search_print/application/search_print_command.dart';
 import 'package:label_manager/features/search_print/data/search_print.dart';

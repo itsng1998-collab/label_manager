@@ -4,7 +4,7 @@ import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
-import 'package:label_manager/models/item.dart';
+import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_manager_save_command.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';

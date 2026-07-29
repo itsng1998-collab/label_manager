@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/data/item_manager_save.dart';
-import 'package:label_manager/models/item.dart';
+import 'package:label_manager/features/item/data/item_dao.dart';
+import 'package:label_manager/features/item/domain/item.dart';
 
 void main() {
   group('[transaction/DAO]', () {
@@ -23,11 +24,11 @@ void main() {
         ]),
         throwsArgumentError,
       );
-      expect(ItemDAO.UpdateOrdersSql, contains('CONVERT(XML, @updatesXml)'));
-      expect(ItemDAO.UpdateOrdersSql, contains("nodes('/updates/update')"));
-      expect(ItemDAO.UpdateOrdersSql, isNot(contains('OPENJSON')));
-      expect(ItemDAO.UpdateOrdersSql, contains('IF @@ROWCOUNT <>'));
-      expect(ItemDAO.UpdateOrdersSql, contains('THROW 51002'));
+      expect(ItemDAO.updateOrdersSql, contains('CONVERT(XML, @updatesXml)'));
+      expect(ItemDAO.updateOrdersSql, contains("nodes('/updates/update')"));
+      expect(ItemDAO.updateOrdersSql, isNot(contains('OPENJSON')));
+      expect(ItemDAO.updateOrdersSql, contains('IF @@ROWCOUNT <>'));
+      expect(ItemDAO.updateOrdersSql, contains('THROW 51002'));
     });
 
     test('save command keeps nullable mapping defaults in escaped XML', () {
