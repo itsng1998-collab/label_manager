@@ -6,6 +6,7 @@ import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
 import 'package:printing/printing.dart';
 
 Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
@@ -40,7 +41,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
           title: '프린터 설정',
           width: 526,
           height: 390,
-          closeIcon: const LabelSheetPrintDialogCloseIcon(),
+          closeIcon: const LabelPrintDialogCloseIcon(),
           onClose: () => Navigator.of(dialogContext).pop(),
           child: LabelSheetPrintSettingsDialog(
             leftMarginController: leftMargin,

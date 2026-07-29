@@ -27,6 +27,7 @@ import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
@@ -4498,7 +4499,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         title: '프린터 설정',
         width: 526,
         height: 236,
-        closeIcon: const LabelSheetPrintDialogCloseIcon(),
+        closeIcon: const LabelPrintDialogCloseIcon(),
         onClose: _closePrintSettingsDialog,
         child: _ClosedLoopDialogFocus(
           child: LabelSheetPrintSettingsDialog(
@@ -5912,40 +5913,6 @@ class _PrintDialogDropdownItemLabel extends StatelessWidget {
         child: Text(label, style: LabelSheetPrintSettingsDialog.labelStyle),
       ),
     );
-  }
-}
-
-class LabelSheetPrintDialogCloseIcon extends StatelessWidget {
-  const LabelSheetPrintDialogCloseIcon({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(16, 16),
-      painter: _PrintDialogCloseIconPainter(),
-    );
-  }
-}
-
-class _PrintDialogCloseIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final glyphRect = ui.Rect.fromCenter(
-      center: ui.Offset(size.width / 2, size.height / 2),
-      width: 11,
-      height: 11,
-    );
-    final paint = Paint()
-      ..color = const Color(0xff9a9a9a)
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
-    canvas.drawLine(glyphRect.topRight, glyphRect.bottomLeft, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PrintDialogCloseIconPainter oldDelegate) {
-    return false;
   }
 }
 
