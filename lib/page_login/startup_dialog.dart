@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/core/bootstrap.dart';
-import 'package:label_manager/models/login_log.dart';
+import 'package:label_manager/features/login_history/data/login_log_dao.dart';
+import 'package:label_manager/features/login_history/domain/login_log.dart';
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';

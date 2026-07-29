@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/login_log.dart';
+import 'package:label_manager/features/login_history/data/login_log_dao.dart';
+import 'package:label_manager/features/login_history/domain/login_log.dart';
 
 void main() {
   test('LoginLog decodes the stored grade label without numeric coercion', () {
-    final row = LoginLog.fromMap({
+    final row = loginLogFromRow({
       'LOG_ID': '7',
       'USER_ID': 'user01',
       'USER_GRADE': '책임자',
@@ -21,7 +22,7 @@ void main() {
   });
 
   test('history SQL keeps the legacy date, customer, and order contract', () {
-    final sql = LoginLogDAO.BetweenDatesAndCustomerSql;
+    final sql = LoginLogDAO.betweenDatesAndCustomerSql;
 
     expect(sql, contains('LOGIN_DATE_YYYYMMDD BETWEEN @startDate AND @endDate'));
     expect(sql, contains('CUST_ID=@customerId'));

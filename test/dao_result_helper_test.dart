@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/login_history/data/login_log_dao.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/last_connect.dart';
-import 'package:label_manager/models/login_log.dart';
 
 void main() {
   group('DAO result helpers', () {
@@ -154,15 +154,15 @@ void main() {
   group('LoginLogDAO SQL', () {
     test('does not truncate IP expressions before insert', () {
       expect(
-        LoginLogDAO.InsertSql,
+        LoginLogDAO.insertSql,
         contains('CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1))'),
       );
       expect(
-        LoginLogDAO.InsertSql,
+        LoginLogDAO.insertSql,
         contains("CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address'))"),
       );
-      expect(LoginLogDAO.InsertSql, isNot(contains('CONVERT(VARCHAR(32)')));
-      expect(LoginLogDAO.InsertSql, isNot(contains('CONVERT(VARCHAR(15)')));
+      expect(LoginLogDAO.insertSql, isNot(contains('CONVERT(VARCHAR(32)')));
+      expect(LoginLogDAO.insertSql, isNot(contains('CONVERT(VARCHAR(15)')));
     });
   });
 

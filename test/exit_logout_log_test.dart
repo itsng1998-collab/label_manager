@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/login_log.dart';
+import 'package:label_manager/features/login_history/domain/login_log.dart';
 import 'package:label_manager/models/user.dart';
 
 void main() {
