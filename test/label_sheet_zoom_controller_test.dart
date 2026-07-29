@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
 
 void main() {
@@ -61,32 +58,4 @@ void main() {
     expect(controller.value, 150);
   });
 
-  testWidgets('workbench preserves dialog-specific 500 percent zoom', (
-    tester,
-  ) async {
-    final controller = LabelSheetZoomController(
-      initialPercent: 500,
-      minPercent: 20,
-      maxPercent: 500,
-    );
-    addTearDown(controller.dispose);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: LabelSheetWorkbench(
-            initialWorkbook: FortuneWorkbook(
-              sheets: [FortuneSheet(id: 'sheet1', name: 'Sheet 1')],
-            ),
-            hideToolbar: true,
-            zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
-            zoomController: controller,
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(controller.value, 500);
-  });
 }

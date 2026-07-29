@@ -1400,6 +1400,35 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
+  testWidgets('workbench preserves dialog-specific 500 percent zoom', (
+    tester,
+  ) async {
+    final controller = LabelSheetZoomController(
+      initialPercent: 500,
+      minPercent: 20,
+      maxPercent: 500,
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelSheetWorkbench(
+            initialWorkbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 'sheet1', name: 'Sheet 1')],
+            ),
+            hideToolbar: true,
+            zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+            zoomController: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(controller.value, 500);
+  });
+
   testWidgets('item element preview fits width and keeps changed zoom', (
     tester,
   ) async {
