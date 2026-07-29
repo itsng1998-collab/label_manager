@@ -2583,23 +2583,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       importedWorkbook.activeSheet,
     );
     final currentGridSize = fortuneSheetGridClientPhysicalSize(currentSheet);
-    final sizedImportedSheet = labelSheetImportWithPreservedGridClientSize(
-      importedWorkbook.activeSheet.copyWith(
-        id: currentSheet.id,
-        name: currentSheet.name,
-        order: currentSheet.order,
-        zoomRatio: 1,
-        rawZoomRatio: null,
-        hasRawZoomRatio: false,
-      ),
-      currentSheet,
+    final importedSheet = labelSheetPrepareImportedSheet(
+      importedWorkbook.activeSheet,
+      currentSheet: currentSheet,
+      scaleToPhysicalWidth: scaleToPhysicalWidth,
     );
-    final importedSheet = scaleToPhysicalWidth
-        ? labelSheetScaleImportedToPhysicalWidth(
-            sizedImportedSheet,
-            currentSheet: currentSheet,
-          )
-        : sizedImportedSheet;
     final importedGridSize = fortuneSheetGridClientPhysicalSize(importedSheet);
     debugLog(
       'label sheet import apply sheet '

@@ -3,6 +3,44 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_layout.dart';
 
 void main() {
+  test('import layout prepares current identity and resets zoom', () {
+    final imported = FortuneSheet(
+      id: 'imported',
+      name: 'Imported',
+      order: 9,
+      zoomRatio: 2,
+      rawZoomRatio: 2,
+      hasRawZoomRatio: true,
+      columnCount: 1,
+      columnWidths: const <int, double>{0: 1000},
+    );
+    final current = FortuneSheet(
+      id: 'current',
+      name: 'Current',
+      order: 3,
+      extraFields: const <String, Object?>{
+        fortuneSheetGridClientWidthMmKey: 100,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+
+    final result = labelSheetPrepareImportedSheet(
+      imported,
+      currentSheet: current,
+      scaleToPhysicalWidth: false,
+    );
+
+    expect(result.id, 'current');
+    expect(result.name, 'Current');
+    expect(result.order, 3);
+    expect(result.zoomRatio, 1);
+    expect(result.rawZoomRatio, isNull);
+    expect(result.hasRawZoomRatio, isFalse);
+    expect(result.columnWidths[0], 1000);
+    expect(result.extraFields[fortuneSheetGridClientWidthMmKey], 100);
+    expect(result.extraFields[fortuneSheetGridClientHeightMmKey], 60);
+  });
+
   test('import layout preserves current physical size when source has none', () {
     final imported = FortuneSheet(
       id: 'imported',

@@ -5,6 +5,30 @@ import 'package:label_manager/utils/log_context.dart';
 
 const double labelSheetImportMinReadableFontHeightMm = 2.5;
 
+FortuneSheet labelSheetPrepareImportedSheet(
+  FortuneSheet importedSheet, {
+  required FortuneSheet currentSheet,
+  required bool scaleToPhysicalWidth,
+}) {
+  final sizedSheet = labelSheetImportWithPreservedGridClientSize(
+    importedSheet.copyWith(
+      id: currentSheet.id,
+      name: currentSheet.name,
+      order: currentSheet.order,
+      zoomRatio: 1,
+      rawZoomRatio: null,
+      hasRawZoomRatio: false,
+    ),
+    currentSheet,
+  );
+  return scaleToPhysicalWidth
+      ? labelSheetScaleImportedToPhysicalWidth(
+          sizedSheet,
+          currentSheet: currentSheet,
+        )
+      : sizedSheet;
+}
+
 FortuneSheet labelSheetImportWithPreservedGridClientSize(
   FortuneSheet importedSheet,
   FortuneSheet currentSheet,
