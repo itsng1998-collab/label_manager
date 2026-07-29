@@ -10,6 +10,7 @@ import 'package:label_manager/features/label_print/presentation/label_print_page
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/label_print_settings_panel.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/features/label_print/presentation/label_print_settings_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
@@ -30,7 +31,7 @@ void main() {
       const LabelPrintSettingsSnapshot.empty().lineSpacingPercent,
       100,
     );
-    final items = LabelSheetPrintSettingsDialog.buildAutoSpacingItems(
+    final items = LabelPrintSettingsPanel.buildAutoSpacingItems(
       minimum: 80,
       step: 5,
       includePercent: true,
@@ -738,7 +739,7 @@ void main() {
       find.byKey(const ValueKey('label-print-settings-dialog')),
       findsOneWidget,
     );
-    expect(find.byType(LabelSheetPrintSettingsDialog), findsOneWidget);
+    expect(find.byType(LabelPrintSettingsPanel), findsOneWidget);
     expect(find.text('여백'), findsOneWidget);
     expect(find.text('출력 조정'), findsOneWidget);
     expect(find.text('자동줄간격'), findsOneWidget);

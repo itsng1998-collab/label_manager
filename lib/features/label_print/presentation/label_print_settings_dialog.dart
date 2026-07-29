@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:label_manager/features/label_print/application/label_print_settings.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
+import 'package:label_manager/widgets/label_print_settings_panel.dart';
 import 'package:printing/printing.dart';
 
 Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
@@ -43,7 +43,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
           height: 390,
           closeIcon: const LabelPrintDialogCloseIcon(),
           onClose: () => Navigator.of(dialogContext).pop(),
-          child: LabelSheetPrintSettingsDialog(
+          child: LabelPrintSettingsPanel(
             leftMarginController: leftMargin,
             rightMarginController: rightMargin,
             topMarginController: topMargin,
@@ -55,8 +55,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                 : lineSpacing.text,
             orientation: orientation,
             selectedPrinterName: printerName,
-            autoSpacingItems:
-                LabelSheetPrintSettingsDialog.buildAutoSpacingItems(
+            autoSpacingItems: LabelPrintSettingsPanel.buildAutoSpacingItems(
                   minimum: 80,
                   step: 5,
                   includePercent: true,
