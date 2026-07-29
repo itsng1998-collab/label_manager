@@ -10,6 +10,7 @@ import 'package:label_manager/features/label_column/application/special_columns.
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_page.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
