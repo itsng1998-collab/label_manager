@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/status_print.dart';
+import 'package:label_manager/features/status_print/data/status_print_dao.dart';
+import 'package:label_manager/features/status_print/domain/status_print.dart';
 
 void main() {
   const base = StatusPrintQuerySpec(
