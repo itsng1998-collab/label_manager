@@ -1,9 +1,10 @@
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/login/data/user_dao.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/models/market.dart';
-import 'package:label_manager/models/user.dart';
 
 typedef AdminConnectMarketLoader = Future<List<Market>> Function(
   int customerId,
@@ -29,10 +30,10 @@ class AdminConnectResolverDAO extends DAO {
 
   static Future<List<User>> selectUsersByMarketId(int marketId) async {
     final result = await DbClient.instance.getDataWithParams(
-      '${UserDAO.SelectSql} $whereSqlMarketId',
+      '${UserDAO.selectSql} $whereSqlMarketId',
       {'marketId': marketId},
     );
-    return DAO.mapRows(result, User.fromMap);
+    return DAO.mapRows(result, userFromRow);
   }
 }
 

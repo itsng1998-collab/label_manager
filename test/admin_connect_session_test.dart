@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_session.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 void main() {
   test('login authentication separates first admin and master key', () {

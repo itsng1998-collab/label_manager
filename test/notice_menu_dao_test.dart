@@ -5,7 +5,7 @@ import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/features/update_notice/presentation/update_notice_dialog.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 void main() {
   test('target users follow legacy customer name order', () {

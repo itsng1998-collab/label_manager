@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/login/data/user_dao.dart';
 
 void main() {
   test('client users are read-only while other grades can edit', () {
@@ -23,7 +24,7 @@ void main() {
   });
 
   test('users keep the database grade', () {
-    final user = User.fromMap(const {
+    final user = userFromRow(const {
       'USER_ID': 'tester02',
       'MARKET_ID': 1,
       'NAME': '테스트 사용자',

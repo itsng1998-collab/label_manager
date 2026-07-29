@@ -1,4 +1,4 @@
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 class Notice {
   const Notice({required this.message, required this.state});

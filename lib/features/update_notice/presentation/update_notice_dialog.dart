@@ -4,7 +4,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 

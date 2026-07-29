@@ -1,6 +1,6 @@
 // ignore_for_file: constant_identifier_names
 
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 enum LoginCondition {
   LOGIN(0),

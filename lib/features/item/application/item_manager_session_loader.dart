@@ -15,7 +15,7 @@ import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 class ItemManagerSessionData {
   const ItemManagerSessionData({

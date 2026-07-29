@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/app_menu_policy.dart';
 import 'package:label_manager/models/app_menu_command.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/login/data/user_dao.dart';
 
 void main() {
   AppMenuCommandState state(
@@ -81,7 +82,7 @@ void main() {
   });
 
   test('client database grade is evaluated before menu policy', () {
-    final user = User.fromMap({
+    final user = userFromRow({
       'USER_ID': 'client',
       'GRADE': UserGrade.CLIENT_USER.code,
     });

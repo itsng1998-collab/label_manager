@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/app_menu_controller.dart';
 import 'package:label_manager/models/app_menu_command.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 void main() {
   test('only attached commands are exposed through policy state', () {

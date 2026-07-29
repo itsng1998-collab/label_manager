@@ -4,7 +4,8 @@ import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/login/data/user_dao.dart';
 
 void main() {
   const customer = Customer(
@@ -29,7 +30,7 @@ void main() {
       isNot(contains('ORDER BY')),
     );
     expect(
-      UserDAO.SelectSql + AdminConnectResolverDAO.whereSqlMarketId,
+      UserDAO.selectSql + AdminConnectResolverDAO.whereSqlMarketId,
       isNot(contains('ORDER BY')),
     );
   });

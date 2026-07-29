@@ -1,4 +1,4 @@
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 enum LoginAuthenticationMode { regular, firstAdmin, masterKey }
 

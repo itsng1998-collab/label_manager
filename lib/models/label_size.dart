@@ -9,7 +9,7 @@ import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
 import 'dao.dart';
 import 'package:label_manager/features/date_setup/domain/date_manager.dart';
-import 'user.dart';
+import 'package:label_manager/core/user.dart';
 
 class LabelSizeCommon {
   final int width;

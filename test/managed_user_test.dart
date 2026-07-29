@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/managed_user/data/managed_user_dao.dart';
 import 'package:label_manager/features/managed_user/domain/managed_user.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 void main() {
   test('managed row preserves database grade and plain password', () {

@@ -4,7 +4,7 @@ import 'package:label_manager/features/login_history/domain/login_log.dart';
 import 'package:label_manager/features/login_history/presentation/login_history_page.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 void main() {
   const initialCooperator = Cooperator(id: 'coop1', name: '협력업체 1');

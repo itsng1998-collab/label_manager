@@ -3,7 +3,7 @@ import 'package:label_manager/features/item/application/item_manager_session_loa
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 
 void main() {
   const labelSize = LabelSize(

@@ -12,7 +12,7 @@ import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';

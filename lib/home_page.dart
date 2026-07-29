@@ -21,7 +21,7 @@ import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/features/last_connect/domain/last_connect.dart';
 import 'package:label_manager/models/app_menu_command.dart';
 import 'package:label_manager/models/brand.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/cooperator.dart';

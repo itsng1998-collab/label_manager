@@ -8,7 +8,7 @@ import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/features/status_print/domain/status_print.dart';
 import 'package:label_manager/features/status_print/presentation/status_print_dialog.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {

@@ -6,7 +6,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/db_result_utils.dart';
 import 'package:label_manager/features/login_history/domain/login_log.dart';
 import 'package:label_manager/models/dao.dart';
-import 'package:label_manager/models/user.dart';
+import 'package:label_manager/core/user.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
 
