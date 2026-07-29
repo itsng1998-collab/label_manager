@@ -6,6 +6,7 @@ import 'package:fortune_sheet/fortune_sheet.dart'
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:intl/intl.dart';
 import 'package:label_manager/models/common_label_history.dart';
+import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';

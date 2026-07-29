@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/system_password.dart';
-import 'package:label_manager/models/cooperator.dart';
+import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 
 void main() {
   test('system password keeps startup calculation', () {
@@ -9,21 +9,21 @@ void main() {
   });
 
   test('cooperator CRUD uses only verified columns and parameterized SQL', () {
-    expect(CooperatorDAO.InsertSql, contains('RICH_COOP_ID, RICH_NAME'));
-    expect(CooperatorDAO.InsertSql, contains('@cooperatorId'));
-    expect(CooperatorDAO.InsertSql, contains('@name'));
-    expect(CooperatorDAO.InsertSql, isNot(contains('RICH_COOP_GRADE')));
+    expect(CooperatorDAO.insertSql, contains('RICH_COOP_ID, RICH_NAME'));
+    expect(CooperatorDAO.insertSql, contains('@cooperatorId'));
+    expect(CooperatorDAO.insertSql, contains('@name'));
+    expect(CooperatorDAO.insertSql, isNot(contains('RICH_COOP_GRADE')));
 
-    expect(CooperatorDAO.UpdateSql, contains('RICH_COOP_ID=@cooperatorId'));
-    expect(CooperatorDAO.UpdateSql, contains('RICH_NAME=@name'));
-    expect(CooperatorDAO.UpdateSql, contains('RICH_COOP_ID=@oldCooperatorId'));
+    expect(CooperatorDAO.updateSql, contains('RICH_COOP_ID=@cooperatorId'));
+    expect(CooperatorDAO.updateSql, contains('RICH_NAME=@name'));
+    expect(CooperatorDAO.updateSql, contains('RICH_COOP_ID=@oldCooperatorId'));
 
-    expect(CooperatorDAO.DeleteSql, contains('DELETE FROM BM_COOPERATOR'));
-    expect(CooperatorDAO.DeleteSql, contains('RICH_COOP_ID=@cooperatorId'));
-    expect(CooperatorDAO.DeleteSql, isNot(contains('BM_CUSTOMER')));
+    expect(CooperatorDAO.deleteSql, contains('DELETE FROM BM_COOPERATOR'));
+    expect(CooperatorDAO.deleteSql, contains('RICH_COOP_ID=@cooperatorId'));
+    expect(CooperatorDAO.deleteSql, isNot(contains('BM_CUSTOMER')));
   });
 
   test('cooperator list keeps legacy database order', () {
-    expect(CooperatorDAO.SelectSql, isNot(contains('ORDER BY')));
+    expect(CooperatorDAO.selectSql, isNot(contains('ORDER BY')));
   });
 }

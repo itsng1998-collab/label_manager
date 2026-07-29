@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/cooperator/presentation/cooperator_manager_dialog.dart';
 import 'package:label_manager/models/cooperator.dart';
-import 'package:label_manager/page_home/cooperator_manager_dialog.dart';
 
 void main() {
   test('manager lifecycle blocks active child and writes', () {

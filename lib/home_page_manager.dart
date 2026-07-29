@@ -85,7 +85,7 @@ import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
-import 'package:label_manager/page_home/cooperator_manager_dialog.dart';
+import 'package:label_manager/features/cooperator/presentation/cooperator_manager_dialog.dart';
 import 'package:label_manager/page_home/customer_manager_dialog.dart';
 import 'package:label_manager/page_home/market_manager_dialog.dart';
 import 'package:label_manager/page_home/user_manager_dialog.dart';

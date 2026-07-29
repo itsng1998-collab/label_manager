@@ -4,6 +4,7 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
+import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/market.dart';
