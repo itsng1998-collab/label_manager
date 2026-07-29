@@ -4,7 +4,7 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/page_home/item_info_dialog.dart';
+import 'package:label_manager/features/item/presentation/item_info_dialog.dart';
 
 void main() {
   ItemOfMarket item() => ItemOfMarket(

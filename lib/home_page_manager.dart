@@ -93,7 +93,7 @@ import 'package:label_manager/features/managed_user/presentation/user_manager_di
 import 'package:label_manager/features/admin_copy/presentation/admin_copy_dialog.dart';
 import 'package:label_manager/features/search_and_replace/domain/search_and_replace.dart';
 import 'package:label_manager/features/search_and_replace/presentation/search_and_replace_dialog.dart';
-import 'package:label_manager/page_home/item_info_dialog.dart';
+import 'package:label_manager/features/item/presentation/item_info_dialog.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_type_dialog.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
 import 'package:label_manager/features/update_notice/presentation/update_notice_dialog.dart';
