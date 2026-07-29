@@ -19,8 +19,9 @@ import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/item/data/item_dao.dart';
+import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item.dart';
-import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/widgets/preview_floating_window.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_ai_import.dart';
@@ -1240,10 +1241,10 @@ void main() {
   });
 
   test('item element DAO keeps legacy RTF while saving sheet data', () {
-    expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_SHEET'));
-    expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_RTF'));
+    expect(ItemOfMarketDAO.selectSql, contains('P2.RICH_ELEMENT_SHEET'));
+    expect(ItemOfMarketDAO.selectSql, contains('P2.RICH_ELEMENT_RTF'));
     expect(
-      ItemOfMarketDAO.SelectSql,
+      ItemOfMarketDAO.selectSql,
       contains('NULLIF(P2.RICH_ELEMENT_SHEET, \'\')'),
     );
     expect(ItemDAO.updateElementSheetSql, contains('RICH_ELEMENT=@element'));

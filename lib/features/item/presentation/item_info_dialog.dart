@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/features/item/data/item_of_market_dao.dart';
+import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 typedef ItemInfoLoader = Future<List<ItemOfMarket>?> Function(

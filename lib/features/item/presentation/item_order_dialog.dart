@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 class ItemOrderDialog extends StatefulWidget {

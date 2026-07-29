@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/item.dart';
-import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/features/item/data/item_of_market_dao.dart';
+import 'package:label_manager/features/item/domain/item_of_market.dart';
 
 void main() {
   ItemOfMarket item() => ItemOfMarket(
@@ -55,9 +56,9 @@ void main() {
     expect(statements.single.params['itemId'], 11);
     expect(statements.single.params['linefeed'], 110);
     expect(statements.single.params['printCount'], 0);
-    expect(ItemOfMarketDAO.UpdateItemInfoSql, contains('IF @@ROWCOUNT<>1'));
-    expect(ItemOfMarketDAO.UpdateItemInfoSql, isNot(contains('RICH_GDS_NO')));
-    expect(ItemOfMarketDAO.UpdateItemInfoSql, isNot(contains('RICH_DISCOUNT')));
-    expect(ItemOfMarketDAO.UpdateItemInfoSql, isNot(contains('RICH_SALE')));
+    expect(ItemOfMarketDAO.updateItemInfoSql, contains('IF @@ROWCOUNT<>1'));
+    expect(ItemOfMarketDAO.updateItemInfoSql, isNot(contains('RICH_GDS_NO')));
+    expect(ItemOfMarketDAO.updateItemInfoSql, isNot(contains('RICH_DISCOUNT')));
+    expect(ItemOfMarketDAO.updateItemInfoSql, isNot(contains('RICH_SALE')));
   });
 }

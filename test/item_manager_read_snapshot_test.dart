@@ -1,8 +1,8 @@
 import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/data/column_content_dao.dart';
+import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
-import 'package:label_manager/models/item_of_market.dart';
 
 void main() {
   group('[읽기/스냅샷]', () {
@@ -23,14 +23,14 @@ void main() {
     });
 
     test('item display query aliases label size and orders rows', () {
-      expect(ItemOfMarketDAO.SelectSql, contains('AS P1_LABEL_SIZE_WIDTH'));
-      expect(ItemOfMarketDAO.SelectSql, contains('AS P1_LABEL_SIZE_HEIGHT'));
+      expect(ItemOfMarketDAO.selectSql, contains('AS P1_LABEL_SIZE_WIDTH'));
+      expect(ItemOfMarketDAO.selectSql, contains('AS P1_LABEL_SIZE_HEIGHT'));
       expect(
-        ItemOfMarketDAO.OrderByItemOrder,
+        ItemOfMarketDAO.orderByItemOrder,
         contains('P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC'),
       );
 
-      final item = ItemOfMarket.fromMap({
+      final item = itemOfMarketFromRow({
         'P1_LABEL_SIZE_WIDTH': '72',
         'P1_LABEL_SIZE_HEIGHT': '40',
       });

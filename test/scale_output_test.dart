@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/item.dart';
-import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/scale_output/application/scale_output.dart';
 import 'package:label_manager/features/scale_output/presentation/scale_output_page.dart';
