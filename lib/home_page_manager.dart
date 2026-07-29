@@ -22,8 +22,9 @@ import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/ui_scale.dart';
-import 'package:label_manager/features/item/data/item_manager_save.dart';
+import 'package:label_manager/features/item/application/item_manager_session_loader.dart';
 import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
+import 'package:label_manager/features/item/data/item_manager_save.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/presentation/item_manage.dart';
@@ -1707,66 +1708,11 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final customer = Customer.instance;
       final market = Market.instance;
-      final user = User.instance;
-      if (customer == null || market == null || user == null) {
-        throw StateError('품목관리 편집 세션의 로그인 정보가 없습니다.');
-      }
-      if (market.customerId != customer.customerId) {
-        throw StateError('현재 거래처와 로그인 고객 정보가 일치하지 않습니다.');
-      }
-      final targetMarkets =
-          await MarketDAO.selectByCustomerId(customer.customerId) ??
-          const <Market>[];
-      if (targetMarkets.isEmpty ||
-          !targetMarkets.any((value) => value.marketId == market.marketId)) {
-        throw StateError('저장 대상 market 목록에서 현재 market을 찾을 수 없습니다.');
-      }
-      final targetMarketIds = targetMarkets
-          .map((value) => value.marketId)
-          .toList(growable: false);
-      final columns =
-          await TColumnDAO.selectByLabelSizeId(labelSize.labelSizeId) ??
-          const <TColumn>[];
-      final specialColumns =
-          await TColumnSpecial.selectByLabelSizeId(labelSize.labelSizeId) ??
-          const <TColumnBase>[];
-      final items =
-          await ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId(
-            Market.instance!.marketId,
-            labelSize.labelSizeId,
-          ) ??
-          const <ItemOfMarket>[];
-      final scopedColumnContents =
-          await TColumnContentDAO.selectScopedByItemIds(
-            items.map((item) => item.item.itemId),
-          );
-      final nextController = ItemManagerDraftController.fromItems(
-        items: items,
-        scopedColumnContents: scopedColumnContents,
-        validationRules: [
-          for (final column in columns)
-            ItemManagerColumnValidationRule(
-              columnId: column.columnId,
-              columnName: column.columnName,
-              typeCode: column.columnType.code,
-              required: column.useMissingKeywordCheck,
-              barcodeType: column.barcodeType,
-              useBarcodeCheckDigit: column.useBarcodeCheckDigit,
-              useDateRange: column.useDateRange,
-              dateRange: column.dateRange,
-              gs1Definition: _itemManagerGs1Definition(column),
-              timeBarcodeType: column.timeBarcodeType,
-            ),
-        ],
-        requireElement:
-            specialColumns
-                .firstWhereOrNull(
-                  (column) =>
-                      column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword,
-                )
-                ?.useMissingKeywordCheck ==
-            true,
-        labelSizeName: labelSize.labelSizeName,
+      final session = await loadItemManagerSession(
+        labelSize: labelSize,
+        customer: customer,
+        market: market,
+        user: User.instance,
       );
       final emptyElementPayload = labelSheetEncodeWorkbookSave(
         _itemElementWorkbook('', labelSize),
@@ -1775,26 +1721,26 @@ class _HomePageManagerState extends State<HomePageManager> {
       _disposeItemDraftController();
       _disposeAutoItemUpdateDraftController();
       _currentLabelSize = labelSize;
-      _itemDraftTargetMarketIds = targetMarketIds;
+      _itemDraftTargetMarketIds = session.targetMarketIds;
       _rtfPreviewReadyKey = null;
       _commonLabelTabActivated = false;
       _commonLabelSheetDirty = false;
       _itemPreviewClosedByUser = false;
       _commonLabelPreviewClosedByUser = false;
-      TColumn.datas = columns;
-      TColumnContent.datas = scopedColumnContents.values;
-      TColumnSpecial.datas = specialColumns;
-      ItemOfMarket.datas = items;
+      TColumn.datas = session.columns;
+      TColumnContent.datas = session.scopedColumnContents.values;
+      TColumnSpecial.datas = session.specialColumns;
+      ItemOfMarket.datas = session.items;
       _publishCheckedItemIds = const <int>{};
       _scaleOutputShowAllRows = true;
       _scaleOutputRowsDirty = true;
       widget.onLabelSizeChanged(labelSize);
-      _itemDraftController = nextController;
+      _itemDraftController = session.draftController;
       _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
-      _itemDraftLoadedCustomerId = customer.customerId;
+      _itemDraftLoadedCustomerId = customer!.customerId;
       _itemDraftLoadedBrandId = labelSize.brandId;
       _itemDraftLoadedLabelSizeId = labelSize.labelSizeId;
-      _itemDraftLoadedMarketId = market.marketId;
+      _itemDraftLoadedMarketId = market!.marketId;
       _itemDraftEmptyElementPayload = emptyElementPayload;
       _labelPrintSessionController.applySettings(
         await loadLabelPrintSettingsSnapshot(),
@@ -1829,11 +1775,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         trace: trace,
         fields: {
           'labelSizeId': labelSize.labelSizeId,
-          'items': items.length,
-          'columns': columns.length,
-          'contents': scopedColumnContents.values.length,
+          'items': session.items.length,
+          'columns': session.columns.length,
+          'contents': session.scopedColumnContents.values.length,
           'autoUpdates': _autoItemUpdateDraftController?.rows.length ?? 0,
-          'targetMarkets': targetMarketIds.length,
+          'targetMarkets': session.targetMarketIds.length,
         },
       );
       if (mounted) {
@@ -7921,17 +7867,6 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
       ],
     );
   }
-}
-
-Gs1AiDefinition? _itemManagerGs1Definition(TColumn column) {
-  if (column.columnType.code != TColumnType.TYPE_GS1_AI) return null;
-  final ai = column.gs1ai;
-  final definitionCode = column.formatOption == -1
-      ? ai
-      : ai.length >= 2
-      ? ai.substring(0, ai.length - 1)
-      : '';
-  return Gs1AiDefinitions.values[definitionCode];
 }
 
 class _ItemPreviewPanel extends StatefulWidget {
