@@ -29,9 +29,8 @@ import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/presentation/item_manage.dart';
 import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
+import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_loader.dart';
 import 'package:label_manager/features/automatic_item_update/data/automatic_item_update_save.dart';
-import 'package:label_manager/features/automatic_item_update/data/update_item.dart';
-import 'package:label_manager/features/automatic_item_update/data/update_item_column_content.dart';
 import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/features/automatic_item_update/presentation/automatic_item_update_page.dart';
 import 'package:label_manager/models/brand.dart';
@@ -734,57 +733,16 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSize == null || market == null) {
       return false;
     }
-    final items = await UpdateItemDAO.selectPendingByLabelSizeId(
-      labelSize.labelSizeId,
+    final controller = await loadAutoItemUpdateDraft(
+      labelSizeId: labelSize.labelSizeId,
+      marketId: market.marketId,
+      selectedRowKey: selectedRowKey,
+      fallbackIndex: fallbackIndex,
     );
-    final rows = [
-      for (var index = 0; index < items.length; index += 1)
-        AutoItemUpdateDraftRow.existing(
-          source: items[index],
-          currentMarketId: market.marketId,
-          originalIndex: index,
-        ),
-    ];
-    final rowKeyByUpdateItemId = {
-      for (final row in rows)
-        if (row.sourceUpdateItemId != null) row.sourceUpdateItemId!: row.rowKey,
-    };
-    final cellValues =
-        await UpdateItemColumnContentDAO.selectPendingByLabelSizeId(
-          labelSize.labelSizeId,
-          rowKeyByUpdateItemId: rowKeyByUpdateItemId,
-        );
-    final serverToday = await UpdateItemDAO.selectServerToday();
-    final controller = AutoItemUpdateDraftController(
-      rows: rows,
-      cellValues: cellValues,
-      serverToday: serverToday,
+    _replaceAutoItemUpdateDraftController(
+      controller,
+      rebuildTabs: rebuildTabs,
     );
-    if (rows.isNotEmpty) {
-      final selected =
-          selectedRowKey != null && controller.hasRowKey(selectedRowKey)
-          ? selectedRowKey
-          : (fallbackIndex != null &&
-                fallbackIndex >= 0 &&
-                fallbackIndex < rows.length)
-          ? rows[fallbackIndex].rowKey
-          : rows.first.rowKey;
-      controller.setSelection([selected], anchorRowKey: selected);
-    }
-    _autoItemUpdateDraftController?.removeListener(
-      _handleAutoItemUpdateDraftChanged,
-    );
-    _autoItemUpdateDraftController?.dispose();
-    _autoItemUpdateDraftController = controller;
-    _autoItemUpdateDraftController!.addListener(
-      _handleAutoItemUpdateDraftChanged,
-    );
-    if (mounted) {
-      if (rebuildTabs) {
-        _resetTabs();
-      }
-      setState(() {});
-    }
     return true;
   }
 
@@ -796,36 +754,21 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSize == null || market == null) {
       return false;
     }
-    final items = await UpdateItemDAO.selectPendingByLabelSizeId(
-      labelSize.labelSizeId,
+    final controller = await loadAutoItemUpdateDraft(
+      labelSizeId: labelSize.labelSizeId,
+      marketId: market.marketId,
     );
-    final rows = [
-      for (var index = 0; index < items.length; index += 1)
-        AutoItemUpdateDraftRow.existing(
-          source: items[index],
-          currentMarketId: market.marketId,
-          originalIndex: index,
-        ),
-    ];
-    final rowKeyByUpdateItemId = {
-      for (final row in rows)
-        if (row.sourceUpdateItemId != null) row.sourceUpdateItemId!: row.rowKey,
-    };
-    final cellValues =
-        await UpdateItemColumnContentDAO.selectPendingByLabelSizeId(
-          labelSize.labelSizeId,
-          rowKeyByUpdateItemId: rowKeyByUpdateItemId,
-        );
-    final serverToday = await UpdateItemDAO.selectServerToday();
-    final controller = AutoItemUpdateDraftController(
-      rows: rows,
-      cellValues: cellValues,
-      serverToday: serverToday,
+    _replaceAutoItemUpdateDraftController(
+      controller,
+      rebuildTabs: rebuildTabs,
     );
-    if (rows.isNotEmpty) {
-      final firstRowKey = rows.first.rowKey;
-      controller.setSelection([firstRowKey], anchorRowKey: firstRowKey);
-    }
+    return true;
+  }
+
+  void _replaceAutoItemUpdateDraftController(
+    AutoItemUpdateDraftController controller, {
+    required bool rebuildTabs,
+  }) {
     _autoItemUpdateDraftController?.removeListener(
       _handleAutoItemUpdateDraftChanged,
     );
@@ -835,13 +778,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       _handleAutoItemUpdateDraftChanged,
     );
     if (!mounted) {
-      return true;
+      return;
     }
     if (rebuildTabs) {
       _resetTabs();
     }
     setState(() {});
-    return true;
   }
 
   Future<bool> _ensureAutoItemUpdateDraftLoaded() async {

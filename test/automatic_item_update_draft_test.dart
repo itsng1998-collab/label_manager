@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_loader.dart';
 import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/features/automatic_item_update/domain/update_item.dart';
 
@@ -12,6 +13,41 @@ void main() {
       expect(controller.applyDateText(controller.rows.first), '20260725');
       expect(controller.isDirty, isFalse);
       expect(controller.hasStagedRows, isFalse);
+    });
+
+    test('loaded selection keeps the previous row when it still exists', () {
+      final rows = _controller().rows;
+
+      expect(
+        resolveAutoItemUpdateLoadedSelection(
+          rows,
+          selectedRowKey: 'update:20',
+          fallbackIndex: 0,
+        ),
+        'update:20',
+      );
+    });
+
+    test('loaded selection falls back to index, first row, or null', () {
+      final rows = _controller().rows;
+
+      expect(
+        resolveAutoItemUpdateLoadedSelection(
+          rows,
+          selectedRowKey: 'missing',
+          fallbackIndex: 1,
+        ),
+        'update:20',
+      );
+      expect(
+        resolveAutoItemUpdateLoadedSelection(
+          rows,
+          selectedRowKey: 'missing',
+          fallbackIndex: 10,
+        ),
+        'update:10',
+      );
+      expect(resolveAutoItemUpdateLoadedSelection(const []), isNull);
     });
 
     test('apply date, element, and cell edits mark an existing row modified', () {
