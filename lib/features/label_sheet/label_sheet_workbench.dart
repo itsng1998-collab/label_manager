@@ -17,6 +17,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_i
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_xlsx_import.dart';
+import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_components.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_preview.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_settings.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
@@ -3788,7 +3789,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       title: '라벨 이미지 가져오기',
       width: 640,
       height: dialogHeight,
-      closeIcon: const _LabelImageImportCloseIcon(),
+      closeIcon: const LabelSheetImageImportCloseIcon(),
       onClose: _analyzing ? () {} : _close,
       footer: _buildFooter(),
       child: Padding(
@@ -3803,7 +3804,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                   SizedBox(
                     width: 84,
                     height: 30,
-                    child: _LabelImageImportFooterButton(
+                    child: LabelSheetImageImportFooterButton(
                       label: '파일 선택',
                       onPressed: _analyzing ? null : _selectImageFile,
                     ),
@@ -3827,7 +3828,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                 physicalSize: widget.physicalSize,
               ),
               const SizedBox(height: 14),
-              _ApiKeyPasteOnlyTextField(
+              LabelSheetImageImportApiKeyField(
                 controller: _apiKeyController,
                 enabled: !_analyzing,
               ),
@@ -3841,7 +3842,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                   _geminiModels,
                 ),
                 isExpanded: true,
-                decoration: _compactInputDecoration(
+                decoration: labelSheetImageImportInputDecoration(
                   _loadingGeminiModels
                       ? 'Gemini Model 조회 중...'
                       : 'Gemini Model',
@@ -3872,7 +3873,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                 maxLines: 6,
                 alignLabelWithHint: true,
               ),
-              _ErrorLogPanel(message: _errorLog),
+              LabelSheetImageImportErrorPanel(message: _errorLog),
               const SizedBox(height: 8),
               Text(
                 '* Gemini API Key와 model을 이 PC에 저장합니다.',
@@ -4019,7 +4020,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
           SizedBox(
             width: 84,
             height: 30,
-            child: _LabelImageImportFooterButton(
+            child: LabelSheetImageImportFooterButton(
               label: '취소',
               onPressed: _analyzing ? null : _close,
             ),
@@ -4028,7 +4029,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
           SizedBox(
             width: 112,
             height: 30,
-            child: _LabelImageImportFooterButton(
+            child: LabelSheetImageImportFooterButton(
               label: _analyzing ? '분석 중...' : 'AI 분석 적용',
               onPressed: _analyzing ? null : _applyGeminiAnalysis,
             ),
@@ -4053,7 +4054,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       obscureText: obscureText,
       minLines: minLines,
       maxLines: obscureText ? 1 : maxLines,
-      decoration: _compactInputDecoration(
+      decoration: labelSheetImageImportInputDecoration(
         labelText,
         alignLabelWithHint: alignLabelWithHint,
       ),
@@ -4104,179 +4105,6 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         _errorLog = '$error';
       });
     }
-  }
-}
-
-class _BlockedApiKeyClipboardIntent extends Intent {
-  const _BlockedApiKeyClipboardIntent();
-}
-
-class _ApiKeyPasteOnlyTextField extends StatelessWidget {
-  const _ApiKeyPasteOnlyTextField({
-    required this.controller,
-    required this.enabled,
-  });
-
-  final TextEditingController controller;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: <ShortcutActivator, Intent>{
-        const SingleActivator(LogicalKeyboardKey.keyC, control: true):
-            const _BlockedApiKeyClipboardIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyX, control: true):
-            const _BlockedApiKeyClipboardIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyC, meta: true):
-            const _BlockedApiKeyClipboardIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyX, meta: true):
-            const _BlockedApiKeyClipboardIntent(),
-      },
-      child: Actions(
-        actions: <Type, Action<Intent>>{
-          _BlockedApiKeyClipboardIntent:
-              CallbackAction<_BlockedApiKeyClipboardIntent>(
-                onInvoke: (_) => null,
-              ),
-        },
-        child: TextField(
-          controller: controller,
-          enabled: enabled,
-          obscureText: true,
-          enableInteractiveSelection: true,
-          contextMenuBuilder: _apiKeyPasteOnlyContextMenuBuilder,
-          decoration: _compactInputDecoration('Gemini API Key'),
-        ),
-      ),
-    );
-  }
-}
-
-Widget _apiKeyPasteOnlyContextMenuBuilder(
-  BuildContext context,
-  EditableTextState editableTextState,
-) {
-  final buttonItems = editableTextState.contextMenuButtonItems
-      .where(
-        (item) =>
-            item.type != ContextMenuButtonType.copy &&
-            item.type != ContextMenuButtonType.cut,
-      )
-      .toList(growable: false);
-  return AdaptiveTextSelectionToolbar.buttonItems(
-    anchors: editableTextState.contextMenuAnchors,
-    buttonItems: buttonItems,
-  );
-}
-
-class _LabelImageImportFooterButton extends StatelessWidget {
-  const _LabelImageImportFooterButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        backgroundColor: const Color(0xFFF1F3F4),
-        foregroundColor: const Color(0xff111111),
-        side: const BorderSide(color: Color(0xffc7c7c7)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
-        padding: EdgeInsets.zero,
-        textStyle: const TextStyle(fontSize: 13),
-      ),
-      onPressed: onPressed,
-      child: Text(label),
-    );
-  }
-}
-
-class _LabelImageImportCloseIcon extends StatelessWidget {
-  const _LabelImageImportCloseIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(16, 16),
-      painter: _LabelImageImportCloseIconPainter(),
-    );
-  }
-}
-
-class _LabelImageImportCloseIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final glyphRect = ui.Rect.fromCenter(
-      center: ui.Offset(size.width / 2, size.height / 2),
-      width: 11,
-      height: 11,
-    );
-    final paint = Paint()
-      ..color = const Color(0xff9a9a9a)
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
-    canvas.drawLine(glyphRect.topRight, glyphRect.bottomLeft, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _LabelImageImportCloseIconPainter oldDelegate) {
-    return false;
-  }
-}
-
-InputDecoration _compactInputDecoration(
-  String labelText, {
-  bool alignLabelWithHint = false,
-}) {
-  return InputDecoration(
-    labelText: labelText,
-    alignLabelWithHint: alignLabelWithHint,
-    isDense: true,
-    border: const OutlineInputBorder(),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-  );
-}
-
-class _ErrorLogPanel extends StatelessWidget {
-  const _ErrorLogPanel({required this.message});
-
-  final String? message;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = message?.trim();
-    if (text == null || text.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 120),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
-          border: Border.all(
-            color: theme.colorScheme.error.withValues(alpha: 0.5),
-          ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(10),
-          child: SelectableText(
-            text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onErrorContainer,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 
