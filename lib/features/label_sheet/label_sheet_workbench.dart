@@ -6,9 +6,7 @@ import 'dart:ui' as ui;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' as widgets;
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:image/image.dart' as imglib;
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
@@ -19,7 +17,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_i
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_xlsx_import.dart';
-import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_preview_layout.dart';
+import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_preview.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_settings.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
@@ -3698,107 +3696,6 @@ class _LabelSheetZoomButtonState extends State<_LabelSheetZoomButton> {
   }
 }
 
-class _LabelImageImportPreview extends StatefulWidget {
-  const _LabelImageImportPreview({
-    required this.image,
-    required this.physicalSize,
-  });
-
-  final _LabelImageImportSelection? image;
-  final FortuneSheetGridClientPhysicalSize physicalSize;
-
-  @override
-  State<_LabelImageImportPreview> createState() =>
-      _LabelImageImportPreviewState();
-}
-
-class _LabelImageImportPreviewState extends State<_LabelImageImportPreview> {
-  late imglib.Image? _decodedImage = _decodeImage(widget.image);
-
-  @override
-  void didUpdateWidget(covariant _LabelImageImportPreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.image?.bytes, widget.image?.bytes)) {
-      _decodedImage = _decodeImage(widget.image);
-    }
-  }
-
-  static imglib.Image? _decodeImage(_LabelImageImportSelection? image) {
-    final bytes = image?.bytes;
-    return bytes == null ? null : imglib.decodeImage(bytes);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: labelSheetImageImportPreviewHeight,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.45,
-          ),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(labelSheetImageImportPreviewPadding),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final image = widget.image;
-              if (image == null) {
-                return Center(
-                  child: Text(
-                    '이미지 파일을 선택하세요.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.hintColor,
-                    ),
-                  ),
-                );
-              }
-              final decodedImage = _decodedImage;
-              if (decodedImage == null) {
-                return Center(
-                  child: widgets.Image.memory(image.bytes, fit: BoxFit.contain),
-                );
-              }
-              final layout = labelSheetImageImportPreviewLayout(
-                imageWidth: decodedImage.width,
-                imageHeight: decodedImage.height,
-                viewportWidth: constraints.maxWidth,
-                viewportHeight: constraints.maxHeight,
-                physicalSize: widget.physicalSize,
-              );
-              return ClipRect(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: Center(
-                        child: SizedBox(
-                          width: layout.width,
-                          height: layout.height,
-                          child: widgets.Image.memory(
-                            image.bytes,
-                            fit: BoxFit.fill,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 const XTypeGroup _labelSheetImageImportFileGroup = XTypeGroup(
   label: 'Label image',
   extensions: <String>['png', 'jpg', 'jpeg', 'bmp', 'webp'],
@@ -3925,8 +3822,8 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                 ],
               ),
               const SizedBox(height: 8),
-              _LabelImageImportPreview(
-                image: _selectedImage,
+              LabelSheetImageImportPreview(
+                imageBytes: _selectedImage?.bytes,
                 physicalSize: widget.physicalSize,
               ),
               const SizedBox(height: 14),
