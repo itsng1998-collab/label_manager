@@ -3,9 +3,9 @@
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
-import 'last_connect.dart';
 
 class Brand {
   static List<Brand>? datas;
@@ -210,7 +210,7 @@ class BrandDAO extends DAO {
 
           BEGIN TRANSACTION;
 
-          ${LastConnectDAO.DeleteSqlByBrandId};
+          ${LastConnectDAO.deleteSqlByBrandId};
 
           DELETE FROM BM_RICH_BRAND
            WHERE RICH_BRAND_ID=@brandId;

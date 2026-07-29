@@ -1,41 +1,23 @@
-// UTF-8, 한국어 주석
-// ignore_for_file: constant_identifier_names, non_constant_identifier_names
-
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/last_connect/domain/last_connect.dart';
+import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
-import 'dao.dart';
+LastConnect lastConnectFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+  int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
 
-class LastConnect {
-  final String userId;
-  final int brandId;
-  final int labelSizeId;
-
-  const LastConnect({
-    required this.userId,
-    required this.brandId,
-    required this.labelSizeId,
-  });
-
-  factory LastConnect.fromMap(Map<String, dynamic> map) {
-    String s(String key) => (map[key] ?? '').toString();
-    int i(String key) => int.tryParse(s(key)) ?? 0;
-
-    return LastConnect(
-      userId: s('USER_ID'),
-      brandId: i('BRAND_ID'),
-      labelSizeId: i('LABELSIZE_ID'),
-    );
-  }
-
-  @override
-  String toString() =>
-      'UserId: $userId, BrandId: $brandId, LabelSizeId: $labelSizeId';
+  return LastConnect(
+    userId: stringValue('USER_ID'),
+    brandId: intValue('BRAND_ID'),
+    labelSizeId: intValue('LABELSIZE_ID'),
+  );
 }
 
 class LastConnectDAO extends DAO {
-  static const String SelectSql = '''
+  static const String selectSql =
+      '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(50), RICH_USER_ID COLLATE ${DAO.CP949}), N'') AS USER_ID,
       COALESCE(CONVERT(NVARCHAR(20), RICH_LAST_BRAND_ID), N'') AS BRAND_ID,
@@ -43,24 +25,16 @@ class LastConnectDAO extends DAO {
     FROM BM_RICH_LAST_ID
   ''';
 
-  static const String WhereSqlUserId = '''
+  static const String whereSqlUserId = '''
     WHERE RICH_USER_ID=@userId
   ''';
 
-  static const String WhereSqlBrandId = '''
-    WHERE RICH_LAST_BRAND_ID=@brandId
-  ''';
-
-  static const String WhereSqlLabelSizeId = '''
-    WHERE RICH_LAST_SIZE_ID=@labelSizeId
-  ''';
-
-  static const String DeleteSqlByBrandId = '''
+  static const String deleteSqlByBrandId = '''
     DELETE FROM BM_RICH_LAST_ID
      WHERE RICH_LAST_BRAND_ID=@brandId
   ''';
 
-  static const String DeleteSqlByLabelSizeId = '''
+  static const String deleteSqlByLabelSizeId = '''
     DELETE FROM BM_RICH_LAST_ID
      WHERE RICH_LAST_SIZE_ID=@labelSizeId
   ''';
@@ -69,21 +43,20 @@ class LastConnectDAO extends DAO {
     debugLog('$START, userId:$userId');
 
     try {
-      final res = await DbClient.instance.getDataWithParams(
-        '$SelectSql $WhereSqlUserId',
+      final result = await DbClient.instance.getDataWithParams(
+        '$selectSql $whereSqlUserId',
         {'userId': userId},
       );
-
       final lastConnect = DAO.mapRow(
-        res,
-        LastConnect.fromMap,
+        result,
+        lastConnectFromRow,
         throwIfNoRows: false,
       );
 
       debugLog('$END, lastConnect:$lastConnect');
       return lastConnect;
-    } catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
@@ -100,14 +73,12 @@ class LastConnectDAO extends DAO {
         VALUES
           (@userId, @brandId, @labelSizeId)
       ''';
-
-      final res = await DbClient.instance.writeDataWithParams(insertSql, {
+      final result = await DbClient.instance.writeDataWithParams(insertSql, {
         'userId': lastConnect.userId,
         'brandId': lastConnect.brandId,
         'labelSizeId': lastConnect.labelSizeId,
       });
-
-      final affected = DAO.affectedRows(res);
+      final affected = DAO.affectedRows(result);
       final succeeded = affected > 0;
       if (!succeeded) {
         throw Exception(
@@ -116,10 +87,10 @@ class LastConnectDAO extends DAO {
       }
 
       debugLog(
-        '$END, BM_RICH_LAST_ID insert Result: $res, affected:$affected, succeeded:$succeeded',
+        '$END, BM_RICH_LAST_ID insert Result: $result, affected:$affected, succeeded:$succeeded',
       );
-    } catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
@@ -136,14 +107,12 @@ class LastConnectDAO extends DAO {
                RICH_LAST_SIZE_ID=@labelSizeId
          WHERE RICH_USER_ID=@userId
       ''';
-
-      final res = await DbClient.instance.writeDataWithParams(updateSql, {
+      final result = await DbClient.instance.writeDataWithParams(updateSql, {
         'userId': lastConnect.userId,
         'brandId': lastConnect.brandId,
         'labelSizeId': lastConnect.labelSizeId,
       });
-
-      final affected = DAO.affectedRows(res);
+      final affected = DAO.affectedRows(result);
       final succeeded = affected > 0;
       if (!succeeded) {
         throw Exception(
@@ -152,10 +121,10 @@ class LastConnectDAO extends DAO {
       }
 
       debugLog(
-        '$END, BM_RICH_LAST_ID update Result: $res, affected:$affected, succeeded:$succeeded',
+        '$END, BM_RICH_LAST_ID update Result: $result, affected:$affected, succeeded:$succeeded',
       );
-    } catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
@@ -172,8 +141,8 @@ class LastConnectDAO extends DAO {
         await insert(lastConnect);
       }
       debugLog(END);
-    } catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
@@ -182,43 +151,12 @@ class LastConnectDAO extends DAO {
     debugLog('$START, userId:$userId');
 
     try {
-      await _deleteByWhere(
-        WhereSqlUserId,
-        {'userId': userId},
-      );
+      await _deleteBySql('DELETE FROM BM_RICH_LAST_ID $whereSqlUserId', {
+        'userId': userId,
+      });
       debugLog(END);
-    } catch (e) {
-      debugLog('$END, $e');
-      rethrow;
-    }
-  }
-
-  static Future<void> deleteByBrandId(int brandId) async {
-    debugLog('$START, brandId:$brandId');
-
-    try {
-      await _deleteBySql(
-        DeleteSqlByBrandId,
-        {'brandId': brandId},
-      );
-      debugLog(END);
-    } catch (e) {
-      debugLog('$END, $e');
-      rethrow;
-    }
-  }
-
-  static Future<void> deleteByLabelSizeId(int labelSizeId) async {
-    debugLog('$START, labelSizeId:$labelSizeId');
-
-    try {
-      await _deleteBySql(
-        DeleteSqlByLabelSizeId,
-        {'labelSizeId': labelSizeId},
-      );
-      debugLog(END);
-    } catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
@@ -227,40 +165,27 @@ class LastConnectDAO extends DAO {
     debugLog('$START, userId:$userId');
 
     try {
-      final res = await DbClient.instance.getDataWithParams(
-        '$SelectSql $WhereSqlUserId',
+      final result = await DbClient.instance.getDataWithParams(
+        '$selectSql $whereSqlUserId',
         {'userId': userId},
       );
-      final exists = DAO.getRowMapFromResult(res, throwIfNoRows: false) != null;
+      final exists =
+          DAO.getRowMapFromResult(result, throwIfNoRows: false) != null;
 
       debugLog('$END, exists:$exists');
       return exists;
-    } catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
-  }
-
-  static Future<void> _deleteByWhere(
-    String whereSql,
-    Map<String, Object?> params,
-  ) async {
-    await _deleteBySql('DELETE FROM BM_RICH_LAST_ID $whereSql', params);
   }
 
   static Future<void> _deleteBySql(
     String sql,
     Map<String, Object?> params,
   ) async {
-    final res = await DbClient.instance.writeDataWithParams(
-      sql,
-      params,
-    );
-
-    final affected = DAO.affectedRows(res);
-
-    debugLog(
-      'BM_RICH_LAST_ID delete Result: $res, affected:$affected',
-    );
+    final result = await DbClient.instance.writeDataWithParams(sql, params);
+    final affected = DAO.affectedRows(result);
+    debugLog('BM_RICH_LAST_ID delete Result: $result, affected:$affected');
   }
 }

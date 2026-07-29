@@ -4,11 +4,11 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/db_result_utils.dart';
+import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
 import 'dao.dart';
 import 'package:label_manager/features/date_setup/domain/date_manager.dart';
-import 'last_connect.dart';
 import 'user.dart';
 
 class LabelSizeCommon {
@@ -704,7 +704,7 @@ class LabelSizeDAO extends DAO {
 
           BEGIN TRANSACTION;
 
-          ${LastConnectDAO.DeleteSqlByLabelSizeId};
+          ${LastConnectDAO.deleteSqlByLabelSizeId};
 
           DELETE FROM BM_RICH_LABELSIZE_FORM
            WHERE RICH_LABELSIZE_ID=@labelSizeId;

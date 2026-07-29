@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/login_history/data/login_log_dao.dart';
+import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/models/last_connect.dart';
 
 void main() {
   group('DAO result helpers', () {
@@ -168,7 +168,7 @@ void main() {
 
   group('LastConnectDAO SQL and mapping', () {
     test('maps DB row values to last selected brand and label size', () {
-      final lastConnect = LastConnect.fromMap({
+      final lastConnect = lastConnectFromRow({
         'USER_ID': 'user01',
         'BRAND_ID': '12',
         'LABELSIZE_ID': '34',
@@ -180,10 +180,10 @@ void main() {
     });
 
     test('uses parameterized user, brand, and label size SQL', () {
-      expect(LastConnectDAO.WhereSqlUserId, contains('@userId'));
-      expect(LastConnectDAO.DeleteSqlByBrandId, contains('@brandId'));
+      expect(LastConnectDAO.whereSqlUserId, contains('@userId'));
+      expect(LastConnectDAO.deleteSqlByBrandId, contains('@brandId'));
       expect(
-        LastConnectDAO.DeleteSqlByLabelSizeId,
+        LastConnectDAO.deleteSqlByLabelSizeId,
         contains('@labelSizeId'),
       );
     });
