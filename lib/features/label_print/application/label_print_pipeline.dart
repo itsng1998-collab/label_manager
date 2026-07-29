@@ -7,21 +7,6 @@ import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 @immutable
-class LabelPrintUnit {
-  const LabelPrintUnit({
-    required this.row,
-    required this.rowIndex,
-    required this.copyIndex,
-    this.projectedColumnValues = const <int, String>{},
-  });
-
-  final LabelPrintRowDraft row;
-  final int rowIndex;
-  final int copyIndex;
-  final Map<int, String> projectedColumnValues;
-}
-
-@immutable
 class LabelPhysicalPageSpec {
   const LabelPhysicalPageSpec({
     required this.widthMm,

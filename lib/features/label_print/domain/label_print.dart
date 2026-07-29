@@ -223,6 +223,21 @@ class LabelPrintRowDraft {
   );
 }
 
+@immutable
+class LabelPrintUnit {
+  const LabelPrintUnit({
+    required this.row,
+    required this.rowIndex,
+    required this.copyIndex,
+    this.projectedColumnValues = const <int, String>{},
+  });
+
+  final LabelPrintRowDraft row;
+  final int rowIndex;
+  final int copyIndex;
+  final Map<int, String> projectedColumnValues;
+}
+
 const Object _unchanged = Object();
 
 @immutable
