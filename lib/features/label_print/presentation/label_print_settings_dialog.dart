@@ -92,56 +92,24 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
             onApply: printerName.isEmpty
                 ? null
                 : () {
-                    double? nonNegative(TextEditingController controller) {
-                      final value = double.tryParse(controller.text.trim());
-                      return value != null && value.isFinite && value >= 0
-                          ? value
-                          : null;
-                    }
-
-                    double? signed(TextEditingController controller) {
-                      final value = double.tryParse(controller.text.trim());
-                      return value != null && value.isFinite ? value : null;
-                    }
-
-                    final left = nonNegative(leftMargin);
-                    final right = nonNegative(rightMargin);
-                    final top = nonNegative(topMargin);
-                    final horizontalPush = signed(leftPush);
-                    final verticalPush = signed(topPush);
-                    final extra = nonNegative(extraArea);
-                    final spacing = int.tryParse(lineSpacing.text.trim());
-                    if (left == null ||
-                        right == null ||
-                        top == null ||
-                        horizontalPush == null ||
-                        verticalPush == null ||
-                        extra == null ||
-                        spacing == null ||
-                        (spacing != 0 &&
-                            (spacing < 80 ||
-                                spacing > 300 ||
-                                (spacing - 80) % 5 != 0))) {
+                    final settings = parseLabelPrintSettingsSnapshot(
+                      printerName: printerName,
+                      leftMargin: leftMargin.text,
+                      rightMargin: rightMargin.text,
+                      topMargin: topMargin.text,
+                      leftPush: leftPush.text,
+                      topPush: topPush.text,
+                      lineSpacing: lineSpacing.text,
+                      extraArea: extraArea.text,
+                      orientation: orientation,
+                    );
+                    if (settings == null) {
                       setDialogState(() {
                         errorText = '입력값을 확인해 주세요.';
                       });
                       return;
                     }
-                    Navigator.of(dialogContext).pop(
-                      LabelPrintSettingsSnapshot(
-                        printerName: printerName,
-                        leftMarginMm: left,
-                        rightMarginMm: right,
-                        topMarginMm: top,
-                        leftPushMm: horizontalPush,
-                        topPushMm: verticalPush,
-                        lineSpacingPercent: spacing == 0 ? null : spacing,
-                        extraAreaMm: extra,
-                        orientation: orientation == 'vertical'
-                            ? LabelPrintOrientation.vertical
-                            : LabelPrintOrientation.horizontal,
-                      ),
-                    );
+                    Navigator.of(dialogContext).pop(settings);
                   },
           ),
         ),
