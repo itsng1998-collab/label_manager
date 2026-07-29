@@ -1,6 +1,6 @@
 import 'package:path/path.dart' as p;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/database/db_scale_connect_info.dart';
+import 'package:label_manager/features/scale_output/data/db_scale_connect_info.dart';
 
 void main() {
   test('windows debug uses application support path instead of cwd', () {

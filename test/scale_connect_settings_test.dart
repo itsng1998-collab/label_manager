@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/database/db_scale_connect_info.dart';
+import 'package:label_manager/features/scale_output/application/scale_output.dart';
+import 'package:label_manager/features/scale_output/data/db_scale_connect_info.dart';
+import 'package:label_manager/features/scale_output/presentation/scale_output_page.dart';
 import 'package:label_manager/home_page_manager.dart';
-import 'package:label_manager/models/scale_output.dart';
-import 'package:label_manager/page_home/scale_output_page.dart';
 
 void main() {
   test('legacy serial values include full active setup range', () {

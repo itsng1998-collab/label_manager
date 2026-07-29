@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/database/db_scale_connect_info.dart';
-import 'package:label_manager/models/scale_output.dart';
+import 'package:label_manager/features/scale_output/application/scale_output.dart';
+import 'package:label_manager/features/scale_output/data/db_scale_connect_info.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
