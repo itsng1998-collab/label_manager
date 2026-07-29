@@ -11,11 +11,12 @@ import 'package:label_manager/models/user.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
-typedef LoginHistoryQuery = Future<List<LoginLog>> Function({
-  required String startDate,
-  required String endDate,
-  required int customerId,
-});
+typedef LoginHistoryQuery =
+    Future<List<LoginLog>> Function({
+      required String startDate,
+      required String endDate,
+      required int customerId,
+    });
 
 typedef LoginHistoryCooperatorLoader = Future<List<Cooperator>> Function();
 typedef LoginHistoryCustomerLoader =
@@ -44,8 +45,7 @@ class LoginHistoryDialogContent extends StatefulWidget {
       _LoginHistoryDialogContentState();
 }
 
-class _LoginHistoryDialogContentState
-    extends State<LoginHistoryDialogContent> {
+class _LoginHistoryDialogContentState extends State<LoginHistoryDialogContent> {
   late DateTime _startDate;
   late DateTime _endDate;
   List<Cooperator> _cooperators = const [];
@@ -56,8 +56,7 @@ class _LoginHistoryDialogContentState
   bool _initializing = true;
   bool _querying = false;
 
-  bool get _isSystemAdmin =>
-      widget.userGrade == UserGrade.SYSTEM_ADMIN_USER;
+  bool get _isSystemAdmin => widget.userGrade == UserGrade.SYSTEM_ADMIN_USER;
   bool get _isCoopAdmin => widget.userGrade == UserGrade.COOP_ADMIN_USER;
 
   @override
@@ -278,7 +277,11 @@ class _LoginHistoryDialogContentState
   }
 
   List<FortuneTableColumn<LoginLog>> get _columns => [
-    FortuneTableColumn(id: 'userId', header: '사용자 ID', text: (row) => row.userId),
+    FortuneTableColumn(
+      id: 'userId',
+      header: '사용자 ID',
+      text: (row) => row.userId,
+    ),
     FortuneTableColumn(
       id: 'userGrade',
       header: '사용자 등급',
@@ -292,7 +295,8 @@ class _LoginHistoryDialogContentState
     FortuneTableColumn(
       id: 'condition',
       header: '로그인/로그아웃',
-      text: (row) => row.loginCondition == LoginCondition.LOGIN ? '로그인' : '로그아웃',
+      text: (row) =>
+          row.loginCondition == LoginCondition.LOGIN ? '로그인' : '로그아웃',
     ),
     FortuneTableColumn(id: 'ip', header: 'IP주소', text: (row) => row.loginIP),
     FortuneTableColumn(

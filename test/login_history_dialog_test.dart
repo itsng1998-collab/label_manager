@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/login_history/domain/login_log.dart';
+import 'package:label_manager/features/login_history/presentation/login_history_page.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/user.dart';
-import 'package:label_manager/page_login/login_history_page.dart';
 
 void main() {
   const initialCooperator = Cooperator(id: 'coop1', name: '협력업체 1');

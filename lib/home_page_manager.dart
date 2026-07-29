@@ -107,7 +107,7 @@ import 'package:label_manager/features/content_save_history/presentation/content
 import 'package:label_manager/widgets/preview_floating_window.dart';
 import 'package:label_manager/features/print_history/presentation/print_history_dialog.dart';
 import 'package:label_manager/features/status_print/presentation/status_print_dialog.dart';
-import 'package:label_manager/page_login/login_history_page.dart';
+import 'package:label_manager/features/login_history/presentation/login_history_page.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_print_settings_dialog.dart';
