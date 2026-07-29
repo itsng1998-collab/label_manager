@@ -11,9 +11,7 @@ import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
-import 'package:label_manager/features/label_sheet/application/label_sheet_import_model.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
-import 'package:label_manager/features/label_sheet/application/label_sheet_open_xml_export.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
@@ -2094,7 +2092,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     try {
-      final xlsxFile = await _writeLabelImageImportXlsxFile(
+      final xlsxFile = await labelSheetWriteImageImportXlsxFile(
         draft,
         action.fileName,
       );
@@ -2127,24 +2125,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         const SnackBar(content: Text('AI 분석 결과를 엑셀로 가져올 수 없습니다.')),
       );
     }
-  }
-
-  Future<File> _writeLabelImageImportXlsxFile(
-    LabelSheetImageImportDraft draft,
-    String sourceFileName,
-  ) async {
-    final baseName = p.basenameWithoutExtension(sourceFileName).trim();
-    final safeBaseName = baseName.isEmpty
-        ? 'label_image'
-        : baseName.replaceAll(RegExp(r'[^0-9A-Za-z가-힣._-]+'), '_');
-    final directory = await labelSheetAiImportTempDirectory().create(
-      recursive: true,
-    );
-    final path = p.join(
-      directory.path,
-      'label_manager_ai_import_${DateTime.now().microsecondsSinceEpoch}_$safeBaseName.xlsx',
-    );
-    return labelSheetWriteDraftOpenXmlTestFile(draft, path: path);
   }
 
   void _handlePrint() {
