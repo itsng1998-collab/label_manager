@@ -1,54 +1,23 @@
-// UTF-8, 한국어 주석
-// ignore_for_file: constant_identifier_names, non_constant_identifier_names
-
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
+import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'dao.dart';
 
-class Brand {
-  static List<Brand>? datas;
+Brand brandFromRow(Map<String, dynamic> row) {
+  String stringValue(String key) => (row[key] ?? '').toString();
+  int intValue(String key) => int.tryParse(stringValue(key)) ?? 0;
 
-  final int brandId;
-  final int customerId;
-  final String brandName;
-
-  const Brand({
-    required this.brandId,
-    required this.customerId,
-    required this.brandName,
-  });
-
-  static void setDatas(List<Brand>? values) {
-    datas = values;
-  }
-
-  factory Brand.fromMap(Map<String, dynamic> map) {
-    String s(String key) => (map[key] ?? '').toString();
-    int i(String key) => int.tryParse(s(key)) ?? 0;
-
-    return Brand(
-      brandId:    i('BRAND_ID'),
-      customerId: i('CUSTOMER_ID'),
-      brandName:  s('BRAND_NAME'),
-    );
-  }
-
-  @override
-  String toString() =>
-    'BrandId: $brandId, CustomerId: $customerId, BrandName: $brandName';
-}
-
-class BrandOrderUpdate {
-  final int brandId;
-  final int brandOrder;
-
-  const BrandOrderUpdate({required this.brandId, required this.brandOrder});
+  return Brand(
+    brandId: intValue('BRAND_ID'),
+    customerId: intValue('CUSTOMER_ID'),
+    brandName: stringValue('BRAND_NAME'),
+  );
 }
 
 class BrandDAO extends DAO {
-  static const String SelectSql =
+  static const String selectSql =
       '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(20), RICH_BRAND_ID), N'') AS BRAND_ID,
@@ -57,64 +26,61 @@ class BrandDAO extends DAO {
     FROM BM_RICH_BRAND
   ''';
 
-  // WHERE 절: Customer ID로 조회 (Integer)
-  static const String WhereSqlCustomerId = '''
-	  WHERE RICH_CUSTOMER_ID=@customerId
+  static const String whereSqlCustomerId = '''
+    WHERE RICH_CUSTOMER_ID=@customerId
   ''';
 
-  static const String OrderSqlByBrandrder = '''
-	  ORDER BY RICH_BRAND_ORDER ASC
+  static const String orderSqlByBrandOrder = '''
+    ORDER BY RICH_BRAND_ORDER ASC
   ''';
 
-  static Future<List<Brand>?> selectByCustomerIdByBrandOrder(int customerId) async {
+  static Future<List<Brand>?> selectByCustomerIdByBrandOrder(
+    int customerId,
+  ) async {
     debugLog('$START, customerId:$customerId');
-
     try {
-      final res = await DbClient.instance.getDataWithParams(
-        '$SelectSql $WhereSqlCustomerId $OrderSqlByBrandrder', { 'customerId': customerId }
+      final result = await DbClient.instance.getDataWithParams(
+        '$selectSql $whereSqlCustomerId $orderSqlByBrandOrder',
+        {'customerId': customerId},
       );
-
-      final brands = DAO.mapRows(res, Brand.fromMap);
+      final brands = DAO.mapRows(result, brandFromRow);
       Brand.setDatas(brands);
-
       debugLog(END);
       return brands;
-    }
-    catch (e) {
-      debugLog('$END, $e');
-      throw Exception('${runtimeLogTag()} $e');
+    } catch (error) {
+      debugLog('$END, $error');
+      throw Exception('${runtimeLogTag()} $error');
     }
   }
 
-  static Future<void> updateByBrandId(
-    Brand brand, String newBrandName
-  ) async {
-    debugLog('$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}, newBrandName:$newBrandName');
-
+  static Future<void> updateByBrandId(Brand brand, String newBrandName) async {
+    debugLog(
+      '$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}, newBrandName:$newBrandName',
+    );
     try {
-      final updateSql = '''
+      const updateSql = '''
         UPDATE BM_RICH_BRAND
           SET RICH_CUSTOMER_ID=@customerId,
               RICH_BRAND_NAME=@brandName
         WHERE RICH_BRAND_ID=@brandId
       ''';
-
-      final res = await DbClient.instance.writeDataWithParams(
-        updateSql,
-        {'customerId': brand.customerId, 'brandName': newBrandName, 'brandId': brand.brandId},
-      );
-
-      final affected = DAO.affectedRows(res);
+      final result = await DbClient.instance.writeDataWithParams(updateSql, {
+        'customerId': brand.customerId,
+        'brandName': newBrandName,
+        'brandId': brand.brandId,
+      });
+      final affected = DAO.affectedRows(result);
       final succeeded = affected > 0;
-
       if (!succeeded) {
-        throw Exception('${runtimeLogTag()} Update failed for brandId:${brand.brandId}');
+        throw Exception(
+          '${runtimeLogTag()} Update failed for brandId:${brand.brandId}',
+        );
       }
-
-      debugLog('$END, BM_RICH_BRAND Result: $res, affected:$affected, succeeded:$succeeded');
-    }
-    catch (e) {
-      debugLog('$END, $e');
+      debugLog(
+        '$END, BM_RICH_BRAND Result: $result, affected:$affected, succeeded:$succeeded',
+      );
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
@@ -124,10 +90,12 @@ class BrandDAO extends DAO {
     String brandName,
     int brandOrder,
   ) async {
-    debugLog('$START, customerId:$customerId, brandName:$brandName, brandOrder:$brandOrder');
-
+    debugLog(
+      '$START, customerId:$customerId, brandName:$brandName, brandOrder:$brandOrder',
+    );
     try {
-      final insertSql = '''
+      const insertSql =
+          '''
         SET XACT_ABORT ON;
         SET NOCOUNT ON;
         BEGIN TRY
@@ -173,36 +141,35 @@ class BrandDAO extends DAO {
           THROW;
         END CATCH
       ''';
-
-      final res = await DbClient.instance.writeDataWithParams(
-        insertSql,
-        {
-          'customerId': customerId,
-          'brandName': brandName,
-          'brandOrder': brandOrder,
-        },
-      );
-
-      final inserted = DAO.mapRow(res, Brand.fromMap);
+      final result = await DbClient.instance.writeDataWithParams(insertSql, {
+        'customerId': customerId,
+        'brandName': brandName,
+        'brandOrder': brandOrder,
+      });
+      final inserted = DAO.mapRow(result, brandFromRow);
       if (inserted == null) {
-        throw Exception('${runtimeLogTag()} Insert failed for brandName:$brandName');
+        throw Exception(
+          '${runtimeLogTag()} Insert failed for brandName:$brandName',
+        );
       }
-
-      final affected = DAO.affectedRows(res);
-      debugLog('$END, BM_RICH_BRAND insert Result: $res, affected:$affected, inserted:$inserted');
+      final affected = DAO.affectedRows(result);
+      debugLog(
+        '$END, BM_RICH_BRAND insert Result: $result, affected:$affected, inserted:$inserted',
+      );
       return inserted;
-    }
-    catch (e) {
-      debugLog('$END, $e');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
 
   static Future<void> deleteByBrandId(Brand brand) async {
-    debugLog('$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}');
-
+    debugLog(
+      '$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}',
+    );
     try {
-      final deleteSql = '''
+      final deleteSql =
+          '''
         SET XACT_ABORT ON;
         SET NOCOUNT ON;
         BEGIN TRY
@@ -233,38 +200,32 @@ class BrandDAO extends DAO {
           THROW;
         END CATCH
       ''';
-
-      final res = await DbClient.instance.writeDataWithParams(
-        deleteSql,
-        {
-          'brandId': brand.brandId,
-        },
-      );
-
-      final row = DAO.getRowMapFromResult(res);
+      final result = await DbClient.instance.writeDataWithParams(deleteSql, {
+        'brandId': brand.brandId,
+      });
+      final row = DAO.getRowMapFromResult(result);
       final affected = int.tryParse((row?['AFFECTED'] ?? '0').toString()) ?? 0;
       final succeeded = affected > 0;
-
       if (!succeeded) {
-        throw Exception('${runtimeLogTag()} Delete affected no rows for brandId:${brand.brandId}');
+        throw Exception(
+          '${runtimeLogTag()} Delete affected no rows for brandId:${brand.brandId}',
+        );
       }
-
-      debugLog('$END, BM_RICH_BRAND delete Result: $res, affected:$affected, succeeded:$succeeded');
-    }
-    catch (e) {
-      debugLog('$END, $e');
+      debugLog(
+        '$END, BM_RICH_BRAND delete Result: $result, affected:$affected, succeeded:$succeeded',
+      );
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }
 
   static Future<void> updateOrders(List<BrandOrderUpdate> orderUpdates) async {
     debugLog('$START, brandOrderUpdates:${orderUpdates.length}');
-
     if (orderUpdates.isEmpty) {
       debugLog('$END, empty brandOrderUpdates');
       return;
     }
-
     try {
       final updateStatements = StringBuffer();
       final params = <String, Object?>{};
@@ -288,8 +249,8 @@ class BrandDAO extends DAO {
         params[brandOrderParam] = update.brandOrder;
       }
       final affectedExpression = affectedVariables.join(' + ');
-
-      final updateOrderTransactionSql = '''
+      final updateOrderTransactionSql =
+          '''
         SET XACT_ABORT ON;
         SET NOCOUNT ON;
         BEGIN TRY
@@ -311,18 +272,18 @@ class BrandDAO extends DAO {
           THROW;
         END CATCH
       ''';
-
-      final res = await DbClient.instance.writeDataWithParams(
+      final result = await DbClient.instance.writeDataWithParams(
         updateOrderTransactionSql,
         params,
       );
-      if (DAO.affectedRows(res) <= 0) {
-        throw Exception('${runtimeLogTag()} Update brand order affected no rows');
+      if (DAO.affectedRows(result) <= 0) {
+        throw Exception(
+          '${runtimeLogTag()} Update brand order affected no rows',
+        );
       }
-
-      debugLog('$END, BM_RICH_BRAND order Result: $res');
-    } catch (e) {
-      debugLog('$END, $e');
+      debugLog('$END, BM_RICH_BRAND order Result: $result');
+    } catch (error) {
+      debugLog('$END, $error');
       rethrow;
     }
   }

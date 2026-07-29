@@ -15,7 +15,7 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/item/data/item_dao.dart';

@@ -45,7 +45,8 @@ import 'package:label_manager/features/label_column/application/special_columns.
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/special_keyword.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
-import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/features/brand/data/brand_dao.dart';
+import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';

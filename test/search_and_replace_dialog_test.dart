@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/search_and_replace/domain/item_detail.dart';
 import 'package:label_manager/features/search_and_replace/presentation/search_and_replace_dialog.dart';
-import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 

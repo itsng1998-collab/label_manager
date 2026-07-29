@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/lifecycle.dart';
-import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/label_size.dart';
