@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
+import 'package:label_manager/features/label_sheet/application/common_label_connections.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_special.dart';
@@ -27,36 +28,6 @@ List<double> commonLabelColumnWidthsForViewport(double viewportWidth) {
       ? _commonLabelFlexibleColumnMinWidth
       : remainingWidth / 2;
   return [flexibleWidth, flexibleWidth, commonLabelRequiredColumnWidth];
-}
-
-@visibleForTesting
-List<String> commonLabelBarcodeObjectIdsFor(
-  List<TColumnBase> specialColumns,
-  List<TColumn> columns,
-) {
-  return commonLabelBarcodeObjectIdsFromColumns([...specialColumns, ...columns]);
-}
-
-List<String> commonLabelBarcodeObjectIdsFromColumns(
-  Iterable<TColumnBase> columns,
-) {
-  final result = <String>[];
-  final seen = <String>{};
-  for (final column in columns) {
-    final typeCode = column.columnType.code;
-    if (typeCode != TColumnType.TYPE_BARCODE &&
-        typeCode != TColumnType.TYPE_QR_CODE &&
-        typeCode != TColumnType.TYPE_GS1_BARCODE) {
-      continue;
-    }
-    final keyword = column.keyword.trim();
-    if (keyword.isEmpty) continue;
-    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
-    if (seen.add(objectId.toLowerCase())) {
-      result.add(objectId);
-    }
-  }
-  return result.isEmpty ? const ['#BARCODE'] : result;
 }
 
 List<FortuneObjectConnectionOption> commonLabelBarcodeObjectOptionsFromColumns(
@@ -118,33 +89,6 @@ String _columnBarcodeFormatId(TColumn column) {
   };
 }
 
-@visibleForTesting
-List<String> commonLabelImageObjectIdsFor(
-  List<TColumnBase> specialColumns,
-  List<TColumn> columns,
-) {
-  return commonLabelImageObjectIdsFromColumns([...specialColumns, ...columns]);
-}
-
-List<String> commonLabelImageObjectIdsFromColumns(
-  Iterable<TColumnBase> columns,
-) {
-  final result = <String>[];
-  final seen = <String>{};
-  for (final column in columns) {
-    if (column.columnType.code != TColumnType.TYPE_IMAGE) continue;
-    final keyword = column.keyword.trim();
-    if (keyword.isEmpty) {
-      continue;
-    }
-    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
-    if (seen.add(objectId.toLowerCase())) {
-      result.add(objectId);
-    }
-  }
-  return result;
-}
-
 List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
   Iterable<TColumnBase> columns,
 ) {
@@ -165,45 +109,6 @@ List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
         label: '$name ($objectId)',
       ),
     );
-  }
-  return result;
-}
-
-@visibleForTesting
-List<LabelSheetRequiredKeyword> commonLabelRequiredKeywordsFor(
-  List<TColumnBase> specialColumns,
-  List<TColumn> columns,
-) {
-  return commonLabelRequiredKeywordsFromColumns([
-    ...specialColumns,
-    ...columns,
-  ]);
-}
-
-@visibleForTesting
-List<LabelSheetRequiredKeyword> commonLabelRequiredKeywordsFromColumns(
-  Iterable<TColumnBase> columns,
-) {
-  final result = <LabelSheetRequiredKeyword>[];
-  final seen = <String>{};
-  for (final column in columns) {
-    if (!column.useMissingKeywordCheck) {
-      continue;
-    }
-    final keyword = column.keyword.trim();
-    if (keyword.isEmpty) {
-      continue;
-    }
-    if (seen.add(keyword.toLowerCase())) {
-      result.add(
-        LabelSheetRequiredKeyword(
-          keyword: keyword,
-          itemName: column.columnName.trim().isEmpty
-              ? keyword
-              : column.columnName.trim(),
-        ),
-      );
-    }
   }
   return result;
 }
