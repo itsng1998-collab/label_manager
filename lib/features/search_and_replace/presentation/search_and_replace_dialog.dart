@@ -6,7 +6,8 @@ import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_detail.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_home/search_and_replace_sheet.dart';
+import 'package:label_manager/features/search_and_replace/application/search_and_replace_sheet.dart';
+import 'package:label_manager/features/search_and_replace/domain/search_and_replace.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
@@ -20,30 +21,6 @@ typedef ItemDetailSearcher = Future<List<ItemDetail>> Function({
 typedef SearchReplaceSaver = Future<void> Function(
   List<ItemElementSearchReplaceUpdate>,
 );
-
-class SearchReplaceEditTarget {
-  const SearchReplaceEditTarget({
-    required this.brandId,
-    required this.labelSizeId,
-    required this.itemId,
-  });
-
-  final int brandId;
-  final int labelSizeId;
-  final int itemId;
-}
-
-class SearchReplacePrintTarget {
-  const SearchReplacePrintTarget({
-    required this.brandId,
-    required this.labelSizeId,
-    required this.itemIds,
-  });
-
-  final int brandId;
-  final int labelSizeId;
-  final List<int> itemIds;
-}
 
 class SearchAndReplaceController extends ChangeNotifier {
   bool _activeEditing = false;
@@ -95,35 +72,6 @@ class SearchAndReplaceController extends ChangeNotifier {
     _disposed = true;
     super.dispose();
   }
-}
-
-class SearchReplaceDraftRow {
-  const SearchReplaceDraftRow({
-    required this.source,
-    required this.element,
-    required this.elementSheet,
-    this.checked = false,
-    this.changed = false,
-  });
-
-  final ItemDetail source;
-  final String element;
-  final String elementSheet;
-  final bool checked;
-  final bool changed;
-
-  SearchReplaceDraftRow copyWith({
-    String? element,
-    String? elementSheet,
-    bool? checked,
-    bool? changed,
-  }) => SearchReplaceDraftRow(
-    source: source,
-    element: element ?? this.element,
-    elementSheet: elementSheet ?? this.elementSheet,
-    checked: checked ?? this.checked,
-    changed: changed ?? this.changed,
-  );
 }
 
 class SearchAndReplaceDialogContent extends StatefulWidget {

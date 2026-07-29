@@ -1,6 +1,6 @@
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/page_home/search_and_replace_sheet.dart';
+import 'package:label_manager/features/search_and_replace/application/search_and_replace_sheet.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 
 void main() {
