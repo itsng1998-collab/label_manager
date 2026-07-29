@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';

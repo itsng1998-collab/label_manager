@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/printing/label_print_persistence.dart';
 
 void main() {

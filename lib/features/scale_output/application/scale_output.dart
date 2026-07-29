@@ -6,7 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/features/scale_output/data/db_scale_connect_info.dart';
 import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
