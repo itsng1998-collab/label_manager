@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/models/label_print_auto_increment.dart';
+import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
 
 void main() {
   test('legacy atoi follows active zero and mixed string rules', () {

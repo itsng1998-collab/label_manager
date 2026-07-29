@@ -7,7 +7,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'package:synchronized/synchronized.dart';
 
-import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/features/label_print/domain/label_print.dart';
 
 @immutable
 class ScaleConnectInfo {

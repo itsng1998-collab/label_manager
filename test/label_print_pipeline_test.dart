@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
