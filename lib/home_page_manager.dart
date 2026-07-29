@@ -24,6 +24,7 @@ import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/features/item/application/item_manager_session_loader.dart';
 import 'package:label_manager/features/item/application/item_manager_save_service.dart';
+import 'package:label_manager/features/item/application/item_manager_order_service.dart';
 import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
@@ -2525,12 +2526,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     final selectedItemIndex = _selectedItemIndex;
     setState(() => _itemDraftCommandBusy = true);
     try {
-      final storedItems =
-          await ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId(
-            market.marketId,
-            labelSize.labelSizeId,
-          ) ??
-          const <ItemOfMarket>[];
+      final storedItems = await loadItemManagerOrder(
+        marketId: market.marketId,
+        labelSizeId: labelSize.labelSizeId,
+      );
       ItemManagerDebugLog.event(
         'itemOrder',
         'loaded',
@@ -2571,10 +2570,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         ItemManagerDebugLog.event('itemOrder', 'saveCancelled', trace: trace);
         return;
       }
-      await ItemDAO.updateOrders([
-        for (var index = 0; index < ordered.length; index++)
-          ItemOrderUpdate(itemId: ordered[index].item.itemId, order: index + 1),
-      ]);
+      await saveItemManagerOrder(orderedItems: ordered);
       ItemManagerDebugLog.event(
         'itemOrder',
         'updateCompleted',

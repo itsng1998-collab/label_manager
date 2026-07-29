@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/item/application/item_manager_order_service.dart';
+import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 void main() {
+  test('builds one-based order updates and forwards them to the writer', () async {
+    final orderedItems = [
+      _item(itemId: 3, name: '셋째 품목'),
+      _item(itemId: 1, name: '첫째 품목'),
+      _item(itemId: 2, name: '둘째 품목'),
+    ];
+    List<ItemOrderUpdate>? savedUpdates;
+
+    await saveItemManagerOrder(
+      orderedItems: orderedItems,
+      save: (updates) async => savedUpdates = updates,
+    );
+
+    expect(savedUpdates?.map((value) => value.itemId), [3, 1, 2]);
+    expect(savedUpdates?.map((value) => value.order), [1, 2, 3]);
+  });
+
   testWidgets('moves the selected item and returns the changed order', (
     tester,
   ) async {
