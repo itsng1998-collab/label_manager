@@ -83,7 +83,7 @@ import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/table_search.dart';
-import 'package:label_manager/page_home/item_code_data_resolver.dart';
+import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 import 'package:label_manager/features/date_setup/presentation/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/features/cooperator/presentation/cooperator_manager_dialog.dart';

@@ -3,7 +3,7 @@ import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/page_home/item_code_data_resolver.dart';
+import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 
 @immutable
 class LabelAutoIncrementProjection {
