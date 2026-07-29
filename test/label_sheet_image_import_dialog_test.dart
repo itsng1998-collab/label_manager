@@ -38,6 +38,55 @@ void main() {
     );
   });
 
+  for (final useRootOverlay in <bool>[false, true]) {
+    testWidgets(
+      'image import launcher returns cancel with rootOverlay=$useRootOverlay',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await tester.binding.setSurfaceSize(const Size(900, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        var completed = false;
+        LabelSheetImageImportAction? result;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  result = await showLabelSheetImageImportDialog(
+                    context: context,
+                    sheet: FortuneSheet(id: 'sheet1', name: 'Sheet 1'),
+                    physicalSize:
+                        const FortuneSheetGridClientPhysicalSize(
+                          widthMm: 100,
+                          heightMm: 60,
+                        ),
+                    initialImage: null,
+                    initialApiKey: '',
+                    initialModel: labelSheetDefaultGeminiModel,
+                    initialPrompt: '',
+                    useRootOverlay: useRootOverlay,
+                  );
+                  completed = true;
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pump();
+        expect(find.text('라벨 이미지 가져오기'), findsOneWidget);
+
+        await tester.tap(find.text('취소'));
+        await tester.pumpAndSettle();
+        expect(completed, isTrue);
+        expect(result, isNull);
+      },
+    );
+  }
+
   testWidgets('image import dialog renders initial values and closes', (
     tester,
   ) async {

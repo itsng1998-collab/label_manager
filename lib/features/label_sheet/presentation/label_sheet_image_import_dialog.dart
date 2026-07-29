@@ -87,6 +87,45 @@ class LabelSheetImageImportAction {
   final LabelSheetImageImportDraft? draft;
 }
 
+Future<LabelSheetImageImportAction?> showLabelSheetImageImportDialog({
+  required BuildContext context,
+  required FortuneSheet sheet,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+  required LabelSheetImageImportSelection? initialImage,
+  required String initialApiKey,
+  required String initialModel,
+  required String initialPrompt,
+  required bool useRootOverlay,
+}) {
+  if (useRootOverlay) {
+    return showBlockingModelessOverlayDialog<LabelSheetImageImportAction>(
+      context: context,
+      builder: (_, close) => LabelSheetImageImportDialog(
+        sheet: sheet,
+        physicalSize: physicalSize,
+        initialImage: initialImage,
+        initialApiKey: initialApiKey,
+        initialModel: initialModel,
+        initialPrompt: initialPrompt,
+        close: close,
+      ),
+    );
+  }
+  return showDialog<LabelSheetImageImportAction>(
+    context: context,
+    barrierDismissible: false,
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+    builder: (_) => LabelSheetImageImportDialog(
+      sheet: sheet,
+      physicalSize: physicalSize,
+      initialImage: initialImage,
+      initialApiKey: initialApiKey,
+      initialModel: initialModel,
+      initialPrompt: initialPrompt,
+    ),
+  );
+}
+
 class LabelSheetImageImportDialog extends StatefulWidget {
   const LabelSheetImageImportDialog({
     required this.sheet,

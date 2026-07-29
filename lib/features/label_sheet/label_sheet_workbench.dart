@@ -3097,34 +3097,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         fortuneSheetGridClientPhysicalSize(sheet) ??
         const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
     try {
-      if (widget.imageImportUseRootOverlay) {
-        return await showBlockingModelessOverlayDialog<
-          LabelSheetImageImportAction
-        >(
-          context: context,
-          builder: (_, close) => LabelSheetImageImportDialog(
-            sheet: sheet,
-            physicalSize: physicalSize,
-            initialImage: persistedImage,
-              initialApiKey: settings.apiKey,
-              initialModel: settings.model,
-              initialPrompt: settings.prompt,
-            close: close,
-          ),
-        );
-      }
-      return await showDialog<LabelSheetImageImportAction>(
+      return await showLabelSheetImageImportDialog(
         context: context,
-        barrierDismissible: false,
-        traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
-        builder: (_) => LabelSheetImageImportDialog(
-          sheet: sheet,
-          physicalSize: physicalSize,
-          initialImage: persistedImage,
-            initialApiKey: settings.apiKey,
-            initialModel: settings.model,
-            initialPrompt: settings.prompt,
-        ),
+        sheet: sheet,
+        physicalSize: physicalSize,
+        initialImage: persistedImage,
+        initialApiKey: settings.apiKey,
+        initialModel: settings.model,
+        initialPrompt: settings.prompt,
+        useRootOverlay: widget.imageImportUseRootOverlay,
       );
     } finally {
       widget.onSheetDialogClosed?.call();
