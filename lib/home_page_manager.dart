@@ -55,6 +55,8 @@ import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
 import 'package:label_manager/features/label_print/presentation/label_print_page.dart';
+import 'package:label_manager/features/label_print/presentation/label_print_settings_dialog.dart';
+import 'package:label_manager/features/label_print/application/label_print_settings.dart';
 import 'package:label_manager/features/scale_output/application/scale_output.dart';
 import 'package:label_manager/features/scale_output/data/db_scale_connect_info.dart';
 import 'package:label_manager/features/scale_output/presentation/scale_output_page.dart';
@@ -114,7 +116,6 @@ import 'package:label_manager/features/status_print/presentation/status_print_di
 import 'package:label_manager/features/login_history/presentation/login_history_page.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
-import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 bool itemManagerSearchVisibleForTab(Object? tabValue) =>

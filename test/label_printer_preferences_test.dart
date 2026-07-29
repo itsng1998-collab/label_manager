@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/label_print/application/label_print_settings.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
-import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
