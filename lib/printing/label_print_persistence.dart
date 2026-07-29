@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';

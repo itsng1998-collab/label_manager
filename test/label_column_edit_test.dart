@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 

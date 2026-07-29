@@ -9,7 +9,7 @@ import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_column/domain/special_keyword.dart';

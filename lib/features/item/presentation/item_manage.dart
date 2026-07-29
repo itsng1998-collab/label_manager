@@ -7,7 +7,7 @@ import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_column/domain/special_keyword.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';

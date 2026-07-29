@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 
 class SearchPrintSettingsDraft extends ChangeNotifier {
   SearchPrintSettingsDraft(List<TColumn> columns)

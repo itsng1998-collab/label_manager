@@ -3,7 +3,7 @@ import 'package:label_manager/features/label_column/application/label_column_sav
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_column/data/label_column_save.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';

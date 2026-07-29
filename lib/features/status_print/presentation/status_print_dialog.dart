@@ -6,7 +6,9 @@ import 'package:label_manager/features/status_print/data/status_print_dao.dart';
 import 'package:label_manager/features/status_print/domain/status_print.dart';
 import 'package:label_manager/features/brand/data/brand_dao.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/data/column_dao.dart';
+// ignore: unused_import
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/models/cooperator.dart';

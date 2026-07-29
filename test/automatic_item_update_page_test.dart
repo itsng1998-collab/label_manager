@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/automatic_item_update/domain/update_item.dart';
 import 'package:label_manager/features/automatic_item_update/presentation/automatic_item_update_page.dart';

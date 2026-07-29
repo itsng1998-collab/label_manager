@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/label_column/data/column_dao.dart';
 import 'package:label_manager/features/label_column/data/column_type_dao.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/column.dart';
 
 void main() {
   test('column type row maps database values', () {
@@ -17,7 +18,7 @@ void main() {
     expect(type.order, 4);
   });
 
-  group('TColumn.fromMap', () {
+  group('tColumnFromRow', () {
     setUp(() {
       TColumnType.datas = const <TColumnType>[
         TColumnType(code: TColumnType.TYPE_BASE, name: 'base', order: 0),
@@ -26,7 +27,7 @@ void main() {
     });
 
     test('falls back when database enum values are unknown', () {
-      final column = TColumn.fromMap({
+      final column = tColumnFromRow({
         'RICH_COLUMN_ID': 1,
         'RICH_LABELSIZE_ID': 4935,
         'RICH_COLUMN_ORDER': 1,
@@ -77,6 +78,18 @@ void main() {
       expect(column.qrTextAlignment, QRTextAlignment.ALIGN_LEFT);
       expect(column.qrCodeCreateType, QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT);
       expect(column.columnType.code, TColumnType.TYPE_BASE);
+    });
+
+    test('keeps column DAO sql and where/order constants', () {
+      expect(TColumnDAO.selectSql, contains('BM_RICH_CHECK_COLUMNS'));
+      expect(TColumnDAO.selectSql, contains('BM_RICH_COL_MIN'));
+      expect(TColumnDAO.selectSql, contains('BM_GS1_COLUMN_INFO'));
+      expect(TColumnDAO.selectSql, contains('VIEW_BM_GS1_CONTAIN_COLUMN'));
+      expect(
+        TColumnDAO.whereSqlByLabelSizeId,
+        contains('BM_RICH_COLUMN.RICH_LABELSIZE_ID=@labelSizeId'),
+      );
+      expect(TColumnDAO.orderByColumnOrder, contains('RICH_COLUMN_ORDER'));
     });
   });
 }

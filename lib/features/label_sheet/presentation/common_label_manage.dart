@@ -7,7 +7,7 @@ import 'package:label_manager/features/label_sheet/application/common_label_conn
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
-import 'package:label_manager/models/column.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_page.dart';
