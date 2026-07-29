@@ -19,6 +19,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_i
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_xlsx_import.dart';
+import 'package:label_manager/features/label_sheet/presentation/label_sheet_settings.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
@@ -35,9 +36,6 @@ import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String labelSheetSaveToolbarCommand = 'label-sheet-save';
-const String labelSheetPrintToolbarCommand = 'label-sheet-print';
-
 const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
 const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
 const String _labelSheetGeminiPromptPrefsKey = 'label_sheet_gemini_prompt';
@@ -48,85 +46,6 @@ const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 const double _labelSheetZoomToolbarRightInset = 124.0;
 const double _labelSheetObjectPanelMinWidth = 160.0;
 const double _labelSheetObjectPanelInitialWidth = 160.0;
-
-const List<String> labelSheetToolbarItems = [
-  labelSheetSaveToolbarCommand,
-  labelSheetPrintToolbarCommand,
-  '|',
-  fortuneToolbarFontPopupKey,
-  '|',
-  fortuneToolbarFontSizePopupKey,
-  '|',
-  fortuneToolbarBoldCommand,
-  fortuneToolbarItalicCommand,
-  fortuneToolbarStrikeThroughCommand,
-  fortuneToolbarUnderlineCommand,
-  '|',
-  fortuneToolbarFontColorPopupKey,
-  fortuneToolbarBackgroundPopupKey,
-  fortuneToolbarBorderPopupKey,
-  fortuneToolbarMergePopupKey,
-  '|',
-  fortuneToolbarHorizontalAlignPopupKey,
-  fortuneToolbarVerticalAlignPopupKey,
-  fortuneToolbarTextWrapPopupKey,
-  fortuneToolbarTextRotationPopupKey,
-  '|',
-  fortuneToolbarImageCommand,
-  fortuneToolbarBarcodeCommand,
-  fortuneToolbarLineCommand,
-  fortuneToolbarShapeCommand,
-  fortuneToolbarObjectPanelCommand,
-];
-
-const Set<String> labelSheetHiddenContextMenuItems = {
-  fortuneContextSortCommand,
-  fortuneContextOrderAzCommand,
-  fortuneContextOrderZaCommand,
-  fortuneToolbarFilterCommand,
-  fortuneToolbarLinkCommand,
-  fortuneFilterSortAscCommand,
-  fortuneFilterSortDescCommand,
-};
-
-const List<String> labelSheetClipboardClearContextMenuItems = [
-  fortuneContextCopyCommand,
-  fortuneContextPasteCommand,
-  fortuneContextClearCommand,
-];
-
-List<String> labelSheetContextMenuItems(
-  List<String> base, {
-  bool includeImportLabelImage = false,
-}) {
-  var visible = fortuneMenuItemsWithout(base, labelSheetHiddenContextMenuItems);
-  if (includeImportLabelImage &&
-      !visible.contains(fortuneContextImportLabelImageCommand)) {
-    final loadCommonLabelIndex = visible.indexOf(
-      fortuneContextLoadCommonLabelCommand,
-    );
-    final insertIndex = loadCommonLabelIndex < 0
-        ? visible.length
-        : loadCommonLabelIndex + 1;
-    visible = [
-      ...visible.take(insertIndex),
-      fortuneContextImportLabelImageCommand,
-      ...visible.skip(insertIndex),
-    ];
-  }
-  if (visible.contains(fortuneToolbarBarcodeCommand)) {
-    return visible;
-  }
-  final imageIndex = visible.indexOf(fortuneToolbarImageCommand);
-  if (imageIndex < 0) {
-    return visible;
-  }
-  return [
-    ...visible.take(imageIndex + 1),
-    fortuneToolbarBarcodeCommand,
-    ...visible.skip(imageIndex + 1),
-  ];
-}
 
 FortuneSheet _labelSheetWithPreservedGridClientSize(
   FortuneSheet importedSheet,
@@ -974,130 +893,6 @@ int _labelSheetLineCount(String value) {
     return 0;
   }
   return '\n'.allMatches(value).length + 1;
-}
-
-FortuneSettings labelSheetSettings(
-  FortuneSettings base, {
-  VoidCallback? onImportLabelImage,
-  FutureOr<void> Function()? onSave,
-  FutureOr<void> Function()? onImportLabelFile,
-  FutureOr<void> Function()? onExportLabelFile,
-  Set<String> Function()? contextMenuDisabledItemsBuilder,
-  VoidCallback? onPrint,
-  FortuneDialogVisibilityChanged? onDialogVisibilityChanged,
-  bool saveEnabled = true,
-  String importImageTooltip = 'Import label image',
-  String saveTooltip = 'Save',
-  String printTooltip = 'Print',
-  List<String>? toolbarItems,
-  bool hideToolbar = false,
-  bool hideRowColumnHeaders = false,
-  bool hideRowColumnHeaderLabels = false,
-  bool hideSelectionHighlight = false,
-  bool singleClickCellEdit = false,
-  bool hidePrintAreaBoundary = false,
-  bool fitSingleCellToViewport = false,
-  bool rulerCornerSizeLabelUsesAsterisk = false,
-  bool disableSheetRulerGuideInteraction = false,
-  bool hideStatisticBar = false,
-  bool copyOnlyContextMenu = false,
-  bool limitCellActionsToClipboardAndClear = false,
-  bool? canEditObjects,
-}) {
-  final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
-  return base.copyWith(
-    allowEdit: canEditObjects,
-    showToolbar: !hideToolbar,
-    copyOnlyContextMenu: copyOnlyContextMenu,
-    limitCellActionsToClipboardAndClear: limitCellActionsToClipboardAndClear,
-    toolbarItems: resolvedToolbarItems,
-    rowHeaderWidth: hideRowColumnHeaders ? 0 : null,
-    columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
-    hideRowColumnHeaderLabels: hideRowColumnHeaderLabels,
-    hideSelectionHighlight: hideSelectionHighlight,
-    singleClickCellEdit: singleClickCellEdit,
-    hidePrintAreaBoundary: hidePrintAreaBoundary,
-    fitSingleCellToViewport: fitSingleCellToViewport,
-    rulerCornerSizeLabelUsesAsterisk: rulerCornerSizeLabelUsesAsterisk,
-    disableSheetRulerGuideInteraction: disableSheetRulerGuideInteraction,
-    statisticBarHeight: hideStatisticBar ? 0 : null,
-    customToolbarItems: [
-      if (resolvedToolbarItems.contains(labelSheetSaveToolbarCommand))
-        FortuneCustomToolbarItem(
-          key: labelSheetSaveToolbarCommand,
-          tooltip: saveTooltip,
-          iconName: 'save',
-          disabled: !saveEnabled,
-          onClick: (_) {
-            final callback = onSave;
-            if (callback == null) {
-              fortuneSheetDebugLog('label sheet save toolbar click');
-              return;
-            }
-            unawaited(Future<void>.sync(callback));
-          },
-        ),
-      if (resolvedToolbarItems.contains(labelSheetPrintToolbarCommand))
-        FortuneCustomToolbarItem(
-          key: labelSheetPrintToolbarCommand,
-          tooltip: printTooltip,
-          iconName: 'print',
-          onClick: (_) {
-            final callback = onPrint;
-            if (callback == null) {
-              fortuneSheetDebugLog('label sheet print toolbar click');
-              return;
-            }
-            callback();
-          },
-        ),
-    ],
-    cellContextMenu: copyOnlyContextMenu
-        ? const [fortuneContextCopyCommand]
-        : limitCellActionsToClipboardAndClear
-        ? labelSheetClipboardClearContextMenuItems
-        : labelSheetContextMenuItems(base.cellContextMenu),
-    headerContextMenu: copyOnlyContextMenu
-        ? const [fortuneContextCopyCommand]
-        : limitCellActionsToClipboardAndClear
-        ? labelSheetClipboardClearContextMenuItems
-        : labelSheetContextMenuItems(
-            base.headerContextMenu,
-            includeImportLabelImage: true,
-          ),
-    sheetTabContextMenu: labelSheetContextMenuItems(base.sheetTabContextMenu),
-    filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
-    onDialogVisibilityChanged: onDialogVisibilityChanged,
-    onContextMenuCommand: (command) {
-      if (command == fortuneContextImportLabelImageCommand) {
-        final callback = onImportLabelImage;
-        if (callback == null) {
-          fortuneSheetDebugLog('label sheet import image context click');
-          return null;
-        }
-        callback();
-        return null;
-      }
-      if (command == fortuneContextImportLabelFileCommand) {
-        final callback = onImportLabelFile;
-        if (callback == null) {
-          fortuneSheetDebugLog('label sheet import label file context click');
-          return null;
-        }
-        return callback();
-      }
-      if (command != fortuneContextExportLabelFileCommand) {
-        return null;
-      }
-      final callback = onExportLabelFile;
-      if (callback == null) {
-        fortuneSheetDebugLog('label sheet export label file context click');
-        return null;
-      }
-      return callback();
-    },
-    contextMenuDisabledItemsBuilder: contextMenuDisabledItemsBuilder,
-  );
 }
 
 class LabelSheetWorkbench extends StatefulWidget {
