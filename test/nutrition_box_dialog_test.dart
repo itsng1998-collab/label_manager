@@ -7,7 +7,7 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
 import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
-import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/widgets/preview_floating_window.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview.dart';

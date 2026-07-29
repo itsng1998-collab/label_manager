@@ -101,7 +101,7 @@ import 'package:label_manager/features/update_notice/presentation/update_notice_
 import 'package:label_manager/features/label_column/presentation/label_column_edit_dialog.dart';
 import 'package:label_manager/features/common_label_history/presentation/common_label_history_dialog.dart';
 import 'package:label_manager/features/content_save_history/presentation/content_save_history_dialog.dart';
-import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/widgets/preview_floating_window.dart';
 import 'package:label_manager/features/print_history/presentation/print_history_dialog.dart';
 import 'package:label_manager/features/status_print/presentation/status_print_dialog.dart';
 import 'package:label_manager/page_login/login_history_page.dart';
