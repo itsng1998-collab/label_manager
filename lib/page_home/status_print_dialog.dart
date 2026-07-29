@@ -9,7 +9,7 @@ import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/status_print.dart';
 import 'package:label_manager/models/user.dart';
-import 'package:label_manager/page_home/item_manager_table_dimensions.dart';
+import 'package:label_manager/features/item/presentation/item_manager_table_dimensions.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';

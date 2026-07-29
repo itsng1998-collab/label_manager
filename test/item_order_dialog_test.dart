@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/page_home/item_order_dialog.dart';
+import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 void main() {
@@ -38,7 +38,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final applyButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '적용'),
+      find.widgetWithText(FilledButton, '저장'),
     );
     expect(applyButton.onPressed, isNull);
     expect(find.text('1'), findsOneWidget);
@@ -81,7 +81,7 @@ void main() {
       tester.getTopLeft(find.text('둘째 품목')).dy,
       lessThan(tester.getTopLeft(find.text('첫째 품목')).dy),
     );
-    await tester.tap(find.widgetWithText(FilledButton, '적용'));
+    await tester.tap(find.widgetWithText(FilledButton, '저장'));
     await tester.pumpAndSettle();
 
     expect(result?.map((value) => value.item.itemId), [2, 1, 3]);

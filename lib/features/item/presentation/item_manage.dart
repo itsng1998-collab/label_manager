@@ -10,7 +10,7 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_home/item_manager_table_dimensions.dart';
+import 'package:label_manager/features/item/presentation/item_manager_table_dimensions.dart';
 import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
