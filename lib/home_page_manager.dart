@@ -34,6 +34,8 @@ import 'package:label_manager/features/automatic_item_update/application/automat
 import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_save_service.dart';
 import 'package:label_manager/features/automatic_item_update/domain/automatic_item_update_draft.dart';
 import 'package:label_manager/features/automatic_item_update/presentation/automatic_item_update_page.dart';
+import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
+import 'package:label_manager/features/gs1/data/gs1_ai_dao.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/column_base.dart';
@@ -43,7 +45,6 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/customer.dart';
-import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';

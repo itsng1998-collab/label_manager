@@ -1,14 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/gs1/data/gs1_ai_dao.dart';
+import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 
 void main() {
   group('[QR viewer][barcode/output preview]', () {
     test('maps GS1 AI database flags from string values', () {
-      final definition = Gs1AiDefinition.fromMap(const {
+      final definition = gs1AiDefinitionFromRow(const {
         'GS1_AI_CODE': '10',
         'GS1_AI_NAME': '로트 번호',
         'GS1_AI_CONTENT': '로트',
