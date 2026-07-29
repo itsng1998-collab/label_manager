@@ -6,8 +6,8 @@ import 'package:label_manager/features/common_label_history/presentation/common_
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/core/user.dart';
-import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 void main() {

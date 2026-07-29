@@ -35,6 +35,7 @@ import 'package:label_manager/features/label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';

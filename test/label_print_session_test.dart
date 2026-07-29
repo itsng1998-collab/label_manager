@@ -12,6 +12,7 @@ import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_print_settings_panel.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
+import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/features/label_print/presentation/label_print_settings_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -19,6 +19,7 @@ import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/horizontal_pane_splitter.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
+import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
 typedef CommonLabelHistoryQuery =

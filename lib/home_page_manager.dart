@@ -90,6 +90,7 @@ import 'package:label_manager/features/label_sheet/label_sheet_rtf_preview_debug
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/features/item/item_manager_debug_log.dart';
 import 'package:label_manager/widgets/snackbar.dart';
+import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 import 'package:label_manager/features/date_setup/presentation/date_type_setup_dialog.dart';

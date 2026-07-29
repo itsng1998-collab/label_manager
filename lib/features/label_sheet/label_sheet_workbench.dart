@@ -34,8 +34,6 @@ import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-export 'package:label_manager/widgets/label_sheet_zoom.dart';
-
 bool labelSheetWriteRtfOpenXmlTestFileEnabled = false;
 const String labelSheetSaveToolbarCommand = 'label-sheet-save';
 const String labelSheetPrintToolbarCommand = 'label-sheet-print';
