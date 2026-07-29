@@ -29,6 +29,38 @@ void main() {
     expect(controller.value, 20);
   });
 
+  test('zoom controller delegates only while the same setter is bound', () {
+    final controller = LabelSheetZoomController();
+    addTearDown(controller.dispose);
+    final delegated = <int>[];
+    void boundSetter(int percent) => delegated.add(percent);
+    void otherSetter(int percent) {}
+
+    controller.bindZoomSetter(boundSetter);
+    controller.setZoomPercent(450);
+    controller.unbindZoomSetter(otherSetter);
+    controller.setZoomPercent(460);
+
+    expect(delegated, [450, 460]);
+    expect(controller.value, labelSheetDefaultZoomPercent);
+
+    controller.unbindZoomSetter(boundSetter);
+    controller.setZoomPercent(450);
+
+    expect(delegated, [450, 460]);
+    expect(controller.value, labelSheetMaxZoomPercent);
+  });
+
+  test('zoom controller applies initial auto fit once', () {
+    final controller = LabelSheetZoomController();
+    addTearDown(controller.dispose);
+
+    controller.applyInitialAutoFit(150);
+    controller.applyInitialAutoFit(200);
+
+    expect(controller.value, 150);
+  });
+
   testWidgets('workbench preserves dialog-specific 500 percent zoom', (
     tester,
   ) async {
