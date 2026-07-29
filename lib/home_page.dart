@@ -27,9 +27,9 @@ import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/login/presentation/startup_db_helper.dart';
+import 'package:label_manager/features/login/presentation/startup_dialog.dart';
 import 'database/db_connection_status_icon.dart';
 import 'home_page_manager.dart';
-import 'page_login/startup_dialog.dart';
 import 'utils/log_context.dart';
 import 'widgets/app_menu_bar.dart';
 

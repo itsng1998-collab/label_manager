@@ -4,26 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/core/bootstrap.dart';
-import 'package:label_manager/features/login_history/data/login_log_dao.dart';
-import 'package:label_manager/features/login_history/domain/login_log.dart';
 
 import 'package:label_manager/core/app.dart';
-import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/admin_connect_session.dart';
+import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/database/db_connection_status.dart';
 import 'package:label_manager/database/db_result_utils.dart';
-import 'package:label_manager/database/dao.dart';
-import 'package:label_manager/features/update_notice/data/notice_dao.dart';
-import 'package:label_manager/features/customer/domain/customer.dart';
-import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
-import 'package:label_manager/features/customer/data/customer_dao.dart';
-import 'package:label_manager/features/market/data/market_dao.dart';
-import 'package:label_manager/features/cooperator/domain/cooperator.dart';
-import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/core/user.dart';
-import 'package:label_manager/features/login/data/user_dao.dart';
+import 'package:label_manager/features/login/application/startup_login_service.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 
@@ -349,6 +339,7 @@ class _LoginPanel extends StatefulWidget {
 }
 
 class _LoginPanelState extends State<_LoginPanel> {
+  final StartupLoginService _loginService = StartupLoginService();
   String _infoText = '';
   final FocusNode _userIdFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
@@ -404,12 +395,12 @@ class _LoginPanelState extends State<_LoginPanel> {
         return;
       }
 
-      final noticeMsg = await NoticeDAO.selectByUserId(inputId);
-      if (noticeMsg.isNotEmpty) {
-        widget.onUserIdCommit?.call(noticeMsg);
+      final result = await _loginService.lookupUser(inputId);
+      if (result.notice.isNotEmpty) {
+        widget.onUserIdCommit?.call(result.notice);
       }
 
-      _userInfo = await UserDAO.selectByUserId(inputId);
+      _userInfo = result.user;
 
       if (!mounted) return;
 
@@ -438,7 +429,7 @@ class _LoginPanelState extends State<_LoginPanel> {
     catch (e) {
       final errmsg = e.toString();
       _infoText = stripLeadingBracketTags(errmsg);
-      debugLog('${DAO.exception}: $errmsg');
+      debugLog('Exception: $errmsg');
 
       if (mounted) {
         setState(() => _infoText = stripLeadingBracketTags(errmsg));
@@ -479,25 +470,6 @@ class _LoginPanelState extends State<_LoginPanel> {
     });
   }
 
-  String _getDirectPassword([DateTime? now]) {
-    final t = now ?? DateTime.now();
-    final int nMonth = t.month;
-    final int nDay = t.day;
-    final int nPwd = (nMonth * 3) + nDay;
-
-    if (nDay <= 9) {
-      final dayStr = '0$nDay';
-      final pwdStr = nPwd <= 9 ? '0$nPwd' : '$nPwd';
-      return '$dayStr$pwdStr';
-    } else {
-      return '$nDay$nPwd';
-    }
-  }
-
-  String _getSystemPassword([DateTime? now]) {
-    return systemPasswordForDate(now);
-  }
-
   Future<void> _onLoginButtonPressed(String inputPwd) async {
     debugLog(START);
 
@@ -512,8 +484,8 @@ class _LoginPanelState extends State<_LoginPanel> {
     final authenticationMode = loginAuthenticationModeFor(
       user: _userInfo!,
       inputPassword: inputPwd,
-      directPassword: _getDirectPassword(),
-      systemPassword: _getSystemPassword(),
+      directPassword: directPasswordForDate(),
+      systemPassword: systemPasswordForDate(),
     );
     if (authenticationMode == null) {
       if (mounted) {
@@ -527,21 +499,10 @@ class _LoginPanelState extends State<_LoginPanel> {
     }
 
     try {
-      // Get Market,Customer,Cooperator info after login...
-      Market.setInstance(await MarketDAO.selectByMarketId(_userInfo!.marketId));
-      Customer.setInstance(await CustomerDAO.selectByCustomerId(Market.instance!.customerId));
-      Cooperator.setInstance(await CooperatorDAO.selectByCooperatorId(Customer.instance!.cooperatorId));
-      User.setInstance(_userInfo!);
-      AdminConnectSession.instance.beginLogin(authenticationMode);
-
-      // 로그인 정보를 저장한다.
-      if (!AdminConnectSession.instance.isMasterKeyLogin) {
-        LoginLogDAO.insertLoginLog(
-          userId: User.instance!.userId, userGrade: User.instance!.grade,
-          customerId: Customer.instance!.customerId, customerName: Customer.instance!.customerName,
-          loginCondition: LoginCondition.LOGIN,
-        );
-      }
+      await _loginService.login(
+        user: _userInfo!,
+        authenticationMode: authenticationMode,
+      );
 
       if (!mounted) return;
 
@@ -557,7 +518,7 @@ class _LoginPanelState extends State<_LoginPanel> {
       await _onCancelButtonPressed();
       final errmsg = e.toString();
       _infoText = stripLeadingBracketTags(errmsg);
-      debugLog('${DAO.exception}: $errmsg');
+      debugLog('Exception: $errmsg');
       if (mounted) { setState(() => _infoText = stripLeadingBracketTags(errmsg)); }
     }
     finally {
@@ -566,10 +527,7 @@ class _LoginPanelState extends State<_LoginPanel> {
   }
 
   Future<void> _onCancelButtonPressed() async {
-    User.setInstance(null);
-    Market.setInstance(null);
-    Customer.setInstance(null);
-    Cooperator.setInstance(null);
+    _loginService.clearSession();
     widget.customerName.clear();
     widget.marketName.clear();
     widget.userName.clear();
@@ -929,5 +887,3 @@ class _InlayPanel extends StatelessWidget {
     );
   }
 }
-
-// no-op

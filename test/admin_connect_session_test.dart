@@ -1,8 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_session.dart';
+import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/core/user.dart';
 
 void main() {
+  test('direct password combines padded day and calculated value', () {
+    expect(directPasswordForDate(DateTime(2025, 1, 2)), '0205');
+    expect(directPasswordForDate(DateTime(2025, 12, 31)), '3167');
+  });
+
   test('login authentication separates first admin and master key', () {
     expect(
       loginAuthenticationModeFor(
@@ -45,7 +51,6 @@ void main() {
     expect(session.isAdminConnect, isFalse);
     expect(session.isMasterKeyLogin, isFalse);
   });
-
 }
 
 User _user(String id, UserGrade grade, String password) => User(

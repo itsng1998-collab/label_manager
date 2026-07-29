@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:label_manager/page_login/startup_dialog.dart';
+import 'package:label_manager/features/login/presentation/startup_dialog.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
