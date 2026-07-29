@@ -65,7 +65,7 @@ import 'package:label_manager/features/search_print/domain/search_print_settings
 import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
 import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
-import 'package:label_manager/printing/label_print_persistence.dart';
+import 'package:label_manager/features/label_print/data/label_print_persistence.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
