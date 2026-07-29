@@ -6,16 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_model.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_components.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_preview.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-const String labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
-const String labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
-const String labelSheetGeminiPromptPrefsKey = 'label_sheet_gemini_prompt';
-const String labelSheetImageImportFilePathPrefsKey =
-    'label_sheet_image_import_file_path';
 
 const XTypeGroup _labelSheetImageImportFileGroup = XTypeGroup(
   label: 'Label image',
@@ -49,19 +43,11 @@ class LabelSheetImageImportSelection {
 
 class LabelSheetImageImportAction {
   const LabelSheetImageImportAction({
-    required this.apiKey,
-    required this.model,
-    required this.prompt,
     required this.fileName,
-    required this.filePath,
     this.draft,
   });
 
-  final String apiKey;
-  final String model;
-  final String prompt;
   final String fileName;
-  final String filePath;
   final LabelSheetImageImportDraft? draft;
 }
 
@@ -272,27 +258,14 @@ class _LabelSheetImageImportDialogState
   }
 
   Future<void> _rememberSelectedGeminiModel(String model) async {
-    final trimmed = model.trim();
-    if (trimmed.isEmpty) {
-      return;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(labelSheetGeminiModelPrefsKey, trimmed);
+    await saveLabelSheetImageImportModel(model);
   }
 
   Future<void> _rememberGeminiImportSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      labelSheetGeminiApiKeyPrefsKey,
-      _apiKeyController.text.trim(),
-    );
-    await prefs.setString(
-      labelSheetGeminiModelPrefsKey,
-      _modelController.text.trim(),
-    );
-    await prefs.setString(
-      labelSheetGeminiPromptPrefsKey,
-      _promptController.text,
+    await saveLabelSheetImageImportCredentials(
+      apiKey: _apiKeyController.text,
+      model: _modelController.text,
+      prompt: _promptController.text,
     );
   }
 
@@ -313,11 +286,7 @@ class _LabelSheetImageImportDialogState
       fileName: file.name,
       filePath: file.path,
     );
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      labelSheetImageImportFilePathPrefsKey,
-      selection.filePath,
-    );
+    await saveLabelSheetImageImportFilePath(selection.filePath);
     if (!mounted) {
       return;
     }
@@ -435,11 +404,7 @@ class _LabelSheetImageImportDialogState
       }
       _close(
         LabelSheetImageImportAction(
-          apiKey: _apiKeyController.text.trim(),
-          model: _modelController.text.trim(),
-          prompt: _promptController.text,
           fileName: selectedImage.fileName,
-          filePath: selectedImage.filePath,
           draft: draft,
         ),
       );

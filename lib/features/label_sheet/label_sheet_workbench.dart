@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-  }
-}
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
@@ -12,6 +12,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_ai_im
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_model.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_open_xml_export.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
@@ -2083,14 +2084,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   Future<void> _handleLabelImageImportAction(
     LabelSheetImageImportAction action,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(labelSheetGeminiApiKeyPrefsKey, action.apiKey);
-    await prefs.setString(labelSheetGeminiModelPrefsKey, action.model);
-    await prefs.setString(labelSheetGeminiPromptPrefsKey, action.prompt);
-    await prefs.setString(
-      labelSheetImageImportFilePathPrefsKey,
-      action.filePath,
-    );
     final draft = action.draft;
     if (draft == null) {
       if (mounted) {
@@ -3090,7 +3083,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required FortuneSheet sheet,
     LabelSheetImageImportSelection? initialImage,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
+    final settings = await loadLabelSheetImageImportSettings(
+      defaultModel: labelSheetDefaultGeminiModel,
+    );
     await _notifyBeforeSheetDialog();
     if (!mounted) {
       return null;
@@ -3109,16 +3104,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             physicalSize: physicalSize,
             initialImage:
                 initialImage ??
-                _tryLoadLabelImageImportSelection(
-                  prefs.getString(labelSheetImageImportFilePathPrefsKey),
-                ),
-            initialApiKey:
-                prefs.getString(labelSheetGeminiApiKeyPrefsKey) ?? '',
-            initialModel:
-                prefs.getString(labelSheetGeminiModelPrefsKey) ??
-                labelSheetDefaultGeminiModel,
-            initialPrompt:
-                prefs.getString(labelSheetGeminiPromptPrefsKey) ?? '',
+                _tryLoadLabelImageImportSelection(settings.filePath),
+              initialApiKey: settings.apiKey,
+              initialModel: settings.model,
+              initialPrompt: settings.prompt,
             close: close,
           ),
         );
@@ -3132,14 +3121,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           physicalSize: physicalSize,
           initialImage:
               initialImage ??
-              _tryLoadLabelImageImportSelection(
-                prefs.getString(labelSheetImageImportFilePathPrefsKey),
-              ),
-          initialApiKey: prefs.getString(labelSheetGeminiApiKeyPrefsKey) ?? '',
-          initialModel:
-              prefs.getString(labelSheetGeminiModelPrefsKey) ??
-              labelSheetDefaultGeminiModel,
-          initialPrompt: prefs.getString(labelSheetGeminiPromptPrefsKey) ?? '',
+              _tryLoadLabelImageImportSelection(settings.filePath),
+            initialApiKey: settings.apiKey,
+            initialModel: settings.model,
+            initialPrompt: settings.prompt,
         ),
       );
     } finally {
