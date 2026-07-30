@@ -8,6 +8,7 @@
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 51개 통과, 문서와 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
 - stage/commit 대상: `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `563d358 엑셀 연산 검증 시점과 타입 정책 명시`.
 
 ## 완료: Excel 가져오기 신규 코드 6차 검토
 - 제외 범위: 앞선 5차까지 확정한 정책은 재검토하지 않고 숫자 연산 입력과 Excel 사용자 지정 숫자 서식을 확인했다.
