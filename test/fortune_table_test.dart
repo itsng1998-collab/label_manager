@@ -1340,6 +1340,7 @@ void main() {
                 labelSizeName: '테스트 라벨',
               ),
               marketId: 1,
+              onElementTextCommitted: (_, _) async {},
             ),
           ),
         ),
@@ -1355,6 +1356,74 @@ void main() {
     expect(find.byType(TextField), findsNothing);
     expect(controller.rows.single.elementPlain, elementText);
     expect(controller.isDirty, isFalse);
+  });
+
+  testWidgets('ItemManage edits an added row element with its payload', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: const [],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              emptyElementPayload: 'empty-payload',
+              onElementTextCommitted: (row, value) async {
+                controller.updateElement(
+                  row.rowKey,
+                  elementPlain: value,
+                  elementPayload: 'payload:$value',
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 추가'));
+    await tester.pumpAndSettle();
+
+    final elementHeaderCenter = tester.getCenter(
+      find.byKey(const ValueKey('fortune_table_header_text:주원료')),
+    );
+    final elementCellCenter = Offset(
+      elementHeaderCenter.dx,
+      tableTopLeft.dy + 36 + 14,
+    );
+    await tester.tapAt(elementCellCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(elementCellCenter);
+    await tester.pump();
+
+    final editor = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editor.focusNode.hasFocus, isTrue);
+    await tester.enterText(find.byType(EditableText), '원재료 100%');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(controller.rows.single.elementPlain, '원재료 100%');
+    expect(controller.rows.single.elementPayload, 'payload:원재료 100%');
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('ItemManage publish checkbox is scoped to clicked row', (

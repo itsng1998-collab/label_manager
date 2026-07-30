@@ -81,6 +81,8 @@ class ItemManage extends StatefulWidget {
   final Future<void> Function()? onCancelDraft;
   final Future<void> Function()? onSaveDraft;
   final Future<void> Function(ItemManagerDraftRow row)? onBeforeItemNameChange;
+  final Future<void> Function(ItemManagerDraftRow row, String elementPlain)?
+  onElementTextCommitted;
   final Future<void> Function(ItemManagerDraftRow row, int columnId)?
   onBeforeColumnChange;
   final Future<void> Function(Iterable<ItemManagerDraftRow> rows)?
@@ -115,6 +117,7 @@ class ItemManage extends StatefulWidget {
     this.onCancelDraft,
     this.onSaveDraft,
     this.onBeforeItemNameChange,
+    this.onElementTextCommitted,
     this.onBeforeColumnChange,
     this.onBeforeRowsReordered,
     this.onBeforeRowsDeleted,
@@ -1409,6 +1412,18 @@ class _ItemManageState extends State<ItemManage> {
             ? null
             : (checked) => _toggleMinColumnCheck(elementColumn, checked),
         text: _element,
+        isTextEditable: (_, rowIndex) {
+          final draft = _draftAtDisplayIndex(rowIndex);
+          return widget.canEdit &&
+              !widget.commandBusy &&
+              widget.onElementTextCommitted != null &&
+              draft?.isNew == true;
+        },
+        onTextCommitted: (_, rowIndex, value) async {
+          final draft = _draftAtDisplayIndex(rowIndex);
+          if (draft?.isNew != true) return;
+          await widget.onElementTextCommitted?.call(draft!, value);
+        },
       ),
       ...extraColumns,
     ];

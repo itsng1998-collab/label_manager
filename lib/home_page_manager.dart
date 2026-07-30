@@ -4404,6 +4404,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               : null,
           onCancelDraft: _cancelItemDraft,
           onSaveDraft: _saveItemDraft,
+          onElementTextCommitted: _commitItemElementTextDraft,
           commandBusy: _itemDraftCommandBusy,
           canEdit: User.instance?.canManageItemStructure == true,
           onPublishCheckedItemIdsChanged: _handlePublishCheckedItemIdsChanged,
@@ -4713,6 +4714,24 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     await _itemElementCommitQueue.enqueue(
       () => _applyItemElementDraft(rowKey, elementPlain, elementPayload),
+    );
+  }
+
+  Future<void> _commitItemElementTextDraft(
+    ItemManagerDraftRow row,
+    String elementPlain,
+  ) async {
+    final labelSize = _currentLabelSize;
+    if (labelSize == null) {
+      throw StateError('주원료 시트를 생성할 라벨 크기가 없습니다.');
+    }
+    final elementPayload = labelSheetEncodeWorkbookSave(
+      _itemElementWorkbook(elementPlain, labelSize),
+    );
+    await _commitItemElementDraft(
+      row.rowKey,
+      elementPlain,
+      elementPayload,
     );
   }
 

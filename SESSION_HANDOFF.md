@@ -1,5 +1,18 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 신규 품목 주원료 및 전체 컬럼 편집 확인
+- 확인 결과: 발행은 체크박스, 라벨크기는 읽기 전용, 품명은 인라인 text, 이미지형은 BMP picker, 이미지 외 동적 타입은 인라인 text다. 주원료만 표에서 의도적으로 read-only여서 신규 행에서 편집할 수 없었다.
+- 수정 예정: 주원료 인라인 commit callback을 추가하고 상위에서 plain text와 `elementPayload` workbook을 함께 갱신한다. 실제 추가 후 빈 주원료 셀 편집 회귀를 추가한다.
+- 편집 완료(`item_manage.dart`): 주원료 callback이 연결되고 편집 가능 상태일 때 인라인 text editor를 제공한다.
+- 데이터 보존 경계: 기존 품목 주원료는 서식 workbook을 plain text로 덮지 않도록 기존 시트 편집을 유지하고, 주원료 인라인 editor는 신규 추가/가져오기 행(`isNew`)에만 허용한다.
+- 편집 완료(`home_page_manager.dart`): 주원료 text commit 시 기존 `_itemElementWorkbook()`과 `labelSheetEncodeWorkbookSave()`로 payload를 재생성한 뒤 draft를 갱신한다.
+- 테스트 추가(`fortune_table_test.dart`): 실제 품목 추가 후 빈 주원료 셀 더블클릭, 즉시 focus, plain/payload 동시 반영을 검증한다.
+- 타입별 focused 검증 6건 통과: 품명 text, 주원료 callback 유무별 편집 정책, 이미지 picker, 이미지 외 동적 타입 0~3/5~12 text, 신규 빈 동적 셀 text. 변경 파일 diagnostics 0건.
+- 전체 검증 실행 예정: `flutter test test/fortune_table_test.dart`, `flutter analyze lib/features/item/presentation/item_manage.dart lib/home_page_manager.dart test/fortune_table_test.dart`.
+- 신규 행 제한 후 테스트 어댑터가 0건을 반환해 CLI로 전환했다. 첫 CLI는 nullable draft callback 인수 컴파일 오류를 검출해 `isNew` 검사 후 non-null 값으로 전달하도록 수정했다.
+- 최종 검증: CLI 전체 `fortune_table_test.dart` 61건 통과. 변경 3개 Dart 파일 analyzer `No issues found`.
+- stage 대상: `lib/features/item/presentation/item_manage.dart`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 신규 품목 인라인 editor 즉시 focus
 - 현상: 신규 품목의 빈 컬럼을 더블클릭하면 editor는 표시되지만 한 번 더 클릭해야 커서가 활성화된다.
 - 로컬 가설: `FortuneTable._startTextEditing()`이 editor 생성 후 `autofocus`에만 의존하고 상위 rebuild 뒤 명시적으로 focus를 복원하지 않아 표 focus가 남는다.
