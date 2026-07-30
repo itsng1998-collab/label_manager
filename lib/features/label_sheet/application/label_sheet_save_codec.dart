@@ -275,6 +275,17 @@ String labelSheetEncodeWorkbookSave(FortuneWorkbook workbook) {
   return base64Encode(ZipEncoder().encodeBytes(archive));
 }
 
+bool labelSheetWorkbookHasSaveContent(FortuneWorkbook workbook) {
+  final sheet = labelSheetWorkbookForPrintAreaSave(workbook).activeSheet;
+  return sheet.cells.isNotEmpty ||
+      sheet.borderInfo.isNotEmpty ||
+      sheet.images.isNotEmpty ||
+      sheet.lines.isNotEmpty ||
+      sheet.shapes.isNotEmpty ||
+      sheet.dataVerification.isNotEmpty ||
+      sheet.hyperlinks.isNotEmpty;
+}
+
 FortuneWorkbook labelSheetWorkbookForPrintAreaSave(FortuneWorkbook workbook) {
   final nextSheets = [
     for (final sheet in workbook.sheets) _sheetForPrintAreaSave(sheet),

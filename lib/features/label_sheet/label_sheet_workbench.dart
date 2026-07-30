@@ -2414,29 +2414,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Set<String> _labelFileContextMenuDisabledItems() {
-    return _currentLabelFileHasContent()
+    return labelSheetWorkbookHasSaveContent(_currentWorkbookForLabelFile())
         ? const <String>{}
         : const <String>{fortuneContextExportLabelFileCommand};
-  }
-
-  bool _currentLabelFileHasContent() {
-    final workbook = labelSheetWorkbookForPrintAreaSave(
-      _currentWorkbookForLabelFile(),
-    );
-    final sheet = workbook.activeSheet;
-    return sheet.cells.isNotEmpty ||
-        sheet.borderInfo.isNotEmpty ||
-        sheet.images.isNotEmpty ||
-        sheet.lines.isNotEmpty ||
-        sheet.shapes.isNotEmpty ||
-        sheet.dataVerification.isNotEmpty ||
-        sheet.hyperlinks.isNotEmpty;
   }
 
   Future<void> _handleExportLabelFile() async {
     fortuneSheetDebugLog('label sheet export label file context click');
     if (!_controller.finalizeActiveObjectPropertyDraft()) return;
-    if (!_currentLabelFileHasContent()) {
+    if (!labelSheetWorkbookHasSaveContent(_currentWorkbookForLabelFile())) {
       return;
     }
     const labelFileGroup = XTypeGroup(
