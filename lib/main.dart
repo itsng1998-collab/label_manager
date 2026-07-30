@@ -22,6 +22,15 @@ DebugPrintCallback gDebugPrint = debugPrint;
 IOSink? gSink;
 
 Future<void> main(List<String> args) async {
+  // 플러그인 호출 전에 Flutter binding을 초기화한다.
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 로그 초기화 전에 앱 버전을 조회해 첫 로그부터 버전을 기록한다.
+  final info = await PackageInfo.fromPlatform();
+  appPackageName = info.packageName;
+  appVersion = info.version;
+  DebugLogger.setVersion(appVersion);
+
   // 로그파일 및 디버그프린트 초기화
   await DebugLogger.ensureInitialized();
 
@@ -31,9 +40,6 @@ Future<void> main(List<String> args) async {
   } catch (e, stackTrace) {
     DebugLogger.log('AI import temp cleanup failed: $e\n$stackTrace');
   }
-
-  // Widgets 초기화는 모든 플랫폼 공통으로 필요하다.
-  WidgetsFlutterBinding.ensureInitialized();
 
   // 앱 시작 시 라이프사이클 옵저버를 1회 등록
   LifecycleManager.instance.ensureInitialized();
@@ -57,12 +63,6 @@ Future<void> main(List<String> args) async {
 
     isDesktop = true;
   }
-
-  // 앱 정보를 조회해 전역에 보관한다.
-  final info = await PackageInfo.fromPlatform();
-  appPackageName = info.packageName;
-  appVersion = info.version;
-  DebugLogger.setVersion(appVersion);
 
   // 공통 StartUp 페이지를 표시한다.
   runApp(

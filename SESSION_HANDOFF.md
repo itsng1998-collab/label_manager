@@ -1,5 +1,12 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: DebugLogger 버전 선설정
+- 사용자 요청: `main()`에서 `DebugLogger.setVersion`을 로그 초기화보다 먼저 처리한다.
+- 원인/수정: 기존에는 `DebugLogger.ensureInitialized()` 후 패키지 버전을 설정해 초기화 시점에 버전이 없었다. 플러그인 호출에 필요한 `WidgetsFlutterBinding.ensureInitialized()` 직후 `PackageInfo.fromPlatform()`으로 버전을 읽고 `DebugLogger.setVersion(appVersion)`을 호출한 다음 로거를 초기화하도록 순서를 변경했다.
+- 버전 변경: startup 로그의 버전 기록을 바로잡는 호환 가능한 국소 수정이므로 PATCH 적용, `1.0.1` → `1.0.2`.
+- 검증 완료: `flutter analyze lib/main.dart` 성공, `dart run lib/utils/generate_version.dart`에서 `Generated version.txt: 1.0.2` 확인, 세 변경 파일 diagnostics 0건, `git diff --check` 성공. 검증용 미추적 `version.txt`는 삭제했다.
+- stage/commit 대상: `lib/main.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 수정 범위 기반 pubspec 버전 자동 갱신 및 로그 버전 연동
 - 사용자 요청: 앞으로 저장소 변경 시 수정 범위에 따라 `pubspec.yaml` 버전을 자동 갱신하고 다음 세션에도 유지되도록 `SESSION_RULES.md`에 상시 규칙으로 명시한다.
 - 기준 확정: 호환 가능한 국소 수정은 PATCH, 사용자 기능 추가/다중 production 흐름 확장은 MINOR, 비호환 계약 변경은 MAJOR로 판단한다. 한 요청당 최고 단계로 1회만 증가하며 후속 handoff 해시 기록 커밋은 재증가하지 않는다.
