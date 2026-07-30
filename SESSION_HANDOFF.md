@@ -10,6 +10,7 @@
 - 검증 완료: `dart run lib/utils/generate_version.dart`가 `Generated version.txt: 1.0.1`을 출력했고 `flutter analyze lib/main.dart` 성공, 네 변경 파일 diagnostics 0건, `git diff --check` 성공, 규칙 섹션 번호 `1~10` 연속 확인. `FSDBG-` 하드코딩이 없고 `DebugLogger.setVersion(appVersion)`만 남은 것을 확인했다.
 - 임시 산출물 정리: 버전 파싱 검증으로 생성된 미추적 `version.txt`를 삭제했다.
 - stage/commit 대상: `pubspec.yaml`, `SESSION_RULES.md`, `SESSION_HANDOFF.md`, `lib/main.dart`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `1caf62d 수정 범위별 자동 버전 갱신 규칙 추가`.
 
 ## 완료: Excel 가져오기 처리 중 고정 및 재로그인 로딩 잔류 수정
 - 제출 이미지 분석: Excel 내보내기 파일을 다시 가져오면 품목 1개는 반영되지만 품목관리 하단에 `처리 중`이 계속 남고 편집이 비활성화된다. 로그아웃/재로그인 후에는 `브랜드 데이터를 불러오고 있습니다...` 장기 스낵바가 잔류한다.
