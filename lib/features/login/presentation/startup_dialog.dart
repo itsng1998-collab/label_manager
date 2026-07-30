@@ -719,7 +719,14 @@ class _LoginPanelState extends State<_LoginPanel> {
                     ],
                   ),
                   SizedBox(height: lmSize(8)),
-                  _LabeledField(height: lmSize(isDesktop ? 160 : 76), child: Text(_infoText)),
+                  _LabeledField(
+                    height: lmSize(isDesktop ? 160 : 76),
+                    child: Text(
+                      _infoText,
+                      key: const ValueKey('startup-login-info-text'),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
                   const SizedBox(height: 0),
                   Row(
                     children: [

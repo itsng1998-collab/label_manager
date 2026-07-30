@@ -57,6 +57,36 @@ void main() {
     await third;
   });
 
+  testWidgets('startup login failure message uses red text', (tester) async {
+    late BuildContext hostContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            hostContext = context;
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ),
+    );
+
+    final dialog = StartupDialog.show(
+      hostContext,
+      onLogin: () {},
+      forceNoticeClosed: true,
+    );
+    await tester.pump();
+
+    final message = tester.widget<Text>(
+      find.byKey(const ValueKey('startup-login-info-text')),
+    );
+    expect(message.style?.color, Colors.red);
+
+    Navigator.of(hostContext, rootNavigator: true).pop();
+    await tester.pumpAndSettle();
+    await dialog;
+  });
+
   testWidgets('startup notice restores equal content and image widths', (
     tester,
   ) async {
