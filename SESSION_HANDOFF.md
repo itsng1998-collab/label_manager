@@ -10,6 +10,7 @@
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 43개 통과. 변경 Dart 3개 파일 `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공. 중복 헤더의 과거 첫 값 사용 설명이 문서에 남지 않은 것을 확인했다.
 - stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `83d40de 엑셀 연산 오류에 원본 행 번호 표시`.
 
 ## 완료: Excel 가져오기 신규 코드 2차 검토
 - 검토 범위: 직전 연산 의미/샘플 보완을 제외한 헤더 매핑, 전체 교체, 10*8 파생값, 취소/오류 상태와 관련 테스트. 과도한 보완/예외 처리는 추가하지 않는다.
