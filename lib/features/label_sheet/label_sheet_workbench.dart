@@ -2493,15 +2493,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ).showSnackBar(const SnackBar(content: Text('라벨 파일을 읽을 수 없습니다.')));
       return;
     }
-    if (importedWorkbook.sheets.isEmpty) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('라벨 파일에 시트가 없습니다.')));
-      return;
-    }
     await _applyImportedLabelWorkbook(
       importedWorkbook,
       fileName: file.name,
