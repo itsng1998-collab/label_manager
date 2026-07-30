@@ -2601,7 +2601,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('1000'));
     await tester.pump();
-    expect(find.byType(EditableText), findsOneWidget);
+    final editor = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editor.focusNode.hasFocus, isTrue);
+    expect(editor.autofocus, isFalse);
+    expect(editor.selectAllOnFocus, isFalse);
+    expect(
+      editor.controller.selection,
+      const TextSelection.collapsed(offset: 4),
+    );
 
     await tester.enterText(find.byType(EditableText), '2500');
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -2671,7 +2678,27 @@ void main() {
     expect(find.byType(EditableText), findsOneWidget);
     final editor = tester.widget<EditableText>(find.byType(EditableText));
     expect(editor.focusNode.hasFocus, isTrue);
+    expect(editor.autofocus, isFalse);
+    expect(editor.selectAllOnFocus, isFalse);
     expect(tester.testTextInput.isVisible, isTrue);
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'a',
+        selection: TextSelection.collapsed(offset: 1),
+      ),
+    );
+    await tester.pump();
+    expect(editor.controller.text, 'a');
+    expect(editor.controller.selection, const TextSelection.collapsed(offset: 1));
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'ab',
+        selection: TextSelection.collapsed(offset: 2),
+      ),
+    );
+    await tester.pump();
+    expect(editor.controller.text, 'ab');
+    expect(editor.controller.selection, const TextSelection.collapsed(offset: 2));
     await tester.pump(const Duration(milliseconds: 100));
   });
 

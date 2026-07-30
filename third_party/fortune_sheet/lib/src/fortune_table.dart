@@ -1140,7 +1140,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
               child: EditableText(
                 controller: _textEditorController!,
                 focusNode: _textEditorFocusNode!,
-                autofocus: true,
+                selectAllOnFocus: false,
                 maxLines: 1,
                 style: const TextStyle(
                   fontSize: 14,

@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목 인라인 editor 연속 입력 선택 오동작 수정
+- 현상: 신규 품목 컬럼 editor에서 입력 내용이 계속 선택되어 다음 키가 이전 입력을 대체하고 최종 문자만 남는다.
+- 로컬 가설: 기존 테스트의 `enterText()`는 전체 값을 직접 설정해 실제 키 입력 중 selection 변화를 검증하지 못했다. 실제 키 이벤트 연속 입력으로 controller text와 collapsed selection 계약을 재현한다.
+- 수정 예정: 신규 빈 동적 셀을 더블클릭한 뒤 `A`, `B` 키 입력이 각각 `a`, `ab`로 누적되고 selection이 끝에 collapsed 상태인지 회귀 테스트를 추가한다.
+- 원인: 직전 즉시 focus 수정에서 `EditableText.autofocus`와 post-frame `requestFocus()`를 함께 사용해 실제 빠른 입력 중 focus 요청이 중복될 수 있고, Windows focus 선택 동작이 입력 내용을 다시 선택할 수 있었다.
+- 편집 완료(`fortune_table.dart`): autofocus를 제거해 post-frame 명시적 focus 하나만 사용하고 `selectAllOnFocus: false`를 고정했다.
+- 테스트 보강: 빈 셀의 IME 입력 `a`→`ab` 누적과 collapsed selection, 값이 있는 셀의 끝 커서, autofocus/select-all 비활성 계약을 검증한다.
+- focused 검증: 값이 있는 신규 셀과 빈 신규 셀 2건 통과. 전체 검증 예정: `flutter test test/fortune_table_test.dart`, `flutter analyze third_party/fortune_sheet/lib/src/fortune_table.dart test/fortune_table_test.dart`.
+- 최종 검증: 전체 `fortune_table_test.dart` 61건 통과. 변경 파일 analyzer `No issues found`.
+- stage 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 신규 품목 주원료 및 전체 컬럼 편집 확인
 - 확인 결과: 발행은 체크박스, 라벨크기는 읽기 전용, 품명은 인라인 text, 이미지형은 BMP picker, 이미지 외 동적 타입은 인라인 text다. 주원료만 표에서 의도적으로 read-only여서 신규 행에서 편집할 수 없었다.
 - 수정 예정: 주원료 인라인 commit callback을 추가하고 상위에서 plain text와 `elementPayload` workbook을 함께 갱신한다. 실제 추가 후 빈 주원료 셀 편집 회귀를 추가한다.
