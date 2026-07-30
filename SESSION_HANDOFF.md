@@ -10,6 +10,7 @@
 - 전체 검증 완료: `flutter test test/widget_test.dart test/item_manager_xlsx_test.dart test/item_manager_import_transform_dialog_test.dart test/item_manager_draft_test.dart test/item_manager_session_loader_test.dart test/item_manager_save_dao_test.dart test/item_manager_read_snapshot_test.dart test/fortune_table_test.dart` 성공(119개), 수정 파일 진단 0건, `git diff --check` 성공.
 - analyzer: `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건.
 - stage/commit 대상: `lib/home_page.dart`, `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+- 기능 커밋: `98fba44` (`Excel 가져오기 처리 상태와 재로그인 로딩 수정`).
 
 ## 완료: 품목관리 Excel 가져오기 컬럼 연산 설정
 - 레거시 조사: `.tmp/LabelManager/LabelManagerLib/ExcelMananger.cpp`, `MainItemTable.cpp`, `UpdateItemTable.cpp`는 헤더명 매칭 후 원문을 직접 반영하며 컬럼별 사칙연산/텍스트 추가 기능과 설정 UI가 없다. 현 프로젝트 신규 설계로 구현한다.
