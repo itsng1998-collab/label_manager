@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 처리 중 고정 및 재로그인 로딩 잔류 수정
+- 제출 이미지 분석: Excel 내보내기 파일을 다시 가져오면 품목 1개는 반영되지만 품목관리 하단에 `처리 중`이 계속 남고 편집이 비활성화된다. 로그아웃/재로그인 후에는 `브랜드 데이터를 불러오고 있습니다...` 장기 스낵바가 잔류한다.
+- 원인 1: 가져오기 성공 시 `_resetTabs()`가 `_itemDraftCommandBusy=true` 상태의 `ItemManage`를 `_tabs` 캐시에 고정하고, `finally`는 바깥 `setState(false)`만 수행해 캐시된 `commandBusy`를 갱신하지 않는다. 저장 흐름은 이미 busy=false 후 `_resetTabs()` 패턴을 사용한다.
+- 원인 2: 브랜드 로딩 스낵바는 HomePage의 ScaffoldMessenger에 1일 duration으로 표시되는데 로그아웃은 HomePageManager body만 제거하고 스낵바 큐를 비우지 않아 다음 로그인까지 이전 진행 표시가 살아남을 수 있다.
+- 수정 예정: import `finally`를 저장 흐름과 같은 busy=false 후 탭 재생성으로 변경하고, 로그아웃 시 ScaffoldMessenger의 모든 스낵바를 제거한다.
+- 편집 완료: `_importItemManagerXlsx()` finally가 `_itemDraftCommandBusy=false` 후 `_resetTabs()`를 호출해 캐시된 `ItemManage.commandBusy`를 갱신한다. `_doLogout()` 시작 시 HomePage ScaffoldMessenger의 스낵바 큐를 비운다.
+- 1차 검증 완료: `flutter test test/widget_test.dart test/item_manager_xlsx_test.dart test/item_manager_import_transform_dialog_test.dart test/fortune_table_test.dart` 성공(79개), 수정 파일 진단 0건.
+- 전체 검증 완료: `flutter test test/widget_test.dart test/item_manager_xlsx_test.dart test/item_manager_import_transform_dialog_test.dart test/item_manager_draft_test.dart test/item_manager_session_loader_test.dart test/item_manager_save_dao_test.dart test/item_manager_read_snapshot_test.dart test/fortune_table_test.dart` 성공(119개), 수정 파일 진단 0건, `git diff --check` 성공.
+- analyzer: `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건.
+- stage/commit 대상: `lib/home_page.dart`, `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+
 ## 완료: 품목관리 Excel 가져오기 컬럼 연산 설정
 - 레거시 조사: `.tmp/LabelManager/LabelManagerLib/ExcelMananger.cpp`, `MainItemTable.cpp`, `UpdateItemTable.cpp`는 헤더명 매칭 후 원문을 직접 반영하며 컬럼별 사칙연산/텍스트 추가 기능과 설정 UI가 없다. 현 프로젝트 신규 설계로 구현한다.
 - 설계: Excel 파싱 후 품목 적용 전에 별도 설정 dialog를 표시하고, 품목 및 이미지 외 동적 컬럼별로 숫자 `+/-/*//`와 텍스트 `Right/Left/Mid` 규칙을 선택한다. 주원료는 rich-text payload와 plain text 불일치를 막기 위해 대상에서 제외한다.

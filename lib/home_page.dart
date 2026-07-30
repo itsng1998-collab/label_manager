@@ -255,6 +255,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _doLogout(bool isDisconnect) async {
     debugLog(START);
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+    }
 
     final customer = Customer.instance;
     final logoutLog = exitLogoutLogSnapshotFor(
