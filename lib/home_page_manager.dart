@@ -30,6 +30,7 @@ import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/presentation/item_manage.dart';
+import 'package:label_manager/features/item/presentation/item_manager_import_transform_dialog.dart';
 import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
 import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_loader.dart';
 import 'package:label_manager/features/automatic_item_update/application/automatic_item_update_save_service.dart';
@@ -2287,10 +2288,29 @@ class _HomePageManagerState extends State<HomePageManager> {
         fields: {'bytes': bytes.length},
       );
       if (!mounted) return;
-      final result = itemManagerImportXlsxBytes(
+      final columns = _itemManagerXlsxColumns();
+      final parsedResult = itemManagerImportXlsxBytes(
         bytes,
-        columns: _itemManagerXlsxColumns(),
+        columns: columns,
         emptyElementPayload: _itemDraftEmptyElementPayload,
+      );
+      final transforms = await showItemManagerImportTransformDialog(
+        context,
+        result: parsedResult,
+        columns: columns,
+      );
+      if (transforms == null || !mounted) {
+        ItemManagerDebugLog.event(
+          'xlsxImport',
+          'transformCancelled',
+          trace: trace,
+        );
+        return;
+      }
+      final result = itemManagerApplyImportTransforms(
+        parsedResult,
+        columns: columns,
+        transforms: transforms,
       );
       ItemManagerDebugLog.event(
         'xlsxImport',
@@ -2299,6 +2319,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         fields: {
           'rows': result.rows.length,
           'warnings': result.warnings.length,
+          'transforms': transforms.columns.length +
+              (transforms.itemName == null ? 0 : 1),
         },
       );
       if (result.warnings.isNotEmpty) {

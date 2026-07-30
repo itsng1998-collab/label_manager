@@ -1,5 +1,20 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목관리 Excel 가져오기 컬럼 연산 설정
+- 레거시 조사: `.tmp/LabelManager/LabelManagerLib/ExcelMananger.cpp`, `MainItemTable.cpp`, `UpdateItemTable.cpp`는 헤더명 매칭 후 원문을 직접 반영하며 컬럼별 사칙연산/텍스트 추가 기능과 설정 UI가 없다. 현 프로젝트 신규 설계로 구현한다.
+- 설계: Excel 파싱 후 품목 적용 전에 별도 설정 dialog를 표시하고, 품목 및 이미지 외 동적 컬럼별로 숫자 `+/-/*//`와 텍스트 `Right/Left/Mid` 규칙을 선택한다. 주원료는 rich-text payload와 plain text 불일치를 막기 위해 대상에서 제외한다.
+- application 편집 완료: `ItemManagerImportTransform`, `ItemManagerImportTransforms`, `itemManagerApplyImportTransforms`를 추가했다. 나눗셈은 최대 소수 자릿수 기본 2, trailing zero 제거 방식이며 숫자 오류/0 나눗셈은 Excel 행 정보와 함께 실패한다.
+- 테스트 추가: 이미지 요구 예시 `3+5=8`, `3-5=-2`, `3*5=15`, `3/5=0.6`, `Right/Left/Mid` 결과와 import result 반영을 검증한다.
+- presentation 편집 완료: `ItemManagerImportTransformDialog`를 추가했다. 대상 컬럼/Excel 샘플/연산/설정값을 한 행에서 구성하고 나눗셈 소수 자리와 Mid 왼쪽 자리를 조건부 입력한다. 이미지 컬럼과 주원료는 설정 대상에서 제외한다.
+- dialog 테스트 추가: 동적 컬럼 곱하기 설정, 이미지 컬럼 제외, 품목 Mid 텍스트 설정 결과를 검증한다.
+- integration 편집 완료: `_importItemManagerXlsx()`가 파일 파싱 후 설정 dialog를 열고, 취소 시 draft를 변경하지 않으며, 확인 시 `itemManagerApplyImportTransforms` 결과를 기존 warning 확인/전체 draft 교체 흐름에 전달한다.
+- 숫자 formatting 보정: 소수부가 있을 때만 trailing zero를 제거해 나눗셈 소수 자리 `0`에서 `100`이 `1`로 축약되지 않도록 했다. 숫자가 아닌 원본과 0 나눗셈 실패도 테스트한다.
+- dialog 테스트 보강: 나눗셈 연산값과 소수 자릿수 입력이 설정 결과에 반영되는지 검증한다.
+- 검증 완료: `flutter test test/item_manager_xlsx_test.dart test/item_manager_import_transform_dialog_test.dart test/item_manager_draft_test.dart test/item_manager_session_loader_test.dart test/item_manager_save_dao_test.dart test/item_manager_read_snapshot_test.dart test/fortune_table_test.dart` 성공(117개), 수정 파일 진단 0건.
+- 오류 계약 보강: 변환 실패 시 설정된 전체 컬럼이 아니라 실제 실패한 Excel 행 번호와 컬럼명 하나를 표시하도록 적용 루프를 분리하고 테스트를 추가했다.
+- 정적 검증 완료: `git diff --check` 성공. `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
+- stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, `lib/home_page_manager.dart`, `test/item_manager_xlsx_test.dart`, `test/item_manager_import_transform_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+
 ## 완료: 포커스 편집 커서를 세로 가운데 정렬
 - 제출 화면 확인: 신규 사용자 항목의 포커스 셀에서 편집 커서가 2px 외곽선 상단과 겹친다. 셀 높이는 전체 가용 영역을 사용하지만 `TextFormField`에 세로 정렬이 지정되지 않은 상태다.
 - 수정 예정: 프로젝트의 28px 테이블 editor 패턴과 같이 `textAlignVertical: TextAlignVertical.center`를 적용하고, 포커스 외곽선 크기와 좌우 2px padding은 유지한다.

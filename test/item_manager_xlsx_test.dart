@@ -9,6 +9,159 @@ import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 
 void main() {
+  test('applies numeric and text transforms from Excel import settings', () {
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.add,
+        value: '5',
+      ).apply('3'),
+      '8',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.subtract,
+        value: '5',
+      ).apply('3'),
+      '-2',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.multiply,
+        value: '5',
+      ).apply('3'),
+      '15',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.divide,
+        value: '5',
+      ).apply('3'),
+      '0.6',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.divide,
+        value: '1',
+        decimalPlaces: 0,
+      ).apply('100'),
+      '100',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.append,
+        value: '초등학교',
+      ).apply('서울'),
+      '서울초등학교',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.prepend,
+        value: '초등학교',
+      ).apply('서울'),
+      '초등학교서울',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.insertAfter,
+        value: '초등학교',
+        position: 1,
+      ).apply('서울'),
+      '서초등학교',
+    );
+  });
+
+  test('rejects invalid numeric transforms', () {
+    expect(
+      () => const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.add,
+        value: '5',
+      ).apply('서울'),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      () => const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.divide,
+        value: '0',
+      ).apply('3'),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('applies configured transforms to imported item and column values', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+    final imported = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(codeValue: '3'),
+      columns: columns,
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    final transformed = itemManagerApplyImportTransforms(
+      imported,
+      columns: columns,
+      transforms: const ItemManagerImportTransforms(
+        itemName: ItemManagerImportTransform(
+          operation: ItemManagerImportTransformOperation.append,
+          value: ' 신상품',
+        ),
+        columns: {
+          7: ItemManagerImportTransform(
+            operation: ItemManagerImportTransformOperation.multiply,
+            value: '5',
+          ),
+        },
+      ),
+    );
+
+    expect(transformed.rows.single.itemName, '딸기잼 신상품');
+    expect(transformed.rows.single.columnDrafts[7]?.dataString, '15');
+    expect(transformed.rows.single.elementPlain, '딸기 60%');
+  });
+
+  test('reports the exact Excel row and column for transform failures', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+    final imported = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(codeValue: '서울'),
+      columns: columns,
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    expect(
+      () => itemManagerApplyImportTransforms(
+        imported,
+        columns: columns,
+        transforms: const ItemManagerImportTransforms(
+          columns: {
+            7: ItemManagerImportTransform(
+              operation: ItemManagerImportTransformOperation.add,
+              value: '5',
+            ),
+          },
+        ),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('Excel 2행 코드 연산 실패'),
+        ),
+      ),
+    );
+  });
+
   test(
     'imports first-sheet item rows with formatted values and element style',
     () {

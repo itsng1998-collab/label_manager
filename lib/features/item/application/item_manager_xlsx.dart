@@ -34,6 +34,159 @@ class ItemManagerXlsxImportResult {
   final List<String> warnings;
 }
 
+enum ItemManagerImportTransformOperation {
+  none,
+  add,
+  subtract,
+  multiply,
+  divide,
+  append,
+  prepend,
+  insertAfter,
+}
+
+class ItemManagerImportTransform {
+  const ItemManagerImportTransform({
+    required this.operation,
+    this.value = '',
+    this.decimalPlaces = 2,
+    this.position = 1,
+  });
+
+  final ItemManagerImportTransformOperation operation;
+  final String value;
+  final int decimalPlaces;
+  final int position;
+
+  String apply(String source) {
+    if (operation == ItemManagerImportTransformOperation.none ||
+        source.isEmpty) {
+      return source;
+    }
+    switch (operation) {
+      case ItemManagerImportTransformOperation.none:
+        return source;
+      case ItemManagerImportTransformOperation.add:
+        return _formatTransformedNumber(
+          _parseTransformNumber(source) + _parseTransformNumber(value),
+        );
+      case ItemManagerImportTransformOperation.subtract:
+        return _formatTransformedNumber(
+          _parseTransformNumber(source) - _parseTransformNumber(value),
+        );
+      case ItemManagerImportTransformOperation.multiply:
+        return _formatTransformedNumber(
+          _parseTransformNumber(source) * _parseTransformNumber(value),
+        );
+      case ItemManagerImportTransformOperation.divide:
+        final divisor = _parseTransformNumber(value);
+        if (divisor == 0) throw const FormatException('0으로 나눌 수 없습니다.');
+        return _formatTransformedNumber(
+          _parseTransformNumber(source) / divisor,
+          decimalPlaces: decimalPlaces,
+        );
+      case ItemManagerImportTransformOperation.append:
+        return '$source$value';
+      case ItemManagerImportTransformOperation.prepend:
+        return '$value$source';
+      case ItemManagerImportTransformOperation.insertAfter:
+        final end = position.clamp(0, source.length);
+        return '${source.substring(0, end)}$value';
+    }
+  }
+}
+
+class ItemManagerImportTransforms {
+  const ItemManagerImportTransforms({
+    this.itemName,
+    this.columns = const {},
+  });
+
+  final ItemManagerImportTransform? itemName;
+  final Map<int, ItemManagerImportTransform> columns;
+
+  bool get isEmpty => itemName == null && columns.isEmpty;
+}
+
+ItemManagerXlsxImportResult itemManagerApplyImportTransforms(
+  ItemManagerXlsxImportResult result, {
+  required List<ItemManagerXlsxColumn> columns,
+  required ItemManagerImportTransforms transforms,
+}) {
+  if (transforms.isEmpty) return result;
+  final columnNames = {
+    for (final column in columns) column.columnId: column.name,
+  };
+  final rows = <ItemManagerImportedRow>[];
+  for (var index = 0; index < result.rows.length; index += 1) {
+    final row = result.rows[index];
+    final rowNumber = index + 2;
+    final drafts = Map<int, ItemManagerColumnDraft>.of(row.columnDrafts);
+    for (final entry in transforms.columns.entries) {
+      final draft = drafts[entry.key];
+      if (draft == null) continue;
+      drafts[entry.key] = ItemManagerColumnDraft(
+        editable: draft.editable,
+        dataString: _applyImportTransform(
+          entry.value,
+          draft.dataString,
+          rowNumber: rowNumber,
+          label: columnNames[entry.key] ?? '컬럼 ${entry.key}',
+        ),
+      );
+    }
+    rows.add(
+      ItemManagerImportedRow(
+        itemName: transforms.itemName == null
+            ? row.itemName
+            : _applyImportTransform(
+                transforms.itemName!,
+                row.itemName,
+                rowNumber: rowNumber,
+                label: '품목',
+              ),
+        elementPlain: row.elementPlain,
+        elementPayload: row.elementPayload,
+        columnDrafts: Map.unmodifiable(drafts),
+      ),
+    );
+  }
+  return ItemManagerXlsxImportResult(
+    rows: List.unmodifiable(rows),
+    warnings: result.warnings,
+  );
+}
+
+String _applyImportTransform(
+  ItemManagerImportTransform transform,
+  String source, {
+  required int rowNumber,
+  required String label,
+}) {
+  try {
+    return transform.apply(source);
+  } on FormatException catch (error) {
+    throw FormatException(
+      'Excel $rowNumber행 $label 연산 실패: ${error.message}',
+    );
+  }
+}
+
+double _parseTransformNumber(String source) {
+  final value = double.tryParse(source.trim().replaceAll(',', ''));
+  if (value == null) throw FormatException('숫자 값이 아닙니다: $source');
+  return value;
+}
+
+String _formatTransformedNumber(double value, {int? decimalPlaces}) {
+  if (!value.isFinite) throw const FormatException('연산 결과가 유효한 숫자가 아닙니다.');
+  final fixed = decimalPlaces == null
+      ? value.toStringAsFixed(12)
+      : value.toStringAsFixed(decimalPlaces.clamp(0, 12));
+  if (!fixed.contains('.')) return fixed;
+  return fixed.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+}
+
 Uint8List itemManagerExportXlsxBytes({
   required List<ItemManagerDraftRow> rows,
   required List<ItemManagerXlsxColumn> columns,
