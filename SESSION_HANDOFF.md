@@ -1,5 +1,17 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 기존 품목 미수정 컬럼 형식 검증 차단
+- 최신 로그 `app_2026-07-30_13-23-33.log`: 주원료 수정 저장 시 DB transaction 전에 `item:722292`, 컬럼 `139793` 제품유형의 바코드 형식 검증으로 두 차례 거부됐다.
+- 레거시 비교: `CMainItemTable` 저장은 변경된 셀만 `CColumnContentDAO::UpdateBatchDataByColAndItemID`에 전달하며, 주원료 수정 시 기존 일반 컬럼 전체를 바코드 형식으로 재검증하지 않는다.
+- 원인 1: 현재 저장 검증은 기존 행의 미수정 동적 컬럼까지 타입별 형식 검증한다.
+- 원인 2: 바코드 검증/정규화 조건에 `TYPE_BARCODE` 확인이 없어 일반 컬럼의 barcode 설정값도 검증에 관여할 수 있다.
+- 수정 예정: 길이·필수값 검사는 유지하고 타입별 형식 검증은 신규 행 또는 실제 변경된 기존 셀에만 적용한다. 바코드 정규화/검증은 `TYPE_BARCODE`로 제한하고 두 경로 회귀를 추가한다.
+- 편집 완료(`item_manager_draft.dart`): 타입별 형식 검증 전에 신규 행 또는 해당 `columnDrafts` 변경 여부를 확인하고, 바코드 정규화/검증은 실제 `TYPE_BARCODE`에만 적용한다.
+- 테스트 추가(`item_manager_draft_test.dart`): `TYPE_BASE` 제품유형의 `PE`가 ITF 설정 잔여값으로 거부되지 않는 경로와, 주원료만 수정할 때 미수정 legacy ITF 값은 건너뛰되 ITF 셀을 수정하면 거부되는 경로를 검증한다.
+- 검증 전환: 테스트 어댑터와 CLI 복수 `--plain-name` 필터가 0건을 반환했고 첫 CLI가 scoped content fixture 타입 오류를 검출했다. fixture를 실제 `ColumnItemKey/TColumnContent` 구조로 수정했다.
+- 최종 검증: `item_manager_draft_test.dart` 전체 28건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건, `git diff --check` 통과.
+- stage 대상: `lib/features/item/domain/item_manager_draft.dart`, `test/item_manager_draft_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 기존 품목 주원료 인라인 편집 및 시트 동기화
 - 현재 제한: `ItemManage`의 주원료 `isTextEditable`과 commit이 `draft.isNew`인 행만 허용해 기존 품목은 더블클릭 편집이 불가능하다.
 - 확인: 상위 `_commitItemElementTextDraft()`는 행 종류와 무관하게 plain text로 workbook payload를 만들고, `_applyItemElementDraft()`가 draft와 열린 품목 preview를 갱신한다.

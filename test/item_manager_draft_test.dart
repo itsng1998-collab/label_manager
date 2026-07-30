@@ -646,6 +646,74 @@ void main() {
       );
     });
 
+    test('does not barcode-validate a non-barcode column', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '제품유형',
+            typeCode: TColumnType.TYPE_BASE,
+            required: false,
+            barcodeType: BarcodeType.Itf,
+            useBarcodeCheckDigit: true,
+          ),
+        ],
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: 'PE',
+      );
+
+      expect(controller.columnValue(controller.rows.single, 7), 'PE');
+      expect(controller.validateForSave, returnsNormally);
+    });
+
+    test('does not format-validate an untouched existing column', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: true,
+            dataString: '123',
+          ),
+        }),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: 'ITF',
+            typeCode: TColumnType.TYPE_BARCODE,
+            required: false,
+            barcodeType: BarcodeType.Itf,
+          ),
+        ],
+      );
+
+      controller.updateElement(
+        'item:10',
+        elementPlain: '수정된 주원료',
+        elementPayload: 'UEsDchanged',
+      );
+      expect(controller.validateForSave, returnsNormally);
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '125',
+      );
+      expect(controller.validateForSave, throwsStateError);
+    });
+
     test('validates legacy date and time column formats', () {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
       final controller = ItemManagerDraftController.fromItems(

@@ -728,6 +728,9 @@ class ItemManagerDraftController extends ChangeNotifier {
             '${rowIndex + 1}행 ${rule.columnName} 값을 입력해 주세요.',
           );
         }
+        final validateFormat = row.isNew ||
+            row.columnDrafts.containsKey(rule.columnId);
+        if (!validateFormat) continue;
         if (value.isNotEmpty &&
             rule.typeCode == TColumnType.TYPE_IMAGE &&
             _hasUnsupportedImageExtension(value)) {
@@ -1298,7 +1301,10 @@ String _normalizeEditedColumnValue(
   ItemManagerColumnValidationRule? rule,
   String value,
 ) {
-  if (rule == null || !rule.useBarcodeCheckDigit || rule.barcodeType == null) {
+  if (rule == null ||
+      rule.typeCode != TColumnType.TYPE_BARCODE ||
+      !rule.useBarcodeCheckDigit ||
+      rule.barcodeType == null) {
     return value;
   }
   return BarcodeDataHelper.normalizeMeaningPreservingForPrint(
@@ -1311,7 +1317,8 @@ String _normalizeEditedColumnValue(
 bool _requiresMeaningPreservingBarcodeValidation(
   ItemManagerColumnValidationRule rule,
 ) {
-  return rule.barcodeType == BarcodeType.Itf || rule.useBarcodeCheckDigit;
+  return rule.typeCode == TColumnType.TYPE_BARCODE &&
+      (rule.barcodeType == BarcodeType.Itf || rule.useBarcodeCheckDigit);
 }
 
 bool _isValidDateOrTimeValue(
