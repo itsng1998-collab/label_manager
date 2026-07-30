@@ -11,6 +11,7 @@ import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_file_settings.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_layout.dart';
@@ -35,7 +36,6 @@ import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetZoomToolbarRightInset = 124.0;
 const double _labelSheetObjectPanelMinWidth = 160.0;
 const double _labelSheetObjectPanelInitialWidth = 160.0;
@@ -2443,15 +2443,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       extensions: <String>['lms'],
       mimeTypes: <String>['application/octet-stream'],
     );
-    final prefs = await SharedPreferences.getInstance();
-    final initialDirectory = prefs.getString(_labelFileDirectoryPrefsKey);
+    final initialDirectory = await loadLabelSheetFileDirectory();
     final suggestedName = _suggestedLabelFileName();
     final location = await getSaveLocation(
       acceptedTypeGroups: const <XTypeGroup>[labelFileGroup],
       suggestedName: suggestedName,
-      initialDirectory: initialDirectory?.isNotEmpty == true
-          ? initialDirectory
-          : null,
+        initialDirectory: initialDirectory,
     );
     if (location == null) {
       return;
@@ -2459,10 +2456,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final path = _ensureLabelFileExtension(location.path);
     final payload = _encodedWorkbookForCurrentLabelFile();
     await File(path).writeAsString(payload.encodedWorkbook, flush: true);
-    final directory = p.dirname(path);
-    if (directory.isNotEmpty) {
-      await prefs.setString(_labelFileDirectoryPrefsKey, directory);
-    }
+    await saveLabelSheetFileDirectoryForPath(path);
     if (!mounted) {
       return;
     }
@@ -2480,13 +2474,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       extensions: <String>['lms', 'xlsx'],
       mimeTypes: <String>['application/octet-stream'],
     );
-    final prefs = await SharedPreferences.getInstance();
-    final initialDirectory = prefs.getString(_labelFileDirectoryPrefsKey);
+    final initialDirectory = await loadLabelSheetFileDirectory();
     final file = await openFile(
       acceptedTypeGroups: const <XTypeGroup>[labelFileGroup],
-      initialDirectory: initialDirectory?.isNotEmpty == true
-          ? initialDirectory
-          : null,
+        initialDirectory: initialDirectory,
     );
     if (file == null) {
       debugLog('label sheet import picker canceled', skipFrames: 1);
@@ -2498,12 +2489,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       'pathExt=${p.extension(file.path)} nameExt=${p.extension(file.name)}',
       skipFrames: 1,
     );
-    await _importLabelFileFromXFile(file, prefs: prefs);
+    await _importLabelFileFromXFile(file);
   }
 
   Future<void> _importLabelFileFromXFile(
     XFile file, {
-    SharedPreferences? prefs,
     bool updateImportDirectory = true,
     String? successMessage,
   }) async {
@@ -2541,7 +2531,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       importedWorkbook,
       fileName: file.name,
       filePath: file.path,
-      prefs: prefs,
       updateImportDirectory: updateImportDirectory,
       successMessage: successMessage,
     );
@@ -2551,7 +2540,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     FortuneWorkbook importedWorkbook, {
     required String fileName,
     required String filePath,
-    SharedPreferences? prefs,
     bool updateImportDirectory = true,
     String? successMessage,
   }) async {
@@ -2566,11 +2554,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     if (updateImportDirectory && filePath.isNotEmpty) {
-      final directory = p.dirname(filePath);
-      if (directory.isNotEmpty) {
-        final targetPrefs = prefs ?? await SharedPreferences.getInstance();
-        await targetPrefs.setString(_labelFileDirectoryPrefsKey, directory);
-      }
+      await saveLabelSheetFileDirectoryForPath(filePath);
     }
     final importFormat = labelSheetResolveImportFormat(
       filePath: filePath,
