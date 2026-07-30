@@ -1,5 +1,11 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 앱 버전 1.0.1 지정
+- 사용자 요청에 따라 `pubspec.yaml` 버전을 `1.0.2`에서 `1.0.1`로 변경한다. 명시 버전 요청이므로 자동 PATCH 증가를 적용하지 않는다.
+- `DebugLogger`는 `PackageInfo`의 앱 버전을 사용하므로 다음 실행 로그에도 `1.0.1`이 기록된다.
+- 검증 완료: `dart run lib/utils/generate_version.dart`에서 `Generated version.txt: 1.0.1` 확인. 검증용 미추적 `version.txt`는 삭제했다.
+- stage/commit 대상: `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: DebugLogger 버전 선설정
 - 사용자 요청: `main()`에서 `DebugLogger.setVersion`을 로그 초기화보다 먼저 처리한다.
 - 원인/수정: 기존에는 `DebugLogger.ensureInitialized()` 후 패키지 버전을 설정해 초기화 시점에 버전이 없었다. 플러그인 호출에 필요한 `WidgetsFlutterBinding.ensureInitialized()` 직후 `PackageInfo.fromPlatform()`으로 버전을 읽고 `DebugLogger.setVersion(appVersion)`을 호출한 다음 로거를 초기화하도록 순서를 변경했다.
