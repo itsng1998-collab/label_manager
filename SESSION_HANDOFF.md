@@ -9,6 +9,7 @@
 - 관련 검증 완료: `flutter test test/label_column_edit_dialog_test.dart test/swipe_action_table_test.dart test/fortune_table_test.dart` 성공(112개), 수정 파일 진단 0건.
 - 정적 검증 완료: `git diff --check` whitespace 오류 없음(LF/CRLF 안내만 출력). `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
 - stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+- 기능 커밋: `54cc053` (`사용자 항목 편집 외곽선 포커스 적용`).
 
 ## 완료: 사용자 항목 편집 셀을 품목관리 스타일로 통일
 - 비교 결과: 품목관리는 `FortuneTable` 내장 editor의 선택 행 배경, 파란색 2px 테두리, 14px 글꼴, 좌우 2px padding을 사용한다. 라벨 사용자 항목은 별도 `SwipeActionTable + TextFormField` 구현으로 테두리 없음, 13px dialog 글꼴, 좌우 6px padding을 사용해 편집 상태가 다르다.
