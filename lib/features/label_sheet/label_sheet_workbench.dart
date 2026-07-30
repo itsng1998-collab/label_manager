@@ -12,6 +12,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_ai_im
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_file_settings.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_file_writer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_image_import_settings.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_import_layout.dart';
@@ -2453,9 +2454,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (location == null) {
       return;
     }
-    final path = _ensureLabelFileExtension(location.path);
-    final payload = _encodedWorkbookForCurrentLabelFile();
-    await File(path).writeAsString(payload.encodedWorkbook, flush: true);
+    final path = await labelSheetWriteWorkbookFile(
+      path: location.path,
+      workbook: _currentWorkbookForLabelFile(),
+    );
     await saveLabelSheetFileDirectoryForPath(path);
     if (!mounted) {
       return;
@@ -2625,15 +2627,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   String _suggestedLabelFileName() {
     final name = widget.labelSize?.labelSizeName.trim();
-    return _ensureLabelFileExtension(
+    return labelSheetEnsureFileExtension(
       name?.isNotEmpty == true ? name! : 'label',
     );
-  }
-
-  String _ensureLabelFileExtension(String path) {
-    return p.extension(path).toLowerCase() == '.lms'
-        ? path
-        : p.setExtension(path, '.lms');
   }
 
   Widget _buildZoomToolbarOverlay() {
