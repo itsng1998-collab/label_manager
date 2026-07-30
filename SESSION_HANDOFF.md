@@ -18,6 +18,7 @@
 - 최종 검증: 관련 테스트 184개 통과. 변경 Dart 10개 파일 analyzer `No issues found` (3.2초), diagnostics 0건.
 - 완료 결과: 사용자 정의 날짜/시간은 대소문자 토큰과 반복 폭을 지원하고, 날짜 설정 저장 후 품목관리/라벨출력/저울출력 preview 및 실제 발행 direct 값에 즉시 적용된다. QR/GS1 token과 DB raw 저장값은 기존 형식을 유지한다.
 - stage/commit 대상: `lib/features/date_setup/domain/date_manager.dart`, `lib/features/date_setup/presentation/date_type_setup_dialog.dart`, `lib/features/label_print/domain/label_print_auto_increment.dart`, `lib/features/label_print/application/label_print_pipeline.dart`, `lib/features/scale_output/application/scale_output.dart`, `lib/home_page_manager.dart`, 관련 테스트 4개, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 기능 커밋: `7ed5446` (`날짜 타입 형식을 출력에 반영`).
 
 ## 완료: 품목관리 조회 렌더 완료 후 첫 행 자동 선택
 - 원인: 초기 session load는 draft 첫 행을 선택하지만 `ItemManage.initState()`가 해당 선택을 `FortuneTableSelectionController`에 투영하지 않아 첫 렌더의 선택 강조가 누락될 수 있다.
