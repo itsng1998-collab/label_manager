@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:characters/characters.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:intl/intl.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
@@ -90,8 +91,9 @@ class ItemManagerImportTransform {
       case ItemManagerImportTransformOperation.prepend:
         return '$value$source';
       case ItemManagerImportTransformOperation.replaceAfter:
-        final end = position.clamp(0, source.length);
-        return '${source.substring(0, end)}$value';
+        final characters = source.characters;
+        final end = position.clamp(0, characters.length);
+        return '${characters.take(end)}$value';
     }
   }
 }
@@ -207,6 +209,7 @@ Uint8List itemManagerExportXlsxBytes({
   if (rows.isEmpty) {
     throw StateError('Excel로 저장할 데이터가 없습니다.');
   }
+  _validateUniqueColumnNames(columns);
   final headers = ['품목', '주원료', ...columns.map((column) => column.name)];
   final sheetXml = StringBuffer(
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -327,6 +330,7 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
   if (!labelSheetLooksLikeXlsx(bytes)) {
     throw const FormatException('지원하지 않는 Excel 파일 형식입니다. .xlsx 파일을 선택해 주세요.');
   }
+  _validateUniqueColumnNames(columns);
   final context = labelSheetXlsxParseContext(bytes, sheetIndex: 0);
   final sheet = context.parsedWorkbook.activeSheet;
   final rowCount = sheet.rowCount ?? 0;
@@ -448,6 +452,27 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
   return ItemManagerXlsxImportResult(
     rows: List.unmodifiable(rows),
     warnings: List.unmodifiable(warnings),
+  );
+}
+
+void _validateUniqueColumnNames(List<ItemManagerXlsxColumn> columns) {
+  final columnIdsByName = <String, List<int>>{};
+  for (final column in columns) {
+    if (column.name == '품목' || column.name == '주원료') {
+      throw FormatException(
+        '현재 라벨 컬럼명이 Excel 기본 헤더와 중복됩니다: '
+        '${column.name} (컬럼 ID ${column.columnId})',
+      );
+    }
+    columnIdsByName.putIfAbsent(column.name, () => []).add(column.columnId);
+  }
+  final duplicate = columnIdsByName.entries
+      .where((entry) => entry.value.length > 1)
+      .firstOrNull;
+  if (duplicate == null) return;
+  throw FormatException(
+    '현재 라벨에 이름이 같은 컬럼이 있습니다: '
+    '${duplicate.key} (컬럼 ID ${duplicate.value.join(', ')})',
   );
 }
 

@@ -75,6 +75,14 @@ void main() {
       ).apply(''),
       '',
     );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.replaceAfter,
+        value: '상품',
+        position: 1,
+      ).apply('👨‍👩‍👧‍👦서울'),
+      '👨‍👩‍👧‍👦상품',
+    );
   });
 
   test('rejects invalid numeric transforms', () {
@@ -292,6 +300,62 @@ void main() {
     );
   });
 
+  test('rejects duplicate current label column names on import', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+      ItemManagerXlsxColumn(
+        columnId: 8,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+
+    expect(
+      () => itemManagerImportXlsxBytes(
+        _itemWorkbookBytes(),
+        columns: columns,
+        emptyElementPayload: 'UEsDempty',
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('코드 (컬럼 ID 7, 8)'),
+        ),
+      ),
+    );
+  });
+
+  test('rejects a current label column name matching a base header', () {
+    expect(
+      () => itemManagerImportXlsxBytes(
+        _itemWorkbookBytes(),
+        columns: const [
+          ItemManagerXlsxColumn(
+            columnId: 7,
+            name: '품목',
+            editable: true,
+            typeCode: TColumnType.TYPE_BASE,
+          ),
+        ],
+        emptyElementPayload: 'UEsDempty',
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('품목 (컬럼 ID 7)'),
+        ),
+      ),
+    );
+  });
+
   test('removes only an escaped leading apostrophe from string cells', () {
     const columns = [
       ItemManagerXlsxColumn(
@@ -362,6 +426,42 @@ void main() {
       expect(imported.rows.single.columnDrafts[7]?.dataString, '00123');
     },
   );
+
+  test('rejects duplicate current label column names on export', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+      ItemManagerXlsxColumn(
+        columnId: 8,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+    final rows = [
+      ItemManagerDraftRow.newRow(
+        draftRowKey: 'export-duplicate',
+        order: 1,
+        originalIndex: 0,
+        insertAnchorItemId: null,
+        rowState: ItemManagerDraftRowState.added,
+        emptyElementPayload: 'UEsDempty',
+      ),
+    ];
+
+    expect(
+      () => itemManagerExportXlsxBytes(
+        rows: rows,
+        columns: columns,
+        columnValue: (_, _) => '',
+      ),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }
 
 Uint8List _itemWorkbookBytes({
