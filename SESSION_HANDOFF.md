@@ -12,6 +12,7 @@
 - 최종 검증: 공용 테이블/라벨 항목 편집 관련 테스트 46개 통과, 변경 Dart 2개 analyzer `No issues found` (1.5초), diagnostics 0건, `git diff --check` 통과.
 - 완료 결과: 사용자 항목 수정 모드에서 대량 행 끝에 신규 행을 추가하면 첫 animation 완료 후 확정된 scroll extent로 다시 이동하여 추가된 inline editor가 자동으로 보인다.
 - stage/commit 대상: `lib/widgets/swipe_action_table.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 기능 커밋: `418d633` (`사용자 항목 추가 행 자동 스크롤 수정`).
 
 ## 완료: 라벨 항목 저장 schema 판정 수정
 - 사용자 제출 이미지/최신 로그 `app_2026-07-30_14-45-52.log` 분석: 라벨 항목 158행 조회는 성공했지만 저장 전 capability query 결과가 `hasCoreSchema=false`여서 `Required label column schema is not supported.`가 발생했다.
