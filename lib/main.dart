@@ -24,7 +24,6 @@ IOSink? gSink;
 Future<void> main(List<String> args) async {
   // 로그파일 및 디버그프린트 초기화
   await DebugLogger.ensureInitialized();
-  DebugLogger.setVersion('FSDBG-2026-07-25-common-label-sync-v33');
 
   try {
     // 이전 실행에서 남은 AI 가져오기 임시 파일을 정리한다.
@@ -63,6 +62,7 @@ Future<void> main(List<String> args) async {
   final info = await PackageInfo.fromPlatform();
   appPackageName = info.packageName;
   appVersion = info.version;
+  DebugLogger.setVersion(appVersion);
 
   // 공통 StartUp 페이지를 표시한다.
   runApp(

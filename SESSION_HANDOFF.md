@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 수정 범위 기반 pubspec 버전 자동 갱신 및 로그 버전 연동
+- 사용자 요청: 앞으로 저장소 변경 시 수정 범위에 따라 `pubspec.yaml` 버전을 자동 갱신하고 다음 세션에도 유지되도록 `SESSION_RULES.md`에 상시 규칙으로 명시한다.
+- 기준 확정: 호환 가능한 국소 수정은 PATCH, 사용자 기능 추가/다중 production 흐름 확장은 MINOR, 비호환 계약 변경은 MAJOR로 판단한다. 한 요청당 최고 단계로 1회만 증가하며 후속 handoff 해시 기록 커밋은 재증가하지 않는다.
+- 규칙 편집 완료: `SESSION_RULES.md`에 자동 갱신 시점, 단계 기준, 예외, 커밋/handoff 기록 규칙과 종료 체크리스트를 추가했다.
+- 버전 변경: 문서·작업 정책의 호환 가능한 국소 변경이므로 PATCH 적용, `1.0.0` → `1.0.1`.
+- 로그 버전 연동: `lib/main.dart`의 수동 `FSDBG-...` 식별자를 제거하고 `PackageInfo.fromPlatform()`이 반환한 `appVersion`을 `DebugLogger.setVersion`에 전달해 `pubspec.yaml` 기반 생성 버전이 로그에 기록되도록 변경했다.
+- 추가 버전 증가 없음: 같은 사용자 요청의 후속 보완이며 한 요청당 1회 규칙에 따라 `1.0.1`을 유지한다.
+- 검증 완료: `dart run lib/utils/generate_version.dart`가 `Generated version.txt: 1.0.1`을 출력했고 `flutter analyze lib/main.dart` 성공, 네 변경 파일 diagnostics 0건, `git diff --check` 성공, 규칙 섹션 번호 `1~10` 연속 확인. `FSDBG-` 하드코딩이 없고 `DebugLogger.setVersion(appVersion)`만 남은 것을 확인했다.
+- 임시 산출물 정리: 버전 파싱 검증으로 생성된 미추적 `version.txt`를 삭제했다.
+- stage/commit 대상: `pubspec.yaml`, `SESSION_RULES.md`, `SESSION_HANDOFF.md`, `lib/main.dart`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 처리 중 고정 및 재로그인 로딩 잔류 수정
 - 제출 이미지 분석: Excel 내보내기 파일을 다시 가져오면 품목 1개는 반영되지만 품목관리 하단에 `처리 중`이 계속 남고 편집이 비활성화된다. 로그아웃/재로그인 후에는 `브랜드 데이터를 불러오고 있습니다...` 장기 스낵바가 잔류한다.
 - 원인 1: 가져오기 성공 시 `_resetTabs()`가 `_itemDraftCommandBusy=true` 상태의 `ItemManage`를 `_tabs` 캐시에 고정하고, `finally`는 바깥 `setState(false)`만 수행해 캐시된 `commandBusy`를 갱신하지 않는다. 저장 흐름은 이미 busy=false 후 `_resetTabs()` 패턴을 사용한다.
