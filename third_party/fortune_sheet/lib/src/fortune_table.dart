@@ -1210,7 +1210,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _textEditorController!.selection = TextSelection.collapsed(
       offset: _textEditorController!.text.length,
     );
-    _textEditorFocusNode = FocusNode(debugLabel: 'FortuneTableTextEditor');
+    final editorFocusNode = FocusNode(debugLabel: 'FortuneTableTextEditor');
+    _textEditorFocusNode = editorFocusNode;
     setState(() {
       _selectedIndex = rowIndex;
       _focusedColumnIndex = columnIndex;
@@ -1221,6 +1222,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _selectRowIndex(rowIndex);
     widget.onSelectionFocusChanged?.call(row, rowIndex);
     widget.onRowSelected?.call(row, rowIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !identical(_textEditorFocusNode, editorFocusNode)) return;
+      editorFocusNode.requestFocus();
+    });
   }
 
   Future<void> _commitTextEditing() async {

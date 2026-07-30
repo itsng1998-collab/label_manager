@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 신규 품목 인라인 editor 즉시 focus
+- 현상: 신규 품목의 빈 컬럼을 더블클릭하면 editor는 표시되지만 한 번 더 클릭해야 커서가 활성화된다.
+- 로컬 가설: `FortuneTable._startTextEditing()`이 editor 생성 후 `autofocus`에만 의존하고 상위 rebuild 뒤 명시적으로 focus를 복원하지 않아 표 focus가 남는다.
+- 수정 예정: 기존 실제 추가 흐름 회귀에 더블클릭 직후 `EditableText.focusNode.hasFocus`와 test input 연결 검증을 추가하고, editor focus node를 post-frame에 명시적으로 요청한다.
+- 재현 완료: editor 생성 직후 `EditableText.focusNode.hasFocus`가 false여서 focused 테스트가 수정 전 실패했다.
+- 편집 완료(`fortune_table.dart`): editor 시작 frame 이후 동일한 focus node가 여전히 활성 editor일 때 `requestFocus()`를 호출한다.
+- focused 검증: 신규 빈 셀 즉시 focus, 기존 값 편집, 이미지 picker 분기 3건 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 실행 예정: `flutter test test/fortune_table_test.dart`, `flutter analyze third_party/fortune_sheet/lib/src/fortune_table.dart test/fortune_table_test.dart`.
+- 최종 검증: 전체 `fortune_table_test.dart` 60건 통과. 변경 파일 analyzer `No issues found`.
+- stage 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 신규 품목 빈 셀 편집 진입 수정
 - 사용자 재현 로그 `app_2026-07-30_11-57-45.log`: 품목 1개 추가는 성공했으나 빈 셀 더블클릭 후 편집 commit 이벤트가 없었다.
 - 원인: `FortuneTable._buildTextCell()`의 비편집 `GestureDetector`가 셀 전체가 아니라 내부 `Text`의 크기만 사용해 빈 문자열 셀은 double-tap hit 영역 폭이 0이다.

@@ -2600,6 +2600,9 @@ void main() {
     await tester.pump();
 
     expect(find.byType(EditableText), findsOneWidget);
+    final editor = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editor.focusNode.hasFocus, isTrue);
+    expect(tester.testTextInput.isVisible, isTrue);
     await tester.pump(const Duration(milliseconds: 100));
   });
 
