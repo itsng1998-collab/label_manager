@@ -1,5 +1,19 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 11차 검토
+- 앞선 10차까지 확정한 정책은 재검토하지 않고 XLSX parser의 실제 셀 타입 해석 경계를 확인한다.
+- 사용자 확정: Excel Boolean 셀은 내부 raw 값 `1/0`이 아니라 Excel 표시값 `TRUE/FALSE`로 가져온다.
+- 확인된 문제: 공용 XLSX parser는 `t="b"` 셀을 `TRUE/FALSE`로 해석하지만 품목 import formatter가 raw value를 숫자로 다시 처리해 `1/0`으로 바꾼다.
+- application 편집 완료: Boolean 타입만 공용 parser의 parsed text를 사용한다. 문자열·숫자·오류·수식 경로는 변경하지 않았다.
+- 테스트 추가: 최소 worksheet XML의 Boolean true/false 셀이 각각 `TRUE/FALSE`로 import되는 계약을 고정했다.
+- 문서 편집 완료: `doc/item_manager_modify.txt`에 Boolean 셀 표시값 유지 정책을 반영했다.
+- 검토 결론: error 셀은 raw/parsed fallback으로 원문이 유지되고, 병합 범위의 sparse cell은 FortuneSheet의 정상 표현이라 데이터 손실이 재현되지 않아 추가 보완하지 않았다.
+- 검증 기준: 최소 worksheet XML의 Boolean true/false 셀이 각각 `TRUE/FALSE`로 import되어야 한다.
+- 검증 완료: XLSX focused 테스트 18개 및 Excel parser/연산·dialog·draft focused 테스트 55개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
+- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 10차 검토
 - 앞선 9차까지 확정한 정책은 재검토하지 않고 import 결과의 draft 전체 교체 상태 전환을 확인한다.
 - 검토 결론: 연산 후 길이 초과는 7차에서 저장 전 검증으로 확정한 정책이므로 변경하지 않는다. `replaceAllWithImportedRows`의 정상 입력에서 중간 실패 가능성은 없지만 삭제 ID를 replacements 검증 전에 controller에 반영하는 순서는 불필요하게 상태를 먼저 변경한다.

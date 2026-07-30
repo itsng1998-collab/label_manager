@@ -518,7 +518,7 @@ String _cellDisplayText(
   final cell = context.parsedWorkbook.activeSheet.cells[coord];
   if (metadata?.formula != null && metadata?.hasCachedValue != true) return '';
   final type = metadata?.cellType;
-  if (type == 's' || type == 'inlineStr' || type == 'str') {
+  if (type == 's' || type == 'inlineStr' || type == 'str' || type == 'b') {
     var value = metadata?.parsedText ?? cell?.renderedText ?? '';
     if (metadata?.quotePrefix == true && value.startsWith("'")) {
       value = value.substring(1);

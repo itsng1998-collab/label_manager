@@ -290,6 +290,24 @@ void main() {
     expect(result.rows.single.columnDrafts[7]?.dataString, '00123');
   });
 
+  test('imports Excel Boolean cells as TRUE and FALSE display values', () {
+    String importBoolean(String value) => itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(codeBooleanValue: value),
+      columns: const [
+        ItemManagerXlsxColumn(
+          columnId: 7,
+          name: '코드',
+          editable: true,
+          typeCode: TColumnType.TYPE_BASE,
+        ),
+      ],
+      emptyElementPayload: 'UEsDempty',
+    ).rows.single.columnDrafts[7]!.dataString;
+
+    expect(importBoolean('1'), 'TRUE');
+    expect(importBoolean('0'), 'FALSE');
+  });
+
   test('rejects a first worksheet without the item header', () {
     expect(
       () => itemManagerImportXlsxBytes(
@@ -532,6 +550,7 @@ Uint8List _itemWorkbookBytes({
   String dateHeader = '날짜',
   String itemName = '딸기잼',
   String codeValue = '00123',
+  String? codeBooleanValue,
   bool codeQuotePrefix = false,
   bool codeNumericMask = false,
   int dataRowNumber = 2,
@@ -560,9 +579,16 @@ Uint8List _itemWorkbookBytes({
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
   <cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFill="1" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" quotePrefix="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0"/></cellXfs>
 </styleSheet>''');
-  final codeCell = codeNumericMask
-      ? '<c r="C$dataRowNumber" s="4"><v>$codeValue</v></c>'
-      : '<c r="C$dataRowNumber" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c>';
+  final String codeCell;
+  if (codeBooleanValue != null) {
+    codeCell = '<c r="C$dataRowNumber" t="b"><v>$codeBooleanValue</v></c>';
+  } else if (codeNumericMask) {
+    codeCell = '<c r="C$dataRowNumber" s="4"><v>$codeValue</v></c>';
+  } else {
+    codeCell =
+        '<c r="C$dataRowNumber" t="inlineStr"'
+        '${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c>';
+  }
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <dimension ref="A1:G${dataRowNumber + 1}"/>
