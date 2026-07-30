@@ -9,7 +9,7 @@
 - 문서 편집 완료: `doc/item_manager_modify.txt`에 원본 값 전체 표시와 긴 오류 내부 스크롤 정책을 반영했다.
 - 검토 결론: 다수 컬럼은 `Expanded + ListView`로 스크롤되고, Mid 위치는 검증 후 clamp되며, parse warning은 변환 결과에 보존되어 성공 직후 표시되므로 추가 보완하지 않았다.
 - 검증 완료: dialog focused 테스트 8개 및 Excel parser/연산·dialog·draft focused 테스트 54개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
-- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 기능 커밋: `baef280 엑셀 연산 긴 오류 표시 보완`.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, `test/item_manager_import_transform_dialog_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 
