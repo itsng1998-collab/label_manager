@@ -1132,6 +1132,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 initialValue: value,
                 enabled: !_busy,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+                textAlignVertical: TextAlignVertical.center,
                 decoration: const InputDecoration(
                   isDense: true,
                   border: InputBorder.none,

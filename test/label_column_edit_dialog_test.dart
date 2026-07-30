@@ -1051,6 +1051,25 @@ void main() {
       find.descendant(of: keywordEditor, matching: find.byType(EditableText)),
     );
     expect(editorText.style.fontSize, 14);
+    final renderEditable = tester
+        .state<EditableTextState>(
+          find.descendant(
+            of: keywordEditor,
+            matching: find.byType(EditableText),
+          ),
+        )
+        .renderEditable;
+    final caretRect = renderEditable.getLocalRectForCaret(
+      const TextPosition(offset: 0),
+    );
+    expect(
+      caretRect.center.dy,
+      moreOrLessEquals(renderEditable.size.height / 2, epsilon: 0.5),
+    );
+    final editorTextField = tester.widget<TextField>(
+      find.descendant(of: keywordEditor, matching: find.byType(TextField)),
+    );
+    expect(editorTextField.textAlignVertical, TextAlignVertical.center);
     final editorInput = tester.widget<InputDecorator>(
       find.descendant(of: keywordEditor, matching: find.byType(InputDecorator)),
     );
