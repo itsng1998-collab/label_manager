@@ -1417,12 +1417,12 @@ class _ItemManageState extends State<ItemManage> {
           return widget.canEdit &&
               !widget.commandBusy &&
               widget.onElementTextCommitted != null &&
-              draft?.isNew == true;
+              draft != null;
         },
         onTextCommitted: (_, rowIndex, value) async {
           final draft = _draftAtDisplayIndex(rowIndex);
-          if (draft?.isNew != true) return;
-          await widget.onElementTextCommitted?.call(draft!, value);
+          if (draft == null) return;
+          await widget.onElementTextCommitted?.call(draft, value);
         },
       ),
       ...extraColumns,

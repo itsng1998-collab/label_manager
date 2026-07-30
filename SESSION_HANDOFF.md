@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 기존 품목 주원료 인라인 편집 및 시트 동기화
+- 현재 제한: `ItemManage`의 주원료 `isTextEditable`과 commit이 `draft.isNew`인 행만 허용해 기존 품목은 더블클릭 편집이 불가능하다.
+- 확인: 상위 `_commitItemElementTextDraft()`는 행 종류와 무관하게 plain text로 workbook payload를 만들고, `_applyItemElementDraft()`가 draft와 열린 품목 preview를 갱신한다.
+- 수정 예정: 편집 가능한 기존 draft에도 주원료 인라인 editor/commit을 허용하고, 기존 행 plain/payload 갱신 및 같은 기존 행 preview workbook 동기화 회귀를 추가한다.
+- 편집 완료(`item_manage.dart`): 주원료 editor/commit의 `draft.isNew` 제한을 제거하고 유효한 기존/신규 draft 모두 callback으로 전달한다.
+- 테스트 변경(`fortune_table_test.dart`): 기존 행 주원료 더블클릭, 즉시 focus, plain/payload 갱신과 `modified` 상태 전환을 검증한다.
+- 테스트 변경(`label_sheet_toolbar_test.dart`): 기존 `item:41`의 외부 주원료 payload 변경이 열린 preview workbook에 반영되는지 검증한다.
+- focused 검증: 기존 행 표 편집과 기존 행 preview 동기화 2건 통과.
+- 최종 검증: `fortune_table_test.dart` 62건, `label_sheet_toolbar_test.dart` 166건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건.
+- stage 대상: `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 신규 품목 다건 ID 매핑 중복 수정
 - 최신 로그 `app_2026-07-30_13-09-38.log`: 서로 다른 draft key의 신규 2건 저장 중 `@InsertedRows.DRAFT_ROW_KEY`에 두 번째 key가 중복 삽입되어 native 2627이 발생했고 transaction은 rollback됐다.
 - 원인: SQL `WHILE`의 `@CapturedItem` table variable에 이전 반복의 ITEM_ID가 남아, 두 번째 반복에서 누적된 두 ID를 모두 두 번째 draft key로 매핑했다.

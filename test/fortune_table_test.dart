@@ -1317,7 +1317,9 @@ void main() {
     expect(selectedIndex, 2);
   });
 
-  testWidgets('ItemManage keeps the element column read-only', (tester) async {
+  testWidgets('ItemManage edits an existing row element with its payload', (
+    tester,
+  ) async {
     final source = _testItemOfMarket(itemName: '테스트 품목');
     final controller = ItemManagerDraftController.fromItems(
       items: [source],
@@ -1340,7 +1342,13 @@ void main() {
                 labelSizeName: '테스트 라벨',
               ),
               marketId: 1,
-              onElementTextCommitted: (_, _) async {},
+              onElementTextCommitted: (row, value) async {
+                controller.updateElement(
+                  row.rowKey,
+                  elementPlain: value,
+                  elementPayload: 'payload:$value',
+                );
+              },
             ),
           ),
         ),
@@ -1353,9 +1361,16 @@ void main() {
     await tester.tap(find.text(elementText));
     await tester.pump();
 
-    expect(find.byType(TextField), findsNothing);
-    expect(controller.rows.single.elementPlain, elementText);
-    expect(controller.isDirty, isFalse);
+    final editor = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editor.focusNode.hasFocus, isTrue);
+    await tester.enterText(find.byType(EditableText), '기존 원재료 수정');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(controller.rows.single.elementPlain, '기존 원재료 수정');
+    expect(controller.rows.single.elementPayload, 'payload:기존 원재료 수정');
+    expect(controller.rows.single.rowState, ItemManagerDraftRowState.modified);
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('ItemManage edits an added row element with its payload', (

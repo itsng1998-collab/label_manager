@@ -1123,10 +1123,10 @@ void main() {
     );
   });
 
-  testWidgets('item element preview syncs an external same-row update', (
+  testWidgets('existing item element preview syncs an external same-row update', (
     tester,
   ) async {
-    var item = _testItemOfMarket(itemId: 0, itemName: '신규 품목');
+    var item = _testItemOfMarket(itemId: 41, itemName: '기존 품목');
     late StateSetter updateHost;
 
     await tester.pumpWidget(
@@ -1137,7 +1137,7 @@ void main() {
               updateHost = setState;
               return debugItemPreviewPanelForTesting(
                 item: item,
-                rowIdentity: 'draft:sync',
+                rowIdentity: 'item:41',
                 labelSize: _testLabelSizeWithFormData(''),
               );
             },
@@ -1150,7 +1150,7 @@ void main() {
 
     final changedWorkbook = debugItemElementWorkbookForOutputTesting(
       _testItemOfMarket(
-        itemId: 0,
+        itemId: 41,
         element: '표에서 변경',
       ),
       _testLabelSizeWithFormData(''),
