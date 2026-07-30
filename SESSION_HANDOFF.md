@@ -8,6 +8,7 @@
 - 검증 완료: 집중 테스트 성공(1개), `flutter test test/label_column_edit_dialog_test.dart test/swipe_action_table_test.dart test/fortune_table_test.dart` 성공(112개), 수정 파일 진단 0건.
 - 정적 검증 완료: `git diff --check` whitespace 오류 없음(LF/CRLF 안내만 출력). `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
 - stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+- 기능 커밋: `8c3e951` (`사용자 항목 편집 커서 세로 정렬`).
 
 ## 완료: 포커스 편집 외곽선을 컬럼 셀에 맞춤
 - 제출 화면 확인: 신규 사용자 행의 포커스 외곽선이 키워드 컬럼 내부에서 세로로 행 높이를 채우지 못한다. custom cell editor가 폭만 지정하고 높이는 `TextFormField` intrinsic 크기를 사용하며, 공용 테이블 `Row`가 이를 세로 중앙 정렬하는 것이 원인이다.
