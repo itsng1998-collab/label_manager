@@ -10,6 +10,7 @@
 - 최종 검증: 라벨 항목 편집 다이얼로그 테스트 21개 통과, 변경 Dart 2개 analyzer `No issues found` (1.6초), diagnostics 0건. `git diff --check` 내용 오류 없음(LF→CRLF 정책 경고만 출력).
 - 완료 결과: 사용자 항목 수정 모드의 종류 드롭다운과 다이얼로그가 각각 필요한 64px만큼 넓어지고, 긴 종류 이름은 메뉴에서 두 줄로 표시되지 않는다.
 - stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 기능 커밋: `eca239f` (`사용자 항목 종류 드롭다운 폭 조정`).
 
 ## 완료: 사용자 항목 추가 행 자동 스크롤
 - 사용자 제출 화면 기준 기존 사용자 항목 158행에서 신규 행 추가 후 마지막 inline editor가 viewport로 자동 스크롤되지 않는다.
