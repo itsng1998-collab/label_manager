@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목 저장 완료 후 처리 중 표시 해제
+- 현상: 수정 저장과 DB 재조회가 완료된 뒤에도 품목관리 좌하단 spinner와 `처리 중`이 남고 버튼이 비활성화된다.
+- 원인: tab content는 `_createTabController()` 시점의 widget snapshot을 보관한다. 저장 reload 중 `commandBusy=true`로 `_resetTabs()`된 뒤 `finally`에서 bool만 false로 바꾸고 `setState()`해도 저장된 `ItemManage(commandBusy: true)` content가 교체되지 않는다.
+- 수정 예정: 저장 `finally`에서 busy를 false로 바꾼 뒤 tabs를 재생성한다. footer widget 회귀를 busy true→false 전환까지 확장한다.
+- 편집 완료(`home_page_manager.dart`): 저장 `finally`에서 `_itemDraftCommandBusy=false` 설정 후 `_resetTabs()`를 호출해 현재 선택 탭을 보존한 busy=false content snapshot으로 교체한다.
+- 테스트 변경(`fortune_table_test.dart`): ItemManage footer를 busy true에서 false로 갱신한 뒤 spinner/문구가 사라지고 엑셀 가져오기 버튼이 다시 활성화되는지 검증한다.
+- focused 검증: `ItemManage shows progress while a command is running` 통과.
+- 최종 검증: `fortune_table_test.dart` 62건, `label_sheet_toolbar_test.dart` 166건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건.
+- stage 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 기존 품목 미수정 컬럼 형식 검증 차단
 - 최신 로그 `app_2026-07-30_13-23-33.log`: 주원료 수정 저장 시 DB transaction 전에 `item:722292`, 컬럼 `139793` 제품유형의 바코드 형식 검증으로 두 차례 거부됐다.
 - 레거시 비교: `CMainItemTable` 저장은 변경된 셀만 `CColumnContentDAO::UpdateBatchDataByColAndItemID`에 전달하며, 주원료 수정 시 기존 일반 컬럼 전체를 바코드 형식으로 재검증하지 않는다.

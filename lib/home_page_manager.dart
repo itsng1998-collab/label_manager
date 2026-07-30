@@ -2210,7 +2210,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       if (mounted) _showItemDraftError('품목 저장 실패', error);
     } finally {
-      if (mounted) setState(() => _itemDraftCommandBusy = false);
+      if (mounted) {
+        _itemDraftCommandBusy = false;
+        _resetTabs();
+      }
       ItemManagerDebugLog.event(
         'save',
         'finished',

@@ -3093,13 +3093,24 @@ void main() {
   testWidgets('ItemManage shows progress while a command is running', (
     tester,
   ) async {
+    var commandBusy = true;
+    late StateSetter updateHost;
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: SizedBox(
             width: 600,
             height: 220,
-            child: ItemManage(items: [], commandBusy: true),
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                updateHost = setState;
+                return ItemManage(
+                  items: const [],
+                  commandBusy: commandBusy,
+                  onExcelImport: () async {},
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -3114,6 +3125,20 @@ void main() {
           )
           .onPressed,
       isNull,
+    );
+
+    updateHost(() => commandBusy = false);
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('처리 중'), findsNothing);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNotNull,
     );
     expect(tester.takeException(), isNull);
   });
