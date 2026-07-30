@@ -1022,6 +1022,11 @@ void main() {
     final keywordEditor = find.byKey(
       const ValueKey('customer-keyword:customer-draft:1'),
     );
+    final nameEditor = find.byKey(
+      const ValueKey('customer-name:customer-draft:1'),
+    );
+    await tester.tap(keywordEditor);
+    await tester.pump();
     final editorDecoration = tester.widget<DecoratedBox>(
       find.ancestor(
         of: keywordEditor,
@@ -1044,6 +1049,13 @@ void main() {
       editorInput.decoration.contentPadding,
       const EdgeInsets.symmetric(horizontal: 2),
     );
+    final nameDecoration = tester.widget<DecoratedBox>(
+      find.ancestor(
+        of: nameEditor,
+        matching: find.byType(DecoratedBox),
+      ).first,
+    ).decoration as BoxDecoration;
+    expect(nameDecoration.border, isNull);
     final typeEditor = find.descendant(
       of: find.byKey(
         const ValueKey('customer-type:customer-draft:1'),
@@ -1051,21 +1063,46 @@ void main() {
       matching: find.byType(DropdownMenu<TColumnType>),
     );
     expect(
-      tester.widget<DropdownMenu<TColumnType>>(typeEditor).inputDecorationTheme?.border,
-      InputBorder.none,
+      tester
+          .widget<DropdownMenu<TColumnType>>(typeEditor)
+          .inputDecorationTheme
+          ?.border,
+      isA<OutlineInputBorder>(),
     );
-    final typeEditorDecoration = tester
+    final typeEditorDecorations = tester
         .widgetList<DecoratedBox>(
           find.ancestor(of: typeEditor, matching: find.byType(DecoratedBox)),
         )
         .map((box) => box.decoration)
-        .whereType<BoxDecoration>()
-        .firstWhere(
-          (decoration) =>
-              decoration.border ==
-              Border.all(color: const Color(0xFF0188FB), width: 2),
-        );
-    expect(typeEditorDecoration.color, const Color(0xFFE3F2FD));
+        .whereType<BoxDecoration>();
+    expect(
+      typeEditorDecorations.where(
+        (decoration) =>
+            decoration.border ==
+            Border.all(color: const Color(0xFF0188FB), width: 2),
+      ),
+      isEmpty,
+    );
+
+    await tester.tap(nameEditor);
+    await tester.pump();
+    final unfocusedKeywordDecoration = tester.widget<DecoratedBox>(
+      find.ancestor(
+        of: keywordEditor,
+        matching: find.byType(DecoratedBox),
+      ).first,
+    ).decoration as BoxDecoration;
+    final focusedNameDecoration = tester.widget<DecoratedBox>(
+      find.ancestor(
+        of: nameEditor,
+        matching: find.byType(DecoratedBox),
+      ).first,
+    ).decoration as BoxDecoration;
+    expect(unfocusedKeywordDecoration.border, isNull);
+    expect(
+      focusedNameDecoration.border,
+      Border.all(color: const Color(0xFF0188FB), width: 2),
+    );
   });
 
   testWidgets('customer type dropdown stays available and saves changes', (

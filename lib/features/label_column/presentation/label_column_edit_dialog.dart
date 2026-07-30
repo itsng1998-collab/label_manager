@@ -1082,12 +1082,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           minWidth: _customerTypeColumnWidth,
           text: (row) => row.columnType.name,
           cellBuilder: (context, row, width) {
-            final editing = row.key == _editingCustomerKey;
             final dropdown = _DialogDropdown<TColumnType>(
               key: ValueKey('customer-type:${row.key}'),
               value: row.columnType,
               compact: true,
-              editorStyle: editing,
               entries: [
                 for (final type in _columnTypes)
                   DropdownMenuEntry(value: type, label: type.name),
@@ -1102,12 +1100,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             );
             return SizedBox(
               width: width,
-              child: editing
-                  ? DecoratedBox(
-                      decoration: _customerEditorDecoration,
-                      child: dropdown,
-                    )
-                  : dropdown,
+              child: dropdown,
             );
           },
         ),
@@ -1127,20 +1120,26 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     if (row.key == _editingCustomerKey) {
       return SizedBox(
         width: width,
-        child: DecoratedBox(
-          decoration: _customerEditorDecoration,
-          child: TextFormField(
-            key: key,
-            initialValue: value,
-            enabled: !_busy,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
-            decoration: const InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 2),
+        child: Focus(
+          child: Builder(
+            builder: (context) => DecoratedBox(
+              decoration: _customerEditorDecoration(
+                focused: Focus.of(context).hasFocus,
+              ),
+              child: TextFormField(
+                key: key,
+                initialValue: value,
+                enabled: !_busy,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 2),
+                ),
+                inputFormatters: inputFormatters,
+                onChanged: onChanged,
+              ),
             ),
-            inputFormatters: inputFormatters,
-            onChanged: onChanged,
           ),
         ),
       );
@@ -1151,10 +1150,13 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     );
   }
 
-  BoxDecoration get _customerEditorDecoration => BoxDecoration(
-    color: const Color(0xFFE3F2FD),
-    border: Border.all(color: const Color(0xFF0188FB), width: 2),
-  );
+  BoxDecoration _customerEditorDecoration({required bool focused}) =>
+      BoxDecoration(
+        color: focused ? const Color(0xFFE3F2FD) : null,
+        border: focused
+            ? Border.all(color: const Color(0xFF0188FB), width: 2)
+            : null,
+      );
 
   Widget _customerText(String value, double width) => SizedBox(
     width: width,
@@ -1447,7 +1449,6 @@ class _DialogDropdown<T> extends StatelessWidget {
     required this.entries,
     required this.onChanged,
     this.compact = false,
-    this.editorStyle = false,
   });
 
   final String? label;
@@ -1455,14 +1456,11 @@ class _DialogDropdown<T> extends StatelessWidget {
   final List<DropdownMenuEntry<T>> entries;
   final ValueChanged<T?>? onChanged;
   final bool compact;
-  final bool editorStyle;
 
   @override
   Widget build(BuildContext context) {
     final centerTrailingIcon = !compact;
-    final fillColor = editorStyle
-        ? Colors.transparent
-        : onChanged == null
+    final fillColor = onChanged == null
         ? const Color(0xFFE9ECEF)
         : Colors.white;
     return LayoutBuilder(
@@ -1516,7 +1514,7 @@ class _DialogDropdown<T> extends StatelessWidget {
         trailingIcon: _dropdownIcon(compact),
         selectedTrailingIcon: _dropdownIcon(compact),
         inputDecorationTheme: InputDecorationTheme(
-          border: editorStyle ? InputBorder.none : const OutlineInputBorder(),
+          border: const OutlineInputBorder(),
           filled: true,
           fillColor: fillColor,
           isDense: true,

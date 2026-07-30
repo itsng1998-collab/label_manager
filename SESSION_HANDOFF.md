@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 사용자 항목 편집 외곽선을 포커스 셀로 제한
+- 제출 화면 확인: 신규 사용자 행의 키워드/항목명/종류 셀 전체에 파란 2px 외곽선이 표시된다. `_editingCustomerKey` 행 상태를 세 셀 decoration에 공통 적용한 것이 원인이다.
+- 수정 예정: 텍스트 editor의 실제 `Focus` 상태에만 품목관리식 파란 외곽선을 적용하고, 종류 dropdown에는 편집 외곽선을 적용하지 않는다. 신규 행 자동 스크롤과 저장 동작은 유지한다.
+- 편집 완료: 편집 행의 키워드/항목명은 `Focus.of(context).hasFocus`일 때만 선택 배경과 파란 2px 외곽선을 사용한다. 종류 dropdown의 행 단위 외곽 decoration과 `editorStyle` 분기를 제거해 일반 compact dropdown 모양을 유지한다.
+- 테스트 보강: 키워드 포커스 시 항목명/dropdown에 편집 외곽선이 없고, 항목명으로 포커스 이동 시 키워드 외곽선이 제거되는 전환을 검증한다.
+- 집중 검증 완료: `flutter test test/label_column_edit_dialog_test.dart --plain-name "adding a user row scrolls to its inline editor"` 성공(1개).
+- 관련 검증 완료: `flutter test test/label_column_edit_dialog_test.dart test/swipe_action_table_test.dart test/fortune_table_test.dart` 성공(112개), 수정 파일 진단 0건.
+- 정적 검증 완료: `git diff --check` whitespace 오류 없음(LF/CRLF 안내만 출력). `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
+- stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+
 ## 완료: 사용자 항목 편집 셀을 품목관리 스타일로 통일
 - 비교 결과: 품목관리는 `FortuneTable` 내장 editor의 선택 행 배경, 파란색 2px 테두리, 14px 글꼴, 좌우 2px padding을 사용한다. 라벨 사용자 항목은 별도 `SwipeActionTable + TextFormField` 구현으로 테두리 없음, 13px dialog 글꼴, 좌우 6px padding을 사용해 편집 상태가 다르다.
 - 수정 예정: 라벨 사용자 항목의 신규/수정 텍스트 셀을 품목관리 FortuneTable editor 스타일로 맞추고 widget 테스트로 decoration/font/padding을 고정한다. 데이터 편집 동작과 dropdown 폭은 유지한다.
