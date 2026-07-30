@@ -10,7 +10,7 @@
 - 검토 결론: error 셀은 raw/parsed fallback으로 원문이 유지되고, 병합 범위의 sparse cell은 FortuneSheet의 정상 표현이라 데이터 손실이 재현되지 않아 추가 보완하지 않았다.
 - 검증 기준: 최소 worksheet XML의 Boolean true/false 셀이 각각 `TRUE/FALSE`로 import되어야 한다.
 - 검증 완료: XLSX focused 테스트 18개 및 Excel parser/연산·dialog·draft focused 테스트 55개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
-- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 기능 커밋: `80429e6 엑셀 Boolean 셀 표시값 보존`.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 
