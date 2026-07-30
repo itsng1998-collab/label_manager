@@ -117,7 +117,7 @@ ItemManagerXlsxImportResult itemManagerApplyImportTransforms(
 }) {
   if (transforms.isEmpty) return result;
   final columnNames = {
-    for (final column in columns) column.columnId: column.name,
+    for (final column in columns) column.columnId: column.name.trim(),
   };
   final rows = <ItemManagerImportedRow>[];
   for (var index = 0; index < result.rows.length; index += 1) {
@@ -210,7 +210,11 @@ Uint8List itemManagerExportXlsxBytes({
     throw StateError('Excel로 저장할 데이터가 없습니다.');
   }
   _validateUniqueColumnNames(columns);
-  final headers = ['품목', '주원료', ...columns.map((column) => column.name)];
+  final headers = [
+    '품목',
+    '주원료',
+    ...columns.map((column) => column.name.trim()),
+  ];
   final sheetXml = StringBuffer(
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -345,7 +349,7 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
     '품목': const _ItemManagerHeader.item(),
     '주원료': const _ItemManagerHeader.element(),
     for (final column in columns)
-      column.name: _ItemManagerHeader.column(column),
+      column.name.trim(): _ItemManagerHeader.column(column),
   };
   final mappedHeaders = <int, _ItemManagerHeader>{};
   final headerColumns = <String, int>{};
@@ -458,13 +462,17 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
 void _validateUniqueColumnNames(List<ItemManagerXlsxColumn> columns) {
   final columnIdsByName = <String, List<int>>{};
   for (final column in columns) {
-    if (column.name == '품목' || column.name == '주원료') {
+    final name = column.name.trim();
+    if (name.isEmpty) {
+      throw FormatException('현재 라벨에 이름이 빈 컬럼이 있습니다: 컬럼 ID ${column.columnId}');
+    }
+    if (name == '품목' || name == '주원료') {
       throw FormatException(
         '현재 라벨 컬럼명이 Excel 기본 헤더와 중복됩니다: '
-        '${column.name} (컬럼 ID ${column.columnId})',
+        '$name (컬럼 ID ${column.columnId})',
       );
     }
-    columnIdsByName.putIfAbsent(column.name, () => []).add(column.columnId);
+    columnIdsByName.putIfAbsent(name, () => []).add(column.columnId);
   }
   final duplicate = columnIdsByName.entries
       .where((entry) => entry.value.length > 1)

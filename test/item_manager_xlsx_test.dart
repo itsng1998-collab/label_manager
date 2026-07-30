@@ -356,6 +356,44 @@ void main() {
     );
   });
 
+  test('matches current label column names after trimming outer spaces', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '  코드  ',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+    final imported = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(),
+      columns: columns,
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    expect(imported.rows.single.columnDrafts[7]?.dataString, '00123');
+  });
+
+  test('imports hidden rows and rows with an empty item name', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+    final imported = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(itemName: '', dataRowHidden: true),
+      columns: columns,
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    expect(imported.rows, hasLength(1));
+    expect(imported.rows.single.itemName, '');
+    expect(imported.rows.single.columnDrafts[7]?.dataString, '00123');
+  });
+
   test('removes only an escaped leading apostrophe from string cells', () {
     const columns = [
       ItemManagerXlsxColumn(
@@ -387,7 +425,7 @@ void main() {
       const columns = [
         ItemManagerXlsxColumn(
           columnId: 7,
-          name: '코드',
+          name: '  코드  ',
           editable: true,
           typeCode: TColumnType.TYPE_BASE,
         ),
@@ -467,9 +505,11 @@ void main() {
 Uint8List _itemWorkbookBytes({
   String itemHeader = '품목',
   String dateHeader = '날짜',
+  String itemName = '딸기잼',
   String codeValue = '00123',
   bool codeQuotePrefix = false,
   int dataRowNumber = 2,
+  bool dataRowHidden = false,
 }) {
   final archive = Archive();
   void addXml(String name, String content) {
@@ -499,7 +539,7 @@ Uint8List _itemWorkbookBytes({
   <cols><col min="2" max="2" width="14" customWidth="1"/></cols>
   <sheetData>
     <row r="1"><c r="A1" t="inlineStr"><is><t>$itemHeader</t></is></c><c r="B1" t="inlineStr"><is><t>주원료</t></is></c><c r="C1" t="inlineStr"><is><t>코드</t></is></c><c r="D1" t="inlineStr"><is><t>$dateHeader</t></is></c><c r="E1" t="inlineStr"><is><t>이미지</t></is></c><c r="G1" t="inlineStr"><is><t>품목</t></is></c></row>
-    <row r="$dataRowNumber" ht="24" customHeight="1"><c r="A$dataRowNumber" t="inlineStr"><is><t>딸기잼</t></is></c><c r="B$dataRowNumber" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c><c r="C$dataRowNumber" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c><c r="D$dataRowNumber" s="1"><v>45000</v></c><c r="E$dataRowNumber" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
+    <row r="$dataRowNumber" ht="24" customHeight="1"${dataRowHidden ? ' hidden="1"' : ''}><c r="A$dataRowNumber" t="inlineStr"><is><t>$itemName</t></is></c><c r="B$dataRowNumber" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c><c r="C$dataRowNumber" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c><c r="D$dataRowNumber" s="1"><v>45000</v></c><c r="E$dataRowNumber" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
     <row r="${dataRowNumber + 1}"/>
   </sheetData>
 </worksheet>''');

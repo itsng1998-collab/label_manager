@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 5차 검토
+- 제외 범위: 앞선 4차까지 확정한 정책은 재검토하지 않고 컬럼명 공백, 수식 cache, 숨김 행, 빈 품목명 행과 숫자 표시 형식을 확인했다.
+- 사용자 확정: 현재 라벨 컬럼명은 앞뒤 공백을 trim해 Excel 헤더 생성·매핑·중복 판정을 통일한다. 숨김 행도 가져오며, 품목명이 비고 다른 값이 있는 행은 draft에 가져온 뒤 저장 전 검증에서 차단한다.
+- 편집 완료: export 헤더, import descriptor, transform 오류 컬럼명과 중복 검증에 trim된 컬럼명을 사용한다. trim 결과가 빈 컬럼명은 Excel 작업을 실패시켜 빈 헤더 중단으로 인한 데이터 유실을 막는다.
+- 검토 결론: cached value 없는 수식은 빈 값, 숫자 표시는 앞서 확정한 raw 숫자 정책, warning 보존은 현재 계약대로 유지한다.
+- 테스트 추가: 현재 라벨 컬럼명이 `  코드  `여도 Excel `코드` 헤더가 해당 columnId에 매핑되는 계약을 고정했다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- 추가 테스트: 공백 포함 컬럼명의 export→import roundtrip, 숨김 데이터 행 포함, 빈 품목명 행 draft 유지를 고정했다.
+- 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 48개 통과. 변경 production/test `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공.
+- stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 4차 검토
 - 제외 범위: 앞선 3차 검토까지 확정한 정책은 재검토하지 않고 동일 표시명 컬럼, Mid 문자 단위, 숫자 정밀도, 경고 순서와 transform 대상 타입을 확인했다.
 - 사용자 확정: 현재 라벨에 표시명이 같은 컬럼이 둘 이상이면 Excel import/export를 실패시킨다. Mid의 N자는 눈에 보이는 문자 단위로 계산한다. 숫자 연산은 새 정밀 10진수 의존성 없이 기존 최대 소수 12자리 double 방식을 유지한다.
