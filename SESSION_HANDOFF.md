@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 2차 검토
+- 검토 범위: 직전 연산 의미/샘플 보완을 제외한 헤더 매핑, 전체 교체, 10*8 파생값, 취소/오류 상태와 관련 테스트. 과도한 보완/예외 처리는 추가하지 않는다.
+- 사용자 확정: 알려진 헤더가 중복되면 첫/마지막 값을 임의 선택하지 않고 가져오기를 실패시킨다. 10*8의 매수·발행수량은 자동 재계산하지 않고 Excel 값을 그대로 유지한다.
+- 편집 완료: 중복된 알려진 헤더를 발견하면 헤더명과 최초/중복 열 위치를 포함한 `FormatException`을 발생시킨다.
+- 테스트 추가: 코드 헤더가 C열과 D열에 중복된 workbook이 정확한 위치 메시지로 거부되는 계약을 고정했다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 42개 통과. 변경 production/test 2개 파일 `flutter analyze` 성공, diagnostics 0건, `git diff --check` 성공.
+- 검토 결론: 10*8 파생값은 사용자 확정대로 Excel 값을 유지했다. 주원료 payload 인코딩 실패는 빈 payload로 대체하면 데이터 유실이므로 상위 import 실패 표시를 유지했고, 전체 교체·취소·busy 해제 흐름도 기존 계약에 맞아 수정하지 않았다.
+- stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 연산 보완 검토
 - 검토 범위: 신규 품목관리 Excel 가져오기 연산 모델, 설정 다이얼로그, import 호출 흐름과 관련 테스트. 과도한 방어/예외 처리는 추가하지 않는다.
 - 사용자 확정: Mid는 왼쪽 N자 이후 원문을 설정값으로 대체하고, 원본 빈 셀은 연산 없이 빈 값으로 유지한다.

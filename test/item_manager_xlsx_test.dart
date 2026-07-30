@@ -229,6 +229,30 @@ void main() {
     );
   });
 
+  test('rejects duplicate known headers with both column positions', () {
+    expect(
+      () => itemManagerImportXlsxBytes(
+        _itemWorkbookBytes(dateHeader: '코드'),
+        columns: const [
+          ItemManagerXlsxColumn(
+            columnId: 7,
+            name: '코드',
+            editable: true,
+            typeCode: TColumnType.TYPE_BASE,
+          ),
+        ],
+        emptyElementPayload: 'UEsDempty',
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('코드 (C열, D열)'),
+        ),
+      ),
+    );
+  });
+
   test('removes only an escaped leading apostrophe from string cells', () {
     const columns = [
       ItemManagerXlsxColumn(
@@ -303,6 +327,7 @@ void main() {
 
 Uint8List _itemWorkbookBytes({
   String itemHeader = '품목',
+  String dateHeader = '날짜',
   String codeValue = '00123',
   bool codeQuotePrefix = false,
 }) {
@@ -333,7 +358,7 @@ Uint8List _itemWorkbookBytes({
   <dimension ref="A1:G3"/>
   <cols><col min="2" max="2" width="14" customWidth="1"/></cols>
   <sheetData>
-    <row r="1"><c r="A1" t="inlineStr"><is><t>$itemHeader</t></is></c><c r="B1" t="inlineStr"><is><t>주원료</t></is></c><c r="C1" t="inlineStr"><is><t>코드</t></is></c><c r="D1" t="inlineStr"><is><t>날짜</t></is></c><c r="E1" t="inlineStr"><is><t>이미지</t></is></c><c r="G1" t="inlineStr"><is><t>품목</t></is></c></row>
+    <row r="1"><c r="A1" t="inlineStr"><is><t>$itemHeader</t></is></c><c r="B1" t="inlineStr"><is><t>주원료</t></is></c><c r="C1" t="inlineStr"><is><t>코드</t></is></c><c r="D1" t="inlineStr"><is><t>$dateHeader</t></is></c><c r="E1" t="inlineStr"><is><t>이미지</t></is></c><c r="G1" t="inlineStr"><is><t>품목</t></is></c></row>
     <row r="2" ht="24" customHeight="1"><c r="A2" t="inlineStr"><is><t>딸기잼</t></is></c><c r="B2" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c><c r="C2" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c><c r="D2" s="1"><v>45000</v></c><c r="E2" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
     <row r="3"/>
   </sheetData>

@@ -343,7 +343,7 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
       column.name: _ItemManagerHeader.column(column),
   };
   final mappedHeaders = <int, _ItemManagerHeader>{};
-  final usedNames = <String>{};
+  final headerColumns = <String, int>{};
   int? blankHeaderColumn;
   for (var columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
     final header = _cellDisplayText(context, 0, columnIndex).trim();
@@ -352,9 +352,17 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
       break;
     }
     final descriptor = descriptors[header];
-    if (descriptor != null && usedNames.add(header)) {
-      mappedHeaders[columnIndex] = descriptor;
+    if (descriptor == null) continue;
+    final previousColumn = headerColumns[header];
+    if (previousColumn != null) {
+      throw FormatException(
+        '첫 번째 worksheet의 1행에 중복된 헤더가 있습니다: '
+        '$header (${_xlsxColumnName(previousColumn)}열, '
+        '${_xlsxColumnName(columnIndex)}열)',
+      );
     }
+    headerColumns[header] = columnIndex;
+    mappedHeaders[columnIndex] = descriptor;
   }
   if (!mappedHeaders.values.any((header) => header.kind == _HeaderKind.item)) {
     throw const FormatException('첫 번째 worksheet의 1행에 품목 헤더가 없습니다.');
