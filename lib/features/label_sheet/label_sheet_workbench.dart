@@ -2145,66 +2145,35 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || settings == null || physicalSize == null) return null;
-    final requestedRange = labelSheetPrintRange(sheet, physicalSize);
-    final sheetMetrics = sheet.metrics(settings);
-    final rowStart = math.min(requestedRange.rowStart, requestedRange.rowEnd);
-    final rowEnd = math.max(requestedRange.rowStart, requestedRange.rowEnd);
-    final columnStart = math.min(
-      requestedRange.columnStart,
-      requestedRange.columnEnd,
-    );
-    final columnEnd = math.max(
-      requestedRange.columnStart,
-      requestedRange.columnEnd,
-    );
-    final sourceBounds = ui.Rect.fromLTRB(
-      sheetMetrics.columnStart(columnStart),
-      sheetMetrics.rowStart(rowStart),
-      sheetMetrics.columnEnd(columnEnd),
-      sheetMetrics.rowEnd(rowEnd),
-    );
-    final resolvedMetrics = LabelSheetPrintPageMetrics(
-      labelWidthMm: metrics.labelWidthMm,
-      labelHeightMm: metrics.labelHeightMm,
-      dpi: metrics.dpi,
-      sourceWidthMm: fortuneLogicalPixelsToMillimeters(sourceBounds.width),
-      sourceHeightMm: fortuneLogicalPixelsToMillimeters(sourceBounds.height),
-    );
-    final layout = LabelSheetPrintLayout.resolve(
-      metrics: resolvedMetrics,
+    final geometry = resolveLabelSheetHybridPrintGeometry(
+      sheet: sheet,
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
       options: options,
-    );
-    final transform = FortunePrintTransform(
-      sourceLogicalBounds: sourceBounds,
-      dpi: resolvedMetrics.dpi,
-      contentLeftMm: layout.contentLeftMm,
-      contentTopMm: layout.contentTopMm,
-      clipRightMm: layout.clipRightMm,
-      clipBottomMm: layout.clipBottomMm,
-      nativeAllowed: !options.rotateQuarterTurns,
     );
     final candidates = fortuneBuildNativeCandidates(
       settings: settings,
       sheet: sheet,
-      range: requestedRange,
-      transform: transform,
+      range: geometry.range,
+      transform: geometry.transform,
     );
     final descriptors = preflightLabelSheetEzplCandidates(
       sheet: sheet,
-      transform: transform,
+      transform: geometry.transform,
       candidates: candidates,
     );
     final plan = fortuneFinalizeHybridRenderPlan(
       settings: settings,
       sheet: sheet,
-      range: requestedRange,
-      transform: transform,
+      range: geometry.range,
+      transform: geometry.transform,
       candidates: candidates,
       approvals: descriptors.map((descriptor) => descriptor.approval),
     );
     final capture = await _controller.captureHybridPlanAsPng(
       plan,
-      pixelRatio: resolvedMetrics.dpi / fortuneSheetLogicalPixelsPerInch,
+      pixelRatio: geometry.metrics.dpi / fortuneSheetLogicalPixelsPerInch,
       includeCellBorders: true,
       outputLineHeightMultiplier: lineSpacingPercent == null
           ? null
@@ -2213,7 +2182,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (capture == null) return null;
     final bytes = await buildLabelSheetPlannedHybridEzplBytes(
       filteredPngBytes: capture.pngBytes,
-      metrics: resolvedMetrics,
+      metrics: geometry.metrics,
       options: options,
       plan: plan,
       descriptors: descriptors,
@@ -2222,7 +2191,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       bytes: bytes,
       sheet: capture.sheet,
       range: capture.range,
-      metrics: resolvedMetrics,
+      metrics: geometry.metrics,
       plan: plan,
     );
   }

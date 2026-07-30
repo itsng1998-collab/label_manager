@@ -61,6 +61,57 @@ void main() {
     expect(range.columnEnd, 2);
   });
 
+  test('hybrid geometry resolves source metrics and print transform', () {
+    final geometry = resolveLabelSheetHybridPrintGeometry(
+      sheet: fs.FortuneSheet(
+        id: 'sheet',
+        name: 'Sheet',
+        rowHeights: const <int, double>{0: 20},
+        columnWidths: const <int, double>{0: 30},
+        defaultRowHeight: 10,
+        defaultColWidth: 5,
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 10,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 10,
+        labelHeightMm: 10,
+        dpi: 203,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 2,
+        topMarginMm: 3,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(geometry.range.rowEnd, 2);
+    expect(geometry.range.columnEnd, 2);
+    expect(
+      geometry.transform.sourceLogicalBounds,
+      const Rect.fromLTWH(0, 0, 43, 43),
+    );
+    expect(
+      geometry.metrics.sourceWidthMm,
+      fs.fortuneLogicalPixelsToMillimeters(43),
+    );
+    expect(
+      geometry.metrics.sourceHeightMm,
+      fs.fortuneLogicalPixelsToMillimeters(43),
+    );
+    expect(geometry.transform.contentLeftMm, 2);
+    expect(geometry.transform.contentTopMm, 3);
+    expect(geometry.transform.clipRightMm, 10);
+    expect(geometry.transform.clipBottomMm, 10);
+    expect(geometry.transform.nativeAllowed, isTrue);
+  });
+
   test('physical layout keeps source size and applies margin push and clip', () {
     final layout = LabelSheetPrintLayout.resolve(
       metrics: const LabelSheetPrintPageMetrics(

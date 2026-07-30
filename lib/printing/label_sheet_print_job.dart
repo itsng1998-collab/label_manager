@@ -130,6 +130,63 @@ int _lastPrintIndexForExtent(
   return index;
 }
 
+class LabelSheetHybridPrintGeometry {
+  const LabelSheetHybridPrintGeometry({
+    required this.range,
+    required this.metrics,
+    required this.transform,
+  });
+
+  final FortuneRange range;
+  final LabelSheetPrintPageMetrics metrics;
+  final FortunePrintTransform transform;
+}
+
+LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+}) {
+  final range = labelSheetPrintRange(sheet, physicalSize);
+  final sheetMetrics = sheet.metrics(settings);
+  final rowStart = math.min(range.rowStart, range.rowEnd);
+  final rowEnd = math.max(range.rowStart, range.rowEnd);
+  final columnStart = math.min(range.columnStart, range.columnEnd);
+  final columnEnd = math.max(range.columnStart, range.columnEnd);
+  final sourceBounds = ui.Rect.fromLTRB(
+    sheetMetrics.columnStart(columnStart),
+    sheetMetrics.rowStart(rowStart),
+    sheetMetrics.columnEnd(columnEnd),
+    sheetMetrics.rowEnd(rowEnd),
+  );
+  final resolvedMetrics = LabelSheetPrintPageMetrics(
+    labelWidthMm: metrics.labelWidthMm,
+    labelHeightMm: metrics.labelHeightMm,
+    dpi: metrics.dpi,
+    sourceWidthMm: fortuneLogicalPixelsToMillimeters(sourceBounds.width),
+    sourceHeightMm: fortuneLogicalPixelsToMillimeters(sourceBounds.height),
+  );
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: resolvedMetrics,
+    options: options,
+  );
+  return LabelSheetHybridPrintGeometry(
+    range: range,
+    metrics: resolvedMetrics,
+    transform: FortunePrintTransform(
+      sourceLogicalBounds: sourceBounds,
+      dpi: resolvedMetrics.dpi,
+      contentLeftMm: layout.contentLeftMm,
+      contentTopMm: layout.contentTopMm,
+      clipRightMm: layout.clipRightMm,
+      clipBottomMm: layout.clipBottomMm,
+      nativeAllowed: !options.rotateQuarterTurns,
+    ),
+  );
+}
+
 class LabelSheetPrintLayout {
   const LabelSheetPrintLayout({
     required this.pageWidthMm,
