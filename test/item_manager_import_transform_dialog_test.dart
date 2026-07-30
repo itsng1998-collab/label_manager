@@ -76,7 +76,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('item-import-operation:item')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Mid (왼쪽 N자 뒤에 추가)').last);
+    await tester.tap(find.text('Mid (왼쪽 N자 이후 대체)').last);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('item-import-value:item')),
@@ -90,6 +90,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(selected?.itemName?.apply('서울'), '서초등학교');
+  });
+
+  testWidgets('shows the first non-empty imported value as the sample', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showItemManagerImportTransformDialog(
+                context,
+                result: _resultWithLeadingEmptyValues(),
+                columns: _columns,
+              ),
+              child: const Text('열기'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('열기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('둘째 품목'), findsOneWidget);
+    expect(find.text('2500'), findsOneWidget);
   });
 
   testWidgets('configures division decimal places', (tester) async {
@@ -165,3 +192,25 @@ ItemManagerXlsxImportResult _result() => ItemManagerXlsxImportResult(
     ),
   ],
 );
+
+ItemManagerXlsxImportResult _resultWithLeadingEmptyValues() =>
+    ItemManagerXlsxImportResult(
+      rows: [
+        ItemManagerImportedRow(
+          itemName: '',
+          elementPlain: '첫 행을 유지하는 다른 값',
+          elementPayload: 'UEsDempty',
+          columnDrafts: const {
+            7: ItemManagerColumnDraft(editable: true, dataString: ''),
+          },
+        ),
+        ItemManagerImportedRow(
+          itemName: '둘째 품목',
+          elementPlain: '',
+          elementPayload: 'UEsDempty',
+          columnDrafts: const {
+            7: ItemManagerColumnDraft(editable: true, dataString: '2500'),
+          },
+        ),
+      ],
+    );

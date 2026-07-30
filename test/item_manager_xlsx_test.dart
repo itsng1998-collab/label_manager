@@ -62,11 +62,18 @@ void main() {
     );
     expect(
       const ItemManagerImportTransform(
-        operation: ItemManagerImportTransformOperation.insertAfter,
+        operation: ItemManagerImportTransformOperation.replaceAfter,
         value: '초등학교',
         position: 1,
       ).apply('서울'),
       '서초등학교',
+    );
+    expect(
+      const ItemManagerImportTransform(
+        operation: ItemManagerImportTransformOperation.append,
+        value: '초등학교',
+      ).apply(''),
+      '',
     );
   });
 

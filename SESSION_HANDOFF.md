@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 연산 보완 검토
+- 검토 범위: 신규 품목관리 Excel 가져오기 연산 모델, 설정 다이얼로그, import 호출 흐름과 관련 테스트. 과도한 방어/예외 처리는 추가하지 않는다.
+- 사용자 확정: Mid는 왼쪽 N자 이후 원문을 설정값으로 대체하고, 원본 빈 셀은 연산 없이 빈 값으로 유지한다.
+- 편집 완료: 오해를 만드는 `insertAfter`를 `replaceAfter`로 변경하고 UI를 `Mid (왼쪽 N자 이후 대체)`로 명확히 했다. 연산 설정 샘플은 첫 행 고정값 대신 해당 대상의 첫 non-empty 가져오기 값으로 표시한다.
+- 테스트 추가: 빈 셀 연산 생략 계약과 첫 non-empty 샘플 표시를 고정했다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- 검증 완료: `item_manager_xlsx_test.dart`, `item_manager_import_transform_dialog_test.dart` focused 테스트 12개 통과. 변경 production/test 4개 파일 `flutter analyze` 성공, diagnostics 0건, `git diff --check` 성공.
+- 검토 결론: import 취소/경고/busy 해제, 숫자 오류·0 나눗셈·행/컬럼 오류 표시는 문제없어 유지했다. nullable 폼 값은 입력 삭제 중 상태 표현에 필요하고, `editable=false` 컬럼 제외는 기존 import 계약을 바꾸므로 추가 보완하지 않았다.
+- stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, 관련 테스트 2개, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 앱 버전 1.0.1 지정
 - 사용자 요청에 따라 `pubspec.yaml` 버전을 `1.0.2`에서 `1.0.1`로 변경한다. 명시 버전 요청이므로 자동 PATCH 증가를 적용하지 않는다.
 - `DebugLogger`는 `PackageInfo`의 앱 버전을 사용하므로 다음 실행 로그에도 `1.0.1`이 기록된다.

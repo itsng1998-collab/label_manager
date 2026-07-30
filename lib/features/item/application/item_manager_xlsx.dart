@@ -42,7 +42,7 @@ enum ItemManagerImportTransformOperation {
   divide,
   append,
   prepend,
-  insertAfter,
+  replaceAfter,
 }
 
 class ItemManagerImportTransform {
@@ -89,7 +89,7 @@ class ItemManagerImportTransform {
         return '$source$value';
       case ItemManagerImportTransformOperation.prepend:
         return '$value$source';
-      case ItemManagerImportTransformOperation.insertAfter:
+      case ItemManagerImportTransformOperation.replaceAfter:
         final end = position.clamp(0, source.length);
         return '${source.substring(0, end)}$value';
     }

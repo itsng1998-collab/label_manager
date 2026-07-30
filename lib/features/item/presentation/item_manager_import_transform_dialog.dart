@@ -39,12 +39,13 @@ class _ItemManagerImportTransformDialogState
   @override
   void initState() {
     super.initState();
-    final firstRow = widget.result.rows.first;
     _targets = [
       _TransformTarget(
         key: 'item',
         label: '품목',
-        sample: firstRow.itemName,
+        sample: widget.result.rows
+            .map((row) => row.itemName)
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
       ),
       for (final column in widget.columns)
         if (column.typeCode != TColumnType.TYPE_IMAGE &&
@@ -54,7 +55,12 @@ class _ItemManagerImportTransformDialogState
           _TransformTarget(
             key: 'column:${column.columnId}',
             label: column.name,
-            sample: firstRow.columnDrafts[column.columnId]?.dataString ?? '',
+            sample: widget.result.rows
+              .map(
+                (row) =>
+                  row.columnDrafts[column.columnId]?.dataString ?? '',
+              )
+              .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
             columnId: column.columnId,
           ),
     ];
@@ -264,7 +270,7 @@ class _TransformRow extends StatelessWidget {
           ),
         ],
         if (draft.operation ==
-            ItemManagerImportTransformOperation.insertAfter) ...[
+          ItemManagerImportTransformOperation.replaceAfter) ...[
           const SizedBox(width: 6),
           SizedBox(
             width: 78,
@@ -341,6 +347,6 @@ String _operationLabel(ItemManagerImportTransformOperation operation) =>
       ItemManagerImportTransformOperation.divide => '÷ 나누기',
       ItemManagerImportTransformOperation.append => 'Right (뒤에 추가)',
       ItemManagerImportTransformOperation.prepend => 'Left (앞에 추가)',
-      ItemManagerImportTransformOperation.insertAfter =>
-        'Mid (왼쪽 N자 뒤에 추가)',
+      ItemManagerImportTransformOperation.replaceAfter =>
+        'Mid (왼쪽 N자 이후 대체)',
     };
