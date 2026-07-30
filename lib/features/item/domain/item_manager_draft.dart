@@ -1107,11 +1107,9 @@ class ItemManagerDraftController extends ChangeNotifier {
         'Item row limit exceeded: ${ItemManagerLimits.maxRows}.',
       );
     }
-    for (final row in _rows) {
-      final sourceItemId = row.sourceItemId;
-      if (sourceItemId == null) continue;
-      _deletedSourceItemIds.add(sourceItemId);
-    }
+    final deletedSourceItemIds = {
+      for (final row in _rows) ?row.sourceItemId,
+    };
     final replacements = [
       for (var index = 0; index < importedRows.length; index += 1)
         ItemManagerDraftRow.newRow(
@@ -1129,6 +1127,7 @@ class ItemManagerDraftController extends ChangeNotifier {
         ),
     ];
     _validateRows(replacements);
+    _deletedSourceItemIds.addAll(deletedSourceItemIds);
     _baselineRows = const [];
     _deletedRowsBySourceItemId.clear();
     scopedColumnContents = TColumnContentScopedView(const {});
