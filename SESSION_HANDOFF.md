@@ -1,5 +1,18 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 9차 검토
+- 앞선 8차까지 확정한 정책은 재검토하지 않고 긴 숫자 연산 오류 메시지의 dialog 표시 경계를 확인한다.
+- 사용자 확정: 숫자 연산이 불가능한 Excel 셀의 원본 값은 오류 메시지에 전체 표시를 유지한다.
+- 확인된 문제: 숫자가 아닌 긴 셀 원문이 오류 Text 높이를 제한 없이 늘려 고정 높이 연산 dialog에서 `RenderFlex overflow`를 일으킬 수 있다.
+- presentation 편집 완료: 오류 영역을 최대 96px로 제한하고 내부 스크롤로 전체 원문을 확인하게 했다. 원본 오류 문구와 transform 동작은 변경하지 않았다.
+- 테스트 편집 완료: 긴 비숫자 원문 전체가 오류 Text에 보존되고 오류 영역 높이가 96px 이하이며 렌더링 예외가 없는지 기존 뒤 행 오류 테스트에 추가했다.
+- 문서 편집 완료: `doc/item_manager_modify.txt`에 원본 값 전체 표시와 긴 오류 내부 스크롤 정책을 반영했다.
+- 검토 결론: 다수 컬럼은 `Expanded + ListView`로 스크롤되고, Mid 위치는 검증 후 clamp되며, parse warning은 변환 결과에 보존되어 성공 직후 표시되므로 추가 보완하지 않았다.
+- 검증 완료: dialog focused 테스트 8개 및 Excel parser/연산·dialog·draft focused 테스트 54개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
+- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, `test/item_manager_import_transform_dialog_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 8차 검토
 - 사용자 확정: 실제 전체 행 연산 실패 시 다이얼로그를 유지하고 오류를 표시한다. 연산 종류를 바꿔도 입력값을 유지하며, lazy list의 화면 밖 설정을 포함한 모든 설정을 검증한다.
 - presentation 편집 완료: transform dialog가 모든 draft를 수동 검증하고 실제 전체 행 변환까지 한 번 수행한다. 실패 시 inline 오류를 표시하고 유지하며, 성공 시 설정과 변환 완료 결과를 함께 반환한다.

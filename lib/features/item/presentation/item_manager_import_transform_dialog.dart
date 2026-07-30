@@ -141,10 +141,17 @@ class _ItemManagerImportTransformDialogState
             const Text('가져온 값을 품목관리에 적용하기 전에 컬럼별 연산을 설정합니다.'),
             if (_applyError case final error?) ...[
               const SizedBox(height: 8),
-              Text(
-                error,
-                key: const Key('item-import-transform-error'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 96),
+                child: SingleChildScrollView(
+                  child: Text(
+                    error,
+                    key: const Key('item-import-transform-error'),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
               ),
             ],
             const SizedBox(height: 12),

@@ -246,12 +246,21 @@ void main() {
     await tester.tap(find.byKey(const Key('item-import-transform-apply')));
     await tester.pump();
 
+    expect(tester.takeException(), isNull);
     expect(selected, isNull);
     expect(find.text('Excel 가져오기 연산 설정'), findsOneWidget);
     expect(
       find.textContaining('Excel 3행 가격 연산 실패'),
       findsOneWidget,
     );
+    final errorFinder = find.byKey(
+      const Key('item-import-transform-error'),
+    );
+    expect(tester.widget<Text>(errorFinder).data, contains(_longInvalidNumber));
+    final errorBox = find
+        .ancestor(of: errorFinder, matching: find.byType(ConstrainedBox))
+        .first;
+    expect(tester.getSize(errorBox).height, lessThanOrEqualTo(96));
   });
 
   testWidgets('keeps the setting value when the operation changes', (
@@ -358,6 +367,8 @@ const _columns = [
   ),
 ];
 
+final _longInvalidNumber = List.filled(2000, '서울').join();
+
 final _manyColumns = [
   for (var id = 1; id <= 12; id++)
     ItemManagerXlsxColumn(
@@ -421,8 +432,11 @@ ItemManagerXlsxImportResult _resultWithInvalidLaterNumber() =>
           elementPlain: '',
           elementPayload: 'UEsDempty',
           excelRowNumber: 3,
-          columnDrafts: const {
-            7: ItemManagerColumnDraft(editable: true, dataString: '서울'),
+          columnDrafts: {
+            7: ItemManagerColumnDraft(
+              editable: true,
+              dataString: _longInvalidNumber,
+            ),
           },
         ),
       ],
