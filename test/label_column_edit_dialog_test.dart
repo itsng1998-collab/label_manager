@@ -969,7 +969,7 @@ void main() {
     await _pumpDialog(
       tester,
       loadCustomer: (_) async => [
-        for (var index = 0; index < 20; index++)
+        for (var index = 0; index < 158; index++)
           CustomerColumnCandidate(
             id: index + 1,
             customerId: 7,
@@ -987,16 +987,31 @@ void main() {
 
     final tableFinder = find.byKey(const Key('label-column-user-editor'));
     final table = tester.widget(tableFinder) as dynamic;
-    expect(table.scrollToIndex, 20);
+    expect(table.scrollToIndex, 158);
     final verticalLists = tester.widgetList<ListView>(
       find.descendant(of: tableFinder, matching: find.byType(ListView)),
     );
+    final verticalPositions = [
+      for (final list in verticalLists)
+        if (list.controller?.hasClients == true)
+          (
+            pixels: list.controller!.position.pixels,
+            max: list.controller!.position.maxScrollExtent,
+          ),
+    ];
     expect(
-      verticalLists.any(
-        (list) => list.controller?.hasClients == true &&
-            list.controller!.position.pixels > 0,
+      verticalPositions,
+      everyElement(
+        isA<({double max, double pixels})>().having(
+          (position) => position.max - position.pixels,
+          'remaining extent',
+          lessThan(1),
+        ),
       ),
-      isTrue,
+    );
+    expect(
+      find.byKey(const ValueKey('customer-keyword:customer-draft:1')),
+      findsOneWidget,
     );
   });
 

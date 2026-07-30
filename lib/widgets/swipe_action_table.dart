@@ -251,12 +251,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (widget.scrollToIndex != null &&
         (oldWidget.scrollToIndex != widget.scrollToIndex ||
             oldWidget.rows.length != widget.rows.length)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToRow());
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _scrollToRow();
+        await _scrollToRow();
+      });
     }
     _syncAutoWidthsIfNeeded();
   }
 
-  void _scrollToRow() {
+  Future<void> _scrollToRow() async {
     if (!mounted || !_vScrollBody.hasClients) return;
     final index = widget.scrollToIndex;
     if (index == null || index < 0 || index >= widget.rows.length) return;
@@ -264,7 +267,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       0.0,
       _vScrollBody.position.maxScrollExtent,
     );
-    _vScrollBody.animateTo(
+    await _vScrollBody.animateTo(
       target,
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,

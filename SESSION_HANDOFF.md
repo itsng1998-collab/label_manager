@@ -1,5 +1,18 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 사용자 항목 추가 행 자동 스크롤
+- 사용자 제출 화면 기준 기존 사용자 항목 158행에서 신규 행 추가 후 마지막 inline editor가 viewport로 자동 스크롤되지 않는다.
+- 현재 `_addCustomerRow()`는 마지막 index를 `SwipeActionTable.scrollToIndex`에 전달하고 공용 테이블은 행 수 변경 후 post-frame animate를 수행한다. 기존 테스트는 20행에서 임의 ListView offset만 확인해 실제 신규 행 노출을 보장하지 못한다.
+- 수정 예정: 158행 회귀 테스트에서 신규 draft editor의 실제 viewport 생성과 body scroll 위치를 검증하고, 결과에 따라 공용 테이블의 렌더 완료 스크롤을 보강한다.
+- 원인 확정: 159번째 신규 행 추가 후 `maxScrollExtent=4172`, 최종 offset `4144`로 행 높이 28px만큼 부족했다. 첫 post-frame 시점에는 이전 158행 extent까지만 이동하고 신규 sliver 반영은 다음 frame에 완료된다.
+- 1차 보완 결과: 첫 post-frame 안에서 다음 post-frame을 예약하면 첫 animation 완료 전에 두 번째 callback이 실행되어 offset이 여전히 28px 부족했다.
+- 편집 완료: `_scrollToRow()`가 `animateTo` 완료를 반환하도록 바꾸고, 첫 animation으로 신규 sliver를 materialize한 뒤 완료 시점의 확정된 extent를 사용해 두 번째 이동을 실행한다.
+- 집중 검증: 158개 기존 행에 159번째 draft를 추가하는 `adding a user row scrolls to its inline editor` 테스트 통과. 두 세로 controller가 확정된 max extent에 도달하고 신규 keyword editor가 viewport에 존재함을 확인했다.
+- 최종 검증 예정: `test/swipe_action_table_test.dart`, `test/label_column_edit_dialog_test.dart` 전체 실행 후 변경 Dart 2개 analyzer 및 `git diff --check`.
+- 최종 검증: 공용 테이블/라벨 항목 편집 관련 테스트 46개 통과, 변경 Dart 2개 analyzer `No issues found` (1.5초), diagnostics 0건, `git diff --check` 통과.
+- 완료 결과: 사용자 항목 수정 모드에서 대량 행 끝에 신규 행을 추가하면 첫 animation 완료 후 확정된 scroll extent로 다시 이동하여 추가된 inline editor가 자동으로 보인다.
+- stage/commit 대상: `lib/widgets/swipe_action_table.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+
 ## 완료: 라벨 항목 저장 schema 판정 수정
 - 사용자 제출 이미지/최신 로그 `app_2026-07-30_14-45-52.log` 분석: 라벨 항목 158행 조회는 성공했지만 저장 전 capability query 결과가 `hasCoreSchema=false`여서 `Required label column schema is not supported.`가 발생했다.
 - 레거시 비교: `.tmp/LabelManager/LabelManagerLib/Column.cpp`의 조회/INSERT/UPDATE와 현재 실제 조회/저장 SQL은 테이블을 schema 없이 참조한다. capability 검사만 `dbo.`로 고정되어 연결 계정 기본 schema의 테이블을 오탐한다.
