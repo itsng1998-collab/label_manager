@@ -118,6 +118,7 @@ import 'package:label_manager/features/status_print/presentation/status_print_di
 import 'package:label_manager/features/login_history/presentation/login_history_page.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
+import 'package:label_manager/widgets/settings_name_edit_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 bool itemManagerSearchVisibleForTab(Object? tabValue) =>
@@ -9508,6 +9509,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     _labels = List<LabelSize>.from(widget.labels);
     _originalLabels = List<LabelSize>.from(widget.labels);
     _selectedBrandId = widget.selectedBrand?.brandId ?? widget.brandId;
+    _selectedLabelSizeId = widget.currentLabelSizeId();
     _labelNameEditController.addListener(_handleLabelNameEditChanged);
   }
 
@@ -9630,6 +9632,17 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildBrandSelector(),
+              const SizedBox(height: 6),
+              SettingsCrudToolbar(
+                addTooltip: '라벨 추가',
+                editTooltip: '선택 라벨 수정',
+                deleteTooltip: '선택 라벨 삭제',
+                enabled: !_hasLabelActionInProgress,
+                hasSelection: _selectedLabelIndex != null,
+                onAdd: _openLabelAddDialog,
+                onEdit: _openSelectedLabelEditDialog,
+                onDelete: _deleteSelectedLabel,
+              ),
               const SizedBox(height: 6),
               Expanded(
                 child: Row(
@@ -9758,47 +9771,95 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   static String _labelNameText(LabelSize label) => label.labelSizeName;
 
   Widget _buildLabelTable() {
-    return EditableSwipeNameTable<LabelSize>(
+    return SwipeActionTable<LabelSize>(
       rows: _labels,
-      header: '라벨 이름',
-      text: _labelNameText,
-      editController: _labelNameEditController,
-      editFocusNode: _labelNameEditFocusNode,
-      editingIndex: _editingIndex,
-      insertActionIndex: _insertActionIndex,
-      inserting: _insertingLabel,
-      canSubmit: _canSubmitLabelNameEdit,
-      onToggleEdit: _toggleLabelNameEdit,
-      onToggleInsert: _toggleLabelInsert,
-      onEmptyInsert: _orderEditMode
-          ? null
-          : () => _startLabelInsertAt(0, actionIndex: null),
-      onCancelEdit: _cancelLabelNameEdit,
-      onSubmitEdit: _submitLabelNameEdit,
-      onDeleteRow: _deleteLabel,
-      onNameDoubleTap: _handleLabelNameDoubleTap,
-      inlineTrailingBuilder: _buildLabelInlineTrailing,
-      enabled: !_orderEditMode && !_submittingLabelNameEdit && !_deletingLabel,
       fillLastColumn: true,
       autoFitColumns: false,
-      rowSwipeEnabled: !_orderEditMode,
-      keepRowContentOnSwipe: true,
-      rowTooltip: _orderEditMode
-          ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
-          : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
-      showActionsWhenEmpty: true,
       rowNumberText: _labelRowNumberText,
       rowReorderEnabled: _orderEditMode,
       selectedIndex: _selectedLabelIndex,
       onRowSelected: _handleLabelRowSelected,
       onRowReorder: _moveLabelRow,
-      headerTrailingBuilder: (context, hasInlineEditor) =>
-          _OrderModeHeaderButton(
-            enabled:
-                !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
+      columns: [
+        SwipeActionTableColumn<LabelSize>(
+          header: '라벨 이름',
+          text: _labelNameText,
+          initialWidth: 220,
+          minWidth: 120,
+          fillRemaining: true,
+          onDoubleTap: _handleLabelNameDoubleTap,
+          headerTrailingBuilder: (context, _) => _OrderModeHeaderButton(
+            enabled: !_orderEditMode && !_hasLabelActionInProgress,
             onPressed: _startOrderEditMode,
           ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _openLabelAddDialog() async {
+    if (_hasLabelActionInProgress) return;
+    _startLabelInsertAt(_labels.length, actionIndex: null);
+    if (!_insertingLabel) return;
+    final result = await _showLabelNameDialog(title: '라벨 추가');
+    if (!mounted) return;
+    if (result == null) {
+      _cancelLabelNameEdit();
+      return;
+    }
+    final currentUseScale = label.labelSizeSetup?.useScale ?? false;
+    if (result.name == label.labelSizeName.trim() &&
+        result.useScale == currentUseScale) {
+      _cancelLabelNameEdit();
+      return;
+    }
+    _labelNameEditController.text = result.name;
+    _labelUseScaleEditValue = result.useScale;
+    await _submitLabelNameEdit(result.name);
+  }
+
+  Future<void> _openSelectedLabelEditDialog() async {
+    final index = _selectedLabelIndex;
+    if (index == null || _hasLabelActionInProgress) return;
+    final label = _labels[index];
+    _toggleLabelNameEdit(label, index);
+    final result = await _showLabelNameDialog(
+      title: '라벨 수정',
+      initialName: label.labelSizeName,
+      initialUseScale: label.labelSizeSetup?.useScale ?? false,
+    );
+    if (!mounted) return;
+    if (result == null) {
+      _cancelLabelNameEdit();
+      return;
+    }
+    _labelNameEditController.text = result.name;
+    _labelUseScaleEditValue = result.useScale;
+    await _submitLabelNameEdit(result.name);
+  }
+
+  Future<SettingsNameEditResult?> _showLabelNameDialog({
+    required String title,
+    String initialName = '',
+    bool initialUseScale = false,
+  }) {
+    return showBlockingModelessOverlayDialog<SettingsNameEditResult>(
+      context: context,
+      builder: (dialogContext, close) => SettingsNameEditDialog(
+        title: title,
+        initialName: initialName,
+        showUseScale: true,
+        initialUseScale: initialUseScale,
+        onCancel: () => close(null),
+        onSubmit: close,
+      ),
+    );
+  }
+
+  void _deleteSelectedLabel() {
+    final index = _selectedLabelIndex;
+    if (index == null || _hasLabelActionInProgress) return;
+    _deleteLabel(_labels[index], index);
   }
 
   Widget _buildOrderMoveRail() {
@@ -10039,34 +10100,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       return;
     }
 
-    debugLog(
-      'updateLabelNameAndScale confirm dialog labelSizeId=${label.labelSizeId} '
-      'old=${label.labelSizeName} new=$labelName useScale=$_labelUseScaleEditValue',
-    );
-    final confirmed = await showBlockingModelessOverlayDialog<bool>(
-      context: context,
-      builder: (dialogContext, close) => AlertDialog(
-        content: Text("'$labelName' 명으로 변경하시겠습니까?"),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('취소')),
-          TextButton(onPressed: () => close(true), child: const Text('확인')),
-        ],
-      ),
-    );
-
-    if (!mounted) {
-      debugLog('updateLabelNameAndScale aborted unmounted after dialog');
-      return;
-    }
-
-    if (confirmed != true) {
-      debugLog(
-        'updateLabelNameAndScale cancelledByUser labelSizeId=${label.labelSizeId} keepEditing',
-      );
-      _labelNameEditFocusNode.requestFocus();
-      return;
-    }
-
     final useScale = _labelUseScaleEditValue;
     setState(() => _submittingLabelNameEdit = true);
 
@@ -10092,8 +10125,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           ),
         );
         if (mounted) {
-          setState(() => _submittingLabelNameEdit = false);
-          _labelNameEditFocusNode.requestFocus();
+          _cancelLabelNameEdit();
         }
       }
       return;
@@ -10153,36 +10185,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     }
 
     setState(() => _submittingLabelNameEdit = true);
-    debugLog(
-      'insertLabelName confirmDialog show index=$insertIndex name=$labelName',
-    );
-    final confirmed = await showBlockingModelessOverlayDialog<bool>(
-      context: context,
-      builder: (dialogContext, close) => AlertDialog(
-        content: Text("'$labelName' 라벨을 추가하시겠습니까?"),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('취소')),
-          TextButton(onPressed: () => close(true), child: const Text('확인')),
-        ],
-      ),
-    );
-    debugLog(
-      'insertLabelName confirmDialog result=$confirmed index=$insertIndex',
-    );
-
-    if (!mounted) {
-      debugLog('insertLabelName aborted unmounted after dialog');
-      return;
-    }
-
-    if (confirmed != true) {
-      debugLog(
-        'insertLabelName cancelledByUser index=$insertIndex keepEditing',
-      );
-      setState(() => _submittingLabelNameEdit = false);
-      _labelNameEditFocusNode.requestFocus();
-      return;
-    }
 
     showSnackBar(
       context,
@@ -10245,7 +10247,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           ),
         );
         if (mounted) {
-          _labelNameEditFocusNode.requestFocus();
+          _cancelLabelNameEdit();
         }
       }
       return;
@@ -10975,6 +10977,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     super.initState();
     _brands = List<Brand>.from(widget.brands);
     _originalBrands = List<Brand>.from(widget.brands);
+    _selectedBrandId = widget.selectedBrand?.brandId;
     _brandNameEditController.addListener(_handleBrandNameEditChanged);
   }
 
@@ -11047,64 +11050,123 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       footer: _orderEditMode ? _buildBrandOrderEditFooter() : null,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SettingsCrudToolbar(
+              addTooltip: '브랜드 추가',
+              editTooltip: '선택 브랜드 수정',
+              deleteTooltip: '선택 브랜드 삭제',
+              enabled:
+                  !_submissionGate.submitting &&
+                  !_applyingOrderChanges &&
+                  !_orderEditMode,
+              hasSelection: _selectedBrandIndex != null,
+              onAdd: _openBrandAddDialog,
+              onEdit: _openSelectedBrandEditDialog,
+              onDelete: _deleteSelectedBrand,
+            ),
+            const SizedBox(height: 6),
             Expanded(
-              child: EditableSwipeNameTable<Brand>(
-                rows: _brands,
-                header: '브랜드 이름',
-                text: _brandNameText,
-                editController: _brandNameEditController,
-                editFocusNode: _brandNameEditFocusNode,
-                editingIndex: _editingIndex,
-                insertActionIndex: _insertActionIndex,
-                inserting: _insertingBrand,
-                canSubmit: _canSubmitBrandNameEdit,
-                onToggleEdit: _toggleBrandNameEdit,
-                onToggleInsert: _toggleBrandInsert,
-                onEmptyInsert: _orderEditMode
-                    ? null
-                    : () => _startBrandInsertAt(0, actionIndex: null),
-                onCancelEdit: _cancelBrandNameEdit,
-                onSubmitEdit: _submitBrandNameEdit,
-                onDeleteRow: _deleteBrand,
-                onNameDoubleTap: _handleBrandNameDoubleTap,
-                fillLastColumn: true,
-                autoFitColumns: false,
-                rowSwipeEnabled: !_orderEditMode,
-                rowReorderEnabled: _orderEditMode,
-                selectedIndex: _selectedBrandIndex,
-                onRowSelected: _handleBrandRowSelected,
-                onRowReorder: _moveBrandRow,
-                enabled:
-                    !_submissionGate.submitting &&
-                    !_applyingOrderChanges &&
-                    !_orderEditMode,
-                keepRowContentOnSwipe: true,
-                rowTooltip: _orderEditMode
-                    ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
-                    : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
-                showActionsWhenEmpty: true,
-                rowNumberText: _brandRowNumberText,
-                headerTrailingBuilder: (context, hasInlineEditor) =>
-                    _OrderModeHeaderButton(
-                      enabled:
-                          !_orderEditMode &&
-                          !_submissionGate.submitting &&
-                          !hasInlineEditor,
-                      onPressed: _startBrandOrderEditMode,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: SwipeActionTable<Brand>(
+                      rows: _brands,
+                      fillLastColumn: true,
+                      autoFitColumns: false,
+                      rowReorderEnabled: _orderEditMode,
+                      selectedIndex: _selectedBrandIndex,
+                      onRowSelected: _handleBrandRowSelected,
+                      onRowReorder: _moveBrandRow,
+                      rowNumberText: _brandRowNumberText,
+                      columns: [
+                        SwipeActionTableColumn<Brand>(
+                          header: '브랜드 이름',
+                          text: _brandNameText,
+                          initialWidth: 220,
+                          minWidth: 120,
+                          fillRemaining: true,
+                          onDoubleTap: _handleBrandNameDoubleTap,
+                          headerTrailingBuilder: (context, _) =>
+                              _OrderModeHeaderButton(
+                                enabled:
+                                    !_orderEditMode &&
+                                    !_submissionGate.submitting,
+                                onPressed: _startBrandOrderEditMode,
+                              ),
+                        ),
+                      ],
                     ),
+                  ),
+                  if (_orderEditMode) ...[
+                    const SizedBox(width: 6),
+                    _buildBrandOrderMoveRail(),
+                  ],
+                ],
               ),
             ),
-            if (_orderEditMode) ...[
-              const SizedBox(width: 6),
-              _buildBrandOrderMoveRail(),
-            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _openBrandAddDialog() async {
+    if (_submissionGate.submitting || _orderEditMode) return;
+    _startBrandInsertAt(_brands.length, actionIndex: null);
+    if (!_insertingBrand) return;
+    final result = await _showBrandNameDialog(title: '브랜드 추가');
+    if (!mounted) return;
+    if (result == null) {
+      _cancelBrandNameEdit();
+      return;
+    }
+    if (result.name == brand.brandName.trim()) {
+      _cancelBrandNameEdit();
+      return;
+    }
+    _brandNameEditController.text = result.name;
+    await _submitBrandNameEdit(result.name);
+  }
+
+  Future<void> _openSelectedBrandEditDialog() async {
+    final index = _selectedBrandIndex;
+    if (index == null || _submissionGate.submitting || _orderEditMode) return;
+    final brand = _brands[index];
+    _toggleBrandNameEdit(brand, index);
+    final result = await _showBrandNameDialog(
+      title: '브랜드 수정',
+      initialName: brand.brandName,
+    );
+    if (!mounted) return;
+    if (result == null) {
+      _cancelBrandNameEdit();
+      return;
+    }
+    _brandNameEditController.text = result.name;
+    await _submitBrandNameEdit(result.name);
+  }
+
+  Future<SettingsNameEditResult?> _showBrandNameDialog({
+    required String title,
+    String initialName = '',
+  }) {
+    return _showBrandOverlayDialog<SettingsNameEditResult>(
+      (dialogContext, close) => SettingsNameEditDialog(
+        title: title,
+        initialName: initialName,
+        onCancel: () => close(null),
+        onSubmit: close,
+      ),
+    );
+  }
+
+  void _deleteSelectedBrand() {
+    final index = _selectedBrandIndex;
+    if (index == null || _submissionGate.submitting || _orderEditMode) return;
+    _deleteBrand(_brands[index], index);
   }
 
   bool get _hasBrandOrderChanges {
@@ -11140,7 +11202,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   }
 
   void _handleBrandRowSelected(Brand brand, int index) {
-    if (!_orderEditMode || _applyingOrderChanges) return;
+    if (_applyingOrderChanges) return;
     setState(() => _selectedBrandId = brand.brandId);
   }
 
@@ -11537,35 +11599,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    debugLog(
-      'insertBrandName confirmDialog show index=$insertIndex name=$brandName',
-    );
-    final confirmed = await _showBrandOverlayDialog<bool>(
-      (dialogContext, close) => AlertDialog(
-        content: Text("'$brandName' 브랜드를 추가하시겠습니까?"),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('취소')),
-          TextButton(onPressed: () => close(true), child: const Text('확인')),
-        ],
-      ),
-    );
-    debugLog(
-      'insertBrandName confirmDialog result=$confirmed index=$insertIndex',
-    );
-
-    if (!mounted) {
-      debugLog('insertBrandName aborted unmounted after dialog');
-      return;
-    }
-
-    if (confirmed != true) {
-      debugLog(
-        'insertBrandName cancelledByUser index=$insertIndex keepEditing',
-      );
-      _brandNameEditFocusNode.requestFocus();
-      return;
-    }
-
     Brand? inserted;
     try {
       final reloadError = await runSettingsWriteThenReload<Brand>(
@@ -11612,7 +11645,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           ),
         );
         if (mounted) {
-          _brandNameEditFocusNode.requestFocus();
+          _cancelBrandNameEdit();
         }
       }
       return;
@@ -11636,38 +11669,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    debugLog(
-      'updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
-    );
-
-    final confirmed = await _showBrandOverlayDialog<bool>(
-      (dialogContext, close) => AlertDialog(
-        content: Text("'$brandName' 명으로 변경하시겠습니까?"),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('취소')),
-          TextButton(onPressed: () => close(true), child: const Text('확인')),
-        ],
-      ),
-    );
-
-    if (!mounted) {
-      debugLog('updateBrandName aborted unmounted after dialog');
-      return;
-    }
-
-    if (confirmed != true) {
-      // 확인 다이얼로그에서 취소 → 편집 모드를 유지한다.
-      // 사용자가 입력한 내용을 보존해 다시 수정하거나 ESC/Enter 로 직접 닫을 수 있도록 한다.
-      debugLog(
-        'updateBrandName cancelledByUser brandId=${brand.brandId} keepEditing',
-      );
-      _brandNameEditFocusNode.requestFocus();
-      return;
-    }
-
-    debugLog(
-      'updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
-    );
     try {
       await BrandDAO.updateByBrandId(brand, brandName);
     } catch (e) {
@@ -11683,7 +11684,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           ),
         );
         if (mounted) {
-          _brandNameEditFocusNode.requestFocus();
+          _cancelBrandNameEdit();
         }
       }
       return;
