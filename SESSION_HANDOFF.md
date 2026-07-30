@@ -1,5 +1,24 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 날짜 타입 사용자 정의 형식 및 출력 반영
+- 원인 1: `DateManager`가 다이얼로그 preview에서 대문자 단일 토큰을 `replaceAll`할 뿐 소문자/연속 토큰 폭을 해석하지 않는다.
+- 원인 2: 실제 출력 공용 `projectLabelPrintColumnValues()`가 `LabelSizeSetup`을 입력받지 않아 날짜 설정 저장 후 preview를 재생성해도 raw `yyyyMMdd`/`HHmm` 값이 다시 치환된다.
+- 레거시 확인: `CDateMananger::UserDefineYMD/HM`은 대소문자를 모두 허용하고 연속 토큰 길이에 맞춰 오른쪽 자릿수 또는 왼쪽 0 padding을 적용한다.
+- 수정 예정: 공용 DateManager formatter를 다이얼로그와 출력 projection이 함께 사용하고, 품목관리/라벨출력/저울출력 preview 및 실제 발행에 현재 label setup을 전달한다. QR/GS1 token raw 날짜 계약은 유지한다.
+- stage 예정: 날짜 setup/label print/scale output/home manager 관련 구현과 테스트, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 편집 완료: DateManager에 strict `yyyyMMdd`/`HHmm` formatter와 대소문자 `y/m/d`, `h/m` 연속 토큰 폭 해석을 추가했다. 연도는 오른쪽 N자리/4자리 초과 왼쪽 0 padding, 나머지 성분은 레거시 폭 규칙을 사용한다.
+- 편집 완료: `projectLabelPrintColumnValues()`에 optional `LabelSizeSetup`을 연결하고 품목관리/라벨출력/저울출력 preview 및 실제 발행에서 현재 setup을 전달한다. 사용 해제 그룹은 raw 셀 값을 유지한다.
+- 편집 완료: workbook direct 치환은 포맷된 projection을 사용하고 QR/GS1 token resolver는 raw column callback을 사용하도록 분리했다. 자동증가 DB 저장 projection에는 setup을 전달하지 않아 raw 저장 계약을 유지한다.
+- 편집 완료: 날짜 타입 다이얼로그에 소문자 토큰과 반복 자릿수 도움말을 추가했다. 기본 preview `2000.01.01`, `12:01`을 테스트로 고정했다.
+- 테스트 추가: 연도 `y`~`yyyyyy`, 소문자 날짜/시간, invalid raw 보존, setup 사용/해제 direct 출력, 다이얼로그 소문자 입력/도움말.
+- 문서 변경: 사용자 정의 날짜/시간 토큰을 소문자 기준으로 설명하고 대문자 호환 및 반복 폭 규칙/연도 예시를 명시했다.
+- focused 검증: DateManager 6개 통과(기본값 테스트 추가 전), DateManager+dialog+projection 15개 통과(기본값/도움말 테스트 추가 전), 기존 projection 5개 통과.
+- 최종 테스트 실행 예정: `flutter test test/date_manager_test.dart test/date_type_setup_dialog_test.dart test/label_print_auto_increment_test.dart test/label_print_pipeline_test.dart test/scale_output_test.dart test/label_sheet_toolbar_test.dart`.
+- analyzer 실행 예정: 변경된 날짜 setup/label print/scale output/home manager 구현과 테스트 파일 대상 `flutter analyze`.
+- 최종 검증: 관련 테스트 184개 통과. 변경 Dart 10개 파일 analyzer `No issues found` (3.2초), diagnostics 0건.
+- 완료 결과: 사용자 정의 날짜/시간은 대소문자 토큰과 반복 폭을 지원하고, 날짜 설정 저장 후 품목관리/라벨출력/저울출력 preview 및 실제 발행 direct 값에 즉시 적용된다. QR/GS1 token과 DB raw 저장값은 기존 형식을 유지한다.
+- stage/commit 대상: `lib/features/date_setup/domain/date_manager.dart`, `lib/features/date_setup/presentation/date_type_setup_dialog.dart`, `lib/features/label_print/domain/label_print_auto_increment.dart`, `lib/features/label_print/application/label_print_pipeline.dart`, `lib/features/scale_output/application/scale_output.dart`, `lib/home_page_manager.dart`, 관련 테스트 4개, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+
 ## 완료: 품목관리 조회 렌더 완료 후 첫 행 자동 선택
 - 원인: 초기 session load는 draft 첫 행을 선택하지만 `ItemManage.initState()`가 해당 선택을 `FortuneTableSelectionController`에 투영하지 않아 첫 렌더의 선택 강조가 누락될 수 있다.
 - 저장 재조회는 초기 load가 첫 행을 선택하고 render-ready까지 기다린 뒤, 저장 전 행을 다시 복원하고 tabs를 재생성해 첫 행 선택 요구와 충돌한다.

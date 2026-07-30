@@ -5615,6 +5615,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     columnContents:
         TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
     referenceAt: referenceAt,
+    dateSetup: _effectiveLabelSize?.labelSizeSetup,
   );
 
   Future<void> _openLabelPrintSettings() async {
@@ -5997,6 +5998,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         columns: columns,
         columnContents: columnContents,
         referenceAt: requestedAt,
+        dateSetup: _effectiveLabelSize?.labelSizeSetup,
       );
       if (units.isEmpty) {
         throw StateError('전체 발행매수는 1 이상이어야 합니다.');
@@ -6354,6 +6356,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         referenceAt: requestedAt,
         columns: columns,
         columnContents: columnContents,
+        dateSetup: _effectiveLabelSize?.labelSizeSetup,
       );
       if (units.isEmpty) {
         throw StateError('전체 발행매수는 1 이상이어야 합니다.');
@@ -8629,10 +8632,11 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
       for (final column in TColumn.datas ?? const <TColumn>[])
         ItemCodeColumnSpec.fromColumn(column),
     ];
+    String rawColumnValue(int columnId) =>
+      TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '';
     String columnValue(int columnId) =>
         projectedColumnValues?[columnId] ??
-        TColumnContent.get(columnId, item.item.itemId)?.dataString ??
-        '';
+      rawColumnValue(columnId);
     return (
       workbook: _replaceItemPreviewKeywords(
         _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
@@ -8648,7 +8652,7 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
           tokenColumnValue: (column) => itemCodeTokenColumnValue(
             column: column,
             columns: columns,
-            columnValue: columnValue,
+            columnValue: rawColumnValue,
             referenceAt: referenceAt,
           ),
           gs1Definitions: Gs1AiDefinitions.values,

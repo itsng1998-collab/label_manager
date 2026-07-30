@@ -32,28 +32,123 @@ class DateManager {
   const DateManager._();
 
   static String datePreview(PrintDateFormat format, {String custom = ''}) =>
-      switch (format) {
-        PrintDateFormat.DATE_FORMAT_DOT => '2000.01.01',
-        PrintDateFormat.DATE_FORMAT_SLASH => '2000/01/01',
-        PrintDateFormat.DATE_FORMAT_HANGUL => '2000년01월01일',
-        PrintDateFormat.DATE_FORMAT_NONE => '20000101',
-        PrintDateFormat.DATE_FORMAT_DOT_MMDD => '01.01',
-        PrintDateFormat.DATE_FORMAT_SLASH_MMDD => '01/01',
-        PrintDateFormat.DATE_FORMAT_HANGUL_MMDD => '01월01일',
-        PrintDateFormat.DATE_FORMAT_USER_DEFINE =>
-          custom
-              .replaceAll('Y', '2000')
-              .replaceAll('M', '01')
-              .replaceAll('D', '01'),
-      };
+      formatDate(format, year: 2000, month: 1, day: 1, custom: custom);
 
   static String timePreview(PrintTimeFormat format, {String custom = ''}) =>
-      switch (format) {
-        PrintTimeFormat.TIME_FORMAT_COLON => '12:01',
-        PrintTimeFormat.TIME_FORMAT_HANGUL => '12시01분',
-        PrintTimeFormat.TIME_FORMAT_NONE => '1201',
-        PrintTimeFormat.TIME_FORMAT_HANGUL_hh => '12시',
-        PrintTimeFormat.TIME_FORMAT_USER_DEFINE =>
-          custom.replaceAll('H', '12').replaceAll('M', '01'),
-      };
+      formatTime(format, hour: 12, minute: 1, custom: custom);
+
+  static String formatDateValue(
+    PrintDateFormat format,
+    String value, {
+    String custom = '',
+  }) {
+    final source = value.trim();
+    if (!RegExp(r'^\d{8}$').hasMatch(source)) return value;
+    final year = int.parse(source.substring(0, 4));
+    final month = int.parse(source.substring(4, 6));
+    final day = int.parse(source.substring(6, 8));
+    final parsed = DateTime(year, month, day);
+    if (parsed.year != year || parsed.month != month || parsed.day != day) {
+      return value;
+    }
+    return formatDate(
+      format,
+      year: year,
+      month: month,
+      day: day,
+      custom: custom,
+    );
+  }
+
+  static String formatTimeValue(
+    PrintTimeFormat format,
+    String value, {
+    String custom = '',
+  }) {
+    final source = value.trim();
+    if (!RegExp(r'^\d{4}$').hasMatch(source)) return value;
+    final hour = int.parse(source.substring(0, 2));
+    final minute = int.parse(source.substring(2, 4));
+    if (hour > 23 || minute > 59) return value;
+    return formatTime(format, hour: hour, minute: minute, custom: custom);
+  }
+
+  static String formatDate(
+    PrintDateFormat format, {
+    required int year,
+    required int month,
+    required int day,
+    String custom = '',
+  }) => switch (format) {
+    PrintDateFormat.DATE_FORMAT_DOT =>
+      '${year.toString().padLeft(4, '0')}.'
+          '${month.toString().padLeft(2, '0')}.'
+          '${day.toString().padLeft(2, '0')}',
+    PrintDateFormat.DATE_FORMAT_SLASH =>
+      '${year.toString().padLeft(4, '0')}/'
+          '${month.toString().padLeft(2, '0')}/'
+          '${day.toString().padLeft(2, '0')}',
+    PrintDateFormat.DATE_FORMAT_HANGUL =>
+      '${year.toString().padLeft(4, '0')}년'
+          '${month.toString().padLeft(2, '0')}월'
+          '${day.toString().padLeft(2, '0')}일',
+    PrintDateFormat.DATE_FORMAT_NONE =>
+      '${year.toString().padLeft(4, '0')}'
+          '${month.toString().padLeft(2, '0')}'
+          '${day.toString().padLeft(2, '0')}',
+    PrintDateFormat.DATE_FORMAT_DOT_MMDD =>
+      '${month.toString().padLeft(2, '0')}.'
+          '${day.toString().padLeft(2, '0')}',
+    PrintDateFormat.DATE_FORMAT_SLASH_MMDD =>
+      '${month.toString().padLeft(2, '0')}/'
+          '${day.toString().padLeft(2, '0')}',
+    PrintDateFormat.DATE_FORMAT_HANGUL_MMDD =>
+      '${month.toString().padLeft(2, '0')}월'
+          '${day.toString().padLeft(2, '0')}일',
+    PrintDateFormat.DATE_FORMAT_USER_DEFINE => custom.replaceAllMapped(
+      RegExp(r'[yY]+|[mM]+|[dD]+'),
+      (match) => switch (match.group(0)![0].toLowerCase()) {
+        'y' => _yearWithWidth(year, match.group(0)!.length),
+        'm' => _componentWithWidth(month, match.group(0)!.length),
+        _ => _componentWithWidth(day, match.group(0)!.length),
+      },
+    ),
+  };
+
+  static String formatTime(
+    PrintTimeFormat format, {
+    required int hour,
+    required int minute,
+    String custom = '',
+  }) => switch (format) {
+    PrintTimeFormat.TIME_FORMAT_COLON =>
+      '${hour.toString().padLeft(2, '0')}:'
+          '${minute.toString().padLeft(2, '0')}',
+    PrintTimeFormat.TIME_FORMAT_HANGUL =>
+      '${hour.toString().padLeft(2, '0')}시'
+          '${minute.toString().padLeft(2, '0')}분',
+    PrintTimeFormat.TIME_FORMAT_NONE =>
+      '${hour.toString().padLeft(2, '0')}'
+          '${minute.toString().padLeft(2, '0')}',
+    PrintTimeFormat.TIME_FORMAT_HANGUL_hh =>
+      '${hour.toString().padLeft(2, '0')}시',
+    PrintTimeFormat.TIME_FORMAT_USER_DEFINE => custom.replaceAllMapped(
+      RegExp(r'[hH]+|[mM]+'),
+      (match) => match.group(0)![0].toLowerCase() == 'h'
+          ? _componentWithWidth(hour, match.group(0)!.length)
+          : _componentWithWidth(minute, match.group(0)!.length),
+    ),
+  };
+
+  static String _yearWithWidth(int year, int width) {
+    final source = year.toString();
+    return width <= source.length
+        ? source.substring(source.length - width)
+        : source.padLeft(width, '0');
+  }
+
+  static String _componentWithWidth(int value, int width) {
+    final source = value.toString();
+    return width == 1 ? source : source.padLeft(width, '0');
+  }
 }

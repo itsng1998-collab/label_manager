@@ -3,6 +3,7 @@ import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
@@ -59,6 +60,7 @@ List<LabelPrintUnit> expandLabelPrintUnits(
   List<TColumn> columns = const <TColumn>[],
   Map<ColumnItemKey, TColumnContent> columnContents =
       const <ColumnItemKey, TColumnContent>{},
+  LabelSizeSetup? dateSetup,
 }) => [
   for (var rowIndex = 0; rowIndex < rows.length; rowIndex += 1)
     for (var copyIndex = 0;
@@ -74,6 +76,7 @@ List<LabelPrintUnit> expandLabelPrintUnits(
           columns: columns,
           columnContents: columnContents,
           referenceAt: referenceAt,
+          dateSetup: dateSetup,
         ),
       ),
 ];

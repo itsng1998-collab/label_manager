@@ -112,6 +112,13 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
+                '* 사용자 정의: 날짜 y/m/d, 시간 h/m. 반복한 문자 수만큼 자릿수를 표시합니다.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF5F6368)),
+              ),
+            ),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
                 '* 소비시한은 별도 만료 시각 계산 없이 원본 시각을 선택 형식으로 표시합니다.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF5F6368)),
               ),

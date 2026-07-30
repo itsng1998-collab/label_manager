@@ -702,6 +702,7 @@ List<ScaleOutputUnit> expandScaleOutputUnits(
   required DateTime referenceAt,
   required List<TColumn> columns,
   required Map<ColumnItemKey, TColumnContent> columnContents,
+  LabelSizeSetup? dateSetup,
 }) => [
   for (var rowIndex = 0; rowIndex < rows.length; rowIndex += 1)
     for (var copyIndex = 0; copyIndex < rows[rowIndex].copies; copyIndex += 1)
@@ -714,6 +715,7 @@ List<ScaleOutputUnit> expandScaleOutputUnits(
             columns: columns,
             columnContents: columnContents,
             referenceAt: referenceAt,
+            dateSetup: dateSetup,
           ),
           ...scaleOutputProjectedSpecialValues(
             item: row.item,

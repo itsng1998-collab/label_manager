@@ -337,7 +337,7 @@ void main() {
     );
   });
 
-  test('label content key changes when saved workbook content changes', () {
+  test('label content key changes with workbook or setup revision', () {
     const before = LabelSize(
       labelSizeId: 10,
       brandId: 1,
@@ -352,6 +352,7 @@ void main() {
     );
 
     expect(homeLabelContentKey(before, 0), isNot(homeLabelContentKey(after, 0)));
+    expect(homeLabelContentKey(after, 0), isNot(homeLabelContentKey(after, 1)));
   });
 
   testWidgets(

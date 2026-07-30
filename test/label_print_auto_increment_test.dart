@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/date_setup/domain/date_manager.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 void main() {
   test('legacy atoi follows active zero and mixed string rules', () {
@@ -57,6 +60,82 @@ void main() {
     expect(project('1201X12345').value, '1202CT16');
     expect(checkDigitCalls, 1);
     expect(timeBarcodeCalls, 1);
+  });
+
+  test('date setup formats direct output with lowercase custom tokens', () {
+    const setup = LabelSizeSetup(
+      readOnly: false,
+      useMakeDate: true,
+      useMakeTime: true,
+      useValidDate: true,
+      useValidTime: true,
+      makingDateFormat: PrintDateFormat.DATE_FORMAT_USER_DEFINE,
+      makingTimeFormat: PrintTimeFormat.TIME_FORMAT_USER_DEFINE,
+      validDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      validTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
+      strMakeDate: 'y/mm/dd',
+      strMakeTime: 'h:mm',
+      strValidDate: '',
+      strValidTime: '',
+      useScale: false,
+    );
+
+    expect(
+      formatLabelDateColumnValue(
+        columnType: TColumnType.TYPE_MAKEDATE,
+        rawValue: '20260730',
+        projectedValue: '20260730',
+        setup: setup,
+      ),
+      '6/07/30',
+    );
+    expect(
+      formatLabelDateColumnValue(
+        columnType: TColumnType.TYPE_MAKETIME,
+        rawValue: '1201',
+        projectedValue: '1201',
+        setup: setup,
+      ),
+      '12:01',
+    );
+    expect(
+      formatLabelDateColumnValue(
+        columnType: TColumnType.TYPE_VALIDDATE,
+        rawValue: '3',
+        projectedValue: '20260802',
+        setup: setup,
+      ),
+      '2026.08.02',
+    );
+  });
+
+  test('disabled date setup preserves raw cell value', () {
+    const setup = LabelSizeSetup(
+      readOnly: false,
+      useMakeDate: false,
+      useMakeTime: false,
+      useValidDate: false,
+      useValidTime: false,
+      makingDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      makingTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
+      validDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      validTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
+      strMakeDate: '',
+      strMakeTime: '',
+      strValidDate: '',
+      strValidTime: '',
+      useScale: false,
+    );
+
+    expect(
+      formatLabelDateColumnValue(
+        columnType: TColumnType.TYPE_VALIDDATE,
+        rawValue: '3',
+        projectedValue: '20260802',
+        setup: setup,
+      ),
+      '3',
+    );
   });
 
 }

@@ -19,7 +19,7 @@ void main() {
       makingTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
       validDateFormat: PrintDateFormat.DATE_FORMAT_SLASH,
       validTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
-      strMakeDate: 'Y-M-D',
+      strMakeDate: 'yyyy-mm-dd',
       strMakeTime: '',
       strValidDate: '',
       strValidTime: '',
@@ -49,16 +49,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('날짜 타입 설정'), findsOneWidget);
     expect(find.textContaining('지원 범위를 벗어나'), findsOneWidget);
+    expect(find.textContaining('날짜 y/m/d, 시간 h/m'), findsOneWidget);
     expect(find.text('2000-01-01'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).first, 'Y년 M월 D일');
+    await tester.enterText(find.byType(TextField).first, 'yyyy년 mm월 dd일');
     await tester.pump();
     expect(find.text('2000년 01월 01일'), findsOneWidget);
 
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(result, isNotNull);
-    expect(result!.strMakeDate, 'Y년 M월 D일');
+    expect(result!.strMakeDate, 'yyyy년 mm월 dd일');
     expect(result!.makingDateFormat, PrintDateFormat.DATE_FORMAT_USER_DEFINE);
     expect(result!.useMakeTime, isFalse);
   });

@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/core/barcode.dart';
+import 'package:label_manager/features/date_setup/domain/date_manager.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 @immutable
 class LabelAutoIncrementProjection {
@@ -143,6 +145,7 @@ Map<int, String> projectLabelPrintColumnValues({
   required List<TColumn> columns,
   required Map<ColumnItemKey, TColumnContent> columnContents,
   required DateTime referenceAt,
+  LabelSizeSetup? dateSetup,
 }) {
   final sortedColumns = [...columns]
     ..sort((left, right) {
@@ -183,6 +186,12 @@ Map<int, String> projectLabelPrintColumnValues({
             '$candidate${_labelTimeBarcodeSuffix(column.timeBarcodeType, specs, baseline, at) ?? ''}',
       ).value;
     }
+    value = formatLabelDateColumnValue(
+      columnType: column.columnType.code,
+      rawValue: baseline(column.columnId),
+      projectedValue: value,
+      setup: dateSetup,
+    );
     projected[column.columnId] = value;
   }
   return Map.unmodifiable(projected);
@@ -225,5 +234,46 @@ String? _labelTimeBarcodeSuffix(
       '4$day${validTime.substring(0, 2)}',
     9 => '9$year$month$day',
     _ => null,
+  };
+}
+
+@visibleForTesting
+String formatLabelDateColumnValue({
+  required int columnType,
+  required String rawValue,
+  required String projectedValue,
+  required LabelSizeSetup? setup,
+}) {
+  if (setup == null) return projectedValue;
+  return switch (columnType) {
+    TColumnType.TYPE_MAKEDATE => setup.useMakeDate
+        ? DateManager.formatDateValue(
+            setup.makingDateFormat,
+            projectedValue,
+            custom: setup.strMakeDate,
+          )
+        : rawValue,
+    TColumnType.TYPE_VALIDDATE => setup.useValidDate
+        ? DateManager.formatDateValue(
+            setup.validDateFormat,
+            projectedValue,
+            custom: setup.strValidDate,
+          )
+        : rawValue,
+    TColumnType.TYPE_MAKETIME => setup.useMakeTime
+        ? DateManager.formatTimeValue(
+            setup.makingTimeFormat,
+            projectedValue,
+            custom: setup.strMakeTime,
+          )
+        : rawValue,
+    TColumnType.TYPE_VALIDTIME => setup.useValidTime
+        ? DateManager.formatTimeValue(
+            setup.validTimeFormat,
+            projectedValue,
+            custom: setup.strValidTime,
+          )
+        : rawValue,
+    _ => projectedValue,
   };
 }
