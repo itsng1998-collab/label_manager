@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 13차 검토
+- 앞선 12차까지 확정한 정책은 재검토하지 않고 첫 행 헤더의 sparse cell, leading blank, 병합·수식·shared string 경계를 확인했다.
+- 검토 결론: 첫 빈 셀은 sparse/leading 여부와 관계없이 헤더 종료점이고, leading blank는 필수 `품목` 헤더 없음으로 실패하며, 빈 헤더 뒤 unknown 컬럼은 원래 매핑 대상이 아니므로 경고하지 않는 기존 계약과 일치한다.
+- 테스트 확인: 기본 workbook이 `F1` 빈 칸 뒤 `G1=품목`인 sparse 헤더를 포함하며, 빈 헤더 뒤 known header warning을 이미 검증한다. shared/inline/formula header도 공용 parser의 parsed text 경로를 사용한다.
+- production/test 수정 없음: 재현 가능한 오매핑이나 데이터 손실이 없어 방어 코드와 중복 테스트를 추가하지 않았다.
+- 사용자 확인: 새로 확정할 사용자 정책 없음.
+- 검증 완료: XLSX focused 테스트 19개 통과.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 12차 검토
 - 앞선 11차까지 확정한 정책은 재검토하지 않고 XLSX 데이터 행 탐색과 worksheet dimension 경계를 확인한다.
 - 검토 결론: 과소 dimension은 공용 parser가 실제 row/cell 좌표로 보정해 행 누락이 없다. 빈 품목명 행과 cache 없는 수식은 기존 확정 정책대로 유지한다.
