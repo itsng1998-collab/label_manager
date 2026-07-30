@@ -271,11 +271,13 @@ class FortuneTable<T> extends StatefulWidget {
     this.headerCheckboxLabelGap = 4,
     this.rowHeight = 28,
     this.autoFitColumns = true,
+    this.autoFitRevision,
+    this.autoFitSampleSize,
     this.fillLastColumn = false,
     this.dragScrollEnabled = true,
     this.multiSelectionEnabled = false,
     this.keyboardSelectionShortcutsEnabled = true,
-  });
+  }) : assert(autoFitSampleSize == null || autoFitSampleSize >= 0);
 
   final List<T> rows;
   final List<FortuneTableColumn<T>> columns;
@@ -302,6 +304,8 @@ class FortuneTable<T> extends StatefulWidget {
   final double headerCheckboxLabelGap;
   final double rowHeight;
   final bool autoFitColumns;
+  final Object? autoFitRevision;
+  final int? autoFitSampleSize;
   final bool fillLastColumn;
   final bool dragScrollEnabled;
   final bool multiSelectionEnabled;
@@ -354,7 +358,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   int? _selectionAnchorIndex;
   int? _dragSelectionStartIndex;
   Rect? _lastReportedRect;
-  String? _tableSignature;
+  Object? _autoFitCacheKey;
   int? _focusedColumnIndex;
   int? _editingRowIndex;
   int? _editingColumnIndex;
@@ -410,7 +414,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if (oldWidget.columns.length != widget.columns.length ||
         _initialWidthsChanged(oldWidget.columns, widget.columns)) {
       _widths = _initialWidths();
-      _tableSignature = null;
+      _autoFitCacheKey = null;
     }
     if (oldWidget.selectedIndex != widget.selectedIndex &&
         widget.selectedIndex != _selectedIndex) {
@@ -787,10 +791,21 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   void _syncAutoWidthsIfNeeded() {
     if (!widget.autoFitColumns || widget.columns.isEmpty) return;
-    final signature = _autoFitSignature();
-    if (_tableSignature == signature) return;
-    _tableSignature = signature;
+    final cacheKey = _autoFitCacheKeyForCurrentWidget();
+    if (_autoFitCacheKey == cacheKey) return;
+    _autoFitCacheKey = cacheKey;
     _widths = _autoFitWidths();
+  }
+
+  Object _autoFitCacheKeyForCurrentWidget() {
+    final revision = widget.autoFitRevision;
+    if (revision == null) return _autoFitSignature();
+    return (
+      revision,
+      widget.autoFitSampleSize,
+      Object.hashAll(widget.columns.map((column) => column.header)),
+      MediaQuery.textScalerOf(context).scale(1),
+    );
   }
 
   String _autoFitSignature() {
@@ -804,6 +819,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   List<double> _autoFitWidths() {
     final scaler = MediaQuery.of(context).textScaler;
     const bodyStyle = TextStyle(fontSize: 14);
+    final sampleSize = widget.autoFitSampleSize;
+    final sampledRows = sampleSize == null
+        ? widget.rows
+        : widget.rows.take(sampleSize).toList(growable: false);
     return List<double>.generate(widget.columns.length, (index) {
       final column = widget.columns[index];
       final manuallyResizedWidth = _manuallyResizedWidths[column.id];
@@ -815,7 +834,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       }
       var maxWidth =
           _measureText(column.header, widget.headerTextStyle, scaler) + 24;
-      for (final row in widget.rows) {
+      for (final row in sampledRows) {
         final width = _measureText(column.text(row), bodyStyle, scaler) + 24;
         if (width > maxWidth) maxWidth = width;
       }
@@ -986,7 +1005,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _manuallyResizedWidths[column.id] = nextWidth;
     setState(() {
       _widths[index] = nextWidth;
-      _tableSignature = _autoFitSignature();
+      _autoFitCacheKey = _autoFitCacheKeyForCurrentWidget();
     });
   }
 

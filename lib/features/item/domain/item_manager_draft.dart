@@ -330,6 +330,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   String? _baselineAnchorRowKey;
   int? _selectedColumnId;
   int _focusRequestId = 0;
+  int _contentRevision = 0;
   ItemManagerDraftController({
     required List<ItemManagerDraftRow> rows,
     required this.scopedColumnContents,
@@ -385,6 +386,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   String? get baselineAnchorRowKey => _baselineAnchorRowKey;
   int? get selectedColumnId => _selectedColumnId;
   int get focusRequestId => _focusRequestId;
+  int get contentRevision => _contentRevision;
   bool get isDirty =>
       _deletedSourceItemIds.isNotEmpty ||
       _rows.any((row) => row.rowState != ItemManagerDraftRowState.existing);
@@ -392,7 +394,7 @@ class ItemManagerDraftController extends ChangeNotifier {
       _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
   void replaceBaselineColumnContents(TColumnContentScopedView value) {
     scopedColumnContents = value;
-    notifyListeners();
+    _notifyContentChanged();
   }
 
   void discardChanges({
@@ -447,7 +449,7 @@ class ItemManagerDraftController extends ChangeNotifier {
             ? baselineKeys.last
             : fallbackRow?.rowKey);
     _selectedColumnId = null;
-    notifyListeners();
+    _notifyContentChanged();
     ItemManagerDebugLog.event(
       'draftDiscard',
       'completed',
@@ -490,7 +492,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     _baselineSelectedRowKeys = Set.unmodifiable(_selectedRowKeys);
     _baselineAnchorRowKey = _anchorRowKey;
     _selectedColumnId = null;
-    notifyListeners();
+    _notifyContentChanged();
   }
 
   String columnValue(ItemManagerDraftRow row, int columnId) {
@@ -1027,7 +1029,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     );
     _rows.addAll(added);
     _selectAdded(added);
-    notifyListeners();
+    _notifyContentChanged();
     ItemManagerDebugLog.event(
       'draftAddRows',
       'completed',
@@ -1062,7 +1064,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     _rows.insertAll(anchorIndex + 1, added);
     _renumberRows();
     _selectAdded(added);
-    notifyListeners();
+    _notifyContentChanged();
     ItemManagerDebugLog.event(
       'draftInsertRows',
       'completed',
@@ -1135,7 +1137,7 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..clear()
       ..add(replacements.first.rowKey);
     _anchorRowKey = replacements.first.rowKey;
-    notifyListeners();
+    _notifyContentChanged();
     ItemManagerDebugLog.event(
       'draftImportReplace',
       'completed',
@@ -1176,7 +1178,7 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..clear()
       ..addAll(nextKey == null ? const <String>[] : [nextKey]);
     _anchorRowKey = nextKey;
-    notifyListeners();
+    _notifyContentChanged();
     ItemManagerDebugLog.event(
       'draftDeleteRows',
       'completed',
@@ -1214,6 +1216,11 @@ class ItemManagerDraftController extends ChangeNotifier {
     final next = update(previous);
     if (identical(previous, next)) return;
     _rows[index] = next;
+    _notifyContentChanged();
+  }
+
+  void _notifyContentChanged() {
+    _contentRevision += 1;
     notifyListeners();
   }
 

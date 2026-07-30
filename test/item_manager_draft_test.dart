@@ -112,6 +112,23 @@ void main() {
       expect(execution.selectedRowIndex, 1);
     });
 
+    test('content revision excludes selection-only changes', () {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+      ]);
+
+      expect(controller.contentRevision, 0);
+      controller.setSelection(const ['item:20'], anchorRowKey: 'item:20');
+      expect(controller.contentRevision, 0);
+
+      controller.updateItemName('item:10', '수정 품목');
+      expect(controller.contentRevision, 1);
+
+      controller.addRows(1, emptyElementPayload: '{}');
+      expect(controller.contentRevision, 2);
+    });
+
     test('builds existing rows without mutating display models', () {
       final first = _itemOfMarket(itemId: 10, order: 1, name: '첫 품목');
       final second = _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목');

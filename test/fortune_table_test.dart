@@ -473,6 +473,107 @@ void main() {
     expect(tester.getSize(header).width, 90);
   });
 
+  testWidgets('FortuneTable samples auto fit rows by revision', (tester) async {
+    var rows = const ['짧음', '표본 밖의 매우 매우 매우 매우 긴 값'];
+    var revision = 1;
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 500,
+            height: 120,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return FortuneTable<String>(
+                  rows: rows,
+                  autoFitRevision: revision,
+                  autoFitSampleSize: 1,
+                  columns: [
+                    FortuneTableColumn<String>(
+                      id: 'sampled',
+                      header: '값',
+                      text: (row) => row,
+                      initialWidth: 60,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    double headerWidth() => tester
+        .getSize(
+          find.ancestor(
+            of: find.text('값'),
+            matching: find.byType(SizedBox),
+          ).first,
+        )
+        .width;
+
+    final sampledWidth = headerWidth();
+    rebuild(() => rows = const ['표본 안의 매우 매우 매우 매우 긴 값', '짧음']);
+    await tester.pump();
+    expect(headerWidth(), sampledWidth);
+
+    rebuild(() => revision += 1);
+    await tester.pump();
+    expect(headerWidth(), greaterThan(sampledWidth));
+  });
+
+  testWidgets('FortuneTable revision avoids full text scans on rebuild', (
+    tester,
+  ) async {
+    final rows = List.generate(500, (index) => '행 $index');
+    var revision = 1;
+    var textCalls = 0;
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 500,
+            height: 120,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return FortuneTable<String>(
+                  rows: rows,
+                  autoFitRevision: revision,
+                  autoFitSampleSize: 5,
+                  columns: [
+                    FortuneTableColumn<String>(
+                      id: 'sampled',
+                      header: '값',
+                      text: (row) {
+                        textCalls += 1;
+                        return row;
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    textCalls = 0;
+    rebuild(() {});
+    await tester.pump();
+    expect(textCalls, lessThan(30));
+
+    textCalls = 0;
+    rebuild(() => revision += 1);
+    await tester.pump();
+    expect(textCalls, inInclusiveRange(5, 29));
+  });
+
   testWidgets('FortuneTable resizes columns and keeps manual width', (
     tester,
   ) async {
@@ -1230,6 +1331,51 @@ void main() {
 
     expect(selected?.item.itemName, '테스트 품목');
     expect(selectedIndex, 0);
+  });
+
+  testWidgets('ItemManage reuses display rows for selection-only changes', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController.fromItems(
+      items: [_testItemOfMarket(itemName: '첫 품목')],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    FortuneTable<ItemOfMarket> table() =>
+        tester.widget(find.byType(FortuneTable<ItemOfMarket>));
+    final initialDisplay = table().rows.single;
+    expect(table().autoFitSampleSize, 200);
+
+    controller.setSelection(const ['item:10'], anchorRowKey: 'item:10');
+    await tester.pump();
+    expect(table().rows.single, same(initialDisplay));
+
+    controller.updateItemName('item:10', '수정 품목');
+    await tester.pump();
+    expect(table().rows.single, isNot(same(initialDisplay)));
+    expect(table().rows.single.item.itemName, '수정 품목');
   });
 
   testWidgets('ItemManage reports ready after render work completes', (

@@ -1,5 +1,23 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목관리 1만 행 build/auto-fit 최적화
+- 병목 1: `FortuneTable`이 rebuild마다 전체 `행×컬럼` 문자열 signature를 만들고 다시 전체 셀을 TextPainter로 측정한다.
+- 병목 2: `ItemManage._resolveDisplayItems()`가 선택/busy 같은 UI rebuild에도 전체 draft 행의 preview 객체와 identity map을 재생성한다.
+- 수정 예정 1: FortuneTable에 opt-in auto-fit revision/sample API를 추가해 품목관리만 전체 signature를 생략하고 최대 200행을 측정한다. 기존 사용처의 전체 auto-fit 계약은 유지한다.
+- 수정 예정 2: draft content revision과 ItemManage display cache를 추가해 데이터 변경 때만 전체 display 목록을 재생성한다.
+- stage 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/domain/item_manager_draft.dart`, `lib/features/item/presentation/item_manage.dart`, 관련 테스트, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+- 편집 완료: `FortuneTable.autoFitRevision`/`autoFitSampleSize` opt-in API를 추가했다. revision 사용 시 전체 문자열 signature를 생략하며 지정된 선두 표본 행만 폭 측정한다. 기본값은 기존 전체 signature/전체 행 측정을 유지한다.
+- 편집 완료: `ItemManagerDraftController.contentRevision`을 추가했다. 값/행 구조/column content 변경에서 증가하고 selection-only 변경에서는 증가하지 않는다.
+- 편집 완료: `ItemManage._resolveDisplayItems()`가 controller identity + content revision + market/label size 기준으로 preview 객체/list/map을 재사용한다. draft table auto-fit은 최대 200행만 측정한다.
+- 테스트 추가: revision 기반 표본 폭 재계산, 500행 rebuild 전체 text scan 방지, selection-only display 객체 identity 재사용, draft content revision 분리.
+- 중간 검증: `test/fortune_table_test.dart` 64개 통과(500행 callback 계수 테스트 추가 전), `test/item_manager_draft_test.dart` 29개 통과, 변경 파일 diagnostics 0건.
+- 최종 검증 실행 예정: `flutter test test/fortune_table_test.dart test/item_manager_draft_test.dart test/label_sheet_toolbar_test.dart`.
+- analyzer 실행 예정: `flutter analyze third_party/fortune_sheet/lib/src/fortune_table.dart lib/features/item/domain/item_manager_draft.dart lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart test/item_manager_draft_test.dart`.
+- 최종 검증: 관련 테스트 260개 통과. analyzer `No issues found` (5.8초).
+- 완료 결과: selection/focus/busy rebuild는 1만 행 preview 객체와 전체 auto-fit signature를 재생성하지 않는다. content revision 변경 시 preview cache를 갱신하고 선두 최대 200행만 폭 측정한다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/domain/item_manager_draft.dart`, `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `test/item_manager_draft_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 로컬 commit: `09cde67` (`품목관리 대용량 테이블 재빌드 최적화`; handoff 해시 기록 후 amend).
+
 ## 완료: 품목 저장 완료 후 처리 중 표시 해제
 - 현상: 수정 저장과 DB 재조회가 완료된 뒤에도 품목관리 좌하단 spinner와 `처리 중`이 남고 버튼이 비활성화된다.
 - 원인: tab content는 `_createTabController()` 시점의 widget snapshot을 보관한다. 저장 reload 중 `commandBusy=true`로 `_resetTabs()`된 뒤 `finally`에서 bool만 false로 바꾸고 `setState()`해도 저장된 `ItemManage(commandBusy: true)` content가 교체되지 않는다.

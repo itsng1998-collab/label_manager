@@ -153,6 +153,7 @@ class _ItemManageState extends State<ItemManage> {
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
   static const double _minimizedHeaderColumnWidth = 70;
+  static const int _autoFitSampleSize = 200;
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -170,6 +171,12 @@ class _ItemManageState extends State<ItemManage> {
   );
   List<ItemManagerDraftRow> _displayDraftRows = const [];
   Map<ItemOfMarket, ItemManagerDraftRow> _draftByDisplayItem = Map.identity();
+  ItemManagerDraftController? _displayCacheController;
+  int? _displayCacheContentRevision;
+  int? _displayCacheMarketId;
+  int? _displayCacheLabelSizeId;
+  String? _displayCacheLabelSizeName;
+  List<ItemOfMarket> _displayItems = const [];
   final Set<int> _publishCheckedItemIds = <int>{};
   ItemManagerDraftRow? _contextMenuDraftRow;
   int _lastFocusRequestId = 0;
@@ -359,6 +366,18 @@ class _ItemManageState extends State<ItemManage> {
               rows: displayItems,
               columns: columns,
               autoFitColumns: true,
+              autoFitRevision: widget.draftController == null
+                  ? null
+                  : (
+                      widget.draftController,
+                      widget.draftController!.contentRevision,
+                      widget.marketId,
+                      widget.labelSize?.labelSizeId,
+                      widget.labelSize?.labelSizeName,
+                    ),
+              autoFitSampleSize: widget.draftController == null
+                  ? null
+                  : _autoFitSampleSize,
               headerTextStyle: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -500,7 +519,16 @@ class _ItemManageState extends State<ItemManage> {
     if (controller == null || labelSize == null || marketId == null) {
       _displayDraftRows = const [];
       _draftByDisplayItem = Map.identity();
+      _displayCacheController = null;
+      _displayItems = const [];
       return widget.items;
+    }
+    if (identical(_displayCacheController, controller) &&
+        _displayCacheContentRevision == controller.contentRevision &&
+        _displayCacheMarketId == marketId &&
+        _displayCacheLabelSizeId == labelSize.labelSizeId &&
+        _displayCacheLabelSizeName == labelSize.labelSizeName) {
+      return _displayItems;
     }
     _displayDraftRows = controller.rows;
     final displayItems = <ItemOfMarket>[];
@@ -516,7 +544,13 @@ class _ItemManageState extends State<ItemManage> {
       draftByDisplayItem[display] = row;
     }
     _draftByDisplayItem = draftByDisplayItem;
-    return displayItems;
+    _displayCacheController = controller;
+    _displayCacheContentRevision = controller.contentRevision;
+    _displayCacheMarketId = marketId;
+    _displayCacheLabelSizeId = labelSize.labelSizeId;
+    _displayCacheLabelSizeName = labelSize.labelSizeName;
+    _displayItems = List.unmodifiable(displayItems);
+    return _displayItems;
   }
 
   ItemManagerDraftRow? _draftAtDisplayIndex(int index) {
