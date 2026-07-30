@@ -9,6 +9,14 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
+const double _labelColumnDialogMaxWidth = 1232;
+const double _labelColumnDialogMinContentWidth = 1092;
+const double _customerTypeColumnWidth = 144;
+
+@visibleForTesting
+double labelColumnEditDialogWidth(double screenWidth) =>
+  (screenWidth - 56).clamp(320.0, _labelColumnDialogMaxWidth);
+
 typedef FixedColumnTypesLoader = Future<List<FixedColumnType>> Function();
 typedef FixedColumnCandidatesLoader =
     Future<List<FixedColumnCandidate>> Function(int typeId);
@@ -528,7 +536,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
-    final width = (screen.width - 56).clamp(320.0, 1168.0);
+    final width = labelColumnEditDialogWidth(screen.width);
     final height = (screen.height - 64).clamp(320.0, 720.0);
     final theme = Theme.of(context);
     return Theme(
@@ -561,8 +569,9 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
-                    width: constraints.maxWidth < 1028
-                        ? 1028
+                    width: constraints.maxWidth <
+                        _labelColumnDialogMinContentWidth
+                      ? _labelColumnDialogMinContentWidth
                         : constraints.maxWidth,
                     height: constraints.maxHeight,
                     child: Padding(
@@ -1068,8 +1077,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         ),
         SwipeActionTableColumn(
           header: '종류',
-          initialWidth: 80,
-          minWidth: 70,
+          initialWidth: _customerTypeColumnWidth,
+          minWidth: _customerTypeColumnWidth,
           text: (row) => row.columnType.name,
           cellBuilder: (context, row, width) => SizedBox(
             width: width,
@@ -1453,7 +1462,14 @@ class _DialogDropdown<T> extends StatelessWidget {
             DropdownMenuEntry<T>(
               value: entry.value,
               label: entry.label,
-              labelWidget: entry.labelWidget,
+              labelWidget:
+                  entry.labelWidget ??
+                  Text(
+                    entry.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               leadingIcon: entry.leadingIcon,
               trailingIcon: entry.trailingIcon,
               enabled: entry.enabled,

@@ -22,6 +22,11 @@ const qrColumnType = TColumnType(
   name: 'QR 코드',
   order: 3,
 );
+const longQrColumnType = TColumnType(
+  code: TColumnType.TYPE_QR_CODE,
+  name: '2D 바코드(QR 코드)',
+  order: 4,
+);
 
 Future<TestGesture> _startRowDrag(
   WidgetTester tester,
@@ -224,6 +229,7 @@ void main() {
     await _pumpDialog(tester);
 
     expect(find.text('라벨 항목 편집'), findsOneWidget);
+    expect(labelColumnEditDialogWidth(1300), 1232);
     expect(find.text('속성'), findsOneWidget);
     expect(find.text('사용 항목'), findsOneWidget);
     expect(find.text('고정 A'), findsOneWidget);
@@ -1020,6 +1026,7 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1300, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    TColumnType.datas = [baseType, barcodeColumnType, longQrColumnType];
     CustomerColumnSaveCommand? saved;
     await _pumpDialog(
       tester,
@@ -1044,6 +1051,16 @@ void main() {
       matching: find.byType(DropdownMenu<TColumnType>),
     );
     expect(typeDropdown, findsOneWidget);
+    final userTable = tester.widget(
+      find.byKey(const Key('label-column-user-editor')),
+    ) as dynamic;
+    expect(
+      userTable.columns
+          .firstWhere((dynamic column) => column.header == '종류')
+          .initialWidth,
+      144,
+    );
+    expect(tester.getSize(typeDropdown).width, 144);
     final compactArrow = find.descendant(
       of: typeDropdown,
       matching: find.byIcon(Icons.arrow_drop_down),
@@ -1076,6 +1093,19 @@ void main() {
     );
     await _tapVisible(tester, typeDropdown);
     await tester.pumpAndSettle();
+    final longQrMenuItem = find.widgetWithText(
+      MenuItemButton,
+      '2D 바코드(QR 코드)',
+    );
+    expect(longQrMenuItem, findsAtLeastNWidgets(1));
+    expect(tester.getSize(longQrMenuItem.last).height, 28);
+    final longQrMenuLabel = find.descendant(
+      of: longQrMenuItem.last,
+      matching: find.text('2D 바코드(QR 코드)'),
+    );
+    final longQrMenuText = tester.widget<Text>(longQrMenuLabel);
+    expect(longQrMenuText.maxLines, 1);
+    expect(longQrMenuText.softWrap, isFalse);
     await _tapVisible(
       tester,
       find.widgetWithText(MenuItemButton, '바코드').last,

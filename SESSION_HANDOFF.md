@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 사용자 항목 종류 드롭다운 한 줄 표시
+- 사용자 제출 화면에서 사용자 항목 수정 모드의 종류 드롭다운 폭 80px가 부족해 `2D 바코드(QR 코드)`가 두 줄로 표시된다.
+- 수정 예정: 사용자 항목 종류 열을 64px 넓힌 144px로 조정하고, 다이얼로그 최대 폭과 내부 최소 폭도 각각 같은 64px만큼 늘린다. 가장 긴 메뉴 항목의 한 줄 높이와 실제 프레임/열 폭을 widget 테스트로 고정한다.
+- 편집 완료: 사용자 종류 열 `80→144`, 다이얼로그 최대 폭 `1168→1232`, 내부 최소 폭 `1028→1092`로 각각 64px 확장했다. 공용 `_DialogDropdown` 메뉴 label은 `maxLines: 1`, `softWrap: false`로 고정했다.
+- 테스트 추가: 1300px 화면의 dialog width 계산 1232px, 사용자 종류 열/드롭다운 144px, `2D 바코드(QR 코드)` 메뉴 행 28px 및 한 줄 렌더 계약을 검증한다.
+- 집중 검증: 레이아웃/사용자 종류 드롭다운 테스트 2개 통과.
+- 최종 검증 예정: `test/label_column_edit_dialog_test.dart` 전체 실행 후 변경 Dart 2개 analyzer 및 `git diff --check`.
+- 최종 검증: 라벨 항목 편집 다이얼로그 테스트 21개 통과, 변경 Dart 2개 analyzer `No issues found` (1.6초), diagnostics 0건. `git diff --check` 내용 오류 없음(LF→CRLF 정책 경고만 출력).
+- 완료 결과: 사용자 항목 수정 모드의 종류 드롭다운과 다이얼로그가 각각 필요한 64px만큼 넓어지고, 긴 종류 이름은 메뉴에서 두 줄로 표시되지 않는다.
+- stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+
 ## 완료: 사용자 항목 추가 행 자동 스크롤
 - 사용자 제출 화면 기준 기존 사용자 항목 158행에서 신규 행 추가 후 마지막 inline editor가 viewport로 자동 스크롤되지 않는다.
 - 현재 `_addCustomerRow()`는 마지막 index를 `SwipeActionTable.scrollToIndex`에 전달하고 공용 테이블은 행 수 변경 후 post-frame animate를 수행한다. 기존 테스트는 20행에서 임의 ListView offset만 확인해 실제 신규 행 노출을 보장하지 못한다.
