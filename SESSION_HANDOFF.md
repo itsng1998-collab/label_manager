@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 사용자 항목 편집 셀을 품목관리 스타일로 통일
+- 비교 결과: 품목관리는 `FortuneTable` 내장 editor의 선택 행 배경, 파란색 2px 테두리, 14px 글꼴, 좌우 2px padding을 사용한다. 라벨 사용자 항목은 별도 `SwipeActionTable + TextFormField` 구현으로 테두리 없음, 13px dialog 글꼴, 좌우 6px padding을 사용해 편집 상태가 다르다.
+- 수정 예정: 라벨 사용자 항목의 신규/수정 텍스트 셀을 품목관리 FortuneTable editor 스타일로 맞추고 widget 테스트로 decoration/font/padding을 고정한다. 데이터 편집 동작과 dropdown 폭은 유지한다.
+- 편집 완료: 키워드/항목명 TextFormField와 편집 중 종류 dropdown을 공용 `_customerEditorDecoration`으로 묶어 선택 배경 `#E3F2FD`, 파란 테두리 `#0188FB` 2px를 적용했다. 텍스트는 품목관리와 같은 14px, 좌우 2px이며 편집 dropdown의 내부 검은 outline은 제거했다.
+- 테스트 추가: 신규 사용자 행의 키워드 editor와 종류 dropdown이 선택 배경/파란 2px 테두리/14px/좌우 2px를 사용하는지 검증한다. 종류 dropdown은 `customer-type:<row-key>`로 행 identity를 고정했다.
+- 집중 검증 완료: `flutter test test/label_column_edit_dialog_test.dart --plain-name "adding a user row scrolls to its inline editor"` 성공(1개).
+- 전체 검증 완료: `flutter test test/label_column_edit_dialog_test.dart test/swipe_action_table_test.dart test/fortune_table_test.dart` 성공(112개), formatter 후 집중 테스트 성공(1개), 수정 파일 진단 0건, `git diff --check` whitespace 오류 없음(LF/CRLF 안내만 출력).
+- analyzer: `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
+- stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+
 ## 완료: 사용자 항목 추가 스크롤 및 드롭다운 잘림 재수정
 - 최신 로그 `app_2026-07-30_15-15-05.log`: 신규 159행 추가 후 row 15부터 row 158까지 약 3.3초 동안 순차 build되어 자동 스크롤이 즉시 완료되지 않았다. 고정 높이 행 ListView에 `itemExtent`가 없어 max scroll extent를 점진 추정하는 것이 원인이다.
 - 제출 화면 비교: 사용자 후보 영역은 약 386px인데 현재 열 합계가 `34+105+111+144=394px`라 144px로 확장한 종류 드롭다운도 8px 잘린다.

@@ -1019,6 +1019,53 @@ void main() {
       find.byKey(const ValueKey('customer-keyword:customer-draft:1')),
       findsOneWidget,
     );
+    final keywordEditor = find.byKey(
+      const ValueKey('customer-keyword:customer-draft:1'),
+    );
+    final editorDecoration = tester.widget<DecoratedBox>(
+      find.ancestor(
+        of: keywordEditor,
+        matching: find.byType(DecoratedBox),
+      ).first,
+    ).decoration as BoxDecoration;
+    expect(editorDecoration.color, const Color(0xFFE3F2FD));
+    expect(
+      editorDecoration.border,
+      Border.all(color: const Color(0xFF0188FB), width: 2),
+    );
+    final editorText = tester.widget<EditableText>(
+      find.descendant(of: keywordEditor, matching: find.byType(EditableText)),
+    );
+    expect(editorText.style.fontSize, 14);
+    final editorInput = tester.widget<InputDecorator>(
+      find.descendant(of: keywordEditor, matching: find.byType(InputDecorator)),
+    );
+    expect(
+      editorInput.decoration.contentPadding,
+      const EdgeInsets.symmetric(horizontal: 2),
+    );
+    final typeEditor = find.descendant(
+      of: find.byKey(
+        const ValueKey('customer-type:customer-draft:1'),
+      ),
+      matching: find.byType(DropdownMenu<TColumnType>),
+    );
+    expect(
+      tester.widget<DropdownMenu<TColumnType>>(typeEditor).inputDecorationTheme?.border,
+      InputBorder.none,
+    );
+    final typeEditorDecoration = tester
+        .widgetList<DecoratedBox>(
+          find.ancestor(of: typeEditor, matching: find.byType(DecoratedBox)),
+        )
+        .map((box) => box.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere(
+          (decoration) =>
+              decoration.border ==
+              Border.all(color: const Color(0xFF0188FB), width: 2),
+        );
+    expect(typeEditorDecoration.color, const Color(0xFFE3F2FD));
   });
 
   testWidgets('customer type dropdown stays available and saves changes', (
