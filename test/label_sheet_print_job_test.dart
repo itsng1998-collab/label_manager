@@ -8,6 +8,37 @@ import 'package:image/image.dart' as img;
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 void main() {
+  test('print options normalize UI input values', () {
+    final options = labelSheetPrintOptionsFromInput(
+      copies: ' 3 ',
+      leftMarginMm: '-1.5',
+      topMarginMm: 'invalid',
+      extraAreaMm: ' 2.5 ',
+      autoSpacing: '120',
+      orientation: 'vertical',
+    );
+
+    expect(options.copies, 3);
+    expect(options.leftMarginMm, 0);
+    expect(options.topMarginMm, 0);
+    expect(options.extraAreaMm, 2.5);
+    expect(options.autoSpacingPercent, 120);
+    expect(options.orientation, LabelSheetPrintOrientation.vertical);
+
+    final fallback = labelSheetPrintOptionsFromInput(
+      copies: '0',
+      leftMarginMm: '',
+      topMarginMm: '',
+      extraAreaMm: '',
+      autoSpacing: 'none',
+      orientation: 'unknown',
+    );
+
+    expect(fallback.copies, 1);
+    expect(fallback.autoSpacingPercent, isNull);
+    expect(fallback.orientation, LabelSheetPrintOrientation.horizontal);
+  });
+
   test('print range uses physical size with custom and default axes', () {
     final range = labelSheetPrintRange(
       fs.FortuneSheet(

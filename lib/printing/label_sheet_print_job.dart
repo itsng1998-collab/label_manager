@@ -36,6 +36,31 @@ class LabelSheetPrintOptions {
 
 enum LabelSheetPrintOrientation { horizontal, vertical }
 
+LabelSheetPrintOptions labelSheetPrintOptionsFromInput({
+  required String copies,
+  required String leftMarginMm,
+  required String topMarginMm,
+  required String extraAreaMm,
+  required String autoSpacing,
+  required String orientation,
+}) {
+  double nonNegativeDouble(String value) =>
+      math.max(0, double.tryParse(value.trim()) ?? 0);
+
+  return LabelSheetPrintOptions(
+    copies: math.max(1, int.tryParse(copies.trim()) ?? 1),
+    leftMarginMm: nonNegativeDouble(leftMarginMm),
+    topMarginMm: nonNegativeDouble(topMarginMm),
+    extraAreaMm: nonNegativeDouble(extraAreaMm),
+    autoSpacingPercent: autoSpacing == 'none'
+        ? null
+        : int.tryParse(autoSpacing),
+    orientation: orientation == 'vertical'
+        ? LabelSheetPrintOrientation.vertical
+        : LabelSheetPrintOrientation.horizontal,
+  );
+}
+
 class LabelSheetPrintPageMetrics {
   const LabelSheetPrintPageMetrics({
     required this.labelWidthMm,

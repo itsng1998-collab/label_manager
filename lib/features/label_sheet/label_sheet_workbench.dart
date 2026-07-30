@@ -2254,25 +2254,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   LabelSheetPrintOptions _currentPrintOptions() {
-    return LabelSheetPrintOptions(
-      copies: math.max(
-        1,
-        int.tryParse(_printCopiesController.text.trim()) ?? 1,
-      ),
-      leftMarginMm: _doubleFromPrintInput(_printLeftMarginController.text),
-      topMarginMm: _doubleFromPrintInput(_printTopMarginController.text),
-      extraAreaMm: _doubleFromPrintInput(_printExtraAreaController.text),
-      autoSpacingPercent: _printAutoSpacing == 'none'
-          ? null
-          : int.tryParse(_printAutoSpacing),
-      orientation: _printOrientation == 'vertical'
-          ? LabelSheetPrintOrientation.vertical
-          : LabelSheetPrintOrientation.horizontal,
+    return labelSheetPrintOptionsFromInput(
+      copies: _printCopiesController.text,
+      leftMarginMm: _printLeftMarginController.text,
+      topMarginMm: _printTopMarginController.text,
+      extraAreaMm: _printExtraAreaController.text,
+      autoSpacing: _printAutoSpacing,
+      orientation: _printOrientation,
     );
-  }
-
-  double _doubleFromPrintInput(String value) {
-    return math.max(0, double.tryParse(value.trim()) ?? 0);
   }
 
   void _closePrintSettingsDialog() {
