@@ -14,6 +14,7 @@
 - 최종 검증: 관련 테스트 232개 통과. analyzer `No issues found` (3.6초), 변경 파일 diagnostics 0건.
 - 완료 결과: 초기 조회와 저장 재조회 모두 최종 ItemManage 렌더에서 첫 행이 선택 표시된다. 변경 취소와 품목 순서 변경은 기존 선택 복원 동작을 유지한다.
 - stage/commit 대상: `lib/features/item/presentation/item_manage.dart`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 기능 commit: `e4c09f0` (`품목관리 조회 후 첫 행 자동 선택`).
 
 ## 완료: 품목관리 1만 행 build/auto-fit 최적화
 - 병목 1: `FortuneTable`이 rebuild마다 전체 `행×컬럼` 문자열 signature를 만들고 다시 전체 셀을 TextPainter로 측정한다.
