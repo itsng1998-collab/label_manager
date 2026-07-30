@@ -1,1349 +1,168 @@
-# 진행 중: UI/비즈니스 로직 분리 및 미사용 코드·리소스 정리
-- 범위: `lib` 전체를 기능군별 단계로 정리한다. UI widget과 업무 계산·상태·저장 로직을 분리하고, 비즈니스 함수는 조회/변환/검증/저장 등 같은 그룹끼리 배치한다.
-- 삭제 원칙: analyzer와 전체 참조 검색으로 미사용 코드·소스·리소스 후보를 확인한다. 외부 진입점, 배포 스크립트, 런타임 동적 참조 가능성이 있는 파일은 사용자 확인 후 삭제한다.
-- 사용자 변경 보존: 작업 시작 시 미커밋 상태인 `nutrition_box_dialog.dart`, `nutrition_type_dialog.dart`, `common_label_history_dialog_test.dart`의 각 1줄 삭제는 수정·stage·commit하지 않는다.
-- 현재 단계: 프로젝트 규칙, 대형 파일, 의존/리소스 참조, analyzer 결과 감사 중.
+# 완료: 라벨 workbench 업무 정책 분리
 
-# 완료: 영양성분표 추가 시 RTF viewer 숨김
-- 원인: 선택 행의 RTF floating viewer가 create editor 전환 뒤에도 공통 portal host에 남아 표시된다.
-- 수정: create editor 진입이 확정될 때 floating viewer를 숨기고, edit 진입 시 viewer 유지 동작은 보존한다.
-- 테스트: 기존 create 회귀 테스트에 RTF 행 선택 시 viewer 표시, 추가 진입 후 viewer 미표시 검증을 추가했다.
-- focused 검증: `create editor ignores selected row and starts empty` 1건 통과.
-- 전체 검증: `test/nutrition_box_dialog_test.dart` 11건 통과. 수정 2개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
-- 기능 커밋: `33d6013` (`영양성분표 추가 시 RTF 미리보기 숨김`)
+## 완료: 폴더 구조 변경 후 빈 폴더 정리
+- 삭제: `lib/models`, `lib/page_home`, `lib/page_login`, `lib/features/admin_access/data`와 그 결과 비게 된 `lib/features/admin_access`.
+- 확인: 삭제 대상에 Git 추적 파일, ignore placeholder, 일반 파일이 없었고 정리 후 `lib` 아래 빈 디렉터리는 0개다.
+- 제외: `android/.gradle/8.12/expanded`, `android/.gradle/8.12/vcsMetadata`는 Gradle 생성 캐시이므로 소스 구조 정리 대상에서 제외했다.
+- Git은 빈 디렉터리를 추적하지 않으므로 기능 파일 diff·커밋·Flutter 테스트 대상은 없다. 원격 push 없음.
 
-# 완료: 영양성분표 추가 초기값 비우기
-- 원인: `_openEditor()`가 create/edit 구분 없이 현재 선택 행을 source로 사용해 추가 화면에 수정 대상의 형식·명칭·폭·RTF가 채워진다.
-- `nutrition_box_dialog.dart`: edit 모드에서만 선택 행을 source로 사용하고 create 모드는 null source로 분리했다. 추가 시 ID/type/name/width/RTF를 비우고 신규 빈 workbook으로 시작한다.
-- `nutrition_box_dialog_test.dart`: 기존 행이 자동 선택된 상태에서도 추가 진입 시 type null, name/width/RTF 빈 값, 빈 sheet인지 검증한다.
-- 검증: 영양성분표 dialog 테스트 11건 통과. 수정 2개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
-- 기능 커밋: `8acd63c` (`영양성분표 추가 초기값 비우기`)
+## 완료: LabelSheetWorkbench 잔여 정책 감사
+- 비출력 private method를 감사한 결과, 남은 계산 helper는 import 적용 상세 로그 샘플링 전용이며 업무 경로에는 picker/controller/mounted/snackbar/focus/dirty lifecycle과 분리할 다음 순수 정책이 없다.
+- `_workbookHasRtfImportSource()`와 `_opsClearSheet()`는 각각 RTF import dirty 전환과 controller op dirty 전환에 직접 붙은 짧은 상태 query라 별도 application API로 만들지 않는다.
+- `_labelSheetAxisLogicalTotalSize()`는 실제 map entry 합계 로그이고 application의 `labelSheetAxisLogicalTotalSizeForCount()`는 누락 축 default를 포함하는 업무 계산이므로 의미가 달라 통합하지 않는다. 로그에 업무 로직을 추가하지 않았다.
+- 결론: import/export/save/print 업무 정책은 application/printing 계층으로 이동했고 workbench에는 UI/controller/platform/lifecycle orchestration만 남았다. 추가 억지 추출 없이 이 리팩터링 범위를 완료한다.
+- 코드 변경 및 추가 테스트 없음. 감사 기록만 갱신하며 기능 커밋은 만들지 않는다.
 
-# 완료: 영양성분표 RTF 다시보기 아이콘 간격 조정
-- 원인: manager toolbar의 다시보기 아이콘 뒤 고정 여백이 preview 확대/축소 영역 폭만큼만 확보되어 두 영역이 바로 붙어 보인다.
-- `nutrition_box_dialog.dart`: 확대/축소 영역 예약 폭 116px와 다시보기 시각 간격 12px를 별도 상수로 분리하고, trailing space를 128px로 늘려 아이콘을 왼쪽으로 이동했다.
-- `nutrition_box_dialog_test.dart`: RTF viewer를 닫은 상태에서 다시보기 trailing space가 128px인지 검증한다.
-- 검증: 영양성분표 dialog 테스트 10건 통과. 수정 2개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
-- 기능 커밋: `1d6b84d` (`영양성분표 RTF 다시보기 간격 조정`).
+## 완료: Hybrid EZPL preparation 조립 분리
+- 감사 결과: geometry 이후 candidate 생성, EZPL descriptor preflight, approval 기반 render plan 확정은 다른 production 호출자가 없는 동기·순수 정책 체인이다.
+- 로컬 가설: geometry/descriptors/plan을 반환하는 preparation builder로 묶으면 workbench에는 controller capture와 filtered PNG bytes 생성 orchestration만 남고 승인된 native command는 동일하다.
+- 편집 완료: `LabelSheetHybridPrintPreparation`과 `prepareLabelSheetHybridPrint()`를 추가해 geometry, candidate, descriptor preflight, approval 기반 plan 확정을 묶었다. workbench는 preparation 이후 controller capture와 filtered PNG bytes 생성만 수행한다.
+- 테스트 변경: 기존 line+cell-border Hybrid 출력 fixture를 preparation builder 경유로 전환하고 승인 token 2개와 descriptor command encoding을 그대로 검증한다.
+- 검증: print job 9 tests passed, label sheet toolbar 161 tests passed. 변경 파일 diagnostics 0건, `git diff --check` 통과.
+- 최종 diff: print job/workbench/test 3개에 88 insertions, 84 deletions. formatter는 실행하지 않았다.
+- stage 예정: 위 3개만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `e632e38` (`라벨 하이브리드 출력 계획 조립 분리`). 원격 push 없음.
+- 출력 정책 분리 경계 완료: print job이 옵션 정규화, 출력 범위, Hybrid geometry/candidate/preflight/plan, PDF/EZPL bytes 정책을 소유한다. workbench에는 printer/platform 조회, controller finalize/capture, mounted/snackbar, 실제 전송 orchestration만 남았다.
+- 다음 시작점: 출력 경로는 더 분리하지 않는다. workbench의 비출력 private method 중 controller/UI lifecycle과 분리 가능한 다음 순수 업무 계산을 표적 감사한다.
 
-# 완료: 영양성분표 AI 변환 dialog 최상단 표시
-- 원인: `LabelSheetWorkbench`의 AI image import가 일반 `showDialog` route를 사용해 `OverlayEntry` 기반 영양성분표 modeless dialog 아래에 배치된다.
-- `label_sheet_workbench.dart`: 기본값이 false인 `imageImportUseRootOverlay` 옵션을 추가했다. 활성화 시 공용 `showBlockingModelessOverlayDialog`로 AI image import를 root overlay 최상단에 표시하고, 취소/적용 결과를 overlay `close(result)`로 반환한다. 기존 화면은 일반 `showDialog`를 유지한다.
-- `nutrition_box_dialog.dart`: 영양성분표 editor의 workbench에서 `imageImportUseRootOverlay: true`를 사용한다.
-- `nutrition_box_dialog_test.dart`: image import controller attachment와 root-overlay 옵션을 함께 검증하고, AI dialog 열기/취소 후 RTF viewer 복원을 확인한다.
-- 검증: 영양성분표, 라벨시트 toolbar, 공용 blocking modeless dialog, 앱 메뉴 관련 테스트 총 31건 통과. 수정 3개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
-- 기능 커밋: `672cfcf` (`영양성분표 AI 변환 다이얼로그 최상단 표시`).
+## 완료: Hybrid EZPL geometry 계산 분리
+- 감사 결과: backend 선택은 이미 dispatcher에 있고 printer 조회·controller capture·플랫폼 전송은 workbench orchestration이다. 반면 `_captureHybridEzpl()`의 출력 range 정규화, source bounds/mm, layout, `FortunePrintTransform` 생성은 순수 계산이다.
+- 로컬 가설: sheet/settings/physical size/metrics/options를 받는 geometry builder로 이 계산을 이동하면 candidate/plan/capture 순서는 유지되고 workbench의 출력 정책 책임만 줄어든다.
+- 편집 완료: `LabelSheetHybridPrintGeometry`와 `resolveLabelSheetHybridPrintGeometry()`를 추가해 range/source bounds/source mm/layout/transform 계산을 print job으로 이동했다. workbench는 geometry로 candidate/descriptor/plan/capture를 조립한다.
+- 테스트 추가: custom/default 3셀 축, source metrics, margin/clip/native transform 계약 1건.
+- 첫 focused 검증은 source bounds를 40px로 예상해 1건 실패했다. FortuneSheet metrics가 셀 경계 3px을 포함하는 기존 계약을 확인해 기대값을 43×43px로 교정했다.
+- 최종 검증: print job 9 tests passed, label sheet toolbar 161 tests passed. 변경 파일 diagnostics 0건, `git diff --check` 통과.
+- 최종 diff: print job/workbench/test 3개에 121 insertions, 44 deletions. formatter는 실행하지 않았다.
+- stage 예정: 위 3개만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `9413dab` (`라벨 하이브리드 출력 좌표 계산 분리`). 원격 push 없음.
+- 다음 시작점: geometry 이후 `fortuneBuildNativeCandidates → preflightLabelSheetEzplCandidates → fortuneFinalizeHybridRenderPlan` 조립이 순수 print-job 정책으로 묶일 수 있는지 감사한다. controller capture와 filtered PNG 기반 bytes 생성은 orchestration 경계로 유지한다.
 
-# 완료: 영양성분표 RTF viewer 수정 중 유지 및 AI 변환
-- 원인: `_openEditor()`가 수정 진입 전에 RTF floating window를 숨기고, portal host도 manager 화면에만 있어 editor 전환 시 viewer가 유지되지 않는다.
-- 수정: `nutrition_box_dialog.dart`에서 RTF 수정 진입 시 viewer를 숨기지 않고 manager/editor 공통 build가 같은 portal host를 유지하게 했다.
-- `preview_floating_window.dart`: 공용라벨관리의 `AI 변환` header button을 `RtfPreviewAiConvertButton` 공용 widget으로 이동했다.
-- `home_page_manager.dart`: 기존 공용라벨 RTF viewer가 공용 AI 변환 버튼을 그대로 사용하도록 교체했다.
-- `nutrition_box_dialog.dart`: 유지된 RTF viewer에 공용 AI 변환 버튼을 추가하고, RTF native PNG를 temp 파일로 저장해 editor의 `LabelSheetImageImportController`로 전달한다. AI dialog 동안 viewer를 숨기고 닫은 뒤 같은 window를 복원한다.
-- AI 분석 결과는 기존 `LabelSheetWorkbench.onUserWorkbookChanged`를 통해 `_editorWorkbook`과 저장용 `_rtf`에 반영된다. manager 상태에서 누르면 수정 화면 진입 안내를 표시한다.
-- `nutrition_box_dialog_test.dart`: RTF viewer 수정 중 유지, AI 버튼 표시, image import controller attachment, 실제 AI import dialog 열기/취소 후 viewer 복원을 검증한다.
-- 검증: 영양성분표, 앱 메뉴, 라벨시트 toolbar 관련 테스트 총 31건 통과. 수정 4개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
-- 기능 커밋: `f6045c3` (`영양성분표 RTF 수정 중 AI 변환 지원`).
+## 완료: 출력 옵션 입력 정규화 분리
+- 감사 결과: `_currentPrintOptions()`가 controller 읽기와 함께 copies 최소 1, mm 음수·비숫자 0 보정, spacing/orientation 문자열 해석 정책을 소유한다.
+- 로컬 가설: 문자열 입력을 받는 순수 print options builder로 전체 정규화 규칙을 이동하면 workbench에는 UI 값 전달만 남고 기존 출력 옵션은 동일하다.
+- 편집 완료: `labelSheetPrintOptionsFromInput()`에 copies/mm/spacing/orientation 정규화를 이동하고 workbench는 controller와 선택값만 전달한다. 기존 fallback과 clamp는 변경하지 않았다.
+- 테스트 추가: 정상 입력의 trim·orientation·spacing과 음수/비숫자/none/unknown fallback 계약 1건.
+- 검증: print job 8 tests passed, label sheet toolbar 161 tests passed. 변경 파일 diagnostics 0건, `git diff --check` 통과.
+- 최종 diff: print job/workbench/test 3개에 63 insertions, 18 deletions. formatter는 실행하지 않았다.
+- stage 예정: 위 3개만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `ed285e8` (`라벨 출력 옵션 정규화 분리`). 원격 push 없음.
+- 다음 시작점: `_handleIssuePrintSettings()`의 backend 선택 이후 분기를 감사하되 printer 조회, platform port/DPI 확인, mounted/snackbar는 workbench에 유지한다. 순수 print-job 조립 경계가 확인될 때만 다음 책임을 이동한다.
 
-# 완료: 고빈도 로그 성능 저하 제거
-- 원인: `PreviewFloatingWindow`의 이동/크기 조절 포인터 업데이트마다 `debugLog()`가 호출되어 스택 파싱, 타임스탬프 생성, 파일 버퍼 기록이 반복된다.
-- 추가 원인: 최신 로그 2,808줄 중 연결 확인 `SELECT 1`이 180회 실행됐고, client/ODBC 양쪽에서 heartbeat당 최소 6줄, 총 1,080줄을 생성했다.
-- `preview_floating_window.dart`: 상세 진단 로그를 기본 비활성화하고 `LABEL_MANAGER_PREVIEW_FLOATING_DEBUG` dart-define으로만 활성화했다. 이동/resize 매 포인터 업데이트 로그는 제거했다.
-- `db_sql_log_policy.dart`: `SELECT 1`/`SELECT 1;` 연결 probe를 판별하는 공용 정책을 추가했다.
-- `db_client.dart`: 연결 probe 실행과 오류 전달은 유지하면서 시작/SQL/isolate 요청·응답/완료 로그를 생략했다.
-- `windows_odbc/odbc_driver.dart`: 연결 probe의 중복 SQL 로그를 생략했다. 일반 SQL 로그는 유지한다.
-- `db_sql_log_policy_test.dart`: probe와 일반 SELECT 판별을 고정했다.
-- 검증: DB 로그 정책, 연결 monitor, ODBC parameter, 앱 메뉴, floating preview 관련 집중 테스트 총 25건 통과. 수정 5개 Dart 파일 정적 진단 오류 없음. `git diff --check` 통과.
-- 기능 커밋: `fac8ba2` (`고빈도 로그 성능 저하 제거`).
+## 완료: 출력 범위 계산 분리
+- 감사 결과: `_labelSheetPrintRange()`와 `_lastPrintIndexForExtent()`가 physical mm와 sheet axis 크기만 사용하는 순수 계산인데 workbench에 남아 있고 일반/PNG/Hybrid 출력 3경로가 공유한다.
+- 로컬 가설: 계산을 기존 `label_sheet_print_job.dart`의 public policy로 이동하면 세 호출자의 범위가 동일하게 유지되고 workbench의 출력 정책 책임이 줄어든다.
+- 편집 완료: print job에 `labelSheetPrintRange()`를 추가하고 workbench private helper 2개를 제거했으며 기존 호출 3개를 전환했다.
+- 테스트 추가: 10×10mm 범위에서 custom 첫 축과 default 후속 축이 각각 index 2까지 포함되는 계약 1건.
+- 첫 focused 검증: `flutter test test/label_sheet_print_job_test.dart` 7 tests passed.
+- 검증 중 현재 SDK `dart format`이 기존 스타일 파일 전체를 재작성해 의도 밖 churn을 만들었다. 세 코드 파일의 이번 diff만 역적용하고 작은 기능 patch를 재적용했으며 기존 사용자 변경은 없었다.
+- 최종 diff: print job/workbench/test 3개에 65 insertions, 43 deletions. 전면 포맷 churn 없음, `git diff --check` 통과.
+- 최종 검증: print job 7 tests passed, label sheet toolbar 161 tests passed.
+- stage 예정: 위 3개만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- 변경 파일 diagnostics 0건, cached diff check 통과.
+- 기능 커밋: `297e70b` (`라벨 출력 범위 계산 분리`). 원격 push 없음.
+- 다음 시작점: workbench의 `_currentPrintOptions()`와 숫자 입력 정규화가 UI controller 읽기와 출력 옵션 정책을 함께 소유하는지 감사한다. 단순 parse helper만 옮기지 말고 응집된 options builder 경계가 확인될 때만 분리한다.
 
-# 완료: main.dart 시작 처리 주석 보강
-- `clearLabelSheetAiImportStartupTempDirectory()`에 이전 실행의 AI 가져오기 임시 파일 정리 목적을 주석으로 명시했다.
-- `removePreferredPrinterIfMissing()`에 앱 시작을 막지 않는 기본 프린터 설정 정리 목적을 주석으로 명시했다.
-- 검증: `main.dart` 정적 진단 오류 없음.
-- 기능 커밋: `f2db5f9` (`앱 시작 처리 주석 보강`).
+## 완료
+- 감사 결과: 일반 파일 import가 `_applyImportedLabelWorkbook()` 호출 전에 `sheets.isEmpty`와 동일 snackbar 분기를 중복 수행한다.
+- 로컬 가설: 빈 workbook 검증을 공통 apply 진입점에만 유지하면 일반 파일과 AI XLSX import 모두 같은 검증·표시 경로를 사용하면서 동작은 보존된다.
+- 편집 완료: `_importLabelFileFromXFile()`의 중복 empty-sheet 분기 9줄을 제거하고 공통 apply 검증은 유지했다. application result 타입이나 새 abstraction은 추가하지 않았다.
+- focused 검증: `flutter test test/label_sheet_toolbar_test.dart` 161 tests passed.
+- 변경 파일 diagnostics 0건, `git diff --check` 통과.
+- stage 예정: workbench 1개만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- 기능 커밋: `9a606a2` (`라벨 가져오기 검증 경로 단일화`). 원격 push 없음.
+- 다음 시작점: import/export 범위 밖의 workbench private 정책 중 application 계층으로 이동할 수 있는 다음 순수 계산 책임을 감사한다.
 
-# 완료: 기존 미커밋 Dart 정적 분석 정리
-- 확인: `home_page.dart`의 변경되지 않는 상태 필드 2개 final화, `nutrition_box_dialog.dart`의 불필요한 foundation import 제거, 영양성분 형식/저울출력 테스트 callback의 미사용 매개변수 이름 정리다.
-- 정적 확인: 수정된 5개 파일 모두 오류 없음. 두 final 필드는 선언 외 대입이 없고, import 제거 후 `visibleForTesting`도 정상 해석된다.
-- 검증: 영양성분표, 영양성분 형식, 저울출력 집중 테스트 총 31건 통과. `git diff --check` 통과.
-- 전체 workspace 진단에는 이번 파일과 무관한 기존 미사용 선언/import 경고 16건이 `home_page_manager.dart`, `automatic_item_update_page.dart`, 테스트 2개, `third_party/fortune_sheet`에 남아 있어 범위 밖으로 유지한다.
-- 커밋 대상: 위 5개 파일만 stage하고 기존 완료 기능과 분리한다.
-- 기능 커밋: `6097f12` (`Dart 정적 분석 경고 정리`).
+## 완료
+- 경계 감사 결과: picker, `XFile` 읽기, controller apply, mounted/snackbar는 workbench orchestration이지만 `XLSX이면 물리 폭 scaling`이라는 format-to-layout 정책 1개가 남아 있다.
+- 로컬 가설: file path/name을 받는 import layout wrapper가 format을 해석하면 기존 LMS 무scaling/XLSX scaling 동작을 보존하면서 workbench의 enum 판단을 제거할 수 있다.
+- 편집 완료: `labelSheetPrepareImportedSheetForFile()`을 추가하고 workbench의 format enum 및 scaling bool 판단을 제거했다.
+- 테스트 추가: path 우선 format에서 XLSX는 물리 폭 scaling, LMS는 원래 폭 보존 계약 1건.
+- focused 검증: import layout 4 tests passed.
+- 변경 파일 Dart 포맷 완료.
+- 통합 회귀: `flutter test test/label_sheet_import_codec_test.dart test/label_sheet_import_layout_test.dart test/label_sheet_toolbar_test.dart` 168 tests passed.
+- analyzer: `flutter analyze`는 변경 파일이 아닌 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`의 기존 미사용 선언 10건으로 종료 코드 1. 이번 변경 파일 진단은 별도 확인한다.
+- 변경 파일 진단: import layout, workbench, layout test 모두 0 errors.
+- 전체 테스트: `flutter test` 824 tests passed.
+- stage 예정: import layout, workbench, layout test 3개만 포함. `SESSION_HANDOFF.md`와 unrelated dirty 파일은 제외.
+- stage 검증 완료: 기능 파일 3개만 staged, `git diff --cached --check` 통과. 변경 규모 56 insertions, 8 deletions.
+- 기능 커밋: `8d6d1f0` (`라벨 가져오기 레이아웃 정책 분리`). 원격 push 없음.
+- label file 최종 경계: application이 format/decode/layout/scaling/content/payload/file I/O/persistence 정책을 소유하고, workbench에는 picker/controller/mounted/snackbar/dirty lifecycle만 남았다.
+- 다음 시작점: label file import/export 책임 분리는 완료 상태다. 후속 요청이 없으면 추가 구조 변경을 진행하지 않는다.
 
-# 완료: 업데이트 메시지 공지·이미지 비율 통일
-- 편집 완료: 업데이트 메시지의 `NoticeDisplayPanel`에 로그인 다이얼로그와 같은 `contentFlex=1`, `adFlex=1`을 적용해 공지와 이미지 영역을 1:1로 배치했다.
-- 테스트 보강: 일반 사용자 업데이트 메시지에서 `notice-content-area`와 `notice-ad-area`의 실제 폭이 같은지 검증한다.
-- 검증: 포맷 전후 `test/notice_menu_dao_test.dart`, `test/startup_dialog_test.dart` 총 14건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일은 stage/commit에서 제외한다.
-- 기능 커밋: `e7ff06a` (`업데이트 메시지 공지 이미지 비율 통일`).
+## 완료
+- 로컬 가설: workbook 물리 크기 → 전달 fallback → 100×100 순서와 print-area encoded workbook 조립을 application builder로 이동하면 save callback 동작을 보존하면서 workbench의 private 업무 변환을 제거할 수 있다.
+- 편집 완료: save codec에 typed `LabelSheetSavePayload` builder를 추가하고 workbench save callback과 file writer encoding을 같은 API로 전환했다.
+- 테스트 추가: workbook metadata 우선, 전달 fallback, 100×100 default, encoded workbook decode 계약 2건.
+- focused 검증: save payload 2 tests passed.
+- 포맷 후 결합 회귀: save payload 2건 + file writer 2건 + label sheet toolbar 161건, 총 165 tests passed.
+- 정적 검증: `flutter analyze lib test` 0 issue.
+- 전체 검증: `flutter test test` 823 tests passed.
+- 구조 검증: `git diff --check`, staged diff check 통과.
+- stage/commit 완료: save codec, file writer, workbench, save payload test 4개만 포함하고 이 문서는 제외했다.
+- 커밋 완료: `89e7fbd` (`라벨 시트 저장 payload 조립 분리`).
 
-# 완료: 검색출력 설정 FortuneTable 전환
-- 편집 완료: 검색출력 설정의 `CheckboxListTile` 목록을 row 번호, `검색 여부` 체크박스, `항목명`으로 구성한 `FortuneTable<TColumn>`로 교체했다.
-- 기능 유지: 개별 체크는 기존 `SearchPrintSettingsDraft.setSearchPrint`에 연결하고 전체 선택/해제, 브랜드·라벨 전환, 적용·취소 및 dirty 흐름은 그대로 유지한다.
-- 테스트 보강: FortuneTable row/column 구성, 개별 체크, 전체 선택/해제 후 draft 기반 checked 상태 갱신을 검증한다.
-- 검증: 포맷 전후 `test/search_print_settings_test.dart` 5건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일은 stage/commit에서 제외한다.
-- 기능 커밋: `3f501ee` (`검색출력 설정 FortuneTable 전환`).
+## 완료
+- 로컬 가설: print-area 정규화 후 active sheet의 저장 가능한 7개 collection을 검사하는 순수 predicate를 save codec으로 이동하면 export menu/handler 판단을 보존하면서 workbench의 업무 정책을 줄일 수 있다.
+- 편집 완료: save codec에 `labelSheetWorkbookHasSaveContent()`를 추가하고 workbench의 menu/handler 중복 predicate를 application API로 전환했다.
+- 테스트 추가: 빈 active sheet, 7개 저장 collection 각각, inactive sheet 제외 계약 2건.
+- 테스트 어댑터가 신규 파일을 0건으로 반환해 Flutter CLI로 직접 실행했다.
+- 첫 CLI 검증은 test fixture의 지원하지 않는 `activeSheetId` 인자와 const map key 때문에 compile 실패; `activeSheetIndex=0` 기본값과 non-const map으로 교정했다.
+- focused 검증: save content policy 2 tests passed.
+- 포맷 후 결합 회귀: save content policy 2건 + label sheet toolbar 161건, 총 163 tests passed.
+- 정적 검증: `flutter analyze lib test` 0 issue.
+- 전체 검증: `flutter test test` 821 tests passed.
+- 구조 검증: `git diff --check`, staged diff check 통과.
+- stage/commit 완료: save codec, workbench, save content test 3개만 포함하고 이 문서는 제외했다.
+- 커밋 완료: `61be931` (`라벨 파일 내보내기 내용 정책 분리`).
 
-# 완료: 영양성분표 목록 첫 행 자동 선택
-- 편집 완료: 영양성분표 목록의 첫 성공 로드에서 row가 있으면 index 0을 자동 선택한다. 이후 저장/삭제 reload의 기존 선택 복원 정책은 유지한다.
-- 테스트 변경: 관리자/RTF 미리보기 테스트의 수동 첫 행 선택을 제거하고 최초 렌더링 직후 `selectedIndex=0`인지 검증한다. RTF preview가 초기 선택과 함께 시작되므로 해당 테스트는 유한 pump로 대기한다.
-- 검증: 포맷 전후 `test/nutrition_box_dialog_test.dart` 9건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일은 stage/commit에서 제외한다.
-- 기능 커밋: `7d14cde` (`영양성분표 목록 첫 행 자동 선택`).
+## 완료
+- 로컬 가설: picker 이후 `.lms` 확장자 보정, print-area save payload 생성, flush 파일 쓰기를 application writer로 이동하고 최종 경로를 반환하면 export 동작을 보존하면서 workbench에는 picker와 UI lifecycle만 남길 수 있다.
+- 편집 완료: `label_sheet_file_writer.dart`에 확장자 helper와 workbook writer를 추가하고 workbench의 export 및 suggested name 처리를 application API로 전환했다.
+- 테스트 추가: 확장자 보정, 기존 `.LMS` 보존, 실제 파일 쓰기와 LMS decode 계약 2건.
+- focused/포맷 후 검증: file writer 2 tests passed, 변경 파일 diagnostics 0건.
+- 테스트 어댑터는 toolbar 파일을 발견하지 못했으나 Flutter CLI 직접 실행으로 toolbar 161 tests passed.
+- 정적 검증: `flutter analyze lib test` 0 issue.
+- 전체 검증: `flutter test test` 819 tests passed.
+- 구조 검증: `git diff --check`, staged diff check 통과.
+- stage/commit 완료: file writer, workbench, file writer test 3개만 포함하고 이 문서는 제외했다.
+- 커밋 완료: `c582611` (`라벨 파일 내보내기 writer 분리`).
+- label file import/export 최근 디렉터리 `SharedPreferences` load/save를 application settings API로 이동한다.
+- 로컬 가설: 빈 저장값을 null로 정규화하고 성공한 파일 경로의 parent만 저장하면 기존 picker와 import/export 동작을 보존하면서 workbench의 prefs 전달을 제거할 수 있다.
+- 수정 예정: `label_sheet_file_settings.dart`와 전용 테스트 추가, workbench load/save 전환 및 `prefs` 매개변수 제거.
+- 편집 완료: 최근 디렉터리 load와 파일 경로 parent 저장을 application API로 이동하고 workbench의 key/prefs 전달을 제거했다.
+- 테스트 추가: 빈 저장값 null 정규화, parent 저장, 빈 경로 무시 계약 1건.
+- focused/포맷 후 검증: file settings 1 test passed.
+- workbench 회귀: label sheet toolbar 161 tests passed.
+- 정적/구조 검증: `flutter analyze lib test` 0 issue, 변경 파일 diagnostics 0건, 직접 key 접근은 application settings 1곳만 존재.
+- 전체 검증: `flutter test test` 817 tests passed, `git diff --check` 통과.
+- stage/commit 완료: file settings, workbench, file settings test 3개만 포함하고 이 문서는 제외했다.
+- 커밋 완료: `eca0f84` (`라벨 파일 디렉터리 설정을 application으로 분리`).
 
-# 완료: 앱바 다이얼로그 취소 액션 통일
-- 편집 완료: 앱바 메뉴에서 여는 관리자 복사, 품목별 정보 편집, 영양성분 형식, 검색출력 설정의 하단 `닫기` 라벨을 `취소`로 변경했다.
-- 순서 통일: 네 다이얼로그 모두 `취소`가 `복사/저장/적용` 기본 액션보다 왼쪽에 배치된다. 기존 close callback과 busy/dirty 동작은 유지한다.
-- 테스트 보강: 각 다이얼로그에서 `취소` 표시, `닫기` 미표시, 실제 X좌표 기준 보조 액션 우선 배치를 검증한다.
-- 검증: 포맷 전후 관련 다이얼로그 테스트 4개 총 18건 통과. 수정한 소스/테스트 정적 오류 없음. 대상 소스 4개에 하단 `닫기` 라벨이 남지 않음을 확인했다.
-- 기존 사용자 변경 파일은 stage/commit에서 제외한다.
-- 기능 커밋: `d933d3a` (`앱바 다이얼로그 취소 액션 통일`).
+## 최근 완료
+- import path/name 확장자 우선순위와 XLSX layout 선택을 application codec의 단일 format 판정으로 통합했다.
+- `LabelSheetImportFormat`과 `labelSheetResolveImportFormat()`을 추가했다.
+- decode와 workbench scaling 선택이 같은 path 우선 format resolver를 사용한다.
+- path 우선, 대소문자 무시, unknown format 계약 테스트 1건을 추가했다.
+- focused 검증: import codec 3 tests passed.
+- workbench 회귀: label sheet toolbar 161 tests passed.
+- 정적 검증: `flutter analyze lib test` 0 issue, 변경 파일 diagnostics 0건.
+- 전체 검증: `flutter test test` 816 tests passed, `git diff --check` 통과.
+- stage/commit 완료: codec, workbench, codec test 3개만 포함하고 이 문서는 제외했다.
+- 커밋 완료: `6ca40ba` (`라벨 import 형식 판정을 application으로 통합`).
 
-# 완료: 영양성분표 편집 헤더 표시·프린트 숨김
-- 편집 완료: 영양성분표 수정 시트의 행 번호/열 문자 헤더를 표시하고, 전용 툴바 목록에서 프린트 명령을 제외했다.
-- 테스트 보강: 행/열 헤더와 header label이 표시 설정인지, 툴바에 프린트 명령이 없는지 검증한다.
-- 검증: 포맷 전후 `test/nutrition_box_dialog_test.dart` 9건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `dd3eb9a` (`영양성분표 편집 헤더 표시 및 프린트 숨김`).
+- `3272da2`: 라벨 import sheet identity/zoom/layout 조립을 application으로 이동.
+- `a9c8be8`: imported sheet 물리 크기 보존과 폭/최소 가독성 scaling 정책 분리.
+- `fe2f448`: LMS/XLSX 확장자 선택, bytes sniffing, workbook decode를 application codec으로 분리.
+- `f7c8ee5`: image import draft 임시 XLSX writer를 application으로 분리.
+- `8f104d6`: image import dialog launcher를 presentation으로 분리.
+- `5cf8c0c`: 저장 이미지 selection loader를 presentation으로 분리.
+- `5926095`: image import 설정 persistence를 application으로 분리.
 
-# 완료: 영양성분표 확대·축소 액션 행 배치
-- 편집 완료: 시트 아래 별도 줄에 있던 확대·축소 영역을 하단 `취소/저장` 액션 행의 왼쪽으로 옮기고, 시트는 본문 높이를 다시 전부 사용한다.
-- 테스트 보강: 확대·축소와 저장 버튼의 세로 중심이 같고 확대·축소가 취소/저장보다 왼쪽에 있는지 실제 좌표로 검증한다.
-- 검증: 포맷 전후 `test/nutrition_box_dialog_test.dart` 9건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `e262095` (`영양성분표 확대축소 액션 행 배치`).
-
-# 완료: 영양성분표 편집 확대·축소 영역 좌하단 이동
-- 편집 완료: 편집 시트의 상단 툴바 끝에 표시되는 확대·축소 영역을 숨기고, 같은 zoom controller에 연결한 공용 `LabelSheetZoomToolbar`를 시트 좌하단 아래에 배치했다.
-- 테스트 보강: 확대·축소 영역이 시트 하단보다 아래에 있고 시트 왼쪽에 정렬되는지 실제 좌표로 검증하며, toolbar와 workbench가 같은 controller를 공유하는지 확인한다.
-- 검증: 포맷 전후 `test/nutrition_box_dialog_test.dart` 9건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `78983c7` (`영양성분표 확대축소 영역 좌하단 이동`).
-
-# 완료: 영양성분표 편집 시트 우선 가로 배치
-- 편집 완료: 영양성분표 수정 본문을 `시트 → 성분 테이블` 순서의 가로 배치로 변경했다. 시트는 왼쪽 남은 폭을 사용하고 성분 테이블은 오른쪽 360px 폭을 사용한다.
-- 테스트 변경: 기존 Y축 순서 검증을 X축 순서 검증으로 변경해 시트가 성분 테이블보다 왼쪽에 표시되는지 확인한다.
-- 검증: 포맷 전후 `test/nutrition_box_dialog_test.dart` 9건 통과. 수정한 소스/테스트 정적 오류 없음.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `39ee846` (`영양성분표 편집 시트 우선 가로 배치`).
-
-# 완료: 영양성분표 편집 시트 우선 세로 배치
-- 편집 완료: 영양성분표 편집 본문 순서를 `성분 테이블 → 시트`에서 `시트 → 성분 테이블`로 변경했다. 시트는 남은 높이를 사용하고 테이블 높이 180px은 유지한다.
-- 라벨 변경: 편집 하단 `닫기`를 `취소`로 변경했으며 기존 편집 종료 동작은 유지한다.
-- 테스트 보강: 편집 시트의 실제 Y 좌표가 성분 테이블보다 위인지, `취소` 라벨만 표시되는지 검증한다.
-- 검증: `test/nutrition_box_dialog_test.dart` 9건 통과. 수정 파일 정적 오류 없음, `git diff --check` 통과.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `a4a2287` (`영양성분표 편집 시트 우선 배치`).
-
-# 완료: 영양성분 RTF 미리보기 창 유지·즉시 닫기
-- 원인: RTF 행 선택마다 기존 `PreviewFloatingWindow`를 dispose하고 새 객체를 생성해 사용자 리사이즈 상태가 초기화됐다. 닫기는 무거운 RTF child 전체에 180ms 축소 애니메이션을 적용해 시작 시 멈칫했다.
-- 편집 완료: dialog 생명주기 동안 floating window를 한 번만 생성하고 행 변경 시 `setChild`로 RTF 내용만 교체한다. RTF가 아닌 행에서는 객체를 숨겨 리사이즈 상태를 보존한다.
-- 닫기 동작: RTF 창은 `hideToRect` 대신 즉시 `hide`하고 restore 상태를 표시해 클릭 다음 프레임부터 닫힌다.
-- 테스트 보강: 닫기 직후 preview 제거와, 리사이즈 후 다른 RTF 행 선택 시 크기 유지·내용 교체를 검증한다.
-- 검증: `test/nutrition_box_dialog_test.dart` 9건, 공용 floating window 집중 테스트 2건 통과. 수정 파일 정적 오류 없음, `git diff --check` 통과.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `ff3f3e3` (`영양성분 RTF 미리보기 창 상태 유지`).
-
-# 완료: 품목별 정보 편집 저장·닫기 버튼 위치 교환
-- 편집 완료: 하단 액션 순서를 `닫기 → 저장`에서 `저장 → 닫기`로 변경했다. 기존 동작과 8px 간격은 유지한다.
-- 테스트 보강: 저장 버튼의 실제 중심 X 좌표가 닫기 버튼보다 왼쪽인지 검증한다.
-- 검증: `flutter test test/item_info_dialog_test.dart test/item_info_batch_test.dart` 총 4건 통과. 수정 파일 정적 오류 없음, `git diff --check` 통과.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `52dea92` (`품목별 정보 편집 버튼 위치 교환`).
-
-# 완료: 품목별 정보 편집 하단 닫기 버튼 추가
-- 편집 완료: `ItemInfoDialogContent`에 `onClose` callback과 하단 `닫기` 버튼을 추가하고, 저장 버튼 왼쪽에 8px 간격으로 배치했다.
-- 동작: 하단 닫기는 상단 X와 동일한 `_requestCloseItemInfoDialog`를 호출해 미저장 변경 확인을 재사용하며 저장 중에는 비활성화된다.
-- 테스트 추가: 하단 닫기 버튼이 dialog close callback을 한 번 호출하는지 검증한다.
-- 검증: `flutter test test/item_info_dialog_test.dart test/item_info_batch_test.dart` 총 4건 통과. 수정 파일 정적 오류 없음, `git diff --check` 통과.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `b3ea610` (`품목별 정보 편집 닫기 버튼 추가`).
-
-# 완료: 브랜드 선택 후 데이터 로드 지연 수정
-- 최신 로그 `app_2026-07-28_15-39-24.log`: `BrandDAO.selectByCustomerIdByBrandOrder` 자체는 37ms로 정상이다. 후속 `TColumnContentDAO.selectScopedByItemIds`가 26개 품목/338개 content 조회에 24,529ms, 같은 DB isolate의 heartbeat가 13,949ms 대기했다.
-- 원인 경로: 7월 10일 읽기 스냅샷 작업에서 market 품목 scope 보존을 위해 도입된 XML nodes CTE query. 날짜 조건 최적화와 직접 관련이 없다.
-- 편집 완료: market scope와 단일 XML parameter 계약은 유지하면서 XML ID를 `PRIMARY KEY` table variable에 한 번 materialize하고 본 조회는 정수 키 table과 join한다. SQL Server 2017이 실제 scope cardinality로 계획을 만들도록 `OPTION (RECOMPILE)`을 적용했다. DB migration은 하지 않는다.
-- 테스트 보강: XML parameter, table variable materialization, PK 및 scoped join 계약을 검증한다.
-- 검증: `flutter test test/item_manager_read_snapshot_test.dart test/item_manager_draft_test.dart` 총 29건 통과. 수정한 모델/테스트 파일 정적 오류 없음.
-- 정적 검증: 수정 파일 오류 없음, `git diff --check` 통과.
-- 사용자 재검증 필요: 동일 브랜드를 다시 선택한 뒤 `TColumnContentDAO.selectScopedByItemIds` 완료 시간을 최신 로그에서 확인한다.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `b48c97a` (`브랜드 후속 품목 데이터 조회 최적화`).
-
-# 완료: 발행내용보기 날짜 조건 조회 최적화
-- 최신 로그 `app_2026-07-28_15-32-58.log`: `BM_RICH_PRINT_LOG` 조회가 15:33:39.885에 시작됐으나 마지막 기록 15:33:40.690까지 완료 응답이 없고 DB isolate heartbeat도 대기했다.
-- 확인된 스키마: `RICH_DATE_YYYYMMDD VARCHAR(8) NOT NULL`. 레거시는 non-Unicode 날짜 리터럴을 사용하지만 Flutter ODBC는 문자열을 `SQL_WVARCHAR`로 바인딩한다.
-- 편집 완료: 목록 query와 같은 DAO의 합계 query에서 날짜 column은 그대로 두고 날짜 parameter만 `VARCHAR(8)`로 변환해 sargable predicate를 유지한다. DB migration은 하지 않는다.
-- 테스트 보강: 목록·합계 query의 parameter 변환 및 날짜 column 무변환을 검증한다.
-- 검증: `test/print_log_test.dart`, `test/print_history_dialog_test.dart` 총 6건 통과. 수정한 모델/테스트 파일 정적 오류 없음.
-- 정적 검증: `git diff --check` 통과.
-- 사용자 재검증 필요: 동일 기간/거래처 조회 후 최신 로그에서 실제 완료 시간을 확인한다.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `0ac50fd` (`발행내용보기 날짜 조건 조회 최적화`).
-
-# 완료: 데이터내용 이력 0건 조회 지연 수정
-- 로그 확인: filter 초기화는 0.3초 미만이지만 `BM_CONTENT_SAVE_LOG` 0건 조회가 69,638ms 소요됐다. 정상적인 UI 지연이 아니다.
-- 원인: Windows ODBC binder가 날짜 문자열을 `SQL_WVARCHAR`로 전달하지만 레거시는 `SAVE_DATE_YYYYMMDD`를 `VARCHAR` 리터럴로 비교한다. SQL Server가 VARCHAR 날짜 column을 암시적 Unicode 변환하면 인덱스 seek가 차단될 수 있다.
-- 편집 완료: column에는 함수를 적용하지 않고 `@startDate`, `@endDate`만 `VARCHAR(8)`로 명시 변환해 레거시 타입 비교와 sargable predicate를 유지한다. 거래처 조건은 기존 동작을 유지하며 DB migration은 하지 않는다.
-- 테스트 보강: 날짜 column 변환 없이 parameter 쪽만 변환하는 SQL인지 검증한다.
-- 검증: `flutter test test/content_save_log_test.dart test/content_save_history_dialog_test.dart` 총 5건 통과. 첫 실행은 새 assertion 닫는 괄호 누락으로 컴파일 실패했으며 문법 수정 후 성공했다. 거래처 변환을 제외한 최종 형태에서도 동일 명령으로 5건 재통과했다.
-- 정적 검증: 수정한 모델/테스트 파일 오류 없음, `git diff --check` 통과.
-- 사용자 재검증 필요: 동일 기간/거래처 조회 후 최신 로그의 `getDataWithParams 요청 완료` 시간을 확인한다.
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-- 기능 커밋: `09d8d62` (`데이터내용 이력 날짜 조건 조회 최적화`).
-
-# 완료: 발행 통계 조회 후 라벨사이즈·주원료 폭 배분
-- 원인: `FortuneTable.fillLastColumn=true`가 남는 가로 폭을 마지막 `라벨사이즈` column에 배분해 내용보다 넓게 표시했다.
-- 편집 완료: `라벨사이즈`는 기존 content auto-fit을 유지하고, 검색 항목이 `주원료`일 때 `searchValue.fillRemaining=true`를 적용해 420px 기준 폭에 남는 공간을 더한다.
-- 테스트 보강: 결과 렌더링 후 라벨사이즈가 auto-fit이며 fill 대상이 아닌지, 주원료가 fill 대상이고 실제 420px 이상인지, 라벨사이즈 실제 폭이 기존 130px보다 작은지 검증한다.
-- 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `d2b8bc7` (`발행 통계 조회 컬럼 폭 배분 조정`).
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-
-# 완료: 발행 통계 조회 후 주원료 column 폭 유지
-- 원인: 발행 통계 `FortuneTable.autoFitColumns=true`와 `searchValue.autoFit=true` 때문에 조회 row가 렌더링되면 긴 주원료 내용 기준으로 초기 420px 폭을 다시 계산했다.
-- 편집 완료: 검색 항목이 `주원료`일 때 `searchValue` column의 `autoFit=false`를 적용해 조회 전후 420px를 유지한다. 다른 검색 항목은 기존 auto-fit을 유지한다.
-- 테스트 보강: 실제 결과 row 렌더링 후 `searchValue.initialWidth=420`, `autoFit=false`인지 검증한다.
-- 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `412fbc6` (`발행 통계 조회 후 주원료 폭 유지`).
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-
-# 완료: 발행 통계 주원료 column 초기 폭 일치
-- 품목관리 기준: 주원료 column은 최소화 설정이 없을 때 초기 폭 420px를 사용한다.
-- 편집 완료: 품목관리의 420px 값을 공용 `itemManagerExpandedElementColumnWidth`로 분리하고, 발행 통계에서 검색 항목이 `주원료`일 때 같은 값을 사용한다. 다른 검색 항목은 기존 180px를 유지한다.
-- 테스트 보강: 발행 통계 초기 `searchValue` column 폭이 420px인지 검증한다.
-- 검증 완료: `test/status_print_dialog_test.dart` 3개 통과, 수정 Dart 파일 4개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `aa91088` (`발행 통계 주원료 컬럼 폭 일치`).
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-
-# 완료: 발행 통계 datetime COLLATE 조회 오류 수정
-- 이미지/로그 원인: `StatusPrintDAO.select`가 `datetime`인 `RICH_PRINT_DATE`에 `COLLATE Korean_Wansung_CI_AS`를 직접 적용해 SQL Server native 447이 발생했다.
-- 레거시 대조: `CStatusPrintDAO::SelectDLG`는 `RICH_PRINT_DATE`, `RICH_ID_CHANGE_DELETE_DATE`를 원본 그대로 SELECT하고 recordset `GetString()`으로 읽는다.
-- 편집 완료: 본 조회의 두 날짜와 상세 조회의 `RICH_ID_CHANGE_DELETE_DATE`, `RICH_COLID_CHANGE_DELETE_DATE`를 원본 날짜형 그대로 SELECT하고 Dart mapper에서 문자열화한다.
-- 테스트 보강: DateTime 결과 매핑과 본/상세 SQL에 날짜형 `COLLATE`가 다시 포함되지 않는지 검증한다.
-- 검증 완료: `flutter test test/status_print_test.dart test/status_print_dialog_test.dart` 7개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `6f14bfc` (`발행 통계 날짜형 조회 오류 수정`).
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-
-# 완료: 발행 통계 초기화 무한 진행바 수정
-- 로그 원인: 최신 로그에서 `TColumnDAO.selectByLabelSizeId` 관련 시작/종료가 1,106건 발생해 dialog 초기화가 라벨사이즈별 컬럼 N+1 조회를 기다리고 있었다.
-- 레거시 대조: `CStatusPrintModel`은 브랜드별 라벨사이즈 배열을 `SelectNameOrderByLabelSizeArray` 한 번에 전달한다.
-- 편집 완료: `TColumnDAO.selectNamesByLabelSizeIds` batch API를 추가하고, 발행 통계는 전체 라벨사이즈 ID를 한 번 전달해 DISTINCT 컬럼명만 조회한다.
-- 테스트 보강: 초기 라벨사이즈 `[1000, 2000]`의 검색 컬럼 loader가 1회만 호출되는지 검증한다.
-- 검증 실행: `flutter test test/status_print_dialog_test.dart test/status_print_test.dart`.
-- 검증 완료: 발행 통계 dialog/모델 테스트 7개 통과, 수정 Dart 파일 3개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `b747244` (`발행 통계 초기화 조회 최적화`).
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-
-# 완료: 공용라벨 수정 이력 preview 시작 위치 조정
-- 편집 완료: 테이블과 preview 사이 splitter 높이를 8px에서 7px로 줄여 변경 전/후 preview 전체 영역의 시작 y를 1px 위로 이동했다.
-- 테스트 추가: 테이블 하단과 preview 상단 사이 간격이 정확히 7px인지 검증한다.
-- 검증 완료: `test/common_label_history_dialog_test.dart` 3개 통과, 수정 Dart 파일 2개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `2ec883b` (`공용라벨 이력 미리보기 위치 조정`).
-- 기존 사용자 변경 파일 5개는 stage/commit에서 제외한다.
-
-# 완료: 공용라벨 수정 이력 splitter·preview 마감
-- 원인: splitter가 매 update의 작은 delta를 rebuild 시점의 높이에 더해 이벤트 병합/clamp 상황에서 포인터 총 이동량과 pane 이동량이 어긋날 수 있었다.
-- 편집: 공용 `HorizontalPaneSplitter`가 drag 시작 global Y 대비 누적 이동량을 전달하고, dialog는 drag 시작 테이블 높이에 누적값을 더하도록 변경했다.
-- 편집: 변경 전/후 외곽선 색을 일반 회색 `#9E9E9E`에서 light gray `#D3D3D3`로 변경했다.
-- 편집: 두 preview에 전달할 workbook만 복제해 모든 sheet의 `showGridLines=false`를 적용하고 원본 이력 workbook은 변경하지 않는다.
-- 테스트 추가: 실제 pointer를 10px씩 네 차례 drag할 때마다 splitter 중심과 테이블 높이가 포인터 누적 이동을 정확히 따르는지, 원본 workbook을 보존하면서 preview grid가 숨겨지는지 검증한다.
-- 검증 완료: `test/common_label_history_dialog_test.dart` 3개 통과, 수정 Dart 파일 3개 정적 오류 없음, `git diff --check` 통과.
-- 기능 커밋: `1fea264` (`공용라벨 이력 스플리터와 미리보기 마감`).
-- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
-
-# 완료: 공용라벨 수정 이력 미리보기 영역 조정
-- 편집 예정/완료: 고정 220px 테이블과 두 미리보기 사이를 공용 `HorizontalPaneSplitter`로 분리해 위아래 높이를 드래그 조정하도록 했다. 테이블 최소 120px, 미리보기 최소 140px를 유지한다.
-- 파일별 편집: `LabelSheetZoomToolbar.backgroundColor` 선택 API를 추가하되 기본색은 유지하고, 공용라벨 이력의 두 zoom toolbar만 `blockingModelessDialogBackgroundColor`를 사용한다.
-- 파일별 편집: 변경 전/후 preview 외곽선을 테마 dark divider 대신 일반 회색 `#9E9E9E`로 변경했다.
-- 테스트 추가: splitter 40px drag에 따른 테이블 높이 변화, 두 preview 외곽선 색, zoom toolbar 배경색을 검증한다.
-- 1차 검증 실패/수정: preview 최소 220px는 테스트 dialog의 기본 테이블 높이를 207px로 clamp해 확대 여유가 없었다. 최소 140px로 조정해 기본 220px와 양방향 drag 범위를 확보했다.
-- 2차 검증: 공용라벨 이력 dialog 테스트 2 passed, 수정 파일 정적 오류 없음. VS Code 테스트 어댑터는 대형 toolbar 파일의 `external zoom toolbar controls label sheet`를 발견하지 못했다.
-- 최종 검증: 공용라벨 이력 dialog 테스트 2 passed, Flutter CLI standalone zoom toolbar 회귀 1 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
-- stage/commit 대상: `lib/widgets/horizontal_pane_splitter.dart`, `lib/page_home/common_label_history_dialog.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/common_label_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
-- 구현 커밋: `6f14326` (`공용라벨 이력 미리보기 영역 조정`).
-- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
-
-# 완료: 공용라벨 수정 이력 거래처 필터 수정
-- 로그 확인: 최신 `.tmp/log/app_2026-07-28_12-44-14.log` 조회에서 SQL Server 42S22 `RICH_CUSTOMER_ID` 열 이름 오류가 발생했다.
-- 레거시 확인: `.tmp/LabelManager/LabelManager/CommonLabelLog.cpp`는 로그 `A`와 브랜드 `B`를 조인하고 `RICH_CUSTOMER_ID`를 무수식으로 필터링한다. 해당 컬럼은 로그가 아니라 브랜드 테이블에 있어 레거시 SQL에서는 `B.RICH_CUSTOMER_ID`로 해석된다.
-- 원인/편집: Flutter 포팅 쿼리가 존재하지 않는 `A.RICH_CUSTOMER_ID`로 잘못 한정했다. 이를 `B.RICH_CUSTOMER_ID`로 수정하고 잘못된 alias가 다시 들어오지 않도록 SQL 회귀 테스트를 추가했다.
-- 검증: 공용라벨 이력 모델/dialog 테스트 4 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음. 최신 로그의 실패 SQL과 레거시 `CommonLabelLog.cpp`를 직접 대조했다.
-- stage/commit 대상: `lib/models/common_label_history.dart`, `test/common_label_history_test.dart`, `SESSION_HANDOFF.md`.
-- 구현 커밋: `60a91f2` (`공용라벨 수정 이력 거래처 필터 수정`).
-- 데이터베이스 마이그레이션은 수행하지 않는다. 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
-
-# 완료: 사용자 접속 이력 필터 overflow 수정
-- 로그 확인: `.tmp/log/app_2026-07-28_12-41-12.log`에서 12:41:32 거래처 `DropdownButtonFormField<int>` 내부 Row가 제한 폭 192.7px보다 14px 넘쳐 렌더링 오류가 발생했다.
-- 원인: 고정 폭 selector에서 Material dropdown이 항목 텍스트의 intrinsic width를 사용하고, 선택 항목 텍스트에도 overflow 제한이 없었다.
-- 편집: 협력업체/거래처 dropdown에 `isExpanded: true`를 적용하고 항목 텍스트를 ellipsis 처리했다. 긴 이름 fixture로 고정 폭 내 렌더링 회귀 테스트를 추가했다.
-- 검증: 긴 필터 이름을 포함한 `test/login_history_dialog_test.dart` 3 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
-- stage/commit 대상: `lib/page_login/login_history_page.dart`, `test/login_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
-- 구현 커밋: `be91e07` (`사용자 접속 이력 필터 넘침 수정`).
-- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
-
-# 완료: 사용자 접속 이력 dropdown assertion 수정
-- 로그 확인: `.tmp/log/app_2026-07-28_12-32-08.log`에서 12:33:24 `LoginHistoryDialogContent`의 협력업체 `DropdownButtonFormField`가 선택값 일치 항목 0개 assertion으로 실패했다.
-- 원인: `Cooperator`/`Customer` 모델은 값 equality가 없는데 초기 로그인 객체와 DAO가 새로 만든 객체를 dropdown value로 직접 비교했다. 기존 테스트는 동일한 `const` 객체 canonicalization으로 문제를 가렸다.
-- 편집: 협력업체/거래처 dropdown value를 객체 identity 대신 각각 `cooperatorId`/`customerId`로 변경하고, 테스트 loader가 별도 객체를 반환하도록 실제 DAO 조건을 재현했다.
-- 검증: `test/login_history_dialog_test.dart` 2 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
-- stage/commit 대상: `lib/page_login/login_history_page.dart`, `test/login_history_dialog_test.dart`, `SESSION_HANDOFF.md`.
-- 구현 커밋: `fbdb6c4` (`사용자 접속 이력 선택값 오류 수정`).
-- 기존 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
-
-# 완료: 사용자 관리 협력업체 영역 왼쪽 정렬
-- 원인: 상단 범위 selector `Wrap`이 `Column`의 기본 가운데 정렬에서 자식 총폭만큼 축소되어 협력업체 그룹이 중앙에서 시작했다.
-- 편집: selector `Wrap`을 `Alignment.centerLeft`의 `Align`으로 감싸 콘텐츠 왼쪽에서 시작하도록 하고 실제 협력업체 라벨 시작 좌표 테스트를 추가했다.
-- 검증: `test/user_manager_dialog_test.dart` 8 passed, 수정 파일 정적 오류 없음, `git diff --check` 오류 없음.
-- stage/commit 대상: `lib/page_home/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `SESSION_HANDOFF.md`.
-- 구현 커밋: `61fe573` (`사용자 관리 범위 선택 왼쪽 정렬`).
-- 사용자 변경 파일과 unrelated `test/scale_output_test.dart`는 stage/commit에서 제외한다.
-
-# 완료: 조회·편집 중 AppBar 메뉴 비활성화
-- 원인: `AppMenuController`는 개별 command busy/context block만 전달받아 품목 조회와 페이지 테이블 편집 상태를 메뉴 전체에 반영하지 않는다.
-- 편집 예정: 메뉴 정책에 전체 작업 차단 상태를 추가하고, 품목 세션 조회 및 품목관리/자동품목갱신/저울출력 편집 상태를 `HomePageManager`에서 동기화한다.
-- 현재 편집: `AppMenuPolicyContext.workBlocked`와 `AppMenuController.updateWorkState(workBlocked:)`를 추가해 로그인/로그아웃 포함 모든 표시 command와 실행 경로를 차단하도록 했다.
-- 파일별 편집: `ItemManage`, `AutoItemUpdatePage`, `ScaleOutputPage`가 편집 상태 변경 callback을 전달하고 `HomePageManager`가 품목 조회 깊이 및 세 페이지 편집 상태를 AppMenu 전체 차단 상태로 동기화한다.
-- 파일별 편집: `AppMenuBar`는 그룹 내 활성 command가 없으면 wide 그룹 버튼, overflow 버튼 및 submenu도 비활성화한다.
-- 1차 검증: AppMenu controller/policy 테스트 15 passed. 수정한 페이지와 manager 정적 오류 없음.
-- 검증 이슈: VS Code 테스트 어댑터가 `app_menu_bar_test.dart` 단독 실행을 `0 passed / 0 failed`로 반환해 widget test를 발견하지 못했다.
-- 검증 실행 예정: `.\\flutter.ps1 test test/app_menu_bar_test.dart test/app_menu_controller_test.dart test/app_menu_policy_test.dart test/automatic_item_update_page_test.dart` 후 전체 정적 분석.
-- 2차 검증 실패/수정: 현재 Flutter SDK의 `SubmenuButton`이 `enabled` 매개변수를 지원하지 않아 컴파일 실패했다. 해당 인자를 제거하고 wide 그룹/전체 overflow 버튼 비활성화는 유지했다.
-- 테스트 추가: `appMenuWorkBlocked` 순수 helper로 품목 조회 및 품목관리/자동품목갱신/저울출력 편집 상태 각각이 메뉴를 차단하는지 검증한다.
-- 2차 검증: 메뉴/AppMenu/자동품목갱신 관련 root 테스트 정상 종료. `test/fortune_table_test.dart` 56 passed.
-- 검증 실행 직전: `C:\\Flutter\\bin\\flutter.bat analyze`로 전체 workspace 정적 분석을 실행한다.
-- 정적 분석: 오류 0건. 기존 warning/info 28건 때문에 exit code 1이며 이번 변경에서 추가된 경고는 없다.
-- 최종 검증: 메뉴 3개/자동품목갱신/품목관리 관련 테스트 117 passed, `git diff --check` 오류 없음.
-- stage/commit 대상: AppMenu controller/policy/bar, `HomePageManager`, 품목관리/자동품목갱신/저울출력 페이지, AppMenu 및 HomePageManager 관련 테스트, `SESSION_HANDOFF.md`.
-- 제외: 사용자 변경 `lib/home_page.dart`, `lib/page_home/nutrition_box_dialog.dart`, `lib/page_home/nutrition_type_dialog.dart`, `test/nutrition_type_dialog_test.dart`, unrelated `test/scale_output_test.dart`.
-- 구현 커밋: `f807d4d` (`조회 및 편집 중 앱바 메뉴 비활성화`).
-
-# 완료: 영양성분 RTF Viewer 레이어 수정
-- 확인: 최신 로그에서 RTF Viewer route가 생성됐지만 영양성분 dialog가 root `OverlayEntry`라 Navigator route 기반 Viewer가 dialog 뒤에 가려졌다.
-- 편집: 공용라벨관리와 동일하게 `PreviewFloatingWindow(usePortalHost: true)`와 `wrapPortalHost`를 연결해 root modeless dialog 위에 표시되도록 변경했다.
-- 검증: 실제 `BlockingModelessDialog` fixture에서 Viewer가 `routeId=portal`로 표시되고 close 버튼 hit-test, restore anchor 축소, 다시 열기가 통과했다. 영양성분 dialog 테스트 8 passed, 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/page_home/nutrition_box_dialog.dart`, `test/nutrition_box_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `dd20619` (`영양성분 RTF 뷰어 레이어 수정`).
-
-# 완료: 영양성분표 미리보기 마감 및 RTF Viewer
-- 원인: 변환 시트에 기본 grid line이 남고 zoom 문자 glyph가 노란 밑줄처럼 보이며, 48px 액션 행 때문에 zoom 위 빈 영역이 생긴다. 원본 RTF도 변환 시트만 보여 공용라벨관리의 원본 RTF 확인 흐름과 다르다.
-- 편집: preview workbook만 grid line을 숨기고 영양성분 zoom은 아이콘 glyph를 사용한다. 액션 행을 zoom과 같은 34px 띠로 줄이며, 원본 RTF 선택 시 `PreviewFloatingWindow`/`LabelSheetRtfPreview`를 띄우고 닫을 때 zoom 앞 restore anchor로 축소한 뒤 다시보기 버튼을 표시한다.
-- 검증: 영양성분표 dialog 8개와 공용 zoom toolbar 회귀 테스트 4개가 모두 통과했다. preview `showGridLines=false`, zoom icon mode, 34px toolbar, RTF floating 표시→anchor 축소→restore 재열기를 검증했으며 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: 영양성분표 dialog/test, 공용 preview/workbench/floating window, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `537eff2` (`영양성분표 미리보기 마감`).
-
-# 완료: 영양성분표 미리보기 분할·스타일 조정
-- 원인: 영양성분표 관리의 우측 preview 폭이 360px로 고정되고, zoom toolbar 배경이 공용 workbench의 흰색 계열 상수라 dialog 배경과 어울리지 않는다.
-- 편집: 공용 `VerticalPaneSplitter`로 테이블/preview 폭을 조정하고, `LabelOutputPreview`의 읽기 전용 시트 속성은 유지하면서 zoom toolbar 배경색 주입 API를 통해 modeless dialog 배경색과 맞췄다.
-- 검증: 영양성분표 dialog 7개와 zoom toolbar 회귀 테스트 4개가 모두 통과했다. splitter drag 시 preview 폭 40px 증가, 공용 preview 속성, overlay 실제 배경색을 검증했으며 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: 영양성분표 dialog, 공용 preview/workbench/modeless frame, 영양성분표 테스트, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `0069669` (`영양성분표 미리보기 분할 조정`).
-
-# 완료: 영양성분표 라벨 시트 전환
-- 원인: 영양성분표 관리가 native RTF 이미지 미리보기와 RichEdit 편집기를 직접 사용해 품목관리/공용라벨관리의 라벨 시트 흐름과 다르다.
-- 편집: 관리 미리보기를 `LabelOutputPreview`로, 추가·수정 편집을 `LabelSheetWorkbench`로 교체했다. 개체보기는 숨기고 레거시 RTF 또는 기존 시트 데이터를 workbook으로 통합 materialize하며 `_rtf`/`_baselineRtf`는 시트 저장 포맷으로 유지한다. 저장 직전 현재 폭으로 workbook을 정규화해 기존 RTF 컬럼에 시트 포맷을 전달한다.
-- 검증: 영양성분표 dialog 7개와 DAO/형식 관련 테스트 12개가 모두 통과했다. 레거시 RTF fallback 변환과 편집 workbook의 RTF 컬럼 시트 저장을 검증했으며 전체 workspace 정적 오류 및 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/page_home/nutrition_box_dialog.dart`, `test/nutrition_box_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `999c817` (`영양성분표 라벨 시트 편집 전환`).
-
-# 완료: 검색 및 치환 필터 간격 조정
-- 원인: 브랜드/라벨 크기 라벨과 dropdown 사이에 간격 위젯이 없어 서로 붙어 보인다.
-- 편집: 검색어 행과 동일한 8px 간격을 두 필터에 적용하고 실제 위치 차이를 검증하는 widget test를 추가했다.
-- 검증: 검색 및 치환 dialog 테스트 5 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/page_home/search_and_replace_dialog.dart`, `test/search_and_replace_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `2c57adf` (`검색 및 치환 필터 간격 조정`).
-
-# 완료: 관리자 복사 하단 여백 제거
-- 원인: frame 높이 460px에서 title bar를 제외한 content 424px가 실제 콘텐츠보다 커 하단 버튼 아래 불필요한 공간이 남는다.
-- 측정: content 최소 높이는 padding 포함 412px이며 384px에서는 28px overflow가 발생했다.
-- 편집: title bar 36px를 포함한 frame 높이를 최소 448px로 줄이고 버튼 하단에는 content padding 16px만 남도록 치수 테스트를 조정했다.
-- 검증: 실제 frame content 크기 `820x412`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 12 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `cc768b1` (`관리자 복사 하단 여백 제거`).
-
-# 완료: 관리자 복사 힌트와 닫기 버튼 복원
-- 레거시 기준: `※ 복사할 내용이 있는 라벨크기를 선택해주세요!!` 힌트와 하단 `복사`, `닫기` 버튼이 함께 있다.
-- 편집: 원본/대상 아래에 힌트 라벨을 추가하고 하단 우측에 닫기 버튼을 배치했다. 닫기는 title bar와 동일한 close callback을 호출하며 복사 작업 중에는 비활성화된다.
-- 검증: 실제 frame content 크기 `820x424`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 12 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/page_home/admin_copy_dialog.dart`, `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `6d2036d` (`관리자 복사 안내와 닫기 추가`).
-
-# 완료: 관리자 복사 UI 재배치
-- 원인: 포팅 UI가 `980x620` frame, 큰 divider와 `Spacer`를 사용해 레거시 `247x220` dialog보다 세로 여백이 많고 옵션 체크박스가 라벨 뒤에 표시됐다.
-- 편집: frame을 `820x460`으로 줄이고 원본/대상을 2열 비교 구조로 배치했다. 각 열은 거래처/브랜드/라벨 크기 행을 맞추고, 복사 옵션은 `Checkbox + 라벨` 순서로 하단에 모았다.
-- 검증: 실제 frame content 크기 `820x424`에서 관리자 복사 dialog/DAO 및 공용 dropdown 테스트 11 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/page_home/admin_copy_dialog.dart`, `lib/home_page_manager.dart`, `test/admin_copy_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `149eb4e` (`관리자 복사 화면 재배치`).
-
-# 완료: 사용자 관리 selector 라벨 추가
-- 원인: 사용자 관리 상단의 협력업체/거래처/지점 selector가 값만 연속 표시되어 각 범위를 구분하기 어렵다.
-- 편집: 각 selector 왼쪽에 고정 폭 라벨을 추가하고 그룹 간격을 16px로 통일했다. `라벨 + selector`를 `Wrap` 그룹으로 구성해 좁은 창에서는 그룹 단위로 자연스럽게 줄바꿈된다.
-- 검증: 사용자 관리/관리 사용자/공용 dropdown/AppBar 메뉴 관련 테스트 26 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없고 800px 테스트 viewport에서도 overflow가 없다.
-- stage/commit 대상: `lib/page_home/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `22b27b9` (`사용자 관리 선택 항목 라벨 추가`).
-
-# 완료: 사용자 관리 접속 기능 제거
-- 원인: Flutter 사용자 관리 구현 시 관리자 컨텍스트 전환용 `접속` 기능이 추가됐지만 레거시 사용자 관리에는 대응 버튼/핸들러가 없고 CRUD와 독립적이다.
-- 편집: 사용자 관리 접속 버튼/처리 함수/콜백 전달 경로와 `HomePage._connectToUser`, 전용 `userConnectSessionFor` helper를 제거했다. 접속 이력 조회 메뉴와 사용자 CRUD는 유지한다.
-- 검증: 사용자 관리/관리 사용자/관리자 세션/AppBar 메뉴 테스트 49 passed, 0 failed. 전체 workspace 정적 오류와 `git diff --check` 오류가 없고 접속 관련 잔여 참조는 버튼 부재 assertion뿐이다.
-- stage/commit 대상: 사용자 관리 dialog, `home_page.dart`, `home_page_manager.dart`, 관리자 세션 helper/테스트, 사용자 관리 테스트, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `bc5bc04` (`사용자 관리 접속 기능 제거`).
-
-# 완료: 지점 관리 드롭다운 높이와 정렬 통일
-- 원인: 지점 관리의 공용 `ModelessDropdownFormField`는 필드 높이는 40px이지만 선택 항목 child에 수직 정렬 제약이 없어 라벨이 위쪽에 붙어 보였다.
-- 편집: 공용 선택 항목 영역을 `Alignment.centerLeft`로 정렬하고 지점 관리 협력업체/거래처 selector의 40px 높이와 라벨 중앙 정렬 테스트를 추가했다.
-- 검증: 공용 드롭다운 사용 dialog와 지점 관리 dialog/DAO 테스트 36 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/widgets/modeless_dropdown_form_field.dart`, `test/modeless_dropdown_form_field_test.dart`, `test/market_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `828b503` (`지점 관리 드롭다운 정렬 통일`).
-
-# 완료: 일반 사용자 수동 테스트 override 제거
-- 원인: 일반 권한 수동 테스트가 끝나 `User.clientUserTestOverrideId`로 특정 ID의 DB 등급을 강제 변경할 필요가 없어졌다.
-- 편집: override 필드와 `_effectiveGrade`를 제거하고 `User.fromMap`이 DB `GRADE`를 그대로 사용하도록 복원했다. 관련 테스트 fixture도 명시적인 사용자 ID/등급으로 변경했다.
-- 검증: 사용자 모델/관리 사용자/AppBar 메뉴/사용자 관리 테스트 49 passed, 0 failed. 전체 workspace 정적 오류 및 `git diff --check` 오류가 없고 관련 심볼/임시 문구의 잔여 참조도 없다.
-- stage/commit 대상: `lib/models/user.dart`, `test/user_test.dart`, `test/managed_user_test.dart`, `test/app_menu_policy_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `test/scale_output_test.dart`는 제외한다.
-- 구현 커밋: `a9ea0fb` (`일반 사용자 테스트 등급 강제 제거`).
-
-# 완료: 거래처 관리 접속 기능 제거
-- 원인: Flutter 거래처 관리 구현 시 관리자 컨텍스트 전환용 `접속` 기능이 추가됐지만, 레거시 `CAddClientsDlg`에는 대응 버튼이나 핸들러가 없다.
-- 편집: 거래처 관리의 접속 버튼/처리 함수/콜백 타입과 `HomePage`까지 이어진 전용 전달 경로를 제거했다. 협력업체 선택 및 추가/수정/삭제 기능은 유지한다.
-- 검증: 전체 workspace 정적 오류 없음. 거래처 dialog/DAO, 관리자 접속 세션, 사용자 관리 테스트 22 passed, 0 failed. 접속 관련 잔여 참조는 버튼 부재를 확인하는 회귀 assertion뿐이다.
-- stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `lib/home_page_manager.dart`, `lib/home_page.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
-- 구현 커밋: `7ad7ebe` (`거래처 관리 접속 기능 제거`).
-
-# 완료: 로그인 공지 이미지 폭 복원
-- 원인: `bc68d3f` 공지 표시 공용화 전 로그인 화면은 공지 본문과 광고 이미지가 1:1이었으나, 공용 `NoticeDisplayPanel`이 2:1로 고정되어 이미지 영역이 좁아졌다.
-- 구현: `NoticeDisplayPanel`에 본문/광고 flex 옵션을 추가하고, 로그인 화면만 공용화 이전의 1:1 비율을 지정했다. AppBar 업데이트 메시지 편집 화면의 기본 2:1은 유지한다.
-- 검증: `test/startup_dialog_test.dart` 3 passed, 0 failed. 로그인 1:1과 공용 기본 2:1의 실제 렌더 폭을 함께 검증했고 수정 파일 정적 오류 및 `git diff --check` 오류가 없다.
-- stage/commit 대상: `lib/page_login/startup_dialog.dart`, `lib/widgets/notice_display.dart`, `test/startup_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
-- 구현 커밋: `1ccc5bb` (`로그인 공지 이미지 폭 복원`).
-
-# 완료: AppBar popup/dropdown 밀도 통일
-- 기준: 기존 일반 업무 popup과 홈 dropdown의 목록 행은 28px이며 divider는 9px이다.
-- 수정 예정: AppBar popup 행 28px/divider 9px, modeless 및 `DropdownMenu` 필드 40px/목록 28px로 통일한다.
-- 구현: AppBar popup 행 28px/divider 9px, 공용 modeless field 40px/menu row 28px, 거래처 field 40px/menu row 28px을 적용했다. 라벨 편집 field는 기존 36px을 유지하고 menu row만 28px로 줄였다.
-- focused 검증: AppBar + 공용 dropdown 22 passed, 거래처 8 passed, 라벨 편집 dropdown 3 passed.
-- 최종 검증: 수정 파일 정적 오류 없음, AppBar 및 전체 modeless dropdown 관련 테스트 68 passed, 0 failed. 라벨 편집 치수/overlay focused test 3 passed, 0 failed.
-- stage/commit 대상: `app_menu_bar.dart`, `modeless_dropdown_form_field.dart`, 거래처/라벨 편집 dropdown, 관련 테스트, `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
-- 구현 커밋: `3c287c5` (`앱바 메뉴와 드롭다운 간격 조정`).
-
-# 완료: AppBar 기능 modeless dropdown 통일
-- 원인: Navigator route 및 `useRootNavigator` 기반 popup은 이미 삽입된 modeless `OverlayEntry` 아래에 생성되어 메뉴가 가려질 수 있다.
-- 구현: root `OverlayEntry`에 메뉴를 후삽입하는 공용 `ModelessDropdownFormField<T>`를 추가하고 시장/사용자/관리자 복사/찾아바꾸기/날짜 설정/영양성분/검색출력 설정/발행·내용·공통라벨 이력/통계의 form dropdown 21개에 적용했다.
-- 표시: 공용 field와 라벨 항목 편집 `DropdownMenu`는 활성 흰색, 비활성 `#E9ECEF` 배경을 사용한다. 메뉴는 외부 클릭 및 `Esc`로 닫힌다.
-- 범위 확인: `lib/page_home`에 남은 `DropdownButtonFormField` 5개는 modeless dialog가 아닌 독립 저울 출력 페이지에만 있다.
-- 최종 검증: 수정 파일 정적 오류 없음, 관련 dialog + 공용 widget 13개 테스트 파일 48 passed, 0 failed. 라벨 항목 편집 활성 배경 및 modeless overlay 선택 focused test 각 1 passed.
-- stage/commit 대상: 공용 widget, 적용된 12개 dialog 파일, 관련 테스트 10개, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
-- 구현 커밋: `297c2e1` (`앱바 기능 드롭다운 표시 통일`).
-
-# 완료: 거래처 관리 협력업체 selector 활성 배경
-- 원인: `DropdownMenu`에 fill color가 없어 활성 상태에서도 modeless dialog 배경색이 비쳐 비활성처럼 보인다.
-- 편집: `customerCooperatorSelectionEnabled`에 따라 활성은 흰색, 비활성은 `#E9ECEF` 배경을 사용하고 widget test에서 두 상태를 검증한다.
-- focused 검증: `test/customer_manager_dialog_test.dart` 8 passed, 0 failed.
-- 최종 검증: 수정 Dart 파일 정적 오류 없음, 거래처 관리 dialog/DAO 테스트 13 passed, 0 failed. 들여쓰기 정리 후 focused test 8 passed, 0 failed.
-- stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
-
-# 완료: 거래처 관리 협력업체 드롭다운
-- 원인: 거래처 관리창은 root `OverlayEntry`인데 협력업체 selector가 Navigator route 기반 `DropdownButtonFormField`를 사용하여 메뉴가 dialog 뒤에 가려지고, 재클릭 시 `_dropdownRoute == null` assertion이 발생한다.
-- 수정 예정: `lib/page_home/customer_manager_dialog.dart`의 selector를 modeless overlay 위에 표시되는 `DropdownMenu`로 교체하고 `test/customer_manager_dialog_test.dart`에 실제 OverlayEntry 회귀 테스트를 추가한다.
-- `lib/page_home/customer_manager_dialog.dart` 편집 완료: `customerCooperatorSelector`를 `DropdownMenu<String>`으로 교체하여 popup을 `MenuAnchor` overlay에 표시한다.
-- 1차 focused test: `test/customer_manager_dialog_test.dart` 7 passed, 1 failed. 실패는 기존 테스트의 `DropdownButtonFormField` 타입 고정 cast이며 구현 오류가 아니다.
-- `test/customer_manager_dialog_test.dart` 편집 완료: disabled selector 계약을 `DropdownMenu.enabled`로 검증하고 enabled selector를 실제 `OverlayEntry`의 `Center + Material` 안에서 선택하도록 변경했다.
-- focused 검증 완료: `test/customer_manager_dialog_test.dart` 8 passed, 0 failed.
-- 최종 검증: 수정 Dart 파일 format 완료, 정적 오류 없음, `customer_manager_dialog_test.dart` + `customer_manager_dao_test.dart` 13 passed, 0 failed.
-- stage/commit 대상: `lib/page_home/customer_manager_dialog.dart`, `test/customer_manager_dialog_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty 파일은 제외한다.
-- 구현 커밋: `152df06` (`거래처 협력업체 메뉴 표시 수정`).
-
-## 다음 세션 시작 문구
-- SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행해줘
-- SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행하게 대기해줘
-
-## 상시 규칙
-- 상시 규칙은 [SESSION_RULES.md](SESSION_RULES.md)를 기준으로 따른다.
-- 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
-
-## 현재 상태
-- 완료: 파일 popup의 `login/logout` metadata를 선두 section 0에서 `관리자 복사` 뒤·`종료` 바로 앞의 section 3으로 재배치했다. 관리 영역과 종료 그룹 사이 separator는 유지하고 현재 상태의 로그인/로그아웃과 종료 사이는 같은 section으로 묶는다. inventory는 `관리 4개 → 관리자 복사 → 로그인/로그아웃 → 종료` 순서를, widget test는 로그인 상태별 현재 command의 bottom과 종료 top이 맞닿고 중간 Divider가 없음을 검증한다. [doc/app_menu_porting.txt] 계약도 갱신했다. AppBar/inventory/controller/shortcut/lifecycle 회귀 `33 passed`, 수정 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공, `git diff --check` 통과. 기능 커밋 `84da15f` (`파일 메뉴 로그인 위치 변경`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외했다.
-- 완료: [lib/models/app_menu_command.dart]의 기존 `AppMenuCommandId.login/logout`을 파일 popup 첫 section에 표시하고, [lib/home_page.dart]의 우측 로그인/로그아웃 `IconButton`은 제거해 기존 handler·policy를 popup에서 재사용한다. 서버 상태는 `AppBar.actions`에서 [lib/widgets/app_menu_bar.dart]의 32px trailing으로 옮기고 수평 padding을 제거했으며, trailing 폭을 실제 제약과 wide/collapse 계산에 함께 적용해 narrow overflow를 유지한다. [test/app_menu_bar_test.dart]는 로그인 상태별 단일 command, 설정-서버 rect 간격 0, narrow overflow를 검증한다. [doc/app_menu_porting.txt]의 기존 고정 로그인 아이콘/popup 미표시 계약도 최신 배치로 갱신했다. AppBar/inventory/controller/shortcut/lifecycle 회귀 `33 passed`, 수정 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공, `git diff --check` 통과. 기능 커밋 `780f189` (`AppBar 로그인 메뉴 배치 변경`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외했다.
-- 완료: AppBar command/submenu의 일반 팝업 기준 48px 높이·좌우 12px padding과 root controller의 다른 메뉴 즉시 닫힘을 유지했다. [lib/home_page.dart]는 menu open 상태를 manager controller에도 전달하고, [lib/home_page_manager.dart]는 item/common-label preview를 Home route의 portal host로 감싸 같은 overlay 계층에서 나중에 열린 메뉴가 위에 오도록 연결했다. [lib/page_home/preview_floating_window.dart]는 기존 standalone route fallback을 유지하면서 opt-in `usePortalHost`/`wrapPortalHost`와 portal show/hide lifecycle을 제공한다. preview와 실제 menu item rect를 겹친 command click 및 manager controller menu-state attach/detach를 검증한다. AppBar·floating preview·controller·shortcut·lifecycle 회귀 `194 passed`, 들여쓰기 정리 후 AppBar `19 passed`, 수정 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공, `git diff --check` 통과. 기능 커밋 `10dbf01` (`AppBar 메뉴 플로팅 표시 보정`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외했다.
-- 완료: AppBar root `MenuAnchor`의 바깥 클릭 소비를 제거해 다른 아이콘의 첫 클릭이 대상 `IconButton`까지 전달되며, 공용 controller가 같은 클릭에서 이전 메뉴를 닫고 새 메뉴를 연다. 마지막 close 상태 보고는 다음 frame으로 유예해 같은 클릭의 새 open이 있으면 취소하므로 shortcut blocker가 유지된다. 두 번째 아이콘 클릭 후 단일 `pump()`에서 메뉴 교체를 검증한다. 포맷 후 AppBar/controller/shortcut/lifecycle 회귀 `27 passed`, 수정 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공, `git diff --check` 통과. 기능 커밋 `c50718f` (`AppBar 메뉴 전환 클릭 보정`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외했다.
-- 완료: AppBar가 root 메뉴 controller와 pending 전환 상태를 소유해 다른 그룹을 한 번 클릭하면 기존 팝업을 닫고 새 팝업만 연다. 전환 중 `onMenuOpenChanged`를 `false`로 흔들지 않아 shortcut blocker를 유지한다. wide·overflow root anchor는 `useRootOverlay=true`로 플로팅 preview보다 위에 표시하고, command·submenu는 일반 Material 3 `PopupMenuItem`과 같은 48px 높이·좌우 12px padding을 사용한다. AppBar/controller/shortcut/lifecycle 회귀 `27 passed`, 수정 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공, `git diff --check` 통과. 기능 커밋 `bda97b0` (`AppBar 팝업 표시 순서 보정`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외했다.
-- 완료: AppBar의 wide·overflow root `MenuAnchor`에 바깥 클릭 소비를 명시해 첫 클릭에서 메뉴만 닫히도록 했다. command와 overflow/search-print submenu에 표준 density·48px 최소 높이를 공용 적용해 전역 compact theme에서도 일반 팝업 간격을 유지한다. [test/app_menu_bar_test.dart]는 실제 compact theme에서 본문 click-through 0회와 두 항목 높이 48px을 검증한다. 포맷 후 AppBar/controller/shortcut/lifecycle 회귀 `25 passed`, 수정 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공, `git diff --check` 통과. 기능 커밋 `10be1ac` (`AppBar 팝업 닫힘과 메뉴 간격 보정`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외했다.
-- Phase 3 관리자 복사 완료: 일반 label size 덮어쓰기와 브랜드 전체 복사를 단일 server-side transaction statement로 구현했다. 레거시 삭제 범위, sheet 우선 서식, column-only 복사, `OUTPUT INSERTED` ID mapping, 첫 대상 지점과 저장 프로시저 순서를 유지한다. 단일 협력업체의 event-driven selector, 기존 데이터 경고, write-busy/commit-unknown lifecycle, 성공 후 기존 owner 전체 reload 경로를 연결했다. DB procedure metadata gate 통과, focused 8건·메뉴/lifecycle 25건·owner compile 포함 회귀 224건 통과, 변경 파일 diagnostics 0건. 기능 커밋 `3a1a086` (`관리자 복사 기능 구현`), 원격 push 없음.
-- Phase 3 사용자 관리 완료: 로그인 mapping과 분리한 `ManagedUser` codec/CRUD, 권한별 selector·전체 표시, credential column 조건부 숨김, 필수/비밀번호 일치/ID 중복 validation, CLIENT/MANAGER 등급, 이름 순환 검색, 삭제와 사용자 전용 Connect mapping을 구현했다. DAO test `3 passed`, 통합 focused suite `28 passed`, 신규 diagnostics 0건. 커밋 `b4b8eb9` (`사용자 관리 DAO 구현`), `12b9466` (`사용자 관리 기능 구현`), 원격 push 없음.
-- Phase 3 지점 관리 완료: 생성 ID를 `OUTPUT INSERTED`로 잡아 기존 품목 mapping을 만드는 추가 transaction, 이름 수정, mapping→지점 삭제 transaction, 권한별 협력업체·거래처 cascade, 무검증 50자 child draft와 lifecycle을 구현했다. 다른 거래처 fallback·전역 last-row 조회·session reload는 추가하지 않았다. focused suite `35 passed`, 신규 diagnostics 0건, 기능 커밋 `7a5f6d8` (`지점 관리 기능 구현`), 원격 push 없음.
-- 5.1.8 종료 완료: 기존 메뉴/OS 창 닫기의 공용 lifecycle guard, modal 차단, dirty 통합 폐기, participant close와 중복 cleanup 방지를 유지했다. 앱 종료/disconnect cleanup 시작 시 현재 사용자·거래처·master-key 상태를 snapshot하여 일반/관리자 Connect 여부와 무관하게 master-key가 아닌 로그인 세션의 `LOGOUT`을 global reset과 DB disconnect 전에 한 번 기록한다. 기록 실패는 한 번 안내하고 cleanup은 계속하며 명시적 로그아웃에는 적용하지 않는다. focused 6건·HomePage/login log/menu 통합 회귀 23건 통과, 변경 파일 diagnostics 0건. 기능 커밋 `33300dd` (`앱 종료 로그아웃 이력 구현`), 원격 push 없음.
-- 5.2.1 검색 및 치환 DAO 편집: `ItemDetailDAO`에 거래처 범위의 품명/주원료 부분 일치, optional brand/label size filter, legacy element wildcard escape와 brand ID 순서를 추가했다. `ItemDAO`에는 변경된 주원료 plain/sheet만 한 transaction으로 저장하고 rowcount 불일치를 오류로 전달하는 API를 추가했다.
-- 5.2.1 sheet 치환 편집: 유효 FortuneSheet는 inline run style을 보존해 text를 치환하고 plain 주원료와 함께 encode한다. 레거시 RTF fallback은 기존 async CP949 변환기를 거쳐 현재 sheet 포맷으로 저장한다.
-- 5.2.1 dialog 편집: 품명/주원료 검색, brand/label size filter cascade, editable 전용 checkbox·개별/일괄 치환·저장, read-only column 구성, 이동 payload와 active-editing/write-busy/dirty lifecycle을 추가했다. 검색 재실행과 두 이동 command의 미저장 draft 폐기는 legacy 예외로 유지한다.
-- 5.2.1 owner 연결: AppBar command는 빈 검색어로 dialog를 열고, 현재 미구현인 검색출력 mode의 off 계약에 따라 메인 검색은 입력값을 초기 검색어로 전달한다. 이동은 ID 기준 brand/label size를 로드한 뒤 품목 또는 출력 tab 선택을 복원한다. 일반 닫기는 dirty 폐기 확인, 두 이동은 확인 없는 폐기 예외를 적용했다.
-- 5.2.1 widget test 추가: 초기 검색어 1회 조회, brand→label size filter 활성 순서, read-only 쓰기 command 숨김을 검증한다.
-- 5.2.1 검색 및 치환 완료: 조회/저장 DAO, FortuneSheet·RTF 치환, dialog, owner/menu/lifecycle와 이동을 연결했다. commit 결과 불명은 오류 안내 후 dialog를 닫아 재실행을 막는다. focused 10건과 owner compile·메뉴·lifecycle 회귀 241건 통과, 변경 파일 diagnostics 0건. 기능 커밋 `a36c160` (`검색 및 치환 기능 구현`), 원격 push 없음. unrelated `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`는 stage하지 않았다.
-- 5.3.1 dialog 편집: 현재 market/label size가 모두 있을 때만 조회하고, FortuneTable에서 품명 read-only와 활성 출력 보정 field만 편집한다. 줄간격·개별 크기·margin 세부 field는 사용 여부에 종속되며 저장 성공 후 committed 기준만 갱신해 dialog를 유지한다.
-- 5.3.1 owner 연결: `editItemInfo` command를 blocking modeless overlay와 lifecycle participant에 연결했다. 메인 brand/label size 미선택은 null context로 열고, 저장 성공은 `ItemOfMarket` 목록과 출력 row 동기화만 반영하며 dialog를 유지한다.
-- 5.3.1 test 추가: main context 누락 시 DAO 0회·저장 비활성, 사용 여부에 따른 세부 editor 활성과 batch 저장 후 dialog row 유지·dirty 해제를 검증한다.
-- 5.3.1 품목별 정보 편집 완료: model/DAO, 전용 FortuneTable dialog, owner/menu/lifecycle을 연결했다. focused 3건과 owner compile·menu/lifecycle 포함 통합 회귀 244건 통과, 변경 파일 diagnostics 0건. 기능 커밋 `6e4f5fd` (`품목별 정보 편집 기능 구현`), 원격 push 없음. unrelated `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`는 stage하지 않았다.
-- 5.3.2 UI/owner 편집: manager FortuneTable, child 신규·수정 draft, keyword 번호, 기존내용 참조, 저장 후 child 유지, 삭제 경고 후 선택 검사, refresh 선택 해제와 `addNutritionType` modeless lifecycle owner를 추가했다.
-- 5.3.2 영양성분 형식 관리 완료: manager/child 전환, Enter 수정·저장, 삭제 `경고·확인 → 선택 검사`, refresh 선택 해제, template 구성 대체, keyword 증가, child 유지와 dirty lifecycle owner를 연결했다. DAO/dialog focused 8건과 owner compile·menu/lifecycle 포함 통합 회귀 249건 통과, 변경 파일 diagnostics 0건. 기능 커밋 `4707845` (`영양성분 형식 관리 기능 구현`), 원격 push 없음. unrelated `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`는 stage하지 않았다.
-- 5.3.3 영양성분표 추가 완료: 형식 ID 순 manager와 선택 RTF preview, 네 field CRUD, child 형식 구성 read-only sheet, 지정 validation 순서, 저장 후 유지, 수정 후 선택 복원, menu/lifecycle owner를 구현했다. 기존 Windows channel의 modal `RICHEDIT50W`가 RTF를 직접 stream-in/out하며 별도 저장 형식은 없다. DAO/dialog focused 5건, 공용 dialog/menu 포함 회귀 23건, 관련 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공. 기능 커밋 `664eadb` (`영양성분표 추가 기능 구현`), 원격 push 없음. unrelated `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`는 stage하지 않았다.
-- 5.3.5 전자저울 관리 완료: migration 없이 stop bit `1.5`, 레거시 serial 선택값, autoPrint, dialog 소유 시험 연결·수신 중량, 설정 진입 시 본 연결 자동 해제와 persisted 초기값, 연결 세대 무효화, 공개 manager command 위임을 구현했다. CAS `ST` 양수 수신은 persisted autoPrint일 때 단일 5초 timer를 예약하고 연결 중일 때 기존 발행 command를 실행한다. focused+메뉴/정책/출력 회귀 35건, 관련 diagnostics 0건, `C:\Flutter\bin\flutter.bat build windows --debug` 성공. 기능 커밋 `aa6c2f5` (`전자저울 관리 기능 구현`), 원격 push 없음. unrelated `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`와 별도 관리자 세션 변경은 stage하지 않았다.
-- 5.3.6 프린터 설정 완료: 기존 두 command/label/policy/inventory를 유지하고 `HomePageManagerController` 공개 command가 각각 기존 private owner에 위임한다. 라벨출력은 진입 시 persisted preference를 다시 읽고, 저울출력은 현재 label size session 설정을 사용한다. inventory/policy/menu/controller/preference 회귀 52건, 관련 diagnostics 0건, Windows debug build 성공. 기능 커밋 `d7571ae` (`프린터 설정 명령 연결`), 원격 push 없음.
-- 5.3.9 업데이트 메시지 완료: `NoticeDAO`에 현재 사용자 message/state 조회, 현재 협력업체의 거래처명 순 대상 사용자 조회, 선택 사용자 batch·전체 협력업체·현재 협력업체·일반 사용자 state update API를 추가했다. 기존 `BM_UPDATE_NOTICE` field만 사용하며 선택 사용자 0명은 DML 전에 중단한다. `NoticeDisplayPanel`로 startup의 version·공지·기존 광고/쇼핑몰 링크 표시만 공용화했고 startup suppression owner는 유지했다. `UpdateNoticeDialog`와 실제 등급 기반 저장 대상 우선순위 contract를 추가했으며 관리자 version과 일반 사용자 message는 save request에서 제외한다. `AppMenuCommandId.updateNotice`가 현재 로그인 사용자 row를 다시 조회하고 현재 협력업체 대상만 전달하는 manager owner에 연결됐다. dialog-level Enter를 focus와 무관한 단일 save handler로 고정했다. focused/menu/startup 회귀 31건 성공, touched diagnostics 0건, `flutter build windows --debug` 성공. 기능 커밋 `bc68d3f` (`업데이트 메시지 메뉴 포팅`), 원격 push 없음.
-- 5.3.10 검색출력모드 완료: 로그인 subtree 밖 process-lifetime bool, menu/F12 toggle, popup checkmark, mode 중 현재 tab lock, 전 tab 검색 입력/`발행` button, 레거시 exact SQL 첫 반환 row, 기존 label print pipeline의 transient 1-row 발행과 원래 session 복원, 빈 입력·0건·오류·성공 모두 입력 초기화를 구현했다. 관련 회귀 53건 성공, touched diagnostics 0건, `flutter build windows --debug` 성공. 기능 커밋 `af26464` (`검색출력모드 포팅`), 원격 push 없음.
-- 5.3.11 검색출력 설정 완료: ordered 브랜드/라벨 selector, 검색 flag draft, 전체 선택·해제, dirty 폐기 확인, Enter/적용 후 dialog 유지와 `저장되었습니다.` 안내를 구현했다. 모든 column의 전체 persisted field key를 기존 `LabelColumnSaveDao.saveDialogAndReload`에 전달해 main/min/GS1 transaction 전체 범위를 사용한다. focused/widget 및 save engine/model/menu/search 회귀 54건 성공, touched diagnostics 0건, `flutter build windows --debug` 성공. 기능 커밋 `05ac086` (`검색출력 설정 포팅`), 원격 push 없음. 추가 실행한 기존 `label_column_edit_dialog_test.dart`의 customer row swipe/double-tap 2건은 이번 변경과 무관하게 실패해 잔여 test gap으로 기록했다.
-- `doc/app_menu_porting.txt`의 구현 대상인 파일~설정 5.1~5.3 범위 완료. 5.4 도움말 그룹은 문서상 후속 범위 참고로 이번 완료 판정에 포함하지 않는다.
-- 최종 완료 감사 완료: Phase 5의 거래게시판·이더넷 `legacyInactive`, 고정 항목 관리 `legacyUnreachable`은 inventory에 유지되고 production visibility false이며 owning handler가 없음을 확인했다. Phase 0~5 기능별 owner/policy/DAO/dialog focused 157건 통과, workspace diagnostics 0건, `flutter build windows --debug` 성공. 5.4 도움말 그룹은 문서상 이번 완료 판정에서 제외한다.
-- 최종 정리 stage/commit 대상은 `SESSION_HANDOFF.md`뿐이다. 범위 밖 사용자 변경 `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`는 제외했다. 완료 상태 정리 커밋 `c5187f1` (`AppBar 포팅 완료 상태 정리`), 원격 push 없음.
-- AppBar 포팅 완료 감사 보완 완료: 계층형 관리 4종, 검색 및 치환, 영양성분 형식/표 삭제의 확정 실패·`DbCommitOutcomeUnknown`·저장 후 reload 실패를 분리했고, 관리자 복사의 중첩 dialog와 reload 실패 안내를 완료 계약에 맞췄다.
-- 계층형 관리 dialog 편집 완료: 협력업체·거래처·지점·사용자 `_writeThenReload`가 확정 write 실패는 유지하고 `DbCommitOutcomeUnknown`과 저장 성공 후 reload 실패는 한 번 안내한 뒤 owning overlay를 닫도록 owner callback을 연결했다. 기존 관리 dialog focused 23건 통과.
-- 기타 저장 경계 편집 완료: 검색 및 치환의 저장 후 owner reload, 영양성분 형식/표 삭제 후 목록 reload 실패를 확정 write 실패와 분리해 완료 안내 후 close한다. 영양성분 reload helper는 저장 후 호출에서 오류를 삼키지 않고 rethrow한다. 관리자 복사의 중첩 확인·안내 `showDialog`는 `showBlockingModelessOverlayDialog`로 교체하고 복사 후 owner reload 실패 안내를 완료 계약 문구로 맞췄다. 관련 기존 focused 12건과 관리 신규 실패 분기 포함 28건 통과.
-- AppBar 계약 보강 완료: 검색출력 하위 계층, F12/check와 결합 semantics, 숨김 section separator 제거, 키보드 Enter/Esc focus 복원, 긴 title ellipsis, 낮은 viewport menu clamp를 widget test로 고정했다. shortcut semantics 누락을 명시적 menu item button semantics로 수정했으며 `app_menu_bar_test.dart` 10건 통과.
-- 최종 검증 완료: 변경 Dart 파일 diagnostics 0건, 관련 focused 회귀 122건 통과, `flutter build windows --debug` 성공, `git diff --check` 통과.
-- 기능·테스트 18개만 stage해 기능 커밋 `e2916b0` (`AppBar 포팅 완료 계약 보완`)으로 기록했다. 범위 밖 사용자 변경 `lib/core/app.dart`, `lib/models/user.dart`, `test/scale_output_test.dart`는 제외했고 원격 push는 하지 않았다.
-- AppBar 완료 계약 재감사 보완 진행 중: 업데이트 메시지·검색출력 설정 top-level overlay가 lifecycle participant에서 누락되고 업데이트 메시지가 `DbCommitOutcomeUnknown`을 확정 실패처럼 재시도 가능하게 처리하는 문제를 확인했다. 두 dialog controller의 dirty/write-busy snapshot과 owner `OverlayEntry`/participant 소유, commit 불명 즉시 닫기 경로를 구현했으며 현재 focused test 보강 전 미검증이다.
-- 편집 완료: [lib/page_home/update_notice_dialog.dart]에 dirty/write-busy controller와 commit 불명 안내 후 direct close를, [lib/page_home/search_print_settings_dialog.dart]에 draft dirty/write-busy controller를 추가했다. [lib/home_page_manager.dart]는 두 dialog를 명시적 overlay와 lifecycle participant로 등록·해제하고 업데이트 메시지 일반 닫기의 dirty 폐기 확인을 처리한다. 세 파일 diagnostics 0건.
-- AppBar·focus 보강 완료: popup close 다음 frame에 owning command를 한 번 전달하도록 순서를 고정하고 Space/방향키/overflow·검색출력 submenu 좌우·Enter/focus 인계/shortcut blocker test를 추가했다. 두 dialog는 Esc 닫기 요청과 첫 control 초기 focus를 제공하며 공용 공지 panel은 optional focus node만 확장했다. AppBar 15건, dialog/startup 17건 통과.
-- 최종 검증 실행 예정: 관련 AppBar/controller/lifecycle/공지/검색출력 설정 focused 회귀를 실행한 뒤 workspace diagnostics, `flutter build windows --debug`, `git diff --check`를 확인한다. 현재 변경 파일 diagnostics 0건과 `git diff --check` 통과.
-- focused 회귀 완료: AppBar shell/controller/policy, shortcut blocker, lifecycle, blocking dialog, 공지·검색출력 설정, 계층형 관리·관리자 복사·검색치환·영양성분·column save 관련 159건 전부 통과. 이어서 workspace diagnostics와 `flutter build windows --debug`를 실행한다.
-- Windows debug build 검증 완료: 최초 실행은 [lib/home_page_manager.dart]의 새 `OverlayEntry` builder 두 곳에서 닫는 괄호 1개씩 누락되어 compile 실패했고, 두 위치를 교정한 뒤 동일 `flutter build windows --debug`가 성공해 `build\\windows\\x64\\runner\\Debug\\label_manager.exe`를 생성했다.
-- 업데이트 메시지 lifecycle dirty를 실제 저장 입력에 맞췄다. 관리자의 저장되지 않는 version·`다시 보지 않기` 조작은 dirty에서 제외하고 일반 사용자의 `다시 보지 않기`만 유지했다. 공지 focused 11건과 전체 관련 focused 회귀 159건을 재실행해 모두 통과했고 workspace diagnostics도 0건이다.
-- 최종 stage 대상: [lib/home_page_manager.dart], [lib/page_home/update_notice_dialog.dart], [lib/page_home/search_print_settings_dialog.dart], [lib/widgets/notice_display.dart], [lib/widgets/app_menu_bar.dart], [test/app_menu_bar_test.dart], [test/notice_menu_dao_test.dart], [test/search_print_settings_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- AppBar 대화상자 수명주기 계약 보완 커밋: `9c06d1b` (`AppBar 대화상자 수명주기 계약 보완`). 기존 사용자 변경 3개는 포함하지 않았고 원격 push는 수행하지 않았다.
-- Phase 3 거래처 관리 완료: 실제 schema의 ID·협력업체·이름만 사용하는 CRUD, 권한별 협력업체 selector, 50자 child draft, 삭제 gate, 첫 지점·첫 grade 2 Connect와 단일 접속 로그, process-scope 원 관리자/Connect/first-admin/master-key session을 구현했다. migration·ETC·수동 연관 삭제·빈 값/중복 검증·정렬/fallback은 추가하지 않았다. focused suite `32 passed`, 신규 analyzer 항목 0건, 기능 커밋 `93d4aad` (`거래처 관리 기능 구현`), 원격 push 없음.
-- Phase 3 협력업체 관리 완료: 실제 `BM_COOPERATOR`의 `RICH_COOP_ID`, `RICH_NAME` 두 column만 사용하는 parameterized CRUD, 공용 시스템 비밀번호, FortuneTable 유효 행 더블클릭, child draft와 parent 저장/reload, 삭제 gate, command owner와 activeEditing/writeBusy lifecycle을 구현했다. 빈 값·중복 validation, 수동 연관 삭제, session reload/logout은 추가하지 않았다.
-- 협력업체 관리 검증/커밋: DAO/UI/table/menu/policy/controller/lifecycle 관련 suite `84 passed`, 신규 analyzer 항목 0건이고 기존 HomePageManager unused 경고 2건만 유지했다. 기능 커밋 `30154ab` (`협력업체 관리 기능 구현`), 원격 push 없음. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 stage하지 않았다.
-- 현재 구현 현황: 공용라벨 이력 read model/DAO에 숨김 log ID, before/after RTF와 sheet payload, non-empty sheet 우선 fallback을 추가했다. 조회는 레거시와 같은 log+brand join, `RICH_MOD_DATE BETWEEN`, log table의 선택 거래처 조건이며 `ORDER BY`를 추가하지 않는다.
-- 공용라벨 이력 첫 검증 완료: [test/common_label_history_test.dart] 2건이 codec, sheet 우선/RTF fallback, 숨김 log ID, 날짜·거래처·무정렬 SQL을 검증하며 통과했다. `flutter analyze lib/models/common_label_history.dart test/common_label_history_test.dart` → `No issues found`. 인접 확인 중 고객 조건 alias 차이를 발견해 `A.RICH_CUSTOMER_ID`로 바로잡고 동일 focused 검증을 재실행한다.
-- 공용라벨 이력 DAO 재검증 완료: 고객 조건을 레거시와 같은 `A.RICH_CUSTOMER_ID`로 교정한 뒤 focused test 2건과 targeted analyze를 다시 통과했다.
-- 공용라벨 zoom 기반 편집/검증 완료: [lib/page_label_sheet/label_sheet_workbench.dart]의 `LabelSheetZoomController`에 인스턴스별 min/max를 추가하되 기본 10~400은 유지했다. [test/label_sheet_zoom_controller_test.dart] 2건과 targeted analyze가 통과했으며 공용라벨 dialog만 20~500을 사용한다.
-- 공용라벨 zoom 통합 보정/검증 완료: 외부 controller의 workbook 동기화·초기화도 인스턴스 min/max를 사용하도록 보정했다. VS Code test API가 신규 widget test를 0건으로 반환해 `flutter test test/label_sheet_zoom_controller_test.dart`로 직접 실행했고, 실제 `LabelSheetWorkbench` 부착 상태에서 500% 유지 포함 `3 passed`; targeted analyze도 `No issues found`다.
-- 공용라벨 이력 UI 편집 완료: [lib/page_home/common_label_history_dialog.dart]에 권한별 selector와 시스템 관리자 협력업체→거래처 cascade, 최초 자동 조회 없는 날짜·거래처 조회, 빈 결과 무안내 table, 실제 row 선택의 전후 payload 병렬 preview, 독립 20~500% zoom을 추가했다. sheet는 기존 decode/normalize, RTF는 기존 `labelSheetWorkbookWithRtf` 경로를 사용한다.
-- 공용라벨 이력 UI 검증 완료: [test/common_label_history_dialog_test.dart] 2건이 시스템 관리자 selector cascade·선택 거래처 조회·전후 preview 적재, 일반 사용자 selector 숨김·무자동 조회·빈 결과 무안내를 검증하며 통과했다. 관련 targeted analyze → `No issues found`.
-- 공용라벨 이력 owner 연결 완료: [lib/home_page_manager.dart]가 `viewCommonLabelHistory` command를 `1420×820` blocking modeless overlay에 연결하고 clean lifecycle participant를 닫기·dispose에서 해제한다.
-- 공용라벨 이력 최종 검증 완료: model/UI/zoom/controller/lifecycle focused suite `14 passed`; touched Dart 7개 diagnostics는 모두 0건이다.
-- 공용라벨 이력 기능 stage 대상: [lib/models/common_label_history.dart], [lib/page_home/common_label_history_dialog.dart], [lib/page_label_sheet/label_sheet_workbench.dart], [lib/home_page_manager.dart], [test/common_label_history_test.dart], [test/common_label_history_dialog_test.dart], [test/label_sheet_zoom_controller_test.dart]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]와 [SESSION_HANDOFF.md]는 기능 커밋 stage에서 제외한다.
-- 공용라벨 이력 기능 stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 Dart 7개뿐이며 handoff와 기존 사용자 변경 3개는 포함하지 않았다.
-- 공용라벨 이력 기능 커밋: `62ca02e` (`공용라벨 수정 이력 조회 구현`). 원격 push는 수행하지 않았다. 다음 시작점은 지시서 Phase 2 순서의 `발행 통계 조회`이며 활성 레거시 `CStatusPrintModel::Search → CStatusPrintDAO::SelectDLG`와 현 `BM_RICH_STATUS` persistence schema를 대조해 read model/DAO부터 구현한다.
-- Phase 2 발행 통계 진행: 활성 `SelectDLG`의 주원료 status 단독/기타 column status-data join 분기, 날짜·거래처·브랜드·label size·품명·검색값 filter, `RICH_PRINT_DATE` 단일 정렬과 상세 field를 확인했다. [lib/models/status_print.dart]에 parameterized read model/DAO를, [test/status_print_test.dart]에 codec·query 분기·무aggregate·상세 무정렬 계약을 추가하고 focused 검증한다.
-- Phase 2 발행 통계 DAO 검증 완료: [test/status_print_test.dart] 4건이 status ID·삭제 상태 codec, 주원료 단독/기타 column join, 선택 filter·완전/부분 일치, 무aggregate, `RICH_PRINT_DATE` 단일 정렬과 상세 field·무정렬을 검증하며 통과했다. `flutter analyze lib/models/status_print.dart test/status_print_test.dart` → `No issues found`.
-- Phase 2 발행 통계 다음 편집: 권한별 협력업체·거래처, 브랜드·label size `[전체 보기]`, 검색 column `주원료` 초기화와 cascade를 구현하고, 0건에도 총/삭제 요약행 2개를 유지하는 `FortuneTable`, 실제 row 상세 overlay, dialog-level Enter 조회를 연결한다.
-- Phase 2 발행 통계 DAO stage 검증 완료: 포맷 후 focused test `4 passed`, targeted analyze `No issues found`, `git diff --cached --check` 통과. staged 목록은 [lib/models/status_print.dart], [test/status_print_test.dart] 두 파일뿐이며 handoff와 기존 사용자 변경 3개는 제외했다.
-- Phase 2 발행 통계 DAO 커밋: `5fed1fd` (`발행 통계 조회 DAO 구현`). 원격 push는 수행하지 않았다. 다음 시작점은 기존 `BrandDAO.selectByCustomerIdByBrandOrder`, `LabelSizeDAO.selectByBrandIdByLabelSizeOrder`, `TColumnDAO.selectByLabelSizeId`를 조합하는 dialog filter loader와 selector cascade다.
-- 편집 완료: [lib/models/app_menu_command.dart]에 26개 안정 ID, 레거시 순서 section, 검색출력 submenu, F12, popup 소유권과 legacy 숨김 metadata를 추가했다. [lib/core/app_menu_policy.dart]에 비로그인 차단, 등급·신뢰 가능한 세션 플래그 경계, busy/context 차단과 저울출력 label size 사유를 계산하는 순수 policy를 추가했다.
-- 테스트 추가: [test/app_menu_command_test.dart]에 legacy ID test fixture와 inventory 계약 4건, [test/app_menu_policy_test.dart]에 비로그인·등급·세션 flag·`tester01`·숨김·프린터·작업 상태·editable 계약 9건을 추가했다. runtime metadata에는 legacy ID를 넣지 않았다.
-- 검증 완료: focused test `13 passed, 0 failed`; 새 source/test 4개 VS Code diagnostics 0건. 포맷 후 같은 focused test를 다시 실행해 `13 passed, 0 failed`를 확인했다.
-- 검증 완료: `flutter analyze lib/models/app_menu_command.dart lib/core/app_menu_policy.dart test/app_menu_command_test.dart test/app_menu_policy_test.dart` → `No issues found`.
-- stage/commit 대상: [lib/models/app_menu_command.dart], [lib/core/app_menu_policy.dart], [test/app_menu_command_test.dart], [test/app_menu_policy_test.dart], [SESSION_HANDOFF.md]만 포함한다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- 커밋: `7651f6b` (`앱 메뉴 Phase 0 명령 정책 구현`). 다음 시작점은 `HomePage`/`HomePageManager`의 기존 owning method와 controller attach pattern을 확인해 AppBar shell이 command ID만 전달하도록 연결하는 것이다.
-- Phase 1 진행: [lib/widgets/app_menu_bar.dart]에 `MenuAnchor` 기반 넓은 그룹 3개/좁은 통합 overflow와 확인된 `검색출력` 2단 submenu를 구현한다. [test/app_menu_bar_test.dart]에서 `1200×800`, `600×720`, 고정 서버·인증 action 유지와 command 1회 전달을 검증한다. 첫 편집 직후 이 test만 실행한다.
-- Phase 1 편집 완료: [lib/widgets/app_menu_bar.dart]에 실제 visible 그룹만 표시하는 wide anchor, 좁은 2단 overflow, 검색출력 submenu, separator 정리, F12 보조문구, checkmark, disabled reason 렌더링을 추가했다. title 최소 폭 400px와 실제 visible icon 폭 합으로 전환하며 viewport 숫자는 production 분기에 사용하지 않는다.
-- Phase 1 테스트/검증: [test/app_menu_bar_test.dart] 5건으로 `1200×800` 그룹 3개, `600×720` overflow, 서버·인증 action 유지, wide/narrow command 1회 전달, disabled reason을 확인했다. VS Code test API가 신규 파일을 0건으로 반환해 `flutter test test/app_menu_bar_test.dart`로 실행했고 `5 passed`; `flutter analyze lib/widgets/app_menu_bar.dart test/app_menu_bar_test.dart`는 `No issues found`.
-- Phase 1 stage/commit 대상: [lib/widgets/app_menu_bar.dart], [test/app_menu_bar_test.dart], [SESSION_HANDOFF.md]만 포함한다. 다음 slice는 owner 기반 [lib/core/app_menu_controller.dart]를 추가하고 `HomePage`/`HomePageManager`의 기존 로그인·로그아웃·종료·프린터·저울 설정 method에 연결한다.
-- Phase 1 controller 진행: [lib/core/app_menu_controller.dart]에 owner attach/detach, 실제 등록 command만 노출하는 policy snapshot, 실행 중 동일 command 중복 차단을 추가하고 [test/app_menu_controller_test.dart]로 검증한다. 이후 [lib/home_page.dart]에는 로그인·로그아웃·공용 종료 handler와 AppMenuBar를, [lib/home_page_manager.dart]에는 기존 라벨/저울 프린터·전자저울 설정 owning method adapter만 연결한다. 미구현 command의 빈 handler는 만들지 않는다.
-- Phase 1 shell 커밋: `892c5d3` (`앱 메뉴 반응형 셸 구현`).
-- Phase 1 controller 편집 완료: [lib/core/app_menu_controller.dart]에 owner attach/detach, 실제 handler가 등록된 command만 policy로 노출, 동일 command 실행 중 중복 차단을 구현했다. [lib/home_page.dart]는 로그인·로그아웃·종료를 등록하고 AppBar title에 AppMenuBar를 연결했으며 OS back과 메뉴 종료가 같은 `_requestExit()`를 사용한다. [lib/home_page_manager.dart]는 기존 전자저울·라벨출력 프린터·저울출력 프린터 설정 method를 등록하고 label size 및 각 session busy만 동기화한다.
-- Phase 1 controller 검증: [test/app_menu_controller_test.dart] 4건과 AppMenuBar 5건, 기존 lifecycle 1건을 함께 실행해 `10 passed`. targeted analyze의 신규 오류는 0건이며 [lib/home_page_manager.dart]의 기존 unused 경고 `_applyAutoItemUpdateStagedRows`, `columns` 2건만 남아 범위 밖으로 유지했다.
-- Phase 1 controller stage/commit 대상: [lib/core/app_menu_controller.dart], [test/app_menu_controller_test.dart], [lib/home_page.dart], [lib/home_page_manager.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- Phase 1 controller 커밋: `063e542` (`앱 메뉴 기존 명령 연결`). Phase 1 다음 시작점은 AppBar menu와 기존 modal/blocking surface가 열려 있을 때 Home 전역 F1/F2/F3/F5/F12를 차단하는 작은 app-scope 상태와 공용 lifecycle exit snapshot/participant 계약이다.
-- Phase 1 shortcut 차단 진행: [lib/core/app_shortcut_blocker.dart]에 중첩 가능한 활성 surface 상태와 scope를 추가한다. [lib/widgets/blocking_modeless_dialog.dart], [lib/database/db_reconnect_overlay.dart], AppMenuBar open/close를 연결하고 `HomePageManager._handleTabShortcutKeyEvent`가 F1/F2/F3/F5/F12 분기 전에 blocker와 modal route를 확인하도록 한다. non-modal preview에는 연결하지 않는다. focused blocker/MenuBar test 후 기존 shortcut test를 실행한다.
-- Phase 1 shortcut 차단 완료: [lib/core/app_shortcut_blocker.dart]의 identity owner set으로 마지막 blocking surface가 닫힐 때까지 차단한다. BlockingModelessDialog·중첩 overlay·DbReconnectOverlay·AppBar menu만 연결했고 PreviewFloatingWindow는 제외했다. `HomePageManager._handleTabShortcutKeyEvent`는 F1/F2/F3/F5/F12에 대해 blocker 또는 현재 modal route가 있으면 event를 소비하고 기존 command 분기로 진행하지 않는다.
-- Phase 1 shortcut 검증: 신규 blocker test 2건, AppMenuBar 5건, 기존 blocking dialog·FortuneTable/shortcut 회귀를 합쳐 `71 passed`. 수정 파일 targeted analyze 신규 항목은 0건이고 기존 HomePageManager unused 경고 2건만 유지했다.
-- Phase 1 shortcut stage/commit 대상: [lib/core/app_shortcut_blocker.dart], [lib/widgets/blocking_modeless_dialog.dart], [lib/database/db_reconnect_overlay.dart], [lib/widgets/app_menu_bar.dart], [lib/home_page.dart], [lib/home_page_manager.dart], [test/app_shortcut_blocker_test.dart], [test/app_menu_bar_test.dart], [SESSION_HANDOFF.md].
-- Phase 1 shortcut 커밋: `5301d80` (`앱 메뉴 전역 단축키 차단`). 다음 시작점은 [lib/core/lifecycle.dart]에 종료 전용 participant와 snapshot 수집 계약을 추가하고 HomePageManager의 기존 busy/editing/dirty 상태를 확인창 없는 snapshot으로 노출해 HomePage의 단일 guard가 평가하도록 하는 것이다.
-- Phase 1 lifecycle 진행: [lib/core/lifecycle.dart]에 participant, snapshot, dirty work와 1회 discard/close exit plan을 추가한다. [lib/home_page_manager.dart]는 기존 label/item/auto/scale busy·editing과 품목/자동갱신/공용라벨 dirty만 snapshot provider로 노출하고, [lib/home_page.dart]의 단일 guard가 blocker 안내 또는 dirty 작업명 합산 확인 후 discard와 participant close를 실행한다. 기존 화면별 취소 확인 method는 재사용하지 않는다.
-- Phase 1 lifecycle 완료: [lib/core/lifecycle.dart]에 종료 요청 시 participant snapshot을 한 번 수집하고 dirty discard·participant close를 각각 최대 한 번 실행하는 exit plan을 추가했다. HomePageManager는 기존 write-busy/active editing 차단과 품목관리·자동품목갱신·공용라벨 dirty 및 확인창 없는 discard callback만 노출한다. HomePage의 로그아웃·메뉴 종료·OS 종료는 동일 guard에서 modal route 차단, blocker 1회 안내, dirty 작업명 합산 확인, 승인 시 discard/close 순서로 처리한다.
-- Phase 1 lifecycle 검증: lifecycle test를 3건으로 확장해 snapshot 1회 수집과 discard/close 중복 방지를 확인했고 controller/AppMenuBar 회귀를 합쳐 `12 passed`. targeted analyze 신규 항목은 0건이며 기존 HomePageManager unused 경고 2건만 유지했다.
-- Phase 1 lifecycle stage/commit 대상: [lib/core/lifecycle.dart], [lib/home_page.dart], [lib/home_page_manager.dart], [test/lifecycle_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 3개는 제외한다.
-- Phase 1 lifecycle 커밋: `b28e891` (`앱 메뉴 종료 수명주기 통합`). Phase 1 기반 완료. Phase 2 첫 시작점은 기존 미사용 demo [lib/page_login/login_history_page.dart]와 `LoginLogDAO`를 확인해 사용자 접속 이력 read model/DAO/content를 AppMenuController handler로 연결하는 것이다.
-- Phase 2 사용자 접속 이력 진행: 활성 레거시 `CLoginLogDAO` 확인 결과 `USER_GRADE`는 표시 문자열이며 조회는 `LOGIN_DATE_YYYYMMDD BETWEEN` + `CUST_ID`, `ORDER BY LOGIN_DATE ASC`다. [lib/models/login_log.dart] codec과 parameterized read DAO를 먼저 수정하고 [test/login_log_test.dart]로 SQL/codec을 고정한다. INSERT 계약은 변경하지 않는다.
-- Phase 2 LoginLog DAO 완료: [lib/models/login_log.dart]의 `userGrade`를 실제 DB 표시 문자열로 수정하고 CP949 변환 SELECT, 날짜 양끝 포함·거래처 ID parameter, `LOGIN_DATE ASC` read API를 추가했다. INSERT와 기존 write 형식은 변경하지 않았다.
-- Phase 2 LoginLog 검증: [test/login_log_test.dart] 2건 `passed`; `flutter analyze lib/models/login_log.dart test/login_log_test.dart` → `No issues found`. stage/commit 대상은 두 파일과 [SESSION_HANDOFF.md]만이다.
-- Phase 2 LoginLog DAO 커밋: `8e308dd` (`사용자 접속 이력 조회 DAO 구현`). 다음 시작점은 [lib/page_login/login_history_page.dart]의 demo `Scaffold/Card/DataTable`을 `LoginHistoryDialogContent` + `FortuneTable`로 교체하고, Cooperator/Customer read 목록 API와 HomePageManager blocking overlay/command handler를 연결하는 것이다.
-- Phase 2 사용자 접속 이력 UI 편집 완료: [lib/models/cooperator.dart]에 무정렬 전체 목록 조회, [lib/models/customer.dart]에 협력업체별 무정렬 목록 조회를 추가했다. [lib/page_login/login_history_page.dart]는 demo page·가짜 데이터·최근 4주 자동 조회를 제거하고 오늘~오늘, 등급별 협력업체/거래처 selector, 명시적 조회, read-only `FortuneTable`, 0건 공용 안내를 사용하는 `LoginHistoryDialogContent`로 교체했다.
-- Phase 2 owner 연결 완료: [lib/home_page_manager.dart]가 `viewLoginHistory` command를 `1120×720` blocking modeless overlay에 연결한다. 동일 dialog 중복 open을 막고 clean read-only lifecycle participant를 등록하며 닫기·dispose에서 overlay와 participant를 함께 해제한다.
-- Phase 2 테스트 추가: [test/login_history_filter_dao_test.dart]에서 selector SQL의 무정렬·parameter 계약을 확인한다. [test/login_history_dialog_test.dart]에서 시스템 관리자 selector 2개와 최초 자동 조회 금지, 현재 거래처 ID로 명시적 조회·결과 표시, 일반 사용자 selector 숨김을 확인한다.
-- Phase 2 사용자 접속 이력 UI 검증 완료: 포맷 후 `flutter test test/login_history_dialog_test.dart test/login_history_filter_dao_test.dart test/login_log_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart` → `12 passed`. targeted analyze의 신규 오류는 0건이며 [lib/home_page_manager.dart]의 기존 unused 경고 `_applyAutoItemUpdateStagedRows`, `columns` 2건만 유지했다.
-- Phase 2 사용자 접속 이력 UI stage/commit 대상: [lib/models/cooperator.dart], [lib/models/customer.dart], [lib/page_login/login_history_page.dart], [lib/home_page_manager.dart], [test/login_history_filter_dao_test.dart], [test/login_history_dialog_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- Phase 2 사용자 접속 이력 UI stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 7개 파일뿐이며 변경 규모는 501 insertions, 284 deletions다.
-- Phase 2 사용자 접속 이력 UI 커밋: `1c4a1ac` (`사용자 접속 이력 화면 구현`). 다음 시작점은 Phase 2 `발행내역 보기`의 기존 Flutter model/DAO와 활성 레거시 query·합계행·상세 owner를 확인해 read slice부터 구현하는 것이다.
-- Phase 2 발행내역 진행: [lib/models/print_log.dart]에 `BM_RICH_PRINT_LOG` read model, 검색 종류별 parameterized query spec, 검색어와 독립된 총 누계·기간·label size 합계 query를 추가했다. 선택 협력업체는 query API에 포함하지 않고 거래처 `[전체 보기]`는 nullable 거래처 조건으로 전 협력업체 범위를 유지한다.
-- Phase 2 발행내역 UI 편집 완료: [lib/page_home/print_history_dialog.dart]에 오늘~오늘·최초 자동 조회 없음, 등급별 selector, `품명`·`사용자ID`·`거래처` 검색, 합계행 후 실제 결과, read-only `FortuneTable`, 실제 row의 저장값·출력값 상세 비교를 구현했다. [lib/widgets/blocking_date_picker.dart]를 추출해 접속 이력과 발행내역이 공용 blocking date picker를 사용한다.
-- Phase 2 발행내역 테스트 추가: [test/print_log_test.dart]가 codec/wire, 날짜·검색 종류·거래처 범위·`RICH_DATETIME ASC`, 검색어 미적용 합계 query를 검증한다. [test/print_history_dialog_test.dart]가 시스템 관리자 selector·무자동 조회·현재 거래처 조회·합계 순서·상세와 일반 사용자 selector 숨김·Enter 조회를 검증한다.
-- Phase 2 발행내역 중간 검증 완료: `flutter test test/print_log_test.dart test/print_history_dialog_test.dart` → `5 passed`; 관련 source/test targeted analyze → `No issues found`. 공용 date picker 추출 후 접속 이력 widget test `2 passed`, analyze clean도 확인했다.
-- Phase 2 발행내역 owner 연결 완료: [lib/home_page_manager.dart]가 `viewPrintHistory` command를 `1320×760` blocking modeless overlay에 연결한다. 동일 dialog 중복 open을 막고 clean lifecycle participant를 등록하며 닫기·dispose에서 overlay와 participant를 함께 해제한다.
-- Phase 2 발행내역 최종 검증 완료: 포맷 후 `flutter test test/print_log_test.dart test/print_history_dialog_test.dart test/login_history_dialog_test.dart test/login_history_filter_dao_test.dart test/login_log_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart` → `18 passed`. targeted analyze의 신규 오류는 0건이며 [lib/home_page_manager.dart]의 기존 unused 경고 `_applyAutoItemUpdateStagedRows`, `columns` 2건만 유지했다. 전역 포맷이 섞인 HomePageManager와 접속 이력 diff는 역패치 후 기능 변경만 재적용하고 각각 focused test/analyze를 다시 통과했다.
-- Phase 2 발행내역 stage/commit 대상: [lib/models/print_log.dart], [lib/page_home/print_history_dialog.dart], [lib/widgets/blocking_date_picker.dart], [lib/page_login/login_history_page.dart], [lib/home_page_manager.dart], [test/print_log_test.dart], [test/print_history_dialog_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- Phase 2 발행내역 stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 8개 파일뿐이며 첫 검증 시 변경 규모는 1419 insertions, 25 deletions다.
-- Phase 2 발행내역 커밋: `0c3bb50` (`발행내역 조회 화면 구현`). 다음 시작점은 Phase 2 `데이터내용 이력 조회`의 `BM_CONTENT_SAVE_LOG` schema와 활성 레거시 model/DAO를 확인해 read model·조회·상세 pairing부터 구현하는 것이다.
-- Phase 2 데이터내용 이력 진행: 활성 레거시에서 `BM_CONTENT_SAVE_LOG` schema, `SAVE_DATE_YYYYMMDD BETWEEN` + `CUST_ID`, `SAVE_DATE ASC`, 문자열 사용자 등급, status 0=`신규`/그 외=`수정`, `CONTENT_COLUMNS`·`CONTENTS`의 `\n` delimiter와 짧은 개수 pairing을 확인했다. DB migration blocker는 없다.
-- Phase 2 데이터내용 이력 편집 완료: [lib/models/content_save_log.dart]에 read model·상세 pairing·parameterized 조회 DAO를 추가했다. [lib/page_home/content_save_history_dialog.dart]에 오늘~오늘·무자동 조회, 권한별 selector, read-only `FortuneTable`, 0건 안내와 실제 row 상세를 구현했다. 시스템 관리자 협력업체 변경은 거래처를 갱신하지 않고, 협력업체 관리자는 표시된 거래처 선택과 무관하게 로그인 거래처로 조회하며 dialog-level Enter handler는 없다.
-- Phase 2 데이터내용 이력 테스트 추가/검증: [test/content_save_log_test.dart] 3건과 [test/content_save_history_dialog_test.dart] 2건이 codec/status/SQL, 시스템 관리자 무효 cascade·선택 거래처 조회, 협력업체 관리자 고정 조회, 0건 안내·상세·Enter 무동작을 검증하며 모두 통과했다. 관련 targeted analyze → `No issues found`.
-- Phase 2 데이터내용 이력 owner 연결 완료: [lib/home_page_manager.dart]가 `viewContentHistory` command를 `1120×720` blocking modeless overlay에 연결하고 clean lifecycle participant를 닫기·dispose에서 해제한다.
-- Phase 2 데이터내용 이력 최종 검증 완료: 신규 source/test만 포맷 후 `flutter test test/content_save_log_test.dart test/content_save_history_dialog_test.dart test/print_history_dialog_test.dart test/login_history_dialog_test.dart test/app_menu_controller_test.dart test/lifecycle_test.dart` → `17 passed`. targeted analyze 신규 오류는 0건이며 [lib/home_page_manager.dart] 기존 unused 경고 2건만 유지했다.
-- Phase 2 데이터내용 이력 stage/commit 대상: [lib/models/content_save_log.dart], [lib/page_home/content_save_history_dialog.dart], [lib/home_page_manager.dart], [test/content_save_log_test.dart], [test/content_save_history_dialog_test.dart], [SESSION_HANDOFF.md]. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- Phase 2 데이터내용 이력 stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 위 6개 파일뿐이며 첫 검증 시 변경 규모는 761 insertions다.
-- Phase 2 데이터내용 이력 커밋: `0cdaef6` (`데이터내용 이력 조회 구현`). 다음 시작점은 Phase 2 `공용라벨 수정 이력 보기`의 `BM_RICH_LABELSIZE_FORM_LOG` read schema와 기존 sheet/RTF preview helper를 확인해 조회 model·DAO부터 구현하는 것이다.
-- 완료: [doc/app_menu_porting.txt] 41차 재감사에서 확인한 공통 UX 과잉 계약 네 건을 레거시·기존 owning 화면 우선으로 축소하고 검증했다.
-- 사용자 확인: 별도 선택이 필요한 업무·DB 사항은 없다. 화면에 실제 존재하는 영역만 배치하고, command 순서는 활성 레거시·기존 owning 화면을 우선하며, `FortuneTable` 신규 정렬·잘림 tooltip API와 inline validation은 개별 화면 또는 반복 필요가 확인된 경우에만 적용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1·7.2·7.5와 widget test·체크리스트·최종 완료 계약에서 무조건 footer 계층·command 재배치·table API 확장·inline validation 의무를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 42차 축소 계약과 이전 포괄 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 공통 UX 본문 편집 완료: [doc/app_menu_porting.txt] 7.1에서 실제 존재하는 영역만 배치하고 활성 레거시·기존 owning 화면의 footer 순서를 우선하도록 했다. 7.2에서는 기존 `FortuneTable` 정렬·ellipsis를 유지하고 별도 정렬·tooltip은 개별 계약 또는 반복 필요가 있을 때만 공용 API로 검토하도록 축소했다. 7.5에서는 개별 계약이 없는 validation을 inline으로 일괄 전환하지 않고 공용 차단 overlay로 한 번 전달하도록 했다.
-- 테스트·완료 계약 편집 완료: 공용 dialog와 `FortuneTable` widget test, 명령별 체크리스트, 최종 완료 상태에서 빈 영역·command 재배치·정렬·tooltip API를 일반 완료 조건으로 요구하지 않도록 동기화했다.
-- 첫 편집 검증 완료: [SESSION_HANDOFF.md] 진행 기록과 [doc/app_menu_porting.txt] 본문 편집 직후 `git diff --check`가 각각 통과했다.
-- 검증 완료: 42차 축소 계약 `12/12`, 이전 포괄 footer 계층·잘림 tooltip·table 정렬 test·inline validation 문구 잔존 `0`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- diff 검토 완료: 변경은 7.1·7.2·7.5와 대응 widget test·체크리스트·최종 완료 계약에만 한정됐다. 전자저울·검색출력 batch·영양성분 권한·발행 합계·lifecycle을 포함한 기존 업무·DB·권한·Enter 계약은 변경하지 않았고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 검증 시 변경 규모는 23 insertions, 13 deletions다.
-- 기능 문서 커밋 완료: `cfbcbc9` (`앱 메뉴 42차 UX 확장 범위 축소`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt]에 DB·권한·검증·command 동작을 바꾸지 않는 현대적 UX 권장안을 7.1~7.5 공통 화면 계약으로 정리하고 검증했다.
-- 사용자 확정: 권장안으로 지시서를 정리한다. 기존 `BlockingModelessDialogFrame`·`FortuneTable`을 재사용하고 dialog 정보 계층, filter 반응형 배치, table 폭·정렬·말줄임, keyboard focus 표시, footer command 위계, 오류 위치만 통일한다. 자동 선택·scroll 복원, 새 빈 결과 안내, 신규 filter·정렬·pagination, Enter 재분류, 자동 저장·retry, 별도 design system은 추가하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 7.1~7.5와 관련 widget test·완료 계약에 기능·DB 불변 UX 계약을 반영한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 첫 편집 직후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`를 실행한다. 이어서 41차 UX 필수 계약과 확장 금지 문구를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 공통 UX 본문 편집 완료: [doc/app_menu_porting.txt] 7.1~7.5에 frame 내부 정보 계층·간격, 기존 위치를 유지하는 footer command 위계와 filter 반응형 배치, 초기·keyboard focus, `FortuneTable` 폭·시각 정렬·잘린 원문 tooltip, validation과 DB 오류 표시 위치를 반영했다. control·column·command·Enter·Esc·query·DB 처리 계약은 변경하지 않았다.
-- 테스트·금지·완료 계약 편집 완료: 공용 dialog와 `FortuneTable` widget test, 명령별 체크리스트, 금지 사항과 최종 완료 상태에 같은 UX 계약을 동기화했다. 새 filter·정렬·pagination·export·빈 결과 안내, 자동 선택·scroll 복원, 기능별 table wrapper와 별도 design system은 금지했다.
-- 첫 편집 검증 완료: [SESSION_HANDOFF.md] 진행 기록과 [doc/app_menu_porting.txt] 본문 편집 직후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 각각 통과했다.
-- 검증 완료: 41차 UX 필수 계약 `12/12`, 이전 footer의 모호한 조회 command 문구 잔존 `0`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- diff 검토 완료: 변경은 7.1~7.5의 시각적 정보 계층·반응형 배치·focus·table 가독성·오류 위치와 관련 widget test·체크리스트·금지·최종 완료 계약에만 한정됐다. 기존 DB·권한·validation·command·Enter·Esc·query·저장/조회 흐름은 변경하지 않았고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 검증 시 변경 규모는 33 insertions, 5 deletions다.
-- 기능 문서 커밋 완료: `efbf5d7` (`앱 메뉴 41차 현대 UX 계약 정리`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 40차 재감사에서 레거시보다 넓게 읽히는 공통 폐기 확인·busy 표시·`disabledReason` 계약을 개별 화면 또는 기존 owner가 실제 상태를 정의한 범위로 축소하고 검증했다.
-- 사용자 확정: 권장안대로 지시서를 정리한다. 권한 밖 command 숨김은 현재 Flutter 메뉴 표시 방식의 의도적 차이로만 유지하고 command 권한·기능 범위를 확대하지 않는다. 개별 본문에서 dirty를 정의하지 않은 dialog에 폐기 확인을 추가하지 않고, 모든 busy·비활성 command에 상태 문구나 `disabledReason`을 일괄 생성하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 3.3·4.3·7.1·AppBar widget test에서 권한 숨김의 한계, 개별 dirty 계약, 기존 busy 표시 우선, 명시된 필수 context만의 `disabledReason`을 동기화한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 40차 한정 계약과 이전 포괄 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 공통 UX 범위 편집 완료: [doc/app_menu_porting.txt] 3.3·4.3에서 권한 숨김을 표시 방식 차이로 한정하고 `disabledReason`을 개별 command가 명시한 필수 context 누락에만 제공하도록 했다. 7.1에서는 개별 본문이 dirty를 정의한 dialog만 직접 닫기 폐기 확인을 사용하고, 기존 owner의 busy 표시를 우선하며 신규 dialog의 실제 대기가 불명확한 작업에만 최소 진행 표시를 사용하도록 축소했다.
-- 테스트 계약 편집 완료: AppBar widget test와 금지 사항에서 일반 dirty·busy 상태의 inline 사유를 요구하지 않고 개별 계약이 명시한 필수 context 누락만 검증하도록 동기화했다. 프린터 설정의 label size `disabledReason` 등 기존 개별 계약은 유지했다.
-- 첫 편집 검증 완료: [SESSION_HANDOFF.md] 진행 기록과 [doc/app_menu_porting.txt] 공통 UX 편집 직후 `git diff --check`가 각각 통과했다.
-- 검증 완료: 40차 한정 계약 `9/9`, 이전 포괄 `disabledReason`·직접 닫기 폐기 확인·busy 표시 문구 잔존 `0`, 프린터 label size 개별 `disabledReason` 유지, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- diff 검토 완료: 변경은 3.3 권한 표시 한계, 4.3 선택적 `disabledReason`, 7.1 개별 dirty·최소 busy 표시, AppBar widget test와 금지 사항 동기화에만 한정됐다. 개별 기능의 권한·저장·Enter·transaction 계약은 변경하지 않았고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 20 insertions, 10 deletions다.
-- 기능 문서 커밋 완료: `5ae0c2c` (`앱 메뉴 40차 공통 UX 범위 축소`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 39차 감사에서 확인한 검색·치환 검색 입력 Enter와 발행 통계 활성 조회의 `RICH_PRINT_DATE` 정렬 계약을 활성 레거시 기준으로 병합하고 검증했다.
-- 사용자 확인: 추가 확인 사항 없음. `CSearchAndReplaceDlg::PreTranslateMessage`와 `CStatusPrintModel::Search → CStatusPrintDAO::SelectDLG` 활성 경로로 두 동작이 확정되며, 다른 control Enter나 미사용 DAO 정렬까지 확대하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.1·7.1·검색·치환 focused test에 검색 입력 Enter의 검색 1회와 그 밖의 Enter 무동작을 명시한다. 5.2.6·7.4·발행 통계 focused test의 잘못된 `RICH_DATETIME ASC`를 활성 `SelectDLG`의 `ORDER BY RICH_PRINT_DATE`로 수정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 39차 필수 계약과 발행 통계 이전 정렬 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 검색 Enter 계약 편집 완료: [doc/app_menu_porting.txt] 5.2.1·7.1·focused test에 검색 입력 Enter의 현재 filter 검색 1회와 다른 selector·checkbox·결과 table·치환 입력 Enter의 검색·치환·저장·이동·닫기 0회를 반영했다.
-- 발행 통계 정렬 계약 편집 완료: [doc/app_menu_porting.txt] 5.2.6·7.4·focused test에서 활성 `CStatusPrintDAO::SelectDLG`의 `ORDER BY RICH_PRINT_DATE` 오름차순과 2차 정렬 금지를 반영하고, 미사용 `SelectAll()`의 `RICH_DATETIME ASC`를 이 dialog에 적용하거나 변경하지 않도록 했다.
-- 첫 편집 검증 완료: [SESSION_HANDOFF.md] 진행 기록과 [doc/app_menu_porting.txt] 본문 편집 직후 `git diff --check`가 각각 통과했다.
-- 검증 완료: 39차 필수 계약 `9/9`, 5.2.6 본문·발행 통계 focused test 필수 정렬 `4/4`, 해당 범위의 이전 `RICH_DATETIME ASC` 활성 정렬 문구 잔존 `0`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 최초 전역 금지 문자열 검사는 발행내역의 올바른 `RICH_DATETIME ASC` 두 문구를 잡아 실패했으며 기능별 범위 검사로 교정했다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- diff 검토 완료: 변경은 5.2.1 검색 입력 Enter, 5.2.6 활성 `RICH_PRINT_DATE` 정렬, 7.1·7.4 공통 계약과 두 focused test에만 한정됐다. 발행내역의 `RICH_DATETIME ASC`는 유지하고 다른 control Enter·미사용 DAO 경로·관리자 복사 등 범위 밖 후보는 포함하지 않았다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 16 insertions, 5 deletions다.
-- 기능 문서 커밋 완료: `c5f530a` (`앱 메뉴 39차 검색 통계 계약 명확화`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 38차 감사에서 `INACTIVE` resource 플래그와 달리 MFC command UI 갱신으로 활성화되는 `공용라벨 수정 이력 보기`를 활성 레거시 기준으로 병합하고 검증했다.
-- 사용자 확인: 추가 확인 사항 없음. `IDM_COMMON_LABEL_LOG`에는 `ON_COMMAND`와 실제 dialog가 있고 별도 `ON_UPDATE_COMMAND_UI`가 없어 메뉴가 열릴 때 자동 활성화되며, 거래게시판처럼 명시적으로 비활성화하는 handler가 없다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.5를 `legacyInactive` 제외에서 `loggedIn` 읽기 전용 조회로 전환하고 기간·selector·결과·전후 preview·확대·Enter·무정렬 계약을 명시한다. Phase 2·5, focused/policy test와 완료 범위를 동기화하고 현 `RICH_FORM_SHEET`·`RICH_ALTER_FORM_SHEET` 우선/fallback 적재를 기존 helper에 연결한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 38차 필수 계약과 공용라벨 `legacyInactive` 이전 문구 제거를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 공용라벨 이력 본문 편집 완료: [doc/app_menu_porting.txt] 5.2.5를 MFC 자동 enable 근거의 `loggedIn` 활성 command로 전환하고 현재 날짜·등급별 selector, `RICH_MOD_DATE BETWEEN`, 무정렬 결과 column, `*_FORM_SHEET` 우선·기존 `*_FORM_DATA` fallback 전후 read-only preview, 독립 20~500% 확대와 Enter·0건 범위를 반영했다.
-- 공통·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 7.4와 Phase 2·5, policy/focused test에서 다섯 조회의 날짜 조건과 공용라벨 무정렬 예외, 활성 command 구현·검증 범위를 동기화했다. `legacyInactive` 판단은 resource 초기 flag가 아니라 실제 `ON_COMMAND`·`ON_UPDATE_COMMAND_UI`·MFC 자동 enable 경로를 함께 확인하도록 보정했다.
-- 첫 편집 검증 완료: [doc/app_menu_porting.txt]의 본문 편집과 공통 계약 보정 직후 `git diff --check`가 각각 통과했고, 중단 전 [SESSION_HANDOFF.md] 진행 기록도 `git diff --check`가 통과했다.
-- 검증 완료: 38차 필수 계약 `12/12`, 이전 공용라벨 `legacyInactive` 제외 문구 잔존 `0`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- diff 검토 완료: 변경은 5.2.5 활성 읽기 전용 조회, 7.4의 다섯 기간 조건·공용라벨 무정렬 예외, Phase 2·5와 policy/focused test, 실제 command UI 경로 기준 `legacyInactive` 판정에만 한정됐다. 새 sheet 우선·기존 RTF fallback 외 복원·내보내기 등 추가 기능은 금지했다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 30 insertions, 13 deletions다.
-- 기능 문서 커밋 완료: `03045b5` (`앱 메뉴 38차 공용라벨 이력 계약 명확화`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 37차 감사에서 확인한 영양성분 형식 입력의 `기존내용 참조`와 영양성분표 입력의 선택 형식 구성 미리보기 계약을 활성 레거시 기준으로 병합하고 검증했다.
-- 사용자 확인: 추가 확인 사항 없음. 두 UI는 활성 레거시 dialog와 event handler로 동작이 확정되며, 저장 field나 신규 기능으로 확장하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.2에 신규·수정 입력의 미선택 `기존내용 참조` selector와 선택 시 `RICH_NUTCOL_ID` 순 구성 교체를 명시한다. 5.3.3에는 형식 선택에 따른 keyword·성분명 read-only 구성 미리보기를 저장 field와 분리해 명시하고, 두 focused test를 동기화한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 첫 편집 직후와 본문 편집 직후 `git diff --check`를 실행한다. 이어서 37차 필수 계약과 확장 금지 문구를 표적 검사하고 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 영양성분 형식 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.2와 focused test에 미선택 `기존내용 참조`, `RICH_NUTTYPE_ID` 순 목록, 선택 형식의 `RICH_NUTCOL_ID` 순 draft 구성 교체와 형식명·저장 대상·mode·DB 불변, 자동 저장·병합·복사 기능 금지를 반영했다.
-- 영양성분표 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.3과 focused test에 형식 미선택 시 빈 구성, 선택·수정 초기화 시 keyword·성분명 `RICH_NUTCOL_ID` 순 read-only sheet 표시와 저장·편집·정렬·복사 기능 금지를 반영했다. selector 목록에는 활성 레거시에 없는 정렬 조건을 추가하지 않았다.
-- 첫 편집 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 편집 직후 `git diff --check`가 통과했다.
-- 검증 완료: 37차 필수 계약 `11/11`, 두 문서 diagnostics 오류 없음, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- diff 검토 완료: 변경은 5.3.2·5.3.3의 활성 레거시 보조 UI와 두 focused test에만 한정됐다. `기존내용 참조`는 draft 구성만 교체하고 영양성분표 구성 sheet는 기존 네 저장 field와 분리된 read-only 표시다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 14 insertions, 2 deletions다.
-- 기능 문서 커밋 완료: `54af9d0` (`앱 메뉴 37차 영양성분 입력 UI 계약 명확화`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 36차 감사의 `IsFirstConnectByAdmin` 수명과 거래처·사용자 `Connect` 관리자 접속 이력 계약을 활성 레거시 기준으로 병합하고 검증했다.
-- 사용자 확정: `IsFirstConnectByAdmin`은 명시적 로그아웃에서 초기화하지 않고 프로세스가 종료될 때까지 유지한다. 앱 재시작 때만 기본 `false`로 시작하는 활성 레거시 동작을 사용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.2·6.2·Phase/test에서 `IsFirstConnectByAdmin`의 프로세스 수명을 고정한다. 5.1.4·5.1.6과 Phase/test에는 두 `Connect`가 `BM_LOGIN_LOG`가 아닌 `BM_ADMIN_ACCESS_LOG`에 원 관리자·대상 사용자·대상 거래처·내외부 IP·시각을 기록하는 범위와 `ResetMainView → context 전환 → 이력 INSERT → InitializeMainView` 순서를 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 계약 편집 직후 `git diff --check`와 표적 문자열 검사를 실행한다. 이어서 두 문서 diagnostics, 전체 diff와 stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 로그아웃 상태 계약 편집 완료: [doc/app_menu_porting.txt] 5.1.2·6.2·Phase 1·focused test에서 로그아웃은 master-key·두 관리자 연결 flag·원래 관리자를 초기화하지만 `IsFirstConnectByAdmin`은 로그인 subtree 밖의 app-scope session model에서 재로그인까지 유지하고 앱 프로세스를 새로 시작할 때만 `false`로 시작하도록 동기화했다. 표적 검사 `3/3`, 이전 초기화 문구 잔존 `0`과 `git diff --check`가 통과했다.
-- Connect 이력 계약 편집 완료: [doc/app_menu_porting.txt] 5.1.4·5.1.6·Phase 3·focused test에서 두 `Connect`가 `IsFirstConnectByAdmin`을 변경하지 않고 `main view reset → context 전환 → BM_ADMIN_ACCESS_LOG INSERT → main view initialize` 순서로 원 관리자·대상 사용자·대상 거래처·내외부 IP·시각만 기록하도록 고정했다. 표적 검사 `7/7`, 이전 모호 문구 잔존 `0`과 `git diff --check`가 통과했다.
-- 검증 완료: 36차 필수 계약 `11/11`, 이전 `IsFirstConnectByAdmin` 로그아웃 초기화·모호한 관리자 접속 로그 문구 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 `IsFirstConnectByAdmin`의 프로세스 수명 app-scope 소유권과 두 `Connect`의 기존 `BM_ADMIN_ACCESS_LOG` 필드·실행 순서에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 18 insertions, 9 deletions다.
-- 기능 문서 커밋 완료: `af78c6b` (`앱 메뉴 36차 접속 상태 이력 계약 명확화`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 35차 감사의 관리자 복사 프로시저 schema gate, dialog 종료 후 owner refresh 순서와 검색출력 child 표시명을 활성 레거시 기준으로 병합하고 검증했다.
-- 사용자 확인: 추가 확인 사항 없음. 프로시저 metadata는 구현 전 schema 확인에만 사용하고 runtime 복사에서는 레거시처럼 확인된 세 프로시저를 직접 호출한다. 관리자 복사는 commit 성공 후 dialog를 닫고 `AdminCopyFinish` owner refresh를 실행하며, 검색출력 child 표시명은 레거시 리소스의 `검색출력모드`·`설정`을 사용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7과 focused test에서 runtime capability gate를 제거하고 구현 전 schema blocker와 프로시저 호출 순서·오류 전달만 유지한다. 관리자 복사 성공 순서를 `commit → dialog close → label size 재조회 → owner reload/clear`로 고정하고 post-commit refresh 실패는 1.3 계약을 적용한다. 3.2·widget test에는 검색출력 parent/child 실제 표시명을 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 편집 직후 `git diff --check`를 실행한다. 이어서 35차 필수 계약과 runtime capability gate·이전 reload 문구 제거를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 관리자 복사 본문 편집 완료: [doc/app_menu_porting.txt] 5.1.7에서 프로시저 metadata를 구현 전 1회 schema gate로 한정하고 runtime 직접 호출·오류 전달, `commit → dialog close → label size 재조회 → owner reload/clear`와 post-commit refresh 실패 처리를 반영했다. 수정 직후 표적 검사 `4/4`, 이전 runtime gate·reload 문구 잔존 `0`과 `git diff --check`가 통과했다.
-- 검색출력 표시명 편집 완료: [doc/app_menu_porting.txt] 3.2와 widget test에 parent `검색출력`, child `검색출력모드`·`설정` 실제 표시명을 고정하고 기능 제목·내부 ID로 child label을 바꾸지 않도록 했다. 표적 검사 `3/3`과 `git diff --check`가 통과했다.
-- Phase·focused test 편집 완료: [doc/app_menu_porting.txt] Phase 3과 관리자 복사 focused test에 구현 전 schema 확인, runtime metadata 미조회·직접 호출, commit 후 dialog close·owner refresh와 refresh 실패 처리를 동기화했다. 표적 검사 `7/7`, 이전 runtime capability test 잔존 `0`과 `git diff --check`가 통과했다.
-- 검증 완료: 35차 필수 계약 `11/11`, 이전 runtime capability gate·test, 이전 reload 순서와 모호 child label 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 관리자 복사의 구현 전 프로시저 schema gate·runtime 직접 호출, commit 후 dialog close·owner refresh 및 검색출력 parent/child 표시명에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 17 insertions, 7 deletions다.
-- 기능 문서 커밋 완료: `a95f194` (`앱 메뉴 35차 관리자 복사 계약 명확화`). 원격 push는 수행하지 않았다.
-- 완료: [doc/app_menu_porting.txt] 34차 감사의 앱 종료 이력 순서, 레거시 검색출력 하위 메뉴, visibility 적용 후 separator와 활성 command 완료 범위를 권장안으로 병합하고 검증했다.
-- 사용자 확인: 추가 확인 사항 없음. 종료 이력은 DB 연결과 session 값이 살아 있을 때 기록해야 하고, 검색출력 계층은 활성 레거시 [LabelManager.rc]의 `설정 > 검색출력 > 검색출력모드/설정` 구조로 확정한다. separator는 기존 경계만 유지하며 숨김 command 때문에 빈 경계를 표시하지 않고, hidden command 내부 구현은 기존 제외 계약을 유지한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 3.1·3.2와 widget test에 검색출력 하위 메뉴·단계별 키보드 이동 및 visible command 사이 separator를 명시하고, 5.1.8·Phase 1·종료 test에 session snapshot과 `LOGOUT` 기록을 DB·session 정리보다 앞에 둔다. 체크리스트·최종 완료의 미구현 기능은 production 노출 대상 활성 command로 한정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 편집 직후 `git diff --check`를 실행한다. 이어서 34차 필수 계약과 이전 모호 문구 제거를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- 메뉴 계약 편집 완료: [doc/app_menu_porting.txt] 3.1·3.2와 command inventory에 visible command 사이 기존 separator 경계, 레거시 `설정 > 검색출력 > 검색출력모드/설정` 계층, 단계별 키보드 복귀와 범용 menu tree 미추가를 반영했다. 수정 직후 표적 검사 `4/4`와 `git diff --check`가 통과했다.
-- 종료 계약 편집 완료: [doc/app_menu_porting.txt] 5.1.8에서 현재 session 값을 snapshot하고 DB 연결 해제·session 초기화 전에 `LOGOUT`을 시도하도록 순서를 고정했다. 수정 직후 표적 검사 `2/2`, 이전 순서 잔존 `0`과 `git diff --check`가 통과했다.
-- Phase·테스트·완료 계약 편집 완료: [doc/app_menu_porting.txt] Phase 0·1, focused/widget test, 명령별 체크리스트와 최종 완료 상태에 검색출력 계층·separator·종료 이력 순서를 동기화하고 미구현 기능 범위를 production 노출 대상 활성 command로 한정했다. 표적 검사 `8/8`과 `git diff --check`가 통과했다.
-- 검증 완료: 34차 필수 계약 `11/11`, 이전 모호 문구 잔존 `0`이며 최종 overflow를 기본 2단계와 검색출력의 확인된 추가 하위 단계로 구분했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 종료 `LOGOUT`의 session snapshot·DB 정리 전 기록, 레거시 검색출력 하위 계층·키보드 이동, visibility 이후 separator와 active command 완료 범위에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 26 insertions, 12 deletions다.
-- commit 완료: `48ca762` (`앱 메뉴 34차 종료 메뉴 계층 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 33차 감사의 신규 transaction 실행 경로와 AppBar 반응형 검증 viewport를 권장안 및 사용자 확정 기준으로 병합하고 검증했다.
-- 사용자 확정: AppBar widget test의 넓은 대표 viewport는 `1200×800`, 좁은 대표 viewport는 `600×720`으로 사용한다. native minimum이나 window lifecycle은 변경하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 1.3, 3.2, 관리자 복사, Phase 1과 DAO/widget/완료 계약에서 신규 다중 DML을 `DbClient.transaction(List<DbTransactionStatement>)` 단일 경로로 고정하고 내부 transaction 제어문을 금지하며, 두 viewport를 전환 임계값이 아닌 test 입력값으로 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검증 실행 예정: 각 문서 첫 편집 직후 `git diff --check`를 실행한다. 이어서 33차 필수 계약과 내부 transaction 예시·모호한 대표 폭 문구 제거를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- transaction 원칙 편집 완료: [doc/app_menu_porting.txt] 1.3에서 신규 AppBar 다중 DML·ID mapping·rowcount batch를 `DbTransactionStatement`로 만들어 `DbClient.transaction`에 전달하고, DAO batch 내부 transaction 제어문과 `writeData`/`writeDataWithParams` 직접 실행을 금지했다. 첫 편집 후 `git diff --check`가 통과했다.
-- 관리자 복사·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 관리자 복사, Phase 1, DAO/widget test와 최종 상태에 `returnsRows=true` 단일 statement 경로와 `1200×800`·`600×720` 고정 test viewport, 실제 제공 폭 기반 production 분기를 동기화했다. 첫 편집 후 `git diff --check`가 통과했다.
-- transaction 테스트 책임 편집 완료: 공용 driver가 생성하는 transaction 제어 SQL의 존재·순서 검증과 신규 DAO batch SQL 내부 제어문 부재 검증을 분리했다. 수정 직후 표적 검사 `3/3`과 `git diff --check`가 통과했다.
-- 검증 완료: 33차 필수 계약 `11/11`, 이전 모순·모호 문구와 내부 transaction SQL 예시 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 신규 AppBar transaction 단일 경로·관리자 복사·관련 DAO test 책임과 `1200×800`·`600×720` widget test viewport 계약에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 23 insertions, 30 deletions다.
-- commit 완료: `1e849d5` (`앱 메뉴 33차 트랜잭션 반응형 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 32차 감사의 공통 종료 participant/snapshot 경계, 기존 프린터·저울 설정 modal route 종료 처리, 저장 성공 후 dialog 유지 범위와 Esc 동작을 레거시 및 사용자 확정 기준으로 병합하고 검증했다.
-- 사용자 확정: 기존 프린터·저울 설정 modal route가 열린 상태에서 OS 종료 요청이 오면 설정창을 먼저 닫도록 종료를 차단한다. route draft를 통합 dirty에 포함하거나 차단형 overlay로 재포장하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 4.2, 5.1.2·5.1.8, 7.1·7.3, Phase 1과 focused/widget/완료 계약에서 활성 lifecycle participant와 optional exit snapshot을 분리하고, clean·읽기 전용 overlay 정리, 기존 프린터·저울 설정 modal route 종료 차단, 네 관리 parent 유지, 레거시 Esc 닫기를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 상태 소유권·종료 본문 편집 완료: [doc/app_menu_porting.txt] 4.2와 5.1.2·5.1.8에 lifecycle participant의 close callback·optional snapshot, 공용 guard 1회 수집, 기존 modal route blocker와 종료 순서를 반영했다.
-- dialog 공통 계약 편집 완료: [doc/app_menu_porting.txt] 7.1·7.3에 clean·읽기 전용 participant 등록, checkbox 다중 선택의 Esc 미소비, 네 관리 parent의 CRUD 성공 후 유지와 그 밖의 저장 dialog overlay 제거 범위를 분리했다.
-- Phase·테스트·완료 계약 편집 완료: [doc/app_menu_porting.txt] Phase 1, lifecycle unit test, focused/widget test, 금지·최종 상태에 participant 등록·해제, modal blocker, clean overlay close, 관리 parent 유지와 Esc 범위를 동기화했다.
-- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다. 지시서 구간별 표적 검사에서 종료 계약 필수 3개, dialog 계약 필수 3개, Phase·테스트 필수 5개가 반영되고 이전 owner-only 종료 순서, 무조건 overlay 제거 bullet이 제거됐음을 확인했다.
-- 검증 완료: 32차 필수 계약 `13/13`, 이전 모순 문구·무조건 overlay 제거 bullet·사용자 확정보다 넓은 modal route 표현 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 종료 전용 participant/snapshot·close 순서, 기존 프린터·저울 설정 modal blocker, 관리 parent 유지, 레거시 Esc와 관련 Phase·테스트·완료 계약에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 36 insertions, 20 deletions다.
-- commit 완료: `2b58315` (`앱 메뉴 32차 생명주기 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 31차 감사의 업데이트 메시지 공용 표시·DB 저장 경계와 대상 지정, 검색출력 mode 수명·조회 후보, 검색출력 설정 column 순서를 활성 레거시와 사용자 확정 기준으로 병합하고 검증·commit했다.
-- 사용자 확정: 검색출력 mode는 로그아웃 후 재로그인해도 프로세스 종료 전까지 유지한다. 업데이트 메시지는 관리자에게 저장되지 않는 version 편집과 `다시 보지 않기` control도 레거시 화면처럼 표시하되 저장하지 않는다. 사용자 선택의 마지막 행 누락 결함은 복제하지 않고 표시된 모든 행을 대상으로 처리한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.9~5.3.11, Phase 1·4와 focused test에서 startup 공지와 메뉴 DB 상태의 소유 경계, 등급별 대상 우선순위·no-op UI·사용자 선택 범위, 프로세스 수명 mode 복원, 레거시 검색 join·column 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 업데이트 메시지 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.9에 공용 표시 component와 startup 로컬 억제·메뉴 DB owner 분리, 등급별 대상 우선순위, 사용자 선택 전체 행, 광고·쇼핑몰과 관리자 no-op UI를 반영했다.
-- 검색출력·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.10~5.3.11, Phase 1·4와 focused test에 프로세스 수명 mode·재로그인 UI 복원, 레거시 content join·첫 group, `RICH_COLUMN_ORDER ASC`를 동기화했다.
-- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다.
-- 검증 실행 예정: [doc/app_menu_porting.txt]의 31차 필수 계약 17개와 이전 공지 공용 편집·불완전 대상·`HomePageManager` mode 수명·품명 직접 조회 문구 제거를 PowerShell 표적 검사로 확인한다. 이어서 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 31차 필수 계약 `17/17`, 이전 모순·포괄 문구 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 공지 상태의 `BM_UPDATE_NOTICE` 저장 경계와 사용자 선택용 계층 조회 분리도 표적 재검사를 통과했다.
-- diff 검토 완료: 변경은 업데이트 메시지의 공용 표시·메뉴 저장 경계와 사용자 확정 UI·대상 지정, 검색출력 mode 수명·조회 join, 검색출력 설정 순서 및 관련 Phase·focused test에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 27 insertions, 12 deletions다.
-- commit 완료: `c35ee98` (`앱 메뉴 31차 공지 검색출력 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 30차 감사의 전자저울 관리 범위·연결 진입·통신값·persisted 초기값과 프린터 설정 owner·저장 scope를 활성 레거시 및 현 Flutter owning method 기준으로 병합하고 검증·commit했다.
-- 사용자 확정: 전자저울 관리는 활성 레거시의 연결 시험·수신 중량 표시·자동발행까지 포팅하고, 연결 중 진입하면 기존 연결을 자동 해제한다. 저울 발행 또는 연결 처리 중에도 AppBar command는 레거시처럼 활성 상태를 유지한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.5~5.3.6과 focused test에서 저울 설정 진입·시험 연결 lifecycle, 레거시 통신값 전체, persisted 초기값, 자동발행 동작과 두 프린터 command의 실제 session controller·저장소·취소/적용 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 설정 본문 편집 완료: [doc/app_menu_porting.txt] 5.3.5에 처리 중 command 활성·자동 연결 종료, persisted 초기값, 레거시 통신값 전체, 시험 연결·취소/적용 lifecycle과 `ST` 양수 중량 5초 자동발행을 반영했다.
-- 프린터·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 5.3.6과 Phase 1·focused test에 전역 preference와 label-size별 저장소, 실제 두 session controller, 취소 시 저장 0회와 저울 설정 검증 범위를 동기화했다.
-- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다.
-- 검증 실행 예정: [doc/app_menu_porting.txt]의 30차 필수 계약 14개와 이전 수동 연결 해제·`LabelPrintSettingsController`/DAO 문구 제거를 PowerShell 표적 검사로 확인한다. 이어서 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 30차 필수 계약 `14/14`, 이전 모순 문구 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 전자저울 설정의 활성 레거시 범위·사용자 확정 lifecycle과 두 프린터 설정의 실제 owner·저장 scope 및 관련 Phase 1·focused test에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 23 insertions, 6 deletions다.
-- commit 완료: `4e2c3dd` (`앱 메뉴 30차 저울 프린터 설정 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 29차 감사의 영양성분 형식·표 manager command 상태, Enter·더블클릭 수정 진입, refresh 선택 상태와 입력 validation 범위를 활성 레거시 기준으로 병합하고 검증·commit했다.
-- 사용자 확정: 영양성분 형식·표 manager의 수정·삭제는 선택 전에도 활성화하고, 삭제는 확인 승인 후 선택 여부를 검사하는 레거시 순서를 유지한다. 선택 기반 비활성화나 확인 순서 개선을 추가하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.2~5.3.3, 7.1, Phase 4와 focused test에서 manager Enter·더블클릭 수정 진입, 미선택 안내와 삭제 `확인 → 선택 검사 → DML`, 형식 refresh 후 선택 해제, 빈 구성 성분명·빈 RTF 허용과 영양성분표 검증 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 영양성분 본문 편집 완료: [doc/app_menu_porting.txt] 5.3.2~5.3.3에 선택 전 manager command 활성, 화면별 Enter·더블클릭 수정 진입, 삭제 확인 후 선택 검사, 형식 refresh 선택 해제와 빈 detail·RTF 허용을 반영했다.
-- 공통·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 7.1, Phase 4와 focused test에 두 manager의 Enter 차이, command 순서, validation 범위와 선택 lifecycle을 동기화했다.
-- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다.
-- 검증 실행 예정: [doc/app_menu_porting.txt]의 29차 필수 계약 12개, 이전 영양성분표 포괄 validation·`네 관리 목록` Enter 문구 제거, 네 계층형 관리와 영양성분 manager Enter 계약 분리를 PowerShell 표적 검사로 확인한다. 이어서 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 29차 필수 계약 `12/12`, 이전 포괄 문구 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 영양성분 형식·표 manager command, Enter·더블클릭, 선택 lifecycle과 validation 범위 및 관련 7.1·Phase 4·focused test에만 한정됐고 기존 28차·계층형 관리 계약과 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 21 insertions, 6 deletions다.
-- commit 완료: `1e35e38` (`앱 메뉴 29차 영양성분 관리 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 28차 감사의 master-key 로그인 상태와 로그인·로그아웃 이력 기록 matrix·실패 처리를 활성 레거시 기준으로 병합하고 검증·commit했다.
-- 사용자 확정: 비시스템 사용자의 직접 비밀번호 로그인과 master-key 이력 미기록 상태를 이번 AppBar 로그인 command 계약에 포함한다. `IsFirstConnectByAdmin` 및 관리자 `Connect` 상태와 합치지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.1~5.1.2, 6.2, Phase 1과 focused test에서 일반·master-key·관리자 Connect·앱 종료별 `LOGIN`/`LOGOUT` 기록 조건, session 초기화 전 기록, 이력 저장 실패 시 상태 전환 유지와 자동 재시도 금지를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 로그인·로그아웃 본문 편집 완료: [doc/app_menu_porting.txt]에 `SYSTEM`·시스템 관리자 `IsFirstConnectByAdmin`과 비시스템 직접 비밀번호 master-key를 분리하고, 로그인·명시적 로그아웃·앱 종료별 이력 기록 조건과 오류 후 상태 전환 유지·중복 기록 금지를 반영했다.
-- session·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 6.2에 master-key 상태의 별도 session 수명을 추가하고 Phase 1 완료 기준과 focused test에 일반·master-key·관리자 Connect별 `LOGIN`/`LOGOUT` matrix를 반영했다.
-- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다.
-- 검증 실행 예정: [doc/app_menu_porting.txt]의 28차 필수 계약 10개, 이전 `login log 저장과 상태 초기화가 기존 순서` 포괄 문구 제거, 본문·Phase 1·focused test의 이력 matrix 동기화를 PowerShell 표적 검사로 확인한다. 이어서 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 28차 필수 계약 `10/10`, 이전 포괄 문구 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 로그인 방식별 session 상태, 로그인·명시적 로그아웃·앱 종료 이력 matrix와 관련 Phase 1·focused test에만 한정됐고 기존 lifecycle·관리 CRUD 계약과 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 20 insertions, 2 deletions다.
-- commit 완료: `2bd3ea4` (`앱 메뉴 28차 로그인 이력 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 27차 감사의 네 관리 child/parent 저장 책임, 취소·실패 lifecycle, 성공 refresh 선택 해제, selector cascade와 command 활성 조건을 활성 레거시 기준으로 병합하고 검증·commit했다.
-- 사용자 확정: 협력업체·거래처·지점·사용자 입력은 적용 시 child를 먼저 닫고 parent validation/DML 실패 시 manager와 기존 목록만 유지하며 오류를 한 번 전달한다. child를 재개방하거나 draft를 복구하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 7.1·7.3과 Phase 3·focused test에서 child draft/parent DAO 경계, 취소 DML 0건, 실패 시 child 종료·draft 폐기 예외, 성공 reload·선택 해제, 화면별 selector cascade·CRUD command 상태와 수정 진입점을 명확히 한다. 지점 transaction의 commit 전 refresh·성공 안내 결함은 복제하지 않는다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 관리 본문 편집 완료: [doc/app_menu_porting.txt] 네 관리의 화면별 selector cascade, 추가·삭제·Connect 활성/미선택 안내와 유효 행 더블클릭 전용 수정 진입점, 성공 reload·선택 해제를 5.1.3~5.1.6에 반영했다.
-- lifecycle·테스트 계약 편집 완료: [doc/app_menu_porting.txt] child draft/parent DAO 경계, 취소 parent 작업 0회, 사용자 확정 실패 시 child 종료·draft 폐기 예외, 성공 후 화면별 command 상태 재계산과 지점 commit 전 refresh 금지를 7.1·7.3, Phase 3·focused test에 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과. [doc/app_menu_porting.txt]의 27차 필수 계약 9개와 포괄 command 비활성 문구 제거를 PowerShell 표적 검사로 확인했다.
-- 검증 실행 예정: 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 화면별 command 계약 충돌·stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 사용자 중복 확인 조회와 본체 DML을 구분하고 부정확한 parent DAO 1회·포괄 command 비활성 문구가 남지 않았음을 확인했다.
-- diff 검토 완료: 사용자 확정 실패 lifecycle 예외는 5.1.3~5.1.6 추가·수정에만 한정되고, 협력업체·거래처·지점의 미선택 안내형 command와 사용자 관리의 선택 기반 비활성화가 충돌 없이 분리됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 30 insertions, 2 deletions다.
-- commit 완료: `0149c83` (`앱 메뉴 27차 관리 CRUD 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 26차 감사의 네 조회 날짜 key 양끝 포함, 발행내역 합계행 순서·색상·0건 유지, 발행 통계 0건 요약과 상세 결과 row 직접 mapping 계약을 활성 레거시 기준으로 병합하고 검증·commit했다.
-- 사용자 확인: 26차 네 권장안은 활성 레거시와 기존 결함 비복제 원칙으로 모두 결정되므로 별도 사용자 선택 없이 적용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.2~5.2.4·5.2.6, 7.4와 focused test에서 `YYYYMMDD BETWEEN` 양끝 포함·역전 범위 무보정, 발행내역 합계행 배치·색상·0건 상태, 발행 통계 0건 요약과 실제 결과 row model/ID 직접 mapping을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 조회 본문 편집 완료: [doc/app_menu_porting.txt] 네 조회의 저장 날짜 key `BETWEEN` 양끝 포함·역전 범위 무보정, 발행내역 합계행 상단 순서·색상·0건 유지와 발행 통계 0건 요약을 5.2.2~5.2.4·5.2.6에 반영했다.
-- 상세·공통·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 발행내역 실제 결과 row의 read model 직접 보유와 발행 통계 status ID 직접 보유, 합계·요약행 상세 금지와 레거시 행 번호 결함 비복제를 본문에 반영하고 7.4·focused test를 동기화했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 실행 예정: 26차 필수 계약, 네 날짜 key와 양끝 포함·무보정, 발행내역 합계 label·색상·배치, 두 조회의 0건·상세 row mapping을 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: [doc/app_menu_porting.txt]의 26차 필수 계약 12개와 네 조회 본문·focused test 날짜 key 계약을 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 26차 네 권장안과 관련 7.4·focused test에 한정됐고 25차 Enter·정렬 계약 및 조회별 빈 결과 안내 범위와 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 24 insertions, 8 deletions다.
-- commit 완료: `3742dbf` (`앱 메뉴 26차 조회 경계 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 25차 감사의 네 조회 dialog Enter, 날짜 오름차순, 접속·저장 상태 mapping과 발행내역·통계 행 배경색 계약을 활성 레거시 기준으로 병합하고 검증·commit했다.
-- 사용자 확인: 25차 네 권장안은 활성 레거시 코드가 모두 결정하므로 별도 사용자 선택 없이 레거시 값을 적용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.2~5.2.4·5.2.6, 7.1·7.4와 focused test에서 조회 Enter 동작, 날짜 오름차순과 동일 시각 2차 정렬 금지, 상태 한글 mapping, 레거시 행 배경색을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 조회 본문 편집 완료: [doc/app_menu_porting.txt] 네 조회의 화면별 Enter, 각 날짜·시각 `ASC`와 동일 시각 무정렬, 접속·저장 상태 한글 mapping, 발행내역 상세와 발행 통계 요약·삭제 행의 레거시 배경색을 5.2.2~5.2.4·5.2.6에 반영했다.
-- 공통·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 7.1에 조회 Enter matrix, 7.4에 네 조회의 오래된 시각 우선·2차 정렬 UI 금지, focused test에 같은 계약과 확장 금지를 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 실행 예정: 25차 필수 계약, 네 날짜 오름차순, 조회 Enter 2/2 분기, 상태 mapping과 세 배경색을 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: [doc/app_menu_porting.txt]의 25차 필수 계약 10개와 네 조회 본문 정렬 계약 4개를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 25차 네 권장안과 관련 7.1·7.4·focused test에 한정됐고 24차 계약과 충돌하지 않는다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 28 insertions, 9 deletions다.
-- commit 완료: `a72ae14` (`앱 메뉴 25차 조회 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 24차 감사의 품목별 정보 저장 후 dialog 유지, 화면별 Enter matrix, 관리 목록 더블클릭 수정 진입 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 품목별 정보 편집은 저장 성공 후 레거시처럼 dialog를 유지하고, Enter는 관리 입력·품목별 정보·영양성분·업데이트 메시지·사용자 검색·검색출력 설정의 화면별 레거시 동작을 적용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 5.3.1~5.3.3·5.3.9·5.3.11, 7.1과 관련 Phase·focused test에서 관리 목록 더블클릭, 품목별 정보 committed 상태·dialog 유지, 화면별 Enter 예외와 무동작 범위를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 관리 계약 편집 완료: [doc/app_menu_porting.txt] 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭 수정, header·빈 영역 무시와 manager 목록·관리자 복사 Enter 무동작, 관리 입력 Enter 적용·parent 저장을 본문·7.3·Phase 3·focused test에 반영했다.
-- 설정 lifecycle 편집 완료: [doc/app_menu_porting.txt] 품목별 정보 저장 성공 후 committed 기준·dirty/busy 해제와 dialog·선택·scroll 유지, 영양성분 두 입력·업데이트 메시지·사용자 검색의 Enter 동작을 본문·7.1·Phase 4·focused test에 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 실행 예정: 24차 필수 계약과 이전 포괄 Enter 문구 제거, 화면별 예외 범위를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: [doc/app_menu_porting.txt]의 24차 필수 계약 7개, 네 관리 본문 더블클릭 계약 반영과 이전 포괄 Enter 문구 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 24차 세 권장안과 사용자 확정, 관련 공통 규칙·Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 29 insertions, 5 deletions다.
-- commit 완료: `b982ea4` (`앱 메뉴 24차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 23차 감사의 검색출력 설정 label size 순서, 전체 `CColumnDAO::UpdateBatch` DML, 적용·Enter lifecycle 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 검색출력 설정은 적용 성공 후 레거시처럼 열린 상태를 유지하고 Enter도 적용 command를 실행한다. 저장은 `RICH_SEARCH_PRINT`만 갱신하지 않고 레거시 `CColumnDAO::UpdateBatch`의 전체 column·`BM_RICH_COL_MIN`·GS1 연관 DML 범위를 복제한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.11, 7.1과 관련 Phase 4·focused test에서 `RICH_LABELSIZE_ORDER ASC` 첫 label size, 전체 batch DML·transaction, 성공 후 committed 기준·dirty·dialog 상태와 Enter 적용 예외를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검색출력 설정 계약 편집 완료: [doc/app_menu_porting.txt] 브랜드 변경 시 `RICH_LABELSIZE_ORDER ASC` 첫 행, 전체 column snapshot 기반 `BM_RICH_COLUMN`·`BM_RICH_COL_MIN`·GS1 DML과 transaction, 적용 성공 후 committed 기준·dirty 해제·dialog 유지·Enter와 변경 없는 재적용을 5.3.11에 반영했다.
-- 공통·Phase·테스트 계약 편집 완료: [doc/app_menu_porting.txt] 7.1에 검색출력 설정만의 적용 후 유지·Enter 적용 예외를 추가하고 Phase 4 완료 기준과 focused test에 같은 23차 계약을 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 실행 예정: 23차 필수 계약과 이전 모호 문구 제거, 화면별 예외 범위를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: [doc/app_menu_porting.txt]의 23차 필수 계약 7개 반영과 이전 모호 문구 2개 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 23차 세 권장안과 사용자 확정, 관련 공통 규칙·Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 18 insertions, 3 deletions다.
-- commit 완료: `822f6f9` (`앱 메뉴 23차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 22차 감사의 사용자 접속 이력 selector 가시성, 이력 조회 빈 결과, 영양성분 삭제 확인, 입력 dialog 저장 lifecycle, 영양성분표 초기 선택·수정 후 preview 복원 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 영양성분 형식·표 입력 dialog는 저장 성공 후 레거시처럼 열린 상태를 유지하고, 사용자 접속·데이터내용 이력 조회 0건은 빈 table과 함께 `검색결과가 없습니다!` 안내를 한 번 표시한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.3~5.2.4, 5.3.2~5.3.3, 7.1·7.3~7.4와 관련 Phase·focused test에서 22차 화면별 예외와 레거시 selector·삭제 확인·목록 상태 계약을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 조회 계약 편집 완료: [doc/app_menu_porting.txt] 사용자 접속 이력의 등급별 selector 표시·숨김과 사용자 접속·데이터내용 이력 0건의 빈 table·안내 1회 예외를 본문, 7.4, Phase 2와 focused test에 반영했다.
-- 영양성분 계약 편집 완료: [doc/app_menu_porting.txt] 형식·표 삭제 확인, 저장 후 입력 dialog 유지와 반복 신규 저장, 영양성분표 신규 형식 미선택·수정 후 행 선택 및 RTF preview 복원을 본문, 7.1, Phase 4와 focused test에 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 실행 예정: 22차 필수 계약과 이전 포괄 규칙의 화면별 예외 반영을 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: [doc/app_menu_porting.txt]의 22차 필수 계약 8개 반영과 대체 대상 포괄 selector 문구 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 22차 여섯 권장안과 사용자 확정, 관련 공통 규칙·Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 27 insertions, 9 deletions다.
-- commit 완료: `0f5fda4` (`앱 메뉴 22차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 21차 감사의 발행내역 조회 범위·검색 입력·합계·상세, 품목별 정보 편집 context, 영양성분 keyword 번호 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 발행내역의 거래처 `[전체 보기]`는 선택 협력업체나 사용자 등급으로 범위를 제한하지 않고 레거시처럼 전 협력업체의 `BM_RICH_PRINT_LOG` 내역과 합계를 조회한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.2.2, 5.3.1~5.3.2와 관련 Phase·focused test에서 발행내역의 selector와 실제 query 범위 분리, 검색 종류별 빈 입력, 별도 합계 query, 저장값·출력값 상세 비교, 품목별 정보 편집 source·미선택 상태, 영양성분 keyword 삭제 후 번호 규칙을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 발행내역 계약 편집 완료: [doc/app_menu_porting.txt] selector 표시 범위와 실제 query 범위를 분리하고 `[전체 보기]` 전 협력업체 조회, 검색 종류별 빈 입력·거래처 표시명 처리, 검색어와 독립적인 총 누계·기간·label size 별도 합계, 저장값·출력값 두 표와 차이 행 강조를 고정했다.
-- 설정 계약 편집 완료: [doc/app_menu_porting.txt] 품목별 정보 편집은 현재 로그인 지점과 메인 선택 label size만 사용하고 브랜드·label size 미선택 시 DAO 없이 빈 상태로 열도록 했다. 영양성분 keyword는 마지막 표시 행 기준 증가와 삭제 후 미재번호를 확정했다.
-- Phase·테스트 계약 편집 완료: Phase 2·4 완료 기준과 발행내역·품목별 정보·영양성분 형식 focused test에 같은 21차 계약을 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 완료: [doc/app_menu_porting.txt]의 21차 필수 계약 15개 반영과 이전 포괄 문구 4개 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 21차 여섯 권장안과 사용자 확정, 관련 Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 22 insertions, 7 deletions다.
-- commit 완료: `882f1a2` (`앱 메뉴 21차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 20차 감사의 관리 입력·비밀번호 저장, 검색·치환 초기값·내부 쓰기 권한·진입점, 조회 초기 filter, 업데이트 메시지 대상, 검색출력 빈 입력 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 업데이트 메시지의 사용자 선택 checkbox를 해제하면 선택 ID를 비우고, 사용자 선택 mode에서 0명이면 전체 또는 현재 협력업체 대상으로 확대하지 않고 DML 전에 저장을 중단한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.3~5.1.6, 5.2.1~5.2.6, 5.3.9~5.3.10, 7.4와 관련 Phase·focused test에서 레거시 입력 검증, raw `RICH_PWD`, 검색 초기값·권한·진입점, 조회 기본 selector/date, 공지 대상 우선순위·transaction, 검색출력 빈 값·0건 처리를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 관리 계약 편집 완료: [doc/app_menu_porting.txt] 협력업체·거래처·지점의 레거시 빈 값·중복 검증 부재와 거래처 이름 50자 제한, 사용자 `RICH_PWD` 무변환 저장을 고정했다.
-- 검색·조회 계약 편집 완료: [doc/app_menu_porting.txt] 검색·치환의 기본 `품명`, filter 초기 상태·필수 선택·두 진입점·실제 등급별 쓰기 UI를 명시했다. 네 조회 dialog의 현재 context·command별 selector와 현재 로컬 날짜 초기값, 검색출력 빈 입력·0건·입력 초기화 흐름을 확정했다.
-- 업데이트 메시지 계약 편집 완료: [doc/app_menu_porting.txt] 실제 등급별 선택 사용자·전체·현재 협력업체·현재 사용자 대상 우선순위와 `UN_STATE`·`UN_TIME`, 선택 사용자 transaction, 사용자 확정 0건 차단을 고정했다.
-- Phase·테스트 계약 편집 완료: Phase 1~4 완료 기준과 관리·검색·조회·공지·검색출력 focused test에 같은 20차 계약을 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 레거시 재확인: `UpdateNoticeDlg.cpp`에서 시스템·협력업체 관리자의 선택 사용자·전체·현재 협력업체 분기는 `UN_MSG`, 등급별 `UN_STATE`, `UN_TIME=GETDATE()`를 함께 갱신하고 일반 사용자만 자기 `UN_STATE`·`UN_TIME`을 갱신한다. `MainWindowDlg.cpp`는 검색출력 호출이 빈 입력·0건·조회 오류로 반환돼도 입력을 비우므로 본문과 focused test를 정확한 column·초기화 범위로 보강했다.
-- 검증 완료: [doc/app_menu_porting.txt]의 20차 필수 계약 15개 반영과 이전 조사형 문구 2개 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 20차 여섯 권장안과 사용자 확정, 관련 Phase·focused test에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 44 insertions, 15 deletions다.
-- commit 완료: `85263a4` (`앱 메뉴 20차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 19차 감사의 검색·치환 이동, 검색출력 설정 draft, 발행 통계 기본 일치 방식, 지점 selector, 설정 command 권한, 조회 최초 실행 계약을 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 검색·치환에서 품목편집/출력 이동 시 미저장 치환 내용은 레거시처럼 확인 없이 폐기하고 자동 저장하지 않는다. 출력 이동은 체크 품목 1건 이상을 요구하고 모두 같은 브랜드·label size일 때 첫 체크 품목 context를 사용한다. 검색출력 설정의 미적용 checkbox 변경은 selector 전환·닫기 전에 공용 dirty 폐기 확인을 적용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.5, 5.2.1, 5.2.6, 5.3.5, 5.3.10~5.3.11, 7.4와 관련 Phase·focused test에서 레거시 선택 source·초기값·기본 mode·selector matrix·`loggedIn` 권한·최초 수동 조회를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 관리·조회 계약 편집 완료: [doc/app_menu_porting.txt] 지점 관리의 현재 context 초기값과 상태별 selector matrix, 검색·치환 이동별 선택 source와 미저장 변경 폐기 예외, 발행 통계의 부분 일치 기본값을 고정했다.
-- 설정·공통 조회 계약 편집 완료: [doc/app_menu_porting.txt] 전자저울·검색출력 mode/setup을 `loggedIn`으로 명시하고 검색출력 설정의 현재 context·DB checkbox 초기값과 미적용 draft 폐기 확인을 확정했다. 네 조회 dialog는 filter만 초기화하고 최초 자동 조회 없이 명시적 조회를 기다리도록 7.4를 구체화했다.
-- Phase·테스트 계약 편집 완료: Phase 2·4 완료 기준과 policy·관리·검색·통계·검색출력 설정·조회 focused test에 같은 선택 source, selector matrix, dirty 예외, 초기값, 기본 mode, 최초 수동 조회 계약을 반영했다.
-- 검증 완료: 각 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 첫 편집 직후 `git diff --check` 통과.
-- 검증 완료: [doc/app_menu_porting.txt]의 19차 필수 계약 9개 반영과 이전 포괄 문구 2개 제거를 PowerShell 표적 검사로 확인했다. 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
-- diff 검토 완료: 변경은 19차 권장안과 사용자 확정 범위에 한정됐고 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 30 insertions, 10 deletions다.
-- commit 완료: `d05b7e5` (`앱 메뉴 19차 잔여 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 18차 감사의 shortcut, Connect, transaction 실행 경로, command 권한과 rowcount·정렬 범위를 사용자 확정 및 레거시 활성 코드로 병합하고 검증·commit했다.
-- 사용자 확정: 거래처 Connect 대상의 첫 반환 지점 또는 해당 지점 grade 2 사용자가 없으면 context·연결 플래그·화면을 변경하기 전에 전체 Connect를 중단하고 오류를 전달한다. `품목별 정보 편집`은 레거시 `OnEditItemInfo`처럼 로그인 사용자 전체에 표시한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]에서 `품목별 정보 편집`의 잘못된 F1 shortcut을 제거하고, 거래처·사용자 Connect별 플래그와 거래처 Connect 대상 선택, 관리자 브랜드 복사의 단일 server-side statement, `품목별 정보 편집`·`업데이트 메시지`의 `loggedIn` policy, command별 rowcount 0건 허용 범위, 관리 목록의 레거시 DAO 반환 순서, 후속 도움말의 비범위 문구를 명확히 한다. 관련 Phase·focused test·최종 상태도 같은 계약으로 정리한다.
-- 편집 완료: [doc/app_menu_porting.txt] AppBar shortcut 계약에서 `품목별 정보 편집` F1 mapping을 제거하고 F1을 기존 품목관리 탭 전용으로 고정했다. 거래처·사용자 Connect별 연결 플래그 mapping과 거래처 대상 부재 사전 중단, 관리자 브랜드 복사의 단일 `DbTransactionStatement`·`OUTPUT INSERTED` ID mapping을 명시했다.
-- 편집 완료: [doc/app_menu_porting.txt] `품목별 정보 편집`·`업데이트 메시지`를 `loggedIn`으로 고정하고, 정확히 1건을 요구하는 본체 DML만 rowcount 실패로 처리하며 선택적 연관 DML 0건은 허용하도록 좁혔다. 관리 목록 초기 순서와 중복은 레거시 DAO 범위로 제한하고 도움말 구현 문구를 후속 요청 조건으로 변경했다.
-- 테스트 계약 편집 완료: Phase 3과 focused/widget test에 Connect mapping·사전 중단, 관리자 복사 단일 batch, 두 `loggedIn` policy, 선택적 DML 0건 허용과 `품목별 정보 편집` F1 미표시를 반영했다.
-- 검증 완료: 각 [doc/app_menu_porting.txt] 편집 직후 `git diff --check -- doc/app_menu_porting.txt` 통과.
-- 검증 완료: 이전 모호 문구 6종 제거와 F1 미연결, Connect별 mapping·대상 부재, 단일 server-side batch, 선택적 DML 0건 허용, 두 `loggedIn` policy, 후속 도움말 필수 문구 11종의 표적 검사 통과. 첫 검사는 후속형 새 문장에 포함된 도움말 부분 문자열을 이전 문구로 오인해 실패했고 줄 시작 기준으로 바로잡은 재검사는 통과했다.
-- 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 전체 diff는 18차 권장안과 관련 Phase·focused/widget test에 한정됐고 공용 transaction API 확장이나 현재 범위의 도움말 구현 지시는 없다.
-- 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. `git status --short`에서 두 대상 문서와 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]만 확인했다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서만이며 변경 규모는 37 insertions, 22 deletions다.
-- commit 완료: `43e63eb` (`앱 메뉴 18차 레거시 계약 모호성 정리`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt] 17차 관리자 복사 계약을 레거시 활성 동작과 사용자 확정 범위로 병합하고 검증·commit했다.
-- 사용자 확정: 데이터 손실 경고 취소 시 column·label size·품목 복사를 모두 중단한다. `품목까지 복사` 대상 거래처에 지점이 없으면 생성·대체 없이 전체 복사를 중단하고 오류를 전달한다. `브랜드 복사` checkbox는 명시적 mode로 개선하지 않고 레거시의 selector event 순서 의존 상태를 유지한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7, Phase 3 완료 기준과 focused test에서 권한별 협력업체 selector, 일반 label size 복사와 브랜드 복사 분기, 실제 삭제·복사 DAO/프로시저, 현재 유효 `RICH_FORM_SHEET` payload, 생성 ID 반환, 성공 후 owner reload/clear를 명확히 하고 불필요한 XML 지시를 제거한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 편집 완료: [doc/app_menu_porting.txt] `관리자 복사`를 일반 label size·브랜드 복사 분기로 나누고 selector event 순서, 실제 DAO/table 범위, 유효 sheet payload, 대상 첫 지점과 세 프로시저, 같은 transaction의 생성 ID, 성공 후 owner reload/clear 계약을 고정했다. Phase 3 완료 기준과 focused test도 같은 범위로 보강했다.
-- 검증 완료: `git diff --check -- doc/app_menu_porting.txt` 통과.
-- 검증 완료: 이전 조사형·XML 문구 3건 제거와 경고 취소·유효 sheet·대상 첫 지점·세 프로시저·owner 갱신 필수 문구 표적 검사 통과. 첫 표적 검사는 실제 focused test 문장과 다른 owner 검사 문자열 때문에 실패했고 검사 문자열을 바로잡은 재검사는 통과했다.
-- 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 두 문서 전체 diff에서 관리자 복사 외 본문 변경과 계약 충돌 없음.
-- 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 통과. `git status --short`에서 두 대상 문서와 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]만 확인했다. 문서 전용 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- stage 검증 완료: `git diff --cached --check` 통과. `git diff --cached --name-only`는 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt]만 표시했다.
-- commit 완료: `d657a11` (`앱 메뉴 17차 관리자 복사 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
-- 완료: [doc/app_menu_porting.txt]의 사용자 관리 model, 데이터내용 이력 상세, 발행 통계 결과, 프린터 설정 활성 조건을 레거시 활성 코드와 현 owning method로 고정했다.
-- 사용자 확인: 새 기능 선택 사항은 없다. 프린터 설정 1→2 mapping은 기존 사용자 확정을 유지하고, 나머지는 레거시 코드가 확정하므로 별도 질문 없이 권장안대로 병합한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.6, 5.2.4, 5.2.6, 5.3.6과 관련 focused test에서 로그인 grade 보정과 관리 raw grade 분리, 줄바꿈 상세 pairing, 발행 통계 활성 결과·요약·상세, 두 프린터 command별 최소 활성 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 사용자 관리 계약 편집 완료: 로그인 `User.instance`/`UserDAO.selectByUserId`와 관리 `ManagedUser` row/codec을 분리하고, 관리 grade에는 `_effectiveGrade`/`clientUserTestOverrideId`를 적용하지 않도록 고정했다.
-- 조회 계약 편집 완료: 데이터내용 이력은 행 더블클릭 후 `CONTENT_COLUMNS`/`CONTENTS` 줄바꿈 index pairing을, 발행 통계는 `SelectDLG` 결과 column·총 발행/삭제 매수·삭제 행 구분·status 상세를 레거시 활성 화면대로 명시했다.
-- 프린터 계약 편집 완료: 기존 1→2 mapping을 유지하면서 라벨출력은 label size 조건 없이, 저울출력만 `_effectiveLabelSize`를 요구하고 두 owner의 busy 외 연결·`useScale`·현재 탭 조건을 추가하지 않도록 했다.
-- focused test 편집 완료: 관리 raw grade, 데이터내용 상세 pairing, 발행 통계 활성 결과·요약·상세, 두 프린터 command별 최소 활성 조건을 반영하고 사용자 등급 통계 decoding과 합계 SQL test를 제거했다.
-- 검증 실행 예정: 이전 `ManagedUser` 조건부 판단, 데이터내용 단순 field 표시, 발행 통계의 사용자 등급 결과·`활성 조회 흐름`, 프린터의 포괄적 context 조건 제거와 새 계약 반영을 PowerShell 표적 검사로 확인한다. 이어서 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: PowerShell 표적 검사에서 제거 대상 5건과 필수 계약 11건을 모두 확인했고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`와 두 문서 diagnostics가 통과했다. 전체 diff는 네 권장안과 관련 focused test에 한정됐다.
-- 레거시 SQL 재확인: 삭제 품목 판별 column을 `StatusPrint.cpp`의 실제 `RICH_ID_CHANGE_DELETE_DATE`로 교정하고 잘못된 이름 미잔존·필수 이름 반영·지시서 diff 검사를 다시 통과했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- 구현 커밋: `4ac1f6a` (`앱 메뉴 16차 레거시 상세 계약 명확화`).
-- 완료: [doc/app_menu_porting.txt]의 협력업체·거래처·지점·사용자 관리와 조회별 selector 계약을 레거시 활성 코드로 고정했다.
-- 사용자 확정: 협력업체 수정 후 로그인 session context는 레거시처럼 자동 reload·강제 로그아웃하지 않고 관리 목록만 갱신한다. 데이터내용 이력은 시스템 관리자의 무효 협력업체 selector와 협력업체 관리자의 조회에 반영되지 않는 거래처 selector까지 레거시 UI·조회 동작 그대로 유지한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.3~5.1.6, 5.2.2~5.2.4, 5.2.6과 관련 Phase/test 계약을 실제 수정 field·삭제 gate·지점 연관 행·사용자 검증·조회별 selector 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
-- 관리 command 계약 편집 완료: 협력업체 ID·이름 수정과 목록만 refresh, 협력업체·거래처·지점 삭제의 공용 시스템 비밀번호 계산 및 각 1회 확인, 기존 FK cascade 범위, 지점 추가·삭제의 `ItemOfMarket` 연관 행 transaction을 고정했다. 사용자 관리는 실제 입력 field·필수/비밀번호/ID 중복 검증, ID·비밀번호 column 노출, 이름 순환 검색과 일반 삭제 확인으로 명확히 했다.
-- 조회 selector 계약 편집 완료: 발행내역·사용자 접속 이력·발행 통계의 등급별 협력업체/거래처 selector 범위를 각각 분리했다. 데이터내용 이력은 시스템 관리자의 무효 협력업체 selector와 선택 거래처 조회, 협력업체 관리자의 표시되지만 무시되는 거래처 selector와 현재 거래처 조회를 사용자 확정대로 유지했다.
-- Phase·테스트 계약 편집 완료: Phase 3 완료 기준과 관리·조회 focused test에 세 삭제 gate, 지점 연관 행, 사용자 검증, command별 selector matrix를 반영하고 공통 관리 지침의 임의 cache reload·종속성 사전 검사를 금지했다.
-- 검증 실행 예정: 이전 이름 전용 수정·session cache reload·조건부 지점 session 처리·포괄형 조회 selector 문구 제거와 새 레거시 계약 반영을 PowerShell 표적 검사로 확인하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: PowerShell 표적 검사에서 제거 대상 4건과 필수 계약 10건을 모두 확인했고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`와 두 문서 diagnostics가 통과했다. 전체 diff에서 레거시 범위 밖 보완이나 계약 충돌이 없음을 확인했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 제외한다.
-- 구현 커밋: `dbca339` (`앱 메뉴 15차 관리 조회 계약 명확화`).
-- 완료: [doc/app_menu_porting.txt]의 품목별 정보 편집, 영양성분 형식·영양성분표, 고정 항목 관리, 검색출력모드 계약을 레거시 활성 코드와 사용자 확정 범위로 고정했다.
-- 사용자 확정: `품목별 정보 편집`은 단순 품목관리 탭 이동이 아니라 레거시 품목별 출력 보정값을 일괄 편집하는 전용 관리 dialog로 포팅한다. 검색출력모드는 중복 일치 시에도 레거시처럼 DB가 반환한 첫 행 1건을 즉시 발행한다. 고정 항목 관리는 메뉴 리소스 ID와 message map ID 불일치로 도달 경로가 확인되지 않았으므로 `legacyUnreachable`로 기록하고 production 메뉴에서 숨긴다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.3.1~5.3.4, 5.3.10과 관련 Phase/test/완료 계약을 실제 레거시 field·검증·CRUD·preview·검색출력 동작 및 사용자 확정 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
-- 설정 command 계약 편집 완료: 품목별 정보 편집을 현재 지점·label size의 줄간격·발행수량·개별 크기·margin/push 일괄 편집 전용 dialog로 고정했다. 영양성분 형식은 실제 parent/detail CRUD·필수 검증·순차 keyword·연관 삭제만 포팅하고 정렬·중복 검증은 추가하지 않으며, 영양성분표는 형식·명칭·RTF·폭 CRUD와 선택 행 RTF read-only preview로 고정했다.
-- 숨김·검색출력 계약 편집 완료: 고정 항목 관리는 두 legacy ID 불일치와 활성 진입점 부재를 `legacyUnreachable` 사유로 기록해 production에서 숨기고 Phase 4 구현 대상에서 제외했다. 검색출력모드는 `F12`/menu 공용 state, tab·button 전환, 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건 즉시 발행과 입력 초기화로 고정했다.
-- Phase·테스트 계약 편집 완료: inventory/policy/Phase 5/체크리스트/최종 상태에 `legacyUnreachable`을 추가하고 Phase 4와 focused test를 네 활성 설정 command의 실제 field·transaction·preview·출력 동작에 맞췄다.
-- 검증 실행 예정: 이전 탭 이동·영양성분 정렬/중복 조사·고정 항목 활성 구현·검색출력 조사 문구 제거와 새 계약 반영을 PowerShell 표적 검사로 확인하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 이전 모순·조사 문구 5종이 0건이고 새 핵심 계약 8종이 모두 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 확정한 다섯 command와 관련 policy·Phase·focused test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `0bdc266` (`앱 메뉴 14차 레거시 설정 범위 명확화`).
-- 완료: [doc/app_menu_porting.txt]의 검색·치환, 발행내역, 거래처·사용자 관리, 검색출력 설정과 조회 command 권한에서 남은 조사형·포괄형 문구를 레거시 활성 동작으로 고정했다.
-- 사용자 확정: 거래처·사용자 관리의 레거시 `Connect` 기능을 이번 AppBar 포팅 범위에 포함한다. 원래 관리자 보존, 연결 상태, 업무 context 전환과 관리자 접속 로그까지만 포팅하며 다른 경로에서 세션성 관리자 권한을 만들지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.4, 5.1.6, 5.2.1~5.2.4, 5.2.6, 5.3.11, 6.2와 관련 Phase/test 계약을 실제 레거시 handler/dialog/model/DAO 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
-- 관리·세션 계약 편집 완료: 거래처·사용자 `Connect`의 원래 관리자 1회 보존, 레거시 연결 상태, 사용자·지점·거래처·협력업체 context 전환과 관리자 접속 로그를 포팅 범위에 포함했다. 최초 로그인과 두 owning command만 연결 상태를 설정하며 임의 사용자 전환·권한 상승·impersonation UI는 추가하지 않는다. 사용자 생성·수정 등급은 `CLIENT_USER`·`MANAGER_USER`, 신규 기본값은 `CLIENT_USER`로 고정했다.
-- 검색·조회 계약 편집 완료: 검색·치환을 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 기존 개별/일괄 치환·편집/출력 이동·변경 행 저장으로 고정했다. 발행내역은 실제 세 검색 종류와 일치 방식, 레거시 결과 column·합계·상세만 포팅하며 네 조회 command 권한을 `loggedIn`으로 명시했다.
-- 설정·테스트 계약 편집 완료: 검색출력 설정을 브랜드·label size별 column의 `RICH_SEARCH_PRINT` 개별/전체 선택·해제와 적용으로 제한했다. 관리 `Connect`, 사용자 등급, 검색·치환, 발행내역, 검색출력 설정과 조회 권한을 owning focused test 책임에 반영했다.
-- 검증 실행 예정: 이전 조사형·포괄형 문구 제거와 새 레거시 고정 계약을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 이전 조사형·포괄형 문구 5종이 0건이고 새 레거시 고정 계약이 11개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 확정한 6건과 관련 Phase/focused test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `b29f85a` (`앱 메뉴 13차 레거시 범위 명확화`).
-- 완료: [doc/app_menu_porting.txt]의 사용자 접속 이력, 데이터내용 이력, 발행 통계 지침에서 레거시 실제 조회 조건보다 확장된 filter·before/after 비교·미사용 합계 요구를 제거했다.
-- 사용자 확인 불필요: 레거시 dialog/model/DAO의 활성 조회 경로가 범위를 한 방향으로 결정한다. 접속·데이터내용 이력은 기간과 권한별 협력업체/거래처 조건으로 제한하고, 발행 통계는 기간·거래처·브랜드·라벨 크기·품목명·검색 column/값·완전/부분 일치만 포팅한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.2.3, 5.2.4, 5.2.6과 관련 Phase/test/checklist 문구를 레거시 범위로 축소한다. [SESSION_HANDOFF.md]에는 파일 편집·검증·stage/commit 결과를 기록한다.
-- 지시서 편집 완료: 사용자 접속 이력과 데이터내용 이력 filter를 기간·권한별 협력업체/거래처로 제한하고 표시 column·행 상세와 분리했다. 데이터내용 이력의 before/after 비교를 제거하고 `CONTENT_COLUMNS`·`CONTENTS` 상세만 유지했다. 발행 통계는 레거시 활성 조회 인자만 포팅하며 사용자 등급은 결과 field, `RICH_PRINT_COUNT`는 행별 발행 수량으로만 사용하고 미사용 합계 기능·별도 aggregate를 추가하지 않도록 고정했다.
-- 테스트 계약 편집 완료: 두 이력 DAO의 기간·권한별 거래처 조건과 결과 decoding, 발행 통계 DAO의 실제 filter와 결과 decoding을 focused test 책임으로 명시했다. 사용자 등급 filter와 별도 합계 query test는 추가하지 않는다.
-- 검증 실행 예정: 이전 확장 문구 제거와 새 레거시 범위 계약을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 이전 확장 문구 5종이 0건이고 새 레거시 범위 계약이 5개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 세 조회 command와 focused DAO test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `8ee98c9` (`앱 메뉴 12차 레거시 조회 범위 축소`).
-- 완료: [doc/app_menu_porting.txt]의 11차 명확화 권장안 3건을 병합했다. 저장 결과 불명·commit 후 reload 실패는 기존 dialog와 같이 안내 후 닫기로 통일하고, 발행내역은 `BM_RICH_PRINT_LOG`의 라벨·저울 통합 조회와 레거시 filter 범위로 제한하며, 미사용 demo `LoginHistoryPage`는 직접 재사용하지 않고 차단형 dialog content로 전환했다.
-- 사용자 확인 불필요: 세 항목 모두 레거시와 현재 구현이 한 방향을 결정한다. 신규 읽기 전용 mode·수동 재조회 command·출력 경로 구분·pagination·별도 route/page를 추가하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 transaction 결과별 UI, 관리자 복사, 발행내역 조회 source·범위, 사용자 접속 이력 content 소유권과 관련 focused test를 레거시 범위로 확정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- transaction UI 편집 완료: commit 전 확정 실패만 draft와 재시도를 유지한다. `DbCommitOutcomeUnknown`과 commit 성공 후 reload 실패는 기존 라벨 항목 dialog처럼 한 번 안내하고 닫은 뒤 다시 열어 최신 데이터를 조회하며, 관리자 복사에도 같은 계약을 적용했다.
-- 발행내역 편집 완료: 레거시 `CPrintLogDAO`와 현 persistence가 함께 쓰는 `BM_RICH_PRINT_LOG`를 조회 source로 고정했다. 라벨·저울 이력은 통합 표시하고 레거시 filter·날짜 범위만 포팅하며 출력 경로 추측, 구분 column, pagination UI/API를 추가하지 않는다.
-- 접속 이력 편집 완료: 사용처 없는 demo `LoginHistoryPage`의 page shell·demo row를 제거하고 차단형 dialog content와 read-only `FortuneTable`, overlay date picker로 전환하도록 확정했다. 별도 route·`Scaffold`·`Card`·`DataTable`은 유지하지 않는다.
-- 테스트 계약 편집 완료: 발행내역 query/model, 대표 저장 dialog의 결과별 닫기, 사용자 접속 이력 dialog content만 focused test로 검증하고 미지원 기능 부재를 별도 기능 test로 확대하지 않는다.
-- 검증 실행 예정: 이전 선택형 문구 제거와 레거시 범위 계약 반영을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 이전 선택형·확장 문구 6종이 0건이고 레거시 고정 계약이 9개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 11차 권장안 3건과 대표 focused test에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `f02b680` (`앱 메뉴 11차 레거시 범위 명확화`).
-- 완료: [doc/app_menu_porting.txt]의 10차 명확화 권장안 5건을 병합했다. 레거시 `OnEnableSystemAdmin`/`OnEnableAdmin`/`OnEnableManager` 권한 분리, 관리 dialog selector 권한, 이더넷 `legacyInactive`, 업데이트 메시지 역할, 기존 private 설정 owning method의 공개 command 위임 경로를 정리했다.
-- 사용자 확정: 업데이트 메시지는 레거시 전체 범위로 포팅한다. 시스템·협력업체 관리자는 사용자별 단일 공지 편집과 대상 지정을 제공하고, 일반 사용자는 현재 사용자 공지 열람과 다시 보지 않기를 제공한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 command별 권한·selector 계약, 이더넷 범위와 Phase, 업데이트 메시지, 설정 command 연결, policy·테스트 계약을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 지시서 권한 편집 완료: `systemAdminCommand`, `adminCommand`, `managerCommand`를 레거시 update handler와 동일한 세 policy로 정의하고 협력업체·거래처·지점·사용자·관리자 복사·검색 및 치환·영양성분·고정 항목 command에 매핑했다.
-- selector 계약 편집 완료: command visibility와 내부 selector 활성 상태를 분리하고 거래처·지점·사용자 관리의 협력업체·거래처·지점 selector 범위를 레거시 조건으로 명시했다.
-- 설정·공지 범위 편집 완료: 이더넷 설정을 Phase 4에서 제외해 `legacyInactive`로 옮기고, 업데이트 메시지는 현재 사용자별 단일 row와 등급별 레거시 전체 동작으로 확정했다. 저울·프린터 설정은 공개 controller command가 기존 private owning method에 위임하도록 명확히 했다.
-- 테스트 계약 편집 완료: 세 command policy와 mapping, selector 권한, 이더넷 숨김, 공지 등급별 동작, 공개 설정 command 위임을 각 focused test 책임으로 추가했다.
-- 검증 실행 예정: 이전 모호 문구 제거와 새 계약 반영을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
-- 검증 완료: 이전 모호·오류 문구 6종이 0건이고 새 권한·selector·이더넷·공지·설정 위임 계약이 21개 지점에 반영됐다. 이더넷은 inventory·숨김 policy·Phase 5·focused test에만 남으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 10차 권장안 5건과 사용자 확정 공지 범위에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `af5e56d` (`앱 메뉴 10차 지시서 명확화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 9차 명확화 권장안 4건을 병합했다. commit 결과 불명·commit 후 reload 실패를 일반 저장 실패와 구분하고, transaction 제어는 공용 `DbClient.transaction` test가 소유하며, 실제 server integration은 명시적 opt-in과 비운영 CRUD 조건으로 제한한다.
-- 사용자 확정: 신규 dialog와 기존 메인 탭이 함께 dirty이면 로그아웃·메뉴 종료·OS 종료 요청에서 전체 dirty를 한 번의 통합 확인으로 처리한다. 각 owner는 상태와 폐기 callback을 소유하고 `LifecycleManager` 종료 흐름은 해당 요청 동안 실제 dirty 요약·callback만 수집하며 범용 dialog coordinator로 확장하지 않는다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 transaction 결과 경계·테스트 책임, lifecycle 상태 소유권·로그아웃/종료·공용 dialog·Phase/test/완료 기준, integration test 실행 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- transaction 결과 계약 편집 완료: commit 전 DML/validation 확정 실패는 draft 재시도를 허용하고, `DbCommitOutcomeUnknown`은 같은 draft 재실행을 차단하며, commit 성공 후 reload 실패는 committed 상태를 반영하고 수동 재조회 또는 닫기만 제공하도록 구분했다.
-- lifecycle 계약 편집 완료: 활성 owner의 exit snapshot을 수집해 busy/active editing을 먼저 차단하고, 신규 dialog와 기존 메인 탭의 모든 dirty 표시명·폐기 callback을 한 번의 확인으로 처리한다. 직접 dialog 닫기는 해당 dialog의 기존 확인 흐름을 유지한다.
-- transaction test 계약 편집 완료: begin/commit/rollback과 commit 결과 불명은 공용 DB test가 소유하고 신규 DAO는 statement·parameter·결과 decoding 및 실제 사용하는 rowcount/codec만 검증하도록 범위를 구분했다.
-- integration test 계약 편집 완료: 실제 server test는 명시적 opt-in으로 제한하고 CRUD는 식별된 비운영 DB, 전용 ID 범위·초기 상태·정리 절차가 모두 있을 때만 허용하며 실패 simulation은 fake driver unit test에서 수행한다.
-- 검증 완료: 이전 애매한 문구 6개가 0건이고 대체 계약이 19개 지점에 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 9차 권장안 4건과 사용자 확정 통합 확인 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `d610e52` (`앱 메뉴 9차 지시서 명확화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 8차 UX 단순화 권장안 2건을 병합했다. 검색·치환은 결과 table을 저장 전 확인 화면으로 사용해 별도 preview dialog·대상 건수 UI를 추가하지 않고, footer 없는 busy 표시는 작업 성격에 따라 spinner 또는 짧은 상태 문구를 선택한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 검색·치환 command와 Phase 4 완료 기준, footer 없는 busy 표시 계약을 레거시·현행 UX에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 검색·치환 편집 완료: 선택·치환한 변경값을 같은 결과 table에서 저장 전에 확인하고 레거시의 일괄 치환·최종 저장 확인을 유지한다. 별도 preview dialog·대상 건수 panel은 추가하지 않으며 변경 행 저장만 하나의 transaction으로 처리한다.
-- busy 표시 편집 완료: footer 없는 즉시 적용형·단순 설정형 dialog는 작업 성격에 맞는 spinner 또는 짧은 상태 문구를 사용하고, 장시간 저장처럼 설명이 필요할 때만 둘을 함께 표시한다.
-- 검증 완료: 이전 강제 문구 3개가 0건이고 대체 계약 4개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 8차 권장안 2건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `50f9b31` (`앱 메뉴 8차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 7차 UX 단순화 권장안 2건을 병합했다. 협력업체 관리는 행 추가·수정 입력 dialog 단위의 적용/취소와 즉시 저장을 사용하고, 명령별 완료 체크리스트는 command 성격에 적용되는 항목만 충족하도록 조건을 구분한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 협력업체 관리 저장 흐름과 명령별 완료 체크리스트를 레거시·현행 UX에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 지시서 편집 완료: 협력업체 관리에서 목록 전체의 전역 저장/취소 footer를 제거하고 추가·수정 입력 dialog의 적용 성공 시 즉시 저장·목록 갱신하도록 명시했다.
-- 완료 체크리스트 편집 완료: command 성격과 실제 구현 범위에 적용되는 항목만 충족하며, DB·신규 dialog·반복 행 table·조회·draft 저장·쓰기 transaction 항목에 각각 적용 조건을 명시했다.
-- 검증 완료: 이전 과잉 문구 2개가 0건이고 대체 계약 5개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 7차 권장안 2건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `b9d5c6e` (`앱 메뉴 7차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 6차 UX 단순화 권장안 1건을 병합했다. 관리자 복사는 원본 관리자나 별도 데이터 목록 preview를 요구하지 않고, 레거시와 같은 협력업체·원본/대상 거래처·브랜드·라벨 크기 selector, `브랜드 복사`·`품목까지 복사` 옵션과 기존 대상 데이터가 있을 때의 조건부 손실 경고를 사용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 관리자 복사 command 계약을 레거시 `AdminCopyDlg` UI와 실행 흐름에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 관리자 복사 편집 완료: 근거 없는 원본 관리자 selector와 별도 데이터 목록 preview를 제거했다. 레거시의 협력업체·원본/대상 거래처·브랜드·라벨 크기 selector 및 두 복사 옵션을 유지하고 대상에 기존 column 데이터가 있을 때만 손실 경고를 표시하도록 명시했다.
-- 검증 완료: 이전 과잉 문구 1개가 0건이고 레거시 UX 계약 5개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 관리자 복사 권장안 1건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `274ba53` (`앱 메뉴 6차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 5차 UX 단순화 권장안 2건을 병합했다. dialog는 기능별 content 크기를 먼저 정하고 1168x720을 밀도 높은 화면의 참고 상한으로만 사용하며, lifecycle에는 실제 dirty·write-busy·active editing이 있는 owner만 종료 차단 상태를 제공한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 상태 소유권, 종료 command, dialog 크기·lifecycle, Phase 1, 공용 dialog test, 체크리스트·금지 사항·최종 완료 기준을 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- dialog 크기 편집 완료: 입력 수, table column과 command 영역에 맞는 기능별 content 크기를 먼저 정하고 화면 가용 영역으로 clamp한다. 1168x720은 넓은 table·편집 dialog의 참고 상한으로만 유지하고 내용이 적은 dialog를 확대하지 않는다.
-- lifecycle 편집 완료: 모든 dialog의 open/close와 동일 dialog 중복 방지는 유지하되, 편집·저장이 있는 owner만 실제 dirty·write-busy·active editing을 중앙 종료 흐름에 제공한다. 읽기 전용 dialog는 종료 차단 상태를 만들지 않고 닫힌 뒤 늦은 결과만 폐기한다.
-- 검증 완료: 이전 과잉 문구 3개가 0건이고 대체 계약 6개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 5차 권장안 2건과 관련 Phase·테스트·완료 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `be5755c` (`앱 메뉴 5차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 4차 UX 단순화 권장안 3건을 병합했다. Esc는 focused child의 실제 취소 상태가 있을 때만 우선 처리하고, 조회 dialog의 filter·조회 button·건수·합계는 데이터 성격에 따라 선택하며, disabled reason의 ellipsis·tooltip·별도 semantics는 실제 필요할 때만 적용한다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 권한 표시, FortuneTable 조회 책임, dialog Esc, 조회 dialog, AppBar widget test를 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 지시서 편집 완료: inline disabled reason은 유지하되 두 줄까지 허용하고 실제 잘림과 custom renderer에만 tooltip·별도 semantics를 요구하도록 완화했다. 조회 UI는 read-only `FortuneTable`을 공통으로 유지하고 filter·조회 button·건수·합계는 레거시와 데이터 성격에 필요한 항목만 제공하도록 변경했다.
-- Esc 계약 편집 완료: 셀 편집이나 비어 있지 않은 다중 선택처럼 focused child에 실제 취소 상태가 있을 때만 Esc를 먼저 처리하고, 그렇지 않으면 dialog 닫기 요청으로 전달하도록 일반화했다.
-- 검증 완료: 이전 강제 문구 3개가 0건이고 대체·유지 계약 7개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 4차 권장안 3건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `9593191` (`앱 메뉴 4차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 3차 UX 단순화 권장안 3건을 병합했다. popup command icon은 선택 사항으로 완화하고, legacy command ID는 runtime metadata가 아닌 포팅 inventory fixture에서 관리하며, AppBar widget test에 섞인 업무 policy/controller 검증을 owning focused test로 분리했다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 AppBar 표시 원칙, command 타입, 프린터 command mapping, Phase 0, unit/widget test, 완료 체크리스트를 함께 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
-- 지시서 편집 완료: AppBar 그룹 icon은 유지하되 text 중심인 현재 popup UX에 맞춰 command icon을 optional로 변경했다. runtime `AppMenuCommand`에서 legacy provenance field를 제거하고 레거시 handler/ID mapping을 포팅 대조 fixture 책임으로 옮겼다.
-- 테스트 책임 편집 완료: AppBar widget test는 대표 renderer 동작만 확인하고 `OnEnableManager` 권한, 프린터 command 연결, 메뉴 밖 F12 상태 갱신은 각각 policy/owning controller focused test에서 검증하도록 분리했다.
-- 검증 완료: 제거 대상 문구 4개가 0건이고 필수 계약 5개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 3차 권장안 3건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `1fb028d` (`앱 메뉴 3차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 2차 UX 단순화 권장안 5건을 병합했다. 메뉴 포팅과 무관한 native minimum, 별도 전역 dialog coordinator, 선행 공용 footer/date picker helper, 일괄 visible CRUD toolbar, `requiresFurtherInput`과 실제 취소 없는 `조회 취소` 계약을 제거하거나 현재 owning 패턴에 맞게 완화했다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 목표 UI, 공용 타입·상태 소유권, 개별 조회 계약, 공용 dialog·관리/조회 원칙, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
-- 검증 완료: 제거 대상 8개 검색 결과는 0건이고 유지 대상 핵심 계약 8개 표적 검사가 통과했다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 diagnostics 오류 없음, 전체 diff가 2차 권장안 5건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- 지시서 편집 완료: 기존 desktop window 초기화는 변경하지 않고 AppBar 폭 대응만 검증하도록 native minimum 계약을 제거했다. `requiresFurtherInput`과 popup `...` 규칙도 삭제하고 기본 한글 label과 실제 shortcut 표시만 유지했다.
-- dialog 소유권 편집 완료: 별도 전역 coordinator 대신 각 owning controller가 동일 dialog 중복 실행과 dirty/busy·종료 상태를 관리한다. footer와 date picker helper는 기존 frame slot/overlay helper를 먼저 사용하고 같은 구조가 둘 이상 반복될 때만 추출하도록 변경했다.
-- 관리·조회 UX 편집 완료: CRUD command는 작업 빈도와 현재 owning 화면에 따라 toolbar, rail 또는 context menu를 선택한다. 취소 불가능한 DB Future에는 `조회 취소`를 노출하지 않고 닫힌 dialog의 늦은 결과만 폐기한다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `e73eca7` (`앱 메뉴 2차 UX 단순화 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt]의 누적 UX 지시를 사용자에게 보이는 결과 중심으로 단순화했다. 권한·dirty/busy 보호·DB 제약·공용 `FortuneTable`·차단 화면 중 전역 단축키 금지는 유지하고, 구체적인 route observer/lease 알고리즘, runtime display 이동 보정, 희귀 focus 예외, 숨김 기능 선행 구현, 중복 테스트·체크리스트는 축소했다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형·단축키·focus·legacyInactive·Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 최소 동작 계약으로 정리한다. [SESSION_HANDOFF.md]에는 파일별 편집, 검증, stage/commit 결과를 기록한다.
-- 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`와 핵심 계약 6개 표적 검사가 통과했다. 제거 대상 구현 용어 검색 결과는 0건이고 두 문서 diagnostics 오류가 없으며, 문서 변경만 수행해 Flutter test는 실행하지 않았다.
-- 지시서 편집 완료: shortcut gate는 차단 surface 중 전역 F-key 금지와 non-modal preview 제외 결과만 남기고 observer identity set·transition 완료·lease 자료구조 강제를 제거했다. 창 정책은 최초 display minimum/bounds clamp만 유지하고 runtime display 추적을 후속 재현 이슈로 분리했으며, popup 실행·focus·dropdown 공용화도 결과와 실제 중복 기준으로 축약했다.
-- 범위·검증 정리 완료: 거래게시판과 공용라벨 이력은 inventory/legacyInactive 숨김만 유지하고 활성화 전 내부 구현 의무를 제거했다. 공용 shell 동작은 대표 widget test에서 한 번 검증하고 command별로 권한·업무 흐름·DB 오류·변경 owner 회귀만 확인하도록 테스트 matrix와 체크리스트를 축소했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `03b88b2` (`앱 메뉴 포팅 UX 지시서 단순화`).
-- 완료: [doc/app_menu_porting.txt] 10차 UX 재검토 권장안 3건을 병합했다. `DbReconnectOverlay` 같은 widget-tree blocking surface를 전역 shortcut gate와 focus lifecycle에 포함하고, AppBar menu는 popup/lease가 완전히 닫힌 뒤 owning command를 실행하도록 순서를 고정했으며, floating preview `OverlayRoute`가 Home 단축키를 오차단하지 않도록 route current 추정을 blocking route observer 집계로 교체했다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형·키보드 계약, command controller/dispatcher 상태 소유권, 검색출력 mode, 공용 dialog, Phase·widget test·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
-- 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff 및 stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- shortcut gate 편집 완료: app-scope `global_shortcut_gate`가 baseline Home 위의 blocking `ModalRoute` identity set과 non-route blocking lease를 합산한다. `DbReconnectOverlay`는 표시 transition에서 lease·초기 focus·조건부 focus 복원을 관리하고, 지속형 `_PreviewFloatingRoute`는 blocking count에서 제외한다.
-- route lifecycle 편집 완료: root `NavigatorObserver`가 push/pop/remove/replace를 추적하되 `didPop` 즉시 count를 줄이지 않고 reverse transition/overlay 제거 완료 후 route identity를 제거한다. 강제 remove/replace/dispose의 stale identity 방지와 focused test를 명시했다.
-- menu dispatcher 편집 완료: command ID/trigger snapshot → 1·2단계 popup 제거 → menu lease 해제 및 renderer close 완료 신호 → owning command 1회 실행 → 결과별 focus 인계/복원 순서로 고정하고 popup `onTap` 직접 실행과 고정 delay를 금지했다.
-- 표적 문서 검증 완료: non-route gate·재연결 lease/focus·close-before-dispatch 7개 검사, app-scope gate/renderer close 경계 8개 검사, blocking route 분류 9개 검사, route 닫힘 lifecycle 5개 검사가 모두 통과했다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`도 성공했다.
-- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 전체 diff가 10차 권장안 3건과 관련 구현·테스트·체크리스트 계약에 한정됨을 확인했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `0dc1e06` (`앱 메뉴 10차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 9차 UX 재검토 권장안 3건을 병합했다. 기존 탭의 출력·연결·저장 busy와 활성 편집을 로그아웃/종료 guard에 포함하고, display 이동 시 변경된 native minimum의 런타임 적용을 허용하며, clean 로그아웃에는 일반 확인창을 추가하지 않도록 계약을 명확히 했다.
-- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형 window policy, command 상태 소유권, 로그아웃/종료 순서, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
-- 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
-- 편집 완료: [doc/app_menu_porting.txt]에 `HomePageManager` 단일 기존 메인 탭 guard와 `top-level dialog coordinator → 기존 메인 탭 guard → DB 정리 → 실제 종료` 순서를 추가했다. 출력·연결·저장 busy와 activeEditing은 로그아웃/종료를 차단하고, 여러 dirty는 한 번만 확인하며, clean 로그아웃/종료에는 일반 확인창을 추가하지 않는다.
-- window policy 편집 완료: 초기 minimum은 `WindowOptions.minimumSize`로 한 번만 적용하고, runtime에는 target display 변경으로 `effectiveMinimum`이 달라졌을 때만 `windowManager.setMinimumSize()`를 적용한다. bounds clamp는 minimum 변화와 분리해 새 작업 영역 밖일 때만 수행하도록 모순을 제거했다.
-- 표적 문서 검증 완료: PowerShell 9개 필수 계약 검사에서 runtime minimum changed-only/적용 예외, workspace guard 소유권/공용 종료 순서, clean 로그아웃 무확인, busy 차단, dirty 합산 확인, 이전 고정 금지·모호한 로그아웃 확인 문구 제거가 모두 확인됐다.
-- 조건 분리 검증 완료: minimum changed-only, minimum과 독립된 out-of-bounds clamp, 작업 영역 안의 불필요한 이동 금지, 같은 minimum의 display 이동 test, 최종 완료 계약을 확인했다.
-- 최종 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 diagnostics 오류 없음. 전체 diff가 9차 권장안 3건과 검증 계약에 한정됨을 확인했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `8e1dba6` (`앱 메뉴 9차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 8차 UX 재검토 권장안 2건을 병합했다. Navigator route modal은 `ModalRoute.isCurrent`로 중앙 감지하고 `OverlayEntry` blocking surface만 참조 계수 lease를 사용하도록 shortcut gate를 보정했으며, 960x640을 권장 content minimum으로 유지하되 native minimum은 대상 display의 logical `visibleSize`로 clamp했다.
-- 편집 완료: `blocksGlobalShortcuts`를 `homeRouteIsCurrent != true || overlayLeaseCount > 0`으로 정의하고 기존 저장·삭제·검색·로그아웃·설정 `showDialog`/`showGeneralDialog` 호출부의 수동 lease를 금지했다. window policy는 `effectiveMinimum`과 초기 bounds를 target `visibleSize`로 제한하고 `WindowOptions.minimumSize`에 최초 표시 전에 적용하며, 작은 display의 pane 축소·scroll fallback과 display 이동 재계산을 반응형·상태 소유권·공용 dialog·Phase·widget/integration test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
-- 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 route current gate, overlay-only lease, 기존 modal 무lease, 권장 content minimum, display clamp, `WindowOptions.minimumSize`, 작은 display fallback, native integration 검증이 모두 확인됐다. 고정 `windowManager.setMinimumSize(const Size(960, 640))`와 기존 owning command lease 문구는 제거됐다.
-- window policy 경계 보정 완료: [lib/core/desktop_window_policy.dart] 또는 동등한 순수 helper가 `visibleSize ?? size`를 입력받아 권장 minimum·native `effectiveMinimum`·초기 bounds clamp를 계산하고, plugin 조회/적용은 [lib/core/bootstrap.dart]가 소유하도록 분리했다. [test/desktop_window_policy_test.dart] 표적 검증을 명시했으며 fallback·plugin 비의존성·테스트 경계 검사가 모두 통과했다.
-- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 두 UX 권장안과 window policy 경계 보정 외 변경이 없음을 확인했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `4a4cc2c` (`앱 메뉴 8차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 7차 UX 재검토 권장안 3건을 병합했다. 기존 owning dialog까지 포함하는 참조 계수형 전역 shortcut 차단 lease, 지원 최소 창 크기 960x640 logical px, 추가 입력 여부를 정확히 나타내는 `requiresFurtherInput` metadata로 계약을 보정했다.
-- 편집 완료: 반응형 기준에 `windowManager.setMinimumSize(const Size(960, 640))`와 배율별 AppBar/body 검증을 추가했다. `opensDialog`를 `requiresFurtherInput`으로 교체하고 단순 공지·안내 dialog에는 `...`를 붙이지 않으며, AppBar menu·신규 overlay·기존 프린터/저울 owning dialog가 공용 shortcut gate lease를 acquire하고 `finally`에서 release하도록 command 구조·상태 소유권·공용 dialog·Phase·widget test·체크리스트·금지 사항·최종 완료 기준을 갱신했다.
-- 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `requiresFurtherInput`, 최소 창 API/배율 검증, 참조 계수형 lease, 기존 dialog `finally` 해제, 중첩 lease 유지, 공지 `...` 제외가 모두 확인됐고 `opensDialog` 잔존은 없다.
-- lease 소유권 보정 완료: 기존 설정 dialog의 AppBar·원래 탭 버튼 진입점이 공유하는 `_open...Settings()` owning command method에서 lease를 한 번만 획득하도록 명시했다. 두 진입점의 동일 gate 사용, 중복 acquire 금지, `finally` 해제 표적 검사가 모두 통과했다.
-- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 세 UX 권장안과 lease 소유권 보정 외 변경이 없음을 확인했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `5d06658` (`앱 메뉴 7차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 6차 UX 재검토 권장안 3건을 병합했다. 차단형 overlay가 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 공용 coordinator/controller 상태로 차단하고, 실제 활성 shortcut의 우측 hint와 별도 입력 dialog를 여는 popup label의 `...` 표기 계약을 추가했다.
-- 편집 완료: AppBar 표시 원칙에 dialog-opening `...`와 shortcut 보조 영역을 추가하고, `AppMenuCommand`의 optional `shortcutLabel`/`opensDialog`, `blocksGlobalShortcuts` 상태 소유권, widget-level key 차단과 전역 handler의 차이를 command 구조·공용 dialog·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
-- 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `shortcutLabel`, `opensDialog`, `blocksGlobalShortcuts`, F1/F2/F3/F5/F12, dialog `...`, shortcut semantics가 모두 확인됐고 이전 F12 단독 차단 문구는 제거됐다.
-- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 세 UX 권장안 외 변경이 없고, popup shortcut hint는 실제 menu command인 F1/F12만 표시하며 전역 gate는 기존 handler 범위인 F1/F2/F3/F5/F12 전체를 차단하도록 구분했다.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
-- 로컬 커밋 완료: `bb97b5b` (`앱 메뉴 6차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 5차 UX 재검토 권장안 4건을 병합했다. 통합 overflow의 2단계 탐색·세로 제약, top-level overlay 전역 단일 소유, 신규 dialog dirty/busy 종료 연동, AppBar-dialog focus 인계를 적용했다.
-- 편집 완료: AppBar 반응형·command 구조/소유권·종료 command·공용 dialog 원칙·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 네 권장안을 반영했다.
-- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음. 평면 overflow, command별 top-level overlay, 신규 dialog 종료 누락 문구가 제거됐음을 확인했다.
-- focus 계약 보정 완료: 체크리스트와 최종 완료 기준의 무조건 그룹 focus 복원을 메뉴 취소 시 trigger 복원과 top-level dialog 실행 시 내부 focus 인계로 분리했다. overflow 높이·scroll·focus reveal은 Windows 100%/125%/150% 배율에서 검증하도록 명시했다.
-- 최종 문서 검증 완료: focus/overflow 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 focus/overflow 계약 보정 외 변경 없음.
-- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
-- 로컬 커밋 완료: `b7713b9` (`앱 메뉴 5차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 4차 UX 재검토 권장안 4건을 병합했다. 중첩 modal/picker의 root overlay 처리, form-only 초기 focus, overlay 내부 오류 전달, footer 없는 busy 피드백을 적용했다.
-- 편집 완료: 사용자 접속 이력 계약, 공용 dialog 원칙, 오류 처리, phase, widget test, 체크리스트, 금지 사항, 최종 완료 기준에 네 권장안을 반영했다.
-- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음. 일반 picker/snackbar 허용과 FortuneTable 고정 초기 focus 문구가 제거되고 무표시 busy가 금지됐음을 확인했다.
-- 계약 보정 완료: private overlay dropdown 구현을 신규 화면에서 복제하지 않고 공용 overlay-safe control로 추출하도록 명시하고 z-order·경계 clamp·선택·닫기 테스트를 추가했다.
-- 최종 문서 검증 완료: overlay surface 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 공용 overlay-safe dropdown 보정 외 변경 없음.
-- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
-- 로컬 커밋 완료: `5c9fe30` (`앱 메뉴 4차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 3차 UX 재검토 권장안 4건을 병합했다. 공용 footer 적용 범위 축소, 프린터 설정 command 명시적 분리, Esc의 다중 선택 한정, `파일/관리` 중립 아이콘을 적용했다.
-- 편집 완료: UX 원칙·개별 command 계약·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 네 권장안을 반영했다.
-- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음, 이전 포괄 footer/일반 선택 Esc/문맥 의존 프린터/관리자 전용 파일 아이콘 문구 검색 결과 없음.
-- 계약 보정 완료: `AppMenuCommandId`를 Flutter owning action 기준으로 정의하고 legacy ID를 별도 provenance로 분리해 프린터 설정 1→2 mapping을 허용했다. footer가 없는 화면의 Tab 순서도 존재하는 command 영역만 포함하도록 정리했다.
-- 최종 문서 검증 완료: 계약 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 command/focus 계약 보정 외 변경 없음.
-- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
-- 로컬 커밋 완료: `6bde37b` (`앱 메뉴 3차 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 최종 UX 재검토 권장안 3건을 병합했다. 로그인/로그아웃은 inventory/controller에 유지하되 `파일/관리` popup에서 숨기고 AppBar 오른쪽 고정 아이콘을 유일한 노출 위치로 정했다. 종료는 popup에 유지한다.
-- 관리 dialog UX 보정 완료: visible toolbar/rail은 모든 관리창이 아니라 행 CRUD dialog에만 적용하고 실제 지원 command만 표시한다. 비CRUD dialog와 지원하지 않는 command에는 CRUD button을 렌더링하지 않는다.
-- 사용자 관리 권한 완료: 지점 관리와 동일하게 실제 `OnEnableManager`의 `IsSystemAdmin`/`IsCoopAdmin`/`IsAdminConnect`/`IsCoopAdminConnect` 조건을 명시하고 `MANAGER_USER` 숨김을 테스트로 고정했다. Flutter의 session-connect 조건은 신뢰 가능한 상태가 포팅된 경우에만 허용한다.
-- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음, 기존 포괄적 CRUD 강제·중복 로그인 연결 문구 검색 결과 없음.
-- 최종 문서 검증 완료: 권한 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 최종 UX 권장안 3건 외 변경 없음.
-- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
-- 로컬 커밋 완료: `b555436` (`앱 메뉴 최종 UX 권장안 병합`).
-- 완료: [doc/app_menu_porting.txt] 2차 UX 재검토 권장안 5건을 병합했다. AppBar popup의 키보드 열기·이동·실행·닫기와 focus 복원, 메뉴 open 중 전역 단축키 차단을 명시했다.
-- 관리 dialog UX 완료: 추가·수정·삭제는 visible toolbar/rail에 두고 context menu는 보조 경로로만 사용한다. 공용 footer는 왼쪽 상태/진행, 오른쪽 취소/저장 또는 조회 command를 고정한다.
-- 메뉴 상태 UX 완료: transient disabled reason은 popup에 직접 표시하고 tooltip은 전체 문구 보조에만 사용한다. 검색출력 mode는 popup checkmark로 통일하고 menu item 또는 메뉴 밖 `F12` 변경 후 다음 popup open 시 controller 상태를 반영한다.
-- 문서 자동 검증 완료: keyboard/focus, inline disabled reason, visible CRUD command, 공용 footer, 검색출력 checkmark 필수 기준 10개가 원칙·테스트·완료 기준에 반영됐고 이전 선택형 표현은 0개다. popup open 중 `F12` 차단과 다음 open 시 checkmark 반영 규칙의 충돌도 제거했으며 문서 진단 오류 없음.
-- 2차 UX 권장안 커밋: `9c5c19b` (`메뉴 포팅 2차 UX 권장안 반영`).
-- 완료: [doc/app_menu_porting.txt] UX 재검토 권장안 6건을 병합했다. Esc는 셀 편집 취소→선택 해제→dialog 닫기 순서, write busy는 닫기 차단, read busy는 취소/닫기 유지, 초기/복원 focus와 Enter 동작을 명시했다.
-- 권한/AppBar UX 완료: 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 메뉴에서 숨기고 로그인·사용자 변경 시 재계산한다. transient dirty/busy만 사유와 함께 비활성화한다. 메뉴를 먼저 overflow로 합친 뒤 title을 한 줄 ellipsis하며 서버 상태와 현재 로그인/로그아웃 command는 유지한다.
-- dialog 크기 UX 완료: 보편적인 80~90% 규칙을 제거하고 화면 여백과 기능별 content max size 중 작은 값을 사용한다. 기본 max는 현재 라벨 항목 편집창의 1168x720이며 더 넓은 결과가 확인된 경우에만 기능별로 확장한다.
-- 문서 자동 검증 완료: UX 권장 필수 기준 10개가 모두 반영됐고 이전 disabled/80~90%/Esc·조회 busy 일괄 닫기 규칙은 0개다. [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음.
-- UX 권장안 커밋: `65482e8` (`메뉴 포팅 UX 권장안 반영`).
-- 완료: [doc/app_menu_porting.txt]의 AppBar 메뉴 화면 UX를 현재 프로젝트 스타일로 병합했다. 신규 관리·편집·조회 화면은 `BlockingModelessDialog` + `BlockingModelessDialogFrame`을 사용하고, 기존 핵심 작업은 현재 메인 탭, 기존 설정은 owning dialog를 재사용한다.
-- dialog 지침 완료: 별도 route page/신규 메인 탭/native child window 금지, 단일 overlay, write busy 닫기 차단, read busy 취소/닫기, 중첩 확인용 `showBlockingModelessOverlayDialog`, 실패 시 draft 유지 기준과 widget/integration test를 명시했다.
-- 문서 자동 검증 완료: 공용 dialog 타입·예외·수명주기·중첩 확인·테스트·완료 기준 필수 항목 10개가 모두 반영됐고 `page/dialog`, `dialog/page` 선택 표현은 0개다. 남은 `page` 표기는 기존 파일명·핵심 탭·신규 route 금지 문구뿐이며 문서 진단 오류 없음.
-- dialog UX 지침 커밋: `26952db` (`메뉴 포팅 다이얼로그 UX 지침 통합`).
-- 완료: [doc/app_menu_porting.txt]에 메뉴 포팅으로 추가되는 모든 관리 목록·조회 결과의 반복 행 table은 공용 `FortuneTable<T>`/`FortuneTableColumn<T>`을 사용하도록 명시했다. `DataTable`, `Table`, row별 `ListView`, 기능별 자체 table 구현은 금지하고 시트 미리보기용 `FortuneSheet`와 역할을 구분했다.
-- 문서 자동 검증 완료: FortuneTable 공통 원칙, 관리/조회 화면 기준, 공용 API 확장 경로, widget test, 명령별 체크리스트, 금지 사항, 최종 완료 기준의 필수 항목 9개가 모두 반영됐다.
-- FortuneTable 지침 커밋: `e01ed27` (`메뉴 포팅 테이블 공용화 지침 추가`).
-- 완료: [doc/app_menu_porting.txt]에 레거시 `파일/검색/설정` 25개 명령의 AppBar 포팅 작업지시서를 작성했다. `도움말`은 이번 완료 범위에서 제외하고 후속 참고로만 기록했다.
-- 문서 완료: 넓은 화면 3개 그룹 아이콘/좁은 화면 overflow, command inventory/policy/controller 소유권, 현재 기능 재사용 경로, 미구현 명령별 page/dialog/model/DAO/DB gate, 단계별 구현 순서와 완료 체크리스트를 명시했다.
-- 레거시 대조 완료: 고정 항목 메뉴 리소스의 `IDM_FIX_COLUMN_MANAGER(32853)`와 실제 message map의 `IDM_FIX_COLUMN_MANAGE(32854)` 불일치를 기록하고 Flutter에서는 단일 ID로 정규화하도록 했다. `공용라벨 수정 이력`, `거래게시판`은 내부 기능 구현 후에도 legacyInactive로 유지한다.
-- DB 제약 완료: 과도한 보완/예외 처리 금지, DB migration 금지, 기존 스키마 확인 전 SQL 작성 금지, compatibility level 100, commit 오류 전달과 `@@TRANCOUNT > 0`일 때 가능한 rollback, 필요한 경우에만 model/DAO 추가를 고정했다.
-- 문서 자동 검증 완료: PowerShell 필수 문자열 점검에서 전체 메뉴 ID, DB/transaction 제약, Phase 0~5, 완료 체크리스트와 3개 AppBar 그룹 기준 36개가 모두 통과했다. `그룹 아이콘 4개`, `file, search, settings, help` 잔존 없음.
-- 최종 문서 검토 완료: `도움말` 구현이 Phase 1/5와 최종 완료 기준에 섞이지 않도록 후속 참고로 분리했고 [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음.
-- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 문서 구현 커밋: `88eba17` (`AppBar 메뉴 포팅 지시서 작성`).
-- 완료: 레거시 사용자 권한 정책을 적용하고 `tester01` 로그인 계정을 일반 사용자로 강제해 UI를 테스트할 수 있게 했다.
-- 테스트 권한 위치: [lib/models/user.dart]의 `User.clientUserTestOverrideId = 'tester01'`. 테스트 해제 시 이 값을 `null`로 변경한다. DB 권한은 수정하지 않고 로그인 시 메모리의 유효 `grade`만 `CLIENT_USER`로 바꾼다.
-- 편집 완료: 일반 사용자는 레거시와 같이 공용라벨관리와 자동품목갱신 탭을 표시하지 않는다. 품목관리/라벨출력/저울출력은 유지한다.
-- 편집 완료: 일반 사용자는 품목관리 하단의 엑셀 가져오기·내보내기·취소·저장 영역과 상단 브랜드/라벨/날짜 설정 버튼을 표시하지 않는다. 품목 테이블과 발행 선택은 유지한다.
-- 테스트 추가: `tester01` 강제 일반 사용자, 다른 계정 DB 등급 유지, 일반 사용자 제한 탭 노출 정책을 검증한다.
-- 테스트 추가: 일반 사용자 설정 버튼/품목관리 명령 숨김, 날짜 설정 차단, 조회 테이블 유지를 검증한다.
-- 집중 검증 완료: `test/user_test.dart` 3개 통과. 일반 사용자 품목관리 명령 숨김/조회 테이블 유지 및 상단 설정 UI 숨김 위젯 테스트 통과.
-- 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음. 전체 검증 완료: `flutter test test/user_test.dart test/fortune_table_test.dart test/label_sheet_toolbar_test.dart` 218개 전체 통과.
-- stage/commit 대상: [lib/models/user.dart], [lib/home_page_manager.dart], [lib/page_home/item_manage.dart], [test/user_test.dart], [test/fortune_table_test.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `64cae67` (`레거시 사용자 권한 정책 적용`).
-- 완료: 품목관리 두 줄 컬럼 헤더의 줄 간격을 2px 줄이고, 체크박스와 라벨을 좁게 붙인 하나의 그룹으로 컬럼 가운데 정렬했다.
-- 편집 완료: `FortuneTable`에 기본 동작을 유지하는 `headerLineSpacingReduction`, `headerCheckboxPadding`, `headerCheckboxLabelGap` 옵션을 추가했다. 품목관리는 각각 2/1/1px을 사용하며 체크박스 헤더의 라벨 `Expanded`를 제거해 묶음 전체가 필요한 폭만 차지하고 가운데 정렬된다.
-- 테스트 수정: 긴 `판매가격` 헤더의 두 글자 줄바꿈, 2px 축소 line-height, 체크박스-라벨 1px 레이아웃 간격, 결합 그룹 중심과 세로 중심을 검증한다.
-- 집중 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "ItemManage shows minimum-column header checkboxes"` 통과. text scaler 중복 반영 방지 수정 후 재검증도 통과했다.
-- 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음. 전체 검증 완료: `flutter test test/fortune_table_test.dart` 54개 전체 통과.
-- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `e5abd72` (`품목관리 헤더 간격과 정렬 조정`).
-- 완료: 품목관리 테이블 컬럼 헤더를 최대 2줄로 표시하고, 폭 부족 시 한글 두 글자 뒤에서 다음 줄로 넘기며 헤더 체크박스를 세로 가운데 정렬했다.
-- 편집 완료: 공용 `FortuneTable`에 기본값이 기존 한 줄인 `headerMaxLines`/`headerWrapAfterCharacters` 옵션을 추가했다. 품목관리만 2줄/두 글자를 지정하며, 한 줄 폭이 부족할 때만 두 글자 뒤에 줄바꿈을 넣고 둘째 줄에서 말줄임한다. 체크박스 헤더 Row는 세로 가운데 정렬을 명시했다.
-- 테스트 추가: 품목관리 옵션값, 최소화된 `판매가` 헤더의 `판매\n가` 분리, 체크박스와 라벨의 세로 중심 일치를 검증한다.
-- 집중 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "ItemManage shows minimum-column header checkboxes"` 통과. 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음.
-- 전체 검증 완료: `flutter test test/fortune_table_test.dart` 54개 전체 통과.
-- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `29fb73d` (`품목관리 컬럼 헤더 두 줄 표시`).
-- 완료: 자동품목갱신 편집 중에도 플로팅 미리보기 복원 버튼을 클릭할 수 있도록 수정했다.
-- 원인: `_shouldBlockCurrentTabTap`의 44px 투명 차단 레이어가 `TabbedView.trailing`에 있는 복원 버튼보다 위에서 hit-test를 선점한다.
-- 편집 완료: 자동품목갱신에서 복원 버튼이 실제 표시된 영역만 차단 레이어의 hit-test를 통과시킨다. 다른 탭·검색·헤더 영역의 편집모드 클릭 제한과 품목관리 동작은 유지한다.
-- 테스트 추가: 복원 버튼 영역 클릭은 아래 버튼으로 전달되고 차단 레이어의 다른 영역 클릭은 계속 차단 콜백으로 전달되는지 검증한다.
-- 집중 검증 완료: `flutter test test/label_sheet_toolbar_test.dart --plain-name "auto update edit barrier allows preview restore button"` 통과. 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음.
-- 전체 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 159개 전체 통과.
-- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `b9a17ad` (`자동갱신 미리보기 복원 클릭 허용`).
-- 완료: 품목관리/라벨출력/자동품목갱신/저울출력의 공용 `FortuneTable` 헤더 구분선 컬럼 리사이즈를 복원했다.
-- 원인: 현재 `_buildHeader`에는 구분선 장식만 있고 `MouseRegion`/수평 drag handler가 없어 리사이즈 커서와 폭 변경 기능이 제거된 상태다. 최근 자동 맞춤은 사용자 폭을 재계산으로 덮을 수 있어 수동 폭을 컬럼 ID별로 보존해야 한다.
-- 편집 완료: 공용 `FortuneTable` 헤더 오른쪽 8px에 `resizeColumn` 커서와 수평 drag 핸들을 추가했다. 수동 폭은 컬럼 ID별로 보존되어 자동 맞춤/데이터 rebuild가 덮지 않으며 `minWidth` 미만으로 줄지 않는다. 품목관리 최소화처럼 컬럼의 초기 폭·최소 폭·자동 맞춤 규칙이 바뀌면 이전 수동 폭을 폐기한다.
-- 검증 완료: 커서, 확대, 최소 폭 제한, 자동 맞춤 데이터 rebuild 후 수동 폭 유지, 컬럼 규칙 변경 시 새 폭 적용, 잔여 폭 채움 컬럼의 실제 표시 폭 기준 리사이즈 테스트 통과. `flutter test test/fortune_table_test.dart test/automatic_item_update_page_test.dart test/label_print_session_test.dart test/scale_output_test.dart` 115개 전체 통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
-- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `b6d7733` (`메인 테이블 컬럼 리사이즈 복원`).
-- 완료: 현재 품목관리 테이블 컬럼 폭을 레거시 기준으로 변경했다. 행 번호는 기본 폭, 발행·라벨크기·품명·일반 동적 컬럼은 내용 기반 자동 폭, 주원료는 레거시 60 단위, 최소화 컬럼은 레거시 10 단위를 사용한다.
-- 적용 기준: FarPoint Spread 문자 폭 단위를 Flutter logical px로 환산해 10 단위를 70px, 60 단위를 420px로 적용한다. `RICH_WIDTH`는 출력 바코드/이미지 크기이므로 동적 테이블 폭 계산에서는 제거한다.
-- 편집 완료: `FortuneTableColumn.autoFit`을 추가해 공용 자동 폭 안에서 컬럼별 고정 폭을 지원한다. 품목관리는 행 번호 40px 유지, 발행·라벨크기·품명·일반 동적 컬럼 내용 자동 맞춤, 주원료 420px 고정, 최소화 주원료·동적 컬럼 70px 고정으로 변경했다.
-- 검증 완료: 컬럼별 자동 맞춤 제외, 품목관리 일반 폭 규칙, 최소화 70px, 동적 컬럼의 자동 맞춤→최소화 고정 전환 집중 테스트 통과. `flutter test test/fortune_table_test.dart` 52개 전체 통과, 최종 정리 후 집중 테스트 재통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
-- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `4142aa7` (`품목관리 컬럼 폭을 레거시 기준으로 조정`).
-- 완료: 품목관리 테이블의 모든 컬럼 헤더 라벨을 기존 14px bold에서 13px normal로 변경했다.
-- 편집 완료: `FortuneTable`에 기존 스타일을 기본값으로 유지하는 선택적 `headerTextStyle`을 추가하고 일반/체크박스 헤더 분기와 자동 너비 측정에 공통 적용했다. 품목관리 호출부에서만 흰색 13px `FontWeight.normal`을 전달해 다른 테이블에는 영향이 없다.
-- 검증 완료: `ItemManage shows minimum-column header checkboxes` 집중 테스트 및 `flutter test test/fortune_table_test.dart` 51개 전체 통과. 발행·라벨크기·품명·주원료·동적 컬럼 헤더가 모두 13px `FontWeight.normal`로 렌더링되며 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
-- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `4a9cb91` (`품목관리 컬럼 헤더 글꼴 조정`).
-- 완료: 품목관리/자동품목갱신의 `주원료 및 함량` 탭도 출력내용 미리보기와 동일하게 최초 가로 맞춤 확대를 적용하고 사용자 조정값을 패널 재생성 후 유지한다.
-- 편집 완료: 홈 State가 `_itemElementPreviewZoomController`를 별도로 소유해 `_ItemPreviewPanel` 재생성 후에도 유지한다. `_ItemElementPreviewTab`은 viewport 폭과 workbook 물리폭 또는 `LabelSize` 가로폭 fallback으로 최초 가로 맞춤을 계산하고 같은 controller 수명에는 재적용하지 않는다.
-- 검증 완료: `item element preview fits width and keeps changed zoom`에서 100mm 라벨/660px 패널의 최초 150%와 사용자 변경 100%의 패널 재생성 후 유지를 확인했다. `flutter test test/label_sheet_toolbar_test.dart` 158개 전체 통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
-- stage/commit 대상: [lib/home_page_manager.dart], [lib/widgets/label_output_preview.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `4473883` (`주원료 미리보기 가로 맞춤 확대 적용`).
-- 완료: 품목관리/자동품목갱신 출력 미리보기의 초기 확대율을 라벨 가로폭 기준으로 자동 맞춤하고, 자동품목갱신 복원 버튼의 실제 mouse hover 툴팁 표시를 보장했다.
-- 편집 완료: [lib/page_label_sheet/label_sheet_workbench.dart]의 `LabelSheetZoomController.applyInitialAutoFit`이 controller 수명 동안 최초 한 번만 확대율을 적용한다. [lib/widgets/label_output_preview.dart]의 선택적 `autoFitWidth`는 viewport에서 눈금/스크롤 여유 58px를 제외한 폭과 라벨 물리 가로폭을 비교해 넘치지 않는 10% 단위 확대율을 계산한다. [lib/home_page_manager.dart]의 품목/자동갱신 출력 미리보기에서만 활성화했으며 라벨출력/저울출력은 변경하지 않았다.
-- 툴팁 편집 완료: 복원 버튼 `Tooltip`에 안정 key와 400ms hover 대기시간을 지정했다. [test/label_sheet_toolbar_test.dart]에 실제 mouse hover overlay 표시 및 80mm 라벨/660px viewport의 190% 최초 맞춤과 사용자 변경 후 재적용 방지 테스트를 추가했다.
-- 검증 완료: 신규 집중 테스트 2개 및 `flutter test test/label_sheet_toolbar_test.dart` 157개 전체 통과. 수정 Dart 파일 포맷 완료, [lib/page_label_sheet/label_sheet_workbench.dart], [lib/widgets/label_output_preview.dart], [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음.
-- stage/commit 대상: [lib/page_label_sheet/label_sheet_workbench.dart], [lib/widgets/label_output_preview.dart], [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `5f1f595` (`품목 미리보기 가로 맞춤 확대 적용`).
-- 완료: 자동품목갱신 플로팅창 닫기 시 품목관리와 같은 복원 버튼 대상 애니메이션과 복원 버튼 표시를 적용하고, 두 탭의 복원 버튼 툴팁을 구분했다.
-- 원인: 공용 `_handleItemPreviewCloseRequested`는 애니메이션을 지원하지만 `_buildItemPreviewButton`과 `_restoreItemPreviewWindow`가 `items` 탭만 허용해 자동품목갱신에서는 목표 버튼 슬롯과 복원 동작이 없었다.
-- 편집 완료: 품목관리/자동품목갱신을 공용 `_itemPreviewSupportedTab`으로 판정하여 두 탭 모두 닫기 애니메이션 대상 슬롯, 복원 버튼 표시, 복원 동작을 사용한다. 툴팁은 각각 `품목관리 미리보기 열기`, `자동품목갱신 미리보기 열기`로 지정했다.
-- 검증 완료: 탭 지원/툴팁 집중 테스트 및 `floating preview hide animation keeps child layout stable` 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 155개 전체 통과.
-- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `7e2eecf` (`자동갱신 미리보기 복원 버튼 지원`).
-- 완료: 품목관리 `출력내용 미리보기`에서 조정한 확대율이 다른 메인 탭으로 이동했다가 돌아와도 유지되도록 수정했다.
-- 원인: 내부 `주원료 및 함량 ↔ 출력내용 미리보기` 탭 왕복은 keepAlive로 확대율이 유지되지만, 메인 탭 전환 시 `_showItemPreviewWindow`가 floating window child를 새 `_ItemPreviewPanel`로 교체하여 workbench 내부 확대율이 폐기된다.
-- 편집 완료: `_HomePageManagerState`가 `_itemOutputPreviewZoomController`를 소유하고 새 `_ItemPreviewPanel` 및 `_ItemOutputPreviewTab`에 계속 전달한다. 품목관리 세션이 dispose될 때만 controller를 해제한다.
-- 회귀 테스트: 패널을 완전히 제거하고 같은 controller로 재생성한 뒤 출력 미리보기 확대율 110%가 유지되는지 검증한다.
-- 검증 완료: 신규 집중 테스트 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 154개 전체 통과.
-- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `97d23d1` (`품목 미리보기 확대율 유지`).
-- 완료: 공용라벨의 `#ELEMENT` 치환으로 행 높이가 증가할 때 모든 미리보기의 바코드·이미지·선·도형이 행 증가분만큼 함께 이동하도록 수정했다.
-- 원인: `_replaceSheetKeywords`는 치환 내용에 맞춰 `rowHeights`만 늘리고 `images`, `lines`, `shapes`의 세로 위치를 이동하지 않는다. 행 높이 변화 자체는 정상 동작이다.
-- 편집 완료: `_replaceSheetKeywords`가 원본 대비 증가한 각 행의 아래 경계와 증가분을 계산하고, 경계 아래 이미지/바코드와 도형의 `top`, 선의 `y1`/`y2`에 누적 적용한다. 모든 미리보기가 공유하는 materialize 경로에 적용했다.
-- 회귀 테스트 추가: `item output moves objects below an expanded element row`에서 이미지·선·도형이 늘어난 행 높이만큼 함께 이동하는지 검증한다. 수정 전 이미지 `top`이 `25`에 남아 기대값 `47`과 달라 실패함을 확인했다.
-- 검증 완료: 수정 후 신규 집중 테스트 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 153개 전체 통과.
-- 추가 검증 완료: `flutter test test/label_print_session_test.dart test/scale_output_test.dart` 36개 전체 통과.
-- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `b813435` (`동적 행 높이에 개체 위치 연동`).
-- 완료: 같은 품목의 품목관리/라벨출력/자동품목갱신/저울출력 미리보기가 최신 공용라벨과 동일한 치환 입력을 사용하도록 통일했다.
-- 원인: `LabelOutputPreview.identityKey`가 materialized workbook 내용을 포함하지 않아 keepAlive 화면이 공용라벨 저장 전 workbook을 유지한다. 또한 품목관리는 저장된 `elementRTF` workbook을 쓰지만 라벨출력/저울출력은 `element` 평문으로 재생성하며, 품목관리 baseline 미리보기는 출력 계열의 projected column 값 생성도 사용하지 않는다.
-- 편집 완료: [lib/home_page_manager.dart]의 `_ItemOutputPreviewTab` identity에 최종 materialized workbook fingerprint를 포함했다. `_buildLabelPrintPreview`/`_buildScaleOutputPreview`는 `_itemElementFormStateFor`로 저장된 `elementRTF` workbook을 사용하며, 품목관리 baseline/라벨출력/저울출력의 기본 컬럼 projection은 `_baselineOutputProjectedColumnValues`를 공유한다. 자동품목갱신 draft와 저울의 현재 중량/가격 override는 유지한다.
-- 테스트 추가: [test/label_sheet_toolbar_test.dart]에 저장된 item element workbook 재사용 및 공용라벨 편집 시 preview workbook fingerprint 변경 회귀 테스트를 추가했다.
-- 검증: 첫 편집 직후 [lib/home_page_manager.dart] 정적 진단 오류 없음. 신규 집중 테스트 2개 통과. Dart 포맷 적용 완료.
-- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 152개 전체 통과.
-- 추가 검증 완료: `flutter test test/label_print_session_test.dart test/scale_output_test.dart` 36개 전체 통과. (`runTests` 도구는 두 파일의 테스트를 발견하지 못해 Flutter CLI로 검증했다.)
-- 최종 정적 진단: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart] 오류 없음.
-- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
-- 구현 커밋: `a0ad3b0` (`미리보기 라벨 정보 동기화`).
-- 완료: 공용라벨 저장 후 DB와 `LabelSize.datas`만 갱신되고 이미 조회된 품목관리/라벨출력/자동품목갱신/저울출력이 이전 `_currentLabelSize` workbook을 유지하는 문제를 수정했다.
-- 원인: `LabelSheetPage` 저장 성공 결과가 `HomePageManager`까지 전달되지 않으며 `_labelContentKey`도 workbook hash를 포함하지 않는다.
-- 수정 파일: `LabelSheetPage → CommonLabelManage → HomePageManager` 저장 완료 콜백을 추가했다. 동일 labelSizeId의 `_currentLabelSize`를 새 객체로 교체하고 workbook hash 기반 content key로 탭/열린 preview를 재생성하되 기존 draft/session controller는 유지한다.
-- 편집 완료: `LabelSheetPage.onSaved`와 `CommonLabelManage.onLabelSaved`가 DB 저장·`LabelSize.datas` 교체 후 새 `LabelSize`를 전달한다.
-- 편집 완료: `HomePageManager._handleCommonLabelSaved`가 다음 frame에 동일 ID의 `_currentLabelSize`와 부모 선택값을 교체하고 `_resetTabs()`로 품목관리/라벨출력/자동품목갱신/저울출력 및 열린 floating preview를 새 workbook 기준으로 재생성한다.
-- 편집 완료: `homeLabelContentKey`에 formData 길이/hash를 포함해 라벨 크기가 같아도 저장 workbook이 바뀌면 keepAlive content key가 변경된다.
-- 테스트 추가: 동일 ID 저장만 현재 세션을 교체하고 다른 라벨 이벤트는 무시하는 정책, 같은 크기의 workbook 변경 시 content key 변경을 검증한다.
-- 집중 검증 완료: 신규 테스트 2개와 `test/label_size_cache_test.dart` 1개 통과. 수정 파일 정적 진단 오류 없음.
-- 전체 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 150개 통과.
-- 로그 버전: `FSDBG-2026-07-25-common-label-sync-v33`.
-- 기능 커밋: `0ef2ef0` (`공용라벨 저장 후 연관 화면 동기화`). 원격 push 및 배포 빌드는 수행하지 않았다.
-- 완료: Code128 삽입 시 바코드가 대각선 반복 무늬로 깨지는 문제를 수정했다.
-- 원인: `flutter_zxing`은 실제 ZXing `BitMatrix`의 1채널 픽셀 전체를 반환하지만 결과에 폭·높이가 없다. 선형 바코드 최소 모듈 폭이 요청 폭보다 커질 때 현재 코드가 요청 폭으로 행을 나눠 다음 행 시작점이 계속 밀린다.
-- 수정 파일: `lib/page_label_sheet/label_sheet_workbench.dart`에서 선형 바코드에 한해 반환 길이와 요청 높이로 실제 폭을 복원하고 1채널로 디코딩한다. `test/label_sheet_toolbar_test.dart`에 행 폭 불일치 회귀 테스트를 추가했다.
-- 편집 완료: `labelSheetDecodeEncodedBarcodeImage`에 `inferWidthFromLength`를 추가하고 선형 바코드 renderer에서만 활성화했다. native raw buffer는 계약대로 1채널로 고정한다.
-- 테스트 추가: 요청 폭보다 native `BitMatrix` 폭이 큰 1채널 synthetic buffer에서 각 행의 픽셀 경계와 실제 폭이 복원되는지 검증한다.
-- 집중 검증: `flutter test test/label_sheet_toolbar_test.dart --plain-name "linear barcode raw buffer restores native matrix row width"` 통과. 실제 encoder 통합 테스트는 Flutter 테스트 프로세스에서 `flutter_zxing.dll`을 로드하지 못해 제거했으며 제품 앱의 DLL 로드 경로와는 별개다.
-- 전체 검증: `flutter test test/label_sheet_toolbar_test.dart` 148개 전체 통과. 수정 Dart 파일 정적 진단 오류 없음.
-- 로그 버전: `FSDBG-2026-07-25-barcode-native-width-v32`. 사용자 재검증 로그에서 이 문자열로 수정 버전 로드 여부를 확인한다.
-- 기능 커밋: `93af7d5` (`바코드 네이티브 행 폭 디코딩 수정`). 원격 push 및 배포 빌드는 수행하지 않았다.
-- 완료: 현재 Flutter SDK에 없는 `GlobalMaterialLocalizations.supportedLocales` 사용을 공개 상수 `kMaterialSupportedLanguages` 기반 locale 목록으로 교체하고, `TColumn` 생성자 계약 변경으로 누락된 테스트 fixture의 `useMinColumnCheck`를 보완했다.
-- 수정 파일: `lib/main.dart`, `test/automatic_item_update_page_test.dart`, `test/common_label_manage_test.dart`, `test/label_column_edit_dialog_test.dart`, `test/label_column_edit_test.dart`, `test/label_column_save_test.dart`. fixture 값은 기존 기본 동작을 유지하도록 `false`를 사용한다.
-- 검증: 요청된 6개 파일의 LSP 오류 없음. `automatic_item_update_page_test.dart`, `common_label_manage_test.dart`, `label_column_edit_test.dart`, `label_column_save_test.dart` 합계 52개 통과. `label_column_edit_dialog_test.dart`는 17개 통과, 기존 드래그/애니메이션 동작 4개 실패로 이번 생성자 인자 보완과 무관하다.
-- 정리: 공용라벨 테이블 리사이징 변경 후 미사용이 된 `_baseWidths` 상수를 제거했다. 전체 진단의 자동품목/FortuneSheet 미사용 선언은 기존 범위 밖 상태로 유지한다.
-- 기능 커밋: `82efe17` (`로케일 지원 목록과 테스트 생성자 오류 수정`). 원격 push 및 배포 빌드는 수행하지 않았다.
-- 완료: 앱 시작 locale/날짜 표시를 OS 설정에 맞추고 공용라벨관리 우측 패널의 초기·최소 폭과 컬럼 리사이징 계약을 수정했다.
-- locale 정책: 앱 시작 시 OS locale로 `Intl.defaultLocale`/날짜 심볼을 초기화하고 Flutter Material/Cupertino localization을 활성화한다. 화면 표시 날짜는 locale skeleton을 사용하고 DB·로그 저장 문자열 형식은 유지한다.
-- 공용라벨관리 정책: 기존 테이블 기본 합계 360에서 10을 뺀 `350.0`을 우측 패널 초기·최소 폭 상수로 사용하며, 실제 테이블 viewport에서 행번호 40과 필수등록 70을 고정하고 키워드/이름에 나머지 폭을 균등 배분한다.
-- 수정 예정: [lib/main.dart](lib/main.dart), locale 초기화 helper, [lib/page_login/login_history_page.dart](lib/page_login/login_history_page.dart), [lib/page_home/common_label_manage.dart](lib/page_home/common_label_manage.dart), 관련 테스트와 [pubspec.yaml](pubspec.yaml).
-- 편집 완료: `lib/core/locale_config.dart`의 `initializeLabelManagerLocale`가 OS locale을 `Intl.defaultLocale`과 날짜 심볼에 적용하며, `lib/main.dart`는 Material/Cupertino localization delegate와 지원 locale을 활성화한다. `lib/page_login/login_history_page.dart`의 표시 포맷은 `DateFormat.yMd()`/`DateFormat.jms()`로 변경했다.
-- 편집 완료: `lib/page_home/common_label_manage.dart`에 우측 패널 초기·최소 폭 350, 행번호 40, 필수등록 70 상수를 추가했다. `commonLabelColumnWidthsForViewport`가 패널 리사이징마다 나머지 폭을 키워드/이름에 균등 배분하고 필수등록 폭을 고정한다.
-- 테스트 추가: `test/locale_config_test.dart`에서 `en_US`/`ko_KR` 기본 locale 및 날짜 형식을 검증하고, `test/common_label_manage_test.dart`에서 350px 초기·최소 폭과 키워드/이름 균등 배분·필수등록 70px 고정을 검증한다.
-- 검증 완료: `flutter pub get` 성공. 수정 Dart 파일 전체 정적 진단 오류 없음. `locale_config_test.dart`와 `common_label_manage_test.dart` 관련 테스트 통과.
-- 커밋 대상: `SESSION_HANDOFF.md`, `lib/main.dart`, `lib/core/locale_config.dart`, `lib/page_login/login_history_page.dart`, `lib/page_home/common_label_manage.dart`, `pubspec.yaml`, `pubspec.lock`, 관련 테스트. 사용자 변경 `lib/core/app.dart`는 제외한다.
-- 기능 커밋: `2ca11e6` (`OS 로케일과 공용라벨 패널 리사이징 적용`). 원격 push 및 배포 빌드는 수행하지 않았다.
-- 완료: 바코드 삽입 다이얼로그와 개체 패널 속성의 값 입력에 형식별 지원 문자 제한을 공통 적용하고 검증했다. 기능 커밋 `916ae00` 완료.
-- 정책: EAN/UPC/ITF는 숫자, Codabar는 ZXing alphabet/guard 문자, Code39/Code93/Code128은 extended ASCII만 입력받고, 길이·체크디지트는 입력 중간 상태를 막지 않는다. 형식 변경 시 현재 값도 같은 규칙으로 정리한다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): `fortuneFilterBarcodeInput`/`FortuneBarcodeInputFormatter`를 추가하고 삽입 값 입력 및 형식 변경에 적용했다.
-- [third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart](third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart): 바코드 데이터 필드에 공용 formatter를 적용하고 형식 변경 시 기존 값을 즉시 정리한다.
-- [third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart](third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart), [third_party/fortune_sheet/test/fortune_object_controller_test.dart](third_party/fortune_sheet/test/fortune_object_controller_test.dart): EAN-13 비지원 문자 차단, ZXing writer별 문자 규칙, 속성 패널 입력/형식 변경 테스트를 추가했다.
-- 검증: 집중 테스트 5개, 바코드 다이얼로그 전체 33개, 개체 컨트롤 전체 49개, 라벨 시트 툴바 전체 147개 통과. 수정 Dart 파일 diagnostics 오류 없음.
-- 완료: 바코드 객체 표시 깨짐, 좁은 개체 패널의 바코드 연결 ID overflow, 패널 리사이즈 시 툴바 `더 보기` 미노출을 수정하고 검증했다. 기능 커밋 `c3877af` 완료.
-- 원인: 바코드 PNG까지 일반 이미지와 동일한 `FilterQuality.medium`으로 확대해 비정수 줌에서 모듈 경계가 보간되고, 연결 ID 드롭다운이 `isExpanded` 없이 선택 항목의 본래 폭을 요구하며, 최신 수동 커밋 `75bf1b8`에서 `_labelSheetZoomToolbarRightInset`과 `toolbarRightInset` 전달이 삭제됐다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): 바코드 객체 bitmap만 `FilterQuality.none`/antiAlias 비활성으로 그리고 일반 이미지는 기존 medium 필터를 유지한다.
-- [third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart](third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart): 연결 ID 드롭다운에 `isExpanded: true`를 적용해 160px 패널에서도 선택 항목을 가용 폭 안에 제한한다.
-- [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 최신 수동 커밋에서 삭제된 124px 줌 툴바 우측 예약 전달을 복원했다.
-- [third_party/fortune_sheet/test/fortune_object_controller_test.dart](third_party/fortune_sheet/test/fortune_object_controller_test.dart), [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 바코드 필터, 좁은 속성 패널, 패널 리사이징 후 더보기 동작 회귀 테스트를 추가/보강했다.
-- 검증: FortuneSheet 개체 컨트롤 전체 48개, 라벨 시트 툴바 전체 147개 통과. 포맷 후 패널 폭/리사이징/더보기 집중 테스트 3개 재통과, 수정 Dart 파일 diagnostics 오류 없음.
-- 완료: 라벨 시트 도킹 개체 패널의 최소 폭과 초기 폭을 상단 상수 `_labelSheetObjectPanelMinWidth`, `_labelSheetObjectPanelInitialWidth`로 정의해 모두 `150.0`으로 통일했다. 기능 커밋 `2f68cdc` 완료.
-- [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 초기 상태, 저장 폭 복원, 도킹 폭 계산, 드래그 최소 폭, 더블클릭 초기화를 두 상수 기준으로 변경했다.
-- [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 기존 폭 저장 테스트가 초기 폭 150, 드래그 최소 폭 150, 확대 폭 저장, 더블클릭 초기화 150을 검증하도록 보강했다.
-- 검증: 포맷 후 개체 패널 폭 집중 테스트 1개 통과, 수정 Dart 파일 2개 diagnostics 오류 없음. 전체 147개 중 145개 통과, 더보기 관련 2개는 범위 밖 사용자 변경인 `toolbarRightInset` 제거로 `More` 클릭이 줌 툴바에 차단되어 실패했다. 해당 사용자 변경은 unstaged로 유지한다.
-- 완료: 라벨 시트 툴바 `더 보기`에서 바코드/선/도형/개체 명령을 원래 툴바 동작으로 연결하고, 더보기에서 연 모든 2차 popup을 시트 우상단에 배치하며 체크 열과 병합 메뉴 아이콘 정렬을 보완했다. 검증 및 기능 커밋 `188b834` 완료.
-- 원인: more popup 항목 클릭이 원래 툴바 버튼 문맥을 잃은 채 `_activateToolbarPopupCommand`로 전달되고, 2차 popup은 화면에서 숨은 원래 버튼 rect를 찾지 못한다. more-origin 상태와 현재 toolbar 항목 기준 dispatcher가 필요하다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): more 항목을 현재 toolbar 명령 유형으로 다시 dispatch하고, 2차 popup의 more-origin 상태와 우상단 가상 anchor를 추가했다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart](third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart): 모든 more-origin 2차 popup의 우상단 anchor, more 고정 체크 열/활성 항목 체크, 병합 메뉴의 라벨 뒤 아이콘 배치를 추가했다.
-- [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 바코드/선/도형/개체 more 동작과 체크/토글/우상단 popup, 체크 열/병합 아이콘 배치 테스트를 추가했다.
-- 완료: 라벨 시트 개체 패널 도킹 시 축소된 시트 툴바에서 가려진 명령을 `더 보기(...)`로 노출하고 팝업으로 실행할 수 있도록 보완했다. 관련 검증 및 기능 커밋 `73c8c5f` 완료.
-- 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 커밋에서 제외했다.
-- 원인: 라벨 시트의 줌 컨트롤이 시트 툴바 우측 위에 겹치지만 FortuneSheet overflow 계산은 전체 폭을 사용해, 우측 끝 `더 보기` 버튼이 줌 컨트롤 아래에 가려지고 pointer 입력도 줌 컨트롤이 가로챘다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_app.dart](third_party/fortune_sheet/lib/src/fortune_sheet_app.dart): 런타임 전용 `toolbarRightInset`을 canvas로 전달한다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): toolbar hit-test와 overflow popup 항목 계산에 우측 예약 폭을 적용한다.
-- [third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart](third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart): toolbar 그리기, semantics, popup anchor/항목 계산에 같은 예약 폭을 적용한다.
-- [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 줌 컨트롤이 sheet toolbar 끝에 있을 때만 124px을 FortuneSheet toolbar 우측에서 예약한다.
-- [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 개체 패널 도킹 상태에서 `더 보기` 버튼이 노출되고 클릭 시 popup이 열리는 회귀 테스트를 추가했다. 기존 fixture의 필수 `useMinColumnCheck: false`도 보완했다.
-- 사용자가 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)의 패널 복원/드래그 최소 폭 일부를 `260→200`, 더블클릭 기본 폭을 `300→200`으로 변경한 상태이며 이 변경은 유지한다.
-- 품목관리에 레거시형 컬럼 헤더 체크박스를 추가했다. 현재 포팅에서도 `주원료`와 동적 컬럼 헤더에서 최소표시 체크/언체크가 가능하고, `BM_RICH_COL_MIN.RICH_MIN_CHECK`로 즉시 저장된다.
-- 공용 `FortuneTable`에 헤더 체크박스 옵션을 추가했고, 품목관리에서는 체크 시 컬럼 폭을 축소하고 해제 시 원래 폭으로 복원한다.
-- 이번 작업 관련 검증과 handoff 갱신은 완료됐고, 남은 것은 관련 파일만 분리 커밋하는 단계다.
-- 현재 작업트리에는 이번 품목관리 헤더 체크박스 작업과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
-
-## 최근 완료 항목
-- 품목관리 `주원료`와 동적 컬럼 헤더에 레거시형 체크박스를 추가했다.
-- `BM_RICH_COL_MIN`의 `RICH_MIN_CHECK`를 현재 Flutter 모델에 로드하도록 일반 컬럼/특수 컬럼 조회를 보강했다.
-- 품목관리 헤더 체크 변경 시 `BM_RICH_COL_MIN`을 즉시 upsert 하도록 저장 경로를 추가했다.
-- `FortuneTable` 헤더가 선택적으로 체크박스를 렌더링할 수 있도록 공용 테이블 컴포넌트를 확장했다.
-- 품목관리 헤더 체크박스 노출과 폭 변경을 위젯 테스트로 추가했다.
-- 자동품목갱신과 저울출력도 홈 상단 검색 바가 보이도록 탭 노출 조건을 확장했다.
-- 공용 `TableSearchResult`를 도입해 품목관리, 자동품목갱신, 저울출력이 같은 검색 결과 계약을 사용하도록 정리했다.
-- 자동품목갱신 페이지 컨트롤러에 검색/검색 reset API를 추가하고, target 테이블의 현재 활성 컬럼 기준으로 다음 일치 행을 선택하도록 연결했다.
-- 저울출력 페이지 컨트롤러에 검색/검색 reset API를 추가하고, 현재 활성 컬럼 기준으로 다음 일치 행을 선택하면서 선택 품목과 포커스를 함께 이동하도록 연결했다.
-- 자동품목갱신/저울출력 검색 동작을 위젯 테스트로 추가했다.
-- 최신 `.tmp/log/app_2026-07-24_17-23-30.log`에서 F1/F2/F3가 모두 `routeInactive routeCurrent=false`로 무시되는 것을 확인했다.
-- HomePageManager의 global F키 핸들러에서 잘못된 route current 차단을 제거했다.
-- 중복 단축키 로그와 이중 처리 경로를 만들던 HomePageManager 최상위 Focus 래퍼를 제거했다.
-- F1/F2/F3/F5가 무시되거나 처리될 때 이유를 추적할 수 있도록 home tab shortcut debug 로그를 추가했다.
-- 같은 output capture owner token으로 preview workbench state가 재생성될 때는 기존 attach를 합법적인 owner 교체로 받아들이도록 `LabelSheetOutputCaptureController` attach 검증을 보정했다.
-- 같은 owner token remount 시 attach 오류가 재발하지 않는 위젯 테스트를 추가했다.
-- 다음 세션에서 바로 복사/붙여넣기할 수 있도록 이 파일 상단에 시작 문구를 추가했다.
-- [SESSION_RULES.md](SESSION_RULES.md)의 `로그 파일에는 비즈니스 로직을 넣지 않는다` 문구를 로그 기록/파싱은 관측과 진단만 담당하고 업무 판단·상태 변경·저장·재시도는 직접 수행하지 않는다는 의미로 구체화했다.
-- 탭메뉴 저울출력 처음 진입시 라벨/품목 로드 직후 `_syncScaleOutputRows()`가 호출되지 않아 테이블 rows가 비어 있던 문제를 수정했다.
-- 라벨 변경 시 저울출력 rows를 즉시 만들지 않고, 저울출력 탭이 실제로 선택될 때만 sync하도록 바꿨다.
-- git history의 `963e22e`, `14ce98b`, `9288f62` 흐름을 근거로 SQL Server 2017 호환 구문 사용 원칙을 상시 규칙으로 승격했다.
-- 저울출력 테이블이 baseline 전체 품목을 기본 표시하도록 수정했고, 발행은 선택 품목 기준으로 정리했다.
-- 저울출력 테이블 우클릭 메뉴를 추가했고, 레거시처럼 `전체내용 다시가져오기`와 비활성 `선택내용 다시가져오기`를 적용했다.
-- 저울출력 로컬 DB를 디버그에서도 작업폴더 밖 지원 디렉터리로 저장하게 바꾸고, 생성 DB 파일은 [.gitignore](.gitignore)로 제외했다.
-- 저울출력 미리보기에서 개체 패널을 숨기고, 줌 툴바를 우하단 command bar에서 중량/가격 영역 상단으로 이동했다.
-
-## 최근 검증
-- 수정된 Dart 3개 파일 formatter 완료, diagnostics 오류 없음.
-- `flutter test test/label_sheet_toolbar_test.dart` 147개 전체 통과.
-- FortuneSheet canvas의 더보기/외부 닫기/병합 focused 테스트 3개 통과.
-- 바코드 삽입 다이얼로그, 선 삽입, 개체 패널 직접 툴바 focused 테스트 각 1개 통과.
-- `flutter test test/label_sheet_toolbar_test.dart --plain-name "toolbar more runs hidden object insertion commands"` 통과.
-- `flutter test test/label_sheet_toolbar_test.dart --plain-name "toolbar popup rows reserve check space and trail merge icons"` 통과.
-- `flutter test third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart --plain-name "toolbar more popup exposes overflowed dropdown items"` 통과.
-- `flutter test test/label_sheet_toolbar_test.dart` 145개 전체 통과.
-- `flutter test test/label_sheet_toolbar_test.dart --plain-name "docked object panel keeps toolbar overflow commands reachable"` 통과.
-- `flutter test third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart --name "toolbar (overflow exposes upstream more aria label|more popup exposes overflowed item aria labels)"` 2개 통과.
-- `flutter test test/fortune_table_test.dart` 통과.
-- `flutter test test/fortune_table_test.dart test/automatic_item_update_page_test.dart test/scale_output_test.dart` 통과.
-- `flutter test test/fortune_table_test.dart` 통과.
-- `flutter test test/label_print_session_test.dart` 통과.
-- `flutter test test/scale_output_test.dart` 통과.
-- `flutter test test/db_scale_connect_info_test.dart` 통과.
-- `lib/home_page_manager.dart` analyzer 오류 없음 확인.
-- 저울출력 관련 수정 파일 analyzer 오류 없음 확인.
-
-## 다음 작업 시작점
-- 라벨 시트 툴바/개체 패널 후속 요청은 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)와 FortuneSheet의 `toolbarRightInset` 전달 경로부터 확인한다.
-- 품목관리 헤더 최소표시 동작 후속 요청은 [lib/page_home/item_manage.dart](lib/page_home/item_manage.dart), [lib/models/column.dart](lib/models/column.dart), [lib/models/column_special.dart](lib/models/column_special.dart), [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)부터 확인한다.
-- 저울출력 후속 요청이 들어오면 [lib/page_home/scale_output_page.dart](lib/page_home/scale_output_page.dart), [lib/home_page_manager.dart](lib/home_page_manager.dart), [lib/models/scale_output.dart](lib/models/scale_output.dart)부터 확인한다.
-- 미리보기/개체 패널/줌 위치 관련 후속 요청은 [lib/widgets/label_output_preview.dart](lib/widgets/label_output_preview.dart)와 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)를 먼저 본다.
-- DB 저장 경로 정책 후속 요청은 [lib/database/db_scale_connect_info.dart](lib/database/db_scale_connect_info.dart)와 [test/db_scale_connect_info_test.dart](test/db_scale_connect_info_test.dart)를 먼저 본다.
+## 다음 시작점
+- workbench의 남은 label file import/export method가 picker, `XFile` bytes, controller apply, mounted/snackbar orchestration만 소유하는지 인접 경로를 감사한다.
+- 순수 format/decode/layout/content/payload/file I/O 정책이 더 남지 않았다면 label file 책임 분리는 완료로 판정하고 다음 대형 workbench 책임으로 이동한다.
 
 ## 주의사항
-- 현재 저장소에는 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있으므로 이후 작업에서도 분리 유지가 필요하다.
-- 과거 상세 완료 로그는 git history와 관련 커밋 메시지로 추적한다.
+- `SESSION_HANDOFF.md`는 stage/commit에서 제외한다.
+- 원격 push와 Windows/installer 배포 파일 생성은 명시 요청 전까지 수행하지 않는다.
+- 범위 밖 사용자 변경이 있으면 유지하고 현재 작업 파일만 stage한다.
