@@ -1,5 +1,14 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 7차 검토
+- 제외 범위: 앞선 6차까지 확정한 정책은 재검토하지 않고 연산 결과 길이, 타입별 연산 노출, 최대 1만 행 성능, 존재하지 않는 transform columnId와 warning/cancel 흐름을 확인했다.
+- 사용자 확정: 품명 100자·일반 컬럼 200자 초과 결과는 가져온 뒤 기존 저장 전 검증에서 차단한다. 날짜·시간·바코드·QR·GS1에도 모든 연산을 유지하고 최종 형식은 저장 전 검증에 맡긴다. 측정된 장애 없이 isolate를 추가하지 않고 현 동기 방식을 유지한다.
+- 검토 결론: 길이·날짜/시간·바코드·GS1 저장 검증은 기존 production 코드와 테스트로 보장된다. transform columnId는 다이얼로그의 현재 컬럼에서만 생성되고 warning/cancel/busy 복구도 정상이라 production/test 코드를 추가하지 않았다.
+- 문서 편집 완료: `doc/item_manager_modify.txt`에 확정한 길이, 타입별 연산, 대량 동기 적용 정책을 추가했다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 51개 통과, 문서와 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
+- stage/commit 대상: `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 6차 검토
 - 제외 범위: 앞선 5차까지 확정한 정책은 재검토하지 않고 숫자 연산 입력과 Excel 사용자 지정 숫자 서식을 확인했다.
 - 사용자 확정: 연산값은 올바른 천 단위 쉼표와 점 소수점을 허용하고 쉼표 소수/잘못된 그룹은 거부한다. 과학 표기는 허용한다. Excel `00000` 숫자 서식은 표시값의 선행 0을 보존한다.
