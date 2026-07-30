@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
-import 'dart:math' show max, min, pi;
+import 'dart:math' show max, min;
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
@@ -9491,7 +9491,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       TextEditingController();
   final FocusNode _labelNameEditFocusNode = FocusNode();
   int? _editingIndex;
-  int? _insertActionIndex;
   bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
   bool _insertingLabel = false;
@@ -9799,17 +9798,11 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   Future<void> _openLabelAddDialog() async {
     if (_hasLabelActionInProgress) return;
-    _startLabelInsertAt(_labels.length, actionIndex: null);
+    _startLabelInsertAt(_labels.length);
     if (!_insertingLabel) return;
     final result = await _showLabelNameDialog(title: '라벨 추가');
     if (!mounted) return;
     if (result == null) {
-      _cancelLabelNameEdit();
-      return;
-    }
-    final currentUseScale = label.labelSizeSetup?.useScale ?? false;
-    if (result.name == label.labelSizeName.trim() &&
-        result.useScale == currentUseScale) {
       _cancelLabelNameEdit();
       return;
     }
@@ -9830,6 +9823,12 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     );
     if (!mounted) return;
     if (result == null) {
+      _cancelLabelNameEdit();
+      return;
+    }
+    final currentUseScale = label.labelSizeSetup?.useScale ?? false;
+    if (result.name == label.labelSizeName.trim() &&
+        result.useScale == currentUseScale) {
       _cancelLabelNameEdit();
       return;
     }
@@ -9901,16 +9900,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     return fallbackIndex >= 0 ? '${fallbackIndex + 1}' : '${index + 1}';
   }
 
-  void _toggleLabelInsert(LabelSize label, int index) {
-    if (_insertingLabel && _insertActionIndex == index) {
-      debugLog('labelInsert cancelByToggle index=$index');
-      _cancelLabelNameEdit();
-      return;
-    }
-    _startLabelInsertAt(index + 1, actionIndex: index);
-  }
-
-  void _startLabelInsertAt(int index, {required int? actionIndex}) {
+  void _startLabelInsertAt(int index) {
     if (_editingIndex != null || _orderEditMode) {
       debugLog(
         'labelInsert blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode inserting=$_insertingLabel',
@@ -9928,7 +9918,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     setState(() {
       _insertingLabel = true;
       _editingIndex = insertIndex;
-      _insertActionIndex = actionIndex;
       _labelUseScaleEditValue = false;
       _labels.insert(
         insertIndex,
@@ -10000,32 +9989,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       }
       _insertingLabel = false;
       _submittingLabelNameEdit = false;
-      _insertActionIndex = null;
       _editingIndex = null;
       _labelUseScaleEditValue = false;
       _labelNameEditController.clear();
     });
-  }
-
-  Widget _buildLabelInlineTrailing(
-    BuildContext context,
-    LabelSize label,
-    int index,
-  ) {
-    return _LabelScaleInlineControl(
-      value: _labelUseScaleEditValue,
-      onChanged: (value) => _handleLabelUseScaleEditChanged(value ?? false),
-    );
-  }
-
-  void _handleLabelUseScaleEditChanged(bool value) {
-    if (_editingIndex == null || !mounted) {
-      return;
-    }
-    debugLog(
-      'labelNameEdit useScaleChanged index=$_editingIndex value=$value canSubmit=$_canSubmitLabelNameEdit',
-    );
-    setState(() => _labelUseScaleEditValue = value);
   }
 
   void _handleLabelNameEditChanged() {
@@ -10209,7 +10176,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
             _labels[insertIndex] = value;
             _originalLabels = List<LabelSize>.from(_labels);
             _insertingLabel = false;
-            _insertActionIndex = null;
             _editingIndex = null;
             _labelUseScaleEditValue = false;
             _labelNameEditController.clear();
@@ -10762,171 +10728,6 @@ class _OrderMoveButton extends StatelessWidget {
   }
 }
 
-class _LabelScaleInlineControl extends StatelessWidget {
-  const _LabelScaleInlineControl({
-    required this.value,
-    required this.onChanged,
-  });
-
-  final bool value;
-  final ValueChanged<bool?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    const controlSize = 18.0;
-    const checkboxSlotSize = 14.0;
-    const checkboxScale = 0.78;
-    return Tooltip(
-      message: '전자저울 사용',
-      child: Padding(
-        padding: const EdgeInsets.only(left: 2, right: 3),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F4F7),
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 3,
-                offset: Offset(0, 1),
-              ),
-              BoxShadow(
-                color: Color(0xCCFFFFFF),
-                blurRadius: 1,
-                offset: Offset(0, -1),
-              ),
-            ],
-          ),
-          child: SizedBox(
-            height: 20,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 2),
-                  child: SizedBox.square(
-                    dimension: controlSize,
-                    child: Center(child: _ScaleIcon(size: controlSize)),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                SizedBox(
-                  width: checkboxSlotSize,
-                  height: checkboxSlotSize,
-                  child: Transform.scale(
-                    scale: checkboxScale,
-                    child: Checkbox(
-                      value: value,
-                      onChanged: onChanged,
-                      activeColor: const Color(0xFF0E2F66),
-                      checkColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF0E2F66)),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 3),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScaleIcon extends StatelessWidget {
-  const _ScaleIcon({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(size: Size.square(size), painter: _ScaleIconPainter());
-  }
-}
-
-class _ScaleIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF0E2F66)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final detailPaint = Paint()
-      ..color = const Color(0xFF0E2F66)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final fill = Paint()
-      ..color = const Color(0x220E2F66)
-      ..style = PaintingStyle.fill;
-
-    final platform = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.24,
-        size.height * 0.16,
-        size.width * 0.52,
-        size.height * 0.16,
-      ),
-      Radius.circular(size.width * 0.04),
-    );
-    final baseRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.13,
-        size.height * 0.32,
-        size.width * 0.74,
-        size.height * 0.46,
-      ),
-      Radius.circular(size.width * 0.1),
-    );
-    canvas.drawRRect(platform, fill);
-    canvas.drawRRect(platform, paint);
-    canvas.drawRRect(baseRect, fill);
-    canvas.drawRRect(baseRect, paint);
-
-    final dialCenter = Offset(size.width * 0.5, size.height * 0.58);
-    canvas.drawArc(
-      Rect.fromCenter(
-        center: dialCenter,
-        width: size.width * 0.42,
-        height: size.height * 0.3,
-      ),
-      pi,
-      pi,
-      false,
-      detailPaint,
-    );
-    canvas.drawLine(
-      dialCenter,
-      Offset(size.width * 0.61, size.height * 0.48),
-      detailPaint,
-    );
-    canvas.drawCircle(
-      dialCenter,
-      1.1,
-      Paint()..color = const Color(0xFF0E2F66),
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.28, size.height * 0.82),
-      Offset(size.width * 0.72, size.height * 0.82),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.28, size.height * 0.88),
-      Offset(size.width * 0.72, size.height * 0.88),
-      detailPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScaleIconPainter oldDelegate) => false;
-}
-
 class _BrandSettingsDialog extends StatefulWidget {
   const _BrandSettingsDialog({
     required this.brands,
@@ -10965,7 +10766,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       TextEditingController();
   final FocusNode _brandNameEditFocusNode = FocusNode();
   int? _editingIndex;
-  int? _insertActionIndex;
   bool _insertingBrand = false;
   bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
@@ -11115,15 +10915,11 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   Future<void> _openBrandAddDialog() async {
     if (_submissionGate.submitting || _orderEditMode) return;
-    _startBrandInsertAt(_brands.length, actionIndex: null);
+    _startBrandInsertAt(_brands.length);
     if (!_insertingBrand) return;
     final result = await _showBrandNameDialog(title: '브랜드 추가');
     if (!mounted) return;
     if (result == null) {
-      _cancelBrandNameEdit();
-      return;
-    }
-    if (result.name == brand.brandName.trim()) {
       _cancelBrandNameEdit();
       return;
     }
@@ -11142,6 +10938,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     );
     if (!mounted) return;
     if (result == null) {
+      _cancelBrandNameEdit();
+      return;
+    }
+    if (result.name == brand.brandName.trim()) {
       _cancelBrandNameEdit();
       return;
     }
@@ -11416,16 +11216,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     widget.onBrandSelected(brand);
   }
 
-  void _toggleBrandInsert(Brand brand, int index) {
-    if (_insertingBrand && _insertActionIndex == index) {
-      debugLog('brandInsert cancelByToggle index=$index');
-      _cancelBrandNameEdit();
-      return;
-    }
-    _startBrandInsertAt(index + 1, actionIndex: index);
-  }
-
-  void _startBrandInsertAt(int index, {required int? actionIndex}) {
+  void _startBrandInsertAt(int index) {
     if (_editingIndex != null) {
       debugLog(
         'brandInsert blocked editingIndex=$_editingIndex inserting=$_insertingBrand',
@@ -11442,7 +11233,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     setState(() {
       _insertingBrand = true;
       _editingIndex = insertIndex;
-      _insertActionIndex = actionIndex;
       _brands.insert(
         insertIndex,
         Brand(brandId: 0, customerId: customerId, brandName: ''),
@@ -11513,7 +11303,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         _brands.removeAt(_editingIndex!);
       }
       _insertingBrand = false;
-      _insertActionIndex = null;
       _editingIndex = null;
       _brandNameEditController.clear();
     });
@@ -11610,7 +11399,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           setState(() {
             _brands[insertIndex] = value;
             _insertingBrand = false;
-            _insertActionIndex = null;
             _editingIndex = null;
             _brandNameEditController.clear();
           });
