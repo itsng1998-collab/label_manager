@@ -10,6 +10,7 @@
 - 추가 테스트: 공백 포함 컬럼명의 export→import roundtrip, 숨김 데이터 행 포함, 빈 품목명 행 draft 유지를 고정했다.
 - 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 48개 통과. 변경 production/test `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공.
 - stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `a383f5a 엑셀 컬럼명 공백 매핑 일관성 보완`.
 
 ## 완료: Excel 가져오기 신규 코드 4차 검토
 - 제외 범위: 앞선 3차 검토까지 확정한 정책은 재검토하지 않고 동일 표시명 컬럼, Mid 문자 단위, 숫자 정밀도, 경고 순서와 transform 대상 타입을 확인했다.
