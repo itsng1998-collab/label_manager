@@ -9,7 +9,7 @@
 - 테스트 추가: 실제 데이터는 2행 하나지만 dimension은 1,048,576행인 workbook이 한 행만 가져오고 원본 행 번호 2를 유지하는 계약을 고정했다.
 - 문서 편집 완료: `doc/item_manager_modify.txt`에 과대 dimension 시 실제 매핑 셀 행만 검사하는 정책을 반영했다.
 - 검증 완료: 과대 dimension 집중 테스트 1개 및 Excel parser/연산·dialog·draft focused 테스트 56개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
-- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 기능 커밋: `e5f00d4 엑셀 실제 데이터 행만 순회`.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 
