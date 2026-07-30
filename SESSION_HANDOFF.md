@@ -8,6 +8,7 @@
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 51개 통과. 변경 production/test 4개 파일 `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공.
 - stage/commit 대상: Excel application/dialog production 2개, 관련 테스트 2개, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `66d17f1 엑셀 연산 숫자 형식과 선행 0 처리 보완`.
 
 ## 완료: Excel 가져오기 신규 코드 5차 검토
 - 제외 범위: 앞선 4차까지 확정한 정책은 재검토하지 않고 컬럼명 공백, 수식 cache, 숨김 행, 빈 품목명 행과 숫자 표시 형식을 확인했다.
