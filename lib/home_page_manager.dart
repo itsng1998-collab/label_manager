@@ -2294,12 +2294,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         columns: columns,
         emptyElementPayload: _itemDraftEmptyElementPayload,
       );
-      final transforms = await showItemManagerImportTransformDialog(
+      final selection = await showItemManagerImportTransformDialog(
         context,
         result: parsedResult,
         columns: columns,
       );
-      if (transforms == null || !mounted) {
+      if (selection == null || !mounted) {
         ItemManagerDebugLog.event(
           'xlsxImport',
           'transformCancelled',
@@ -2307,11 +2307,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         );
         return;
       }
-      final result = itemManagerApplyImportTransforms(
-        parsedResult,
-        columns: columns,
-        transforms: transforms,
-      );
+      final transforms = selection.transforms;
+      final result = selection.result;
       ItemManagerDebugLog.event(
         'xlsxImport',
         'parsed',

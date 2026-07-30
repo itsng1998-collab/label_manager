@@ -2,11 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 
-Future<ItemManagerImportTransforms?> showItemManagerImportTransformDialog(
+class ItemManagerImportTransformSelection {
+  const ItemManagerImportTransformSelection({
+    required this.transforms,
+    required this.result,
+  });
+
+  final ItemManagerImportTransforms transforms;
+  final ItemManagerXlsxImportResult result;
+}
+
+Future<ItemManagerImportTransformSelection?>
+showItemManagerImportTransformDialog(
   BuildContext context, {
   required ItemManagerXlsxImportResult result,
   required List<ItemManagerXlsxColumn> columns,
-}) => showDialog<ItemManagerImportTransforms>(
+}) => showDialog<ItemManagerImportTransformSelection>(
   context: context,
   barrierDismissible: false,
   builder: (context) => ItemManagerImportTransformDialog(
@@ -35,6 +46,7 @@ class _ItemManagerImportTransformDialogState
   final _formKey = GlobalKey<FormState>();
   late final List<_TransformTarget> _targets;
   final Map<String, _TransformDraft> _drafts = {};
+  String? _applyError;
 
   @override
   void initState() {
@@ -70,7 +82,19 @@ class _ItemManagerImportTransformDialogState
   }
 
   void _apply() {
-    if (_formKey.currentState?.validate() != true) return;
+    final formValid = _formKey.currentState?.validate() == true;
+    String? draftError;
+    for (final target in _targets) {
+      final message = _drafts[target.key]!.validationMessage;
+      if (message != null) {
+        draftError = '${target.label}: $message';
+        break;
+      }
+    }
+    if (!formValid || draftError != null) {
+      setState(() => _applyError = draftError);
+      return;
+    }
     ItemManagerImportTransform? itemName;
     final columns = <int, ItemManagerImportTransform>{};
     for (final target in _targets) {
@@ -82,12 +106,25 @@ class _ItemManagerImportTransformDialogState
         columns[target.columnId!] = transform;
       }
     }
-    Navigator.of(context).pop(
-      ItemManagerImportTransforms(
-        itemName: itemName,
-        columns: Map.unmodifiable(columns),
-      ),
+    final transforms = ItemManagerImportTransforms(
+      itemName: itemName,
+      columns: Map.unmodifiable(columns),
     );
+    try {
+      final result = itemManagerApplyImportTransforms(
+        widget.result,
+        columns: widget.columns,
+        transforms: transforms,
+      );
+      Navigator.of(context).pop(
+        ItemManagerImportTransformSelection(
+          transforms: transforms,
+          result: result,
+        ),
+      );
+    } on FormatException catch (error) {
+      setState(() => _applyError = error.message);
+    }
   }
 
   @override
@@ -102,6 +139,14 @@ class _ItemManagerImportTransformDialogState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('가져온 값을 품목관리에 적용하기 전에 컬럼별 연산을 설정합니다.'),
+            if (_applyError case final error?) ...[
+              const SizedBox(height: 8),
+              Text(
+                error,
+                key: const Key('item-import-transform-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             const SizedBox(height: 12),
             const _TransformHeader(),
             const Divider(height: 1),
@@ -319,6 +364,28 @@ class _TransformDraft {
   String value = '';
   int? decimalPlaces = 2;
   int? position = 1;
+
+  String? get validationMessage {
+    if (operation == ItemManagerImportTransformOperation.none) return null;
+    if (value.isEmpty) return '설정값을 입력하세요.';
+    if (_isNumericOperation(operation)) {
+      final parsed = itemManagerTryParseImportTransformNumber(value);
+      if (parsed == null) return '천 단위 쉼표와 소수점(.)을 확인하세요.';
+      if (operation == ItemManagerImportTransformOperation.divide &&
+          parsed == 0) {
+        return '0으로 나눌 수 없습니다.';
+      }
+    }
+    if (operation == ItemManagerImportTransformOperation.divide &&
+        (decimalPlaces == null || decimalPlaces! < 0 || decimalPlaces! > 12)) {
+      return '소수 자리는 0~12로 입력하세요.';
+    }
+    if (operation == ItemManagerImportTransformOperation.replaceAfter &&
+        (position == null || position! < 0)) {
+      return '왼쪽 자리는 0 이상으로 입력하세요.';
+    }
+    return null;
+  }
 
   ItemManagerImportTransform? toTransform() {
     if (operation == ItemManagerImportTransformOperation.none) return null;

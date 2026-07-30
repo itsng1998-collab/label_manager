@@ -1,5 +1,17 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 8차 검토
+- 사용자 확정: 실제 전체 행 연산 실패 시 다이얼로그를 유지하고 오류를 표시한다. 연산 종류를 바꿔도 입력값을 유지하며, lazy list의 화면 밖 설정을 포함한 모든 설정을 검증한다.
+- presentation 편집 완료: transform dialog가 모든 draft를 수동 검증하고 실제 전체 행 변환까지 한 번 수행한다. 실패 시 inline 오류를 표시하고 유지하며, 성공 시 설정과 변환 완료 결과를 함께 반환한다.
+- integration 편집 완료: `_importItemManagerXlsx()`는 dialog의 변환 완료 결과를 그대로 사용해 같은 연산을 두 번 실행하지 않는다.
+- 테스트 진행: dialog 반환값이 변환 완료 데이터를 포함하는지 보강하고 뒤 행 숫자 변환 실패 시 `Excel 3행 가격 연산 실패`를 표시하며 dialog가 유지되는 회귀 테스트를 추가했다.
+- 테스트 완료: 연산 종류 변경 후 설정값 유지와 화면 밖 invalid draft 전체 검증을 추가했다.
+- 문서 편집 완료: `doc/item_manager_modify.txt`에 연산 변경 값 유지, 전체 설정·전체 행 검증, 실패 시 dialog 유지, 성공 결과 단일 적용 정책을 반영했다.
+- 검증 완료: dialog focused 테스트 8개 및 Excel parser/연산·dialog·draft focused 테스트 54개 통과. 변경 Dart 3개 파일 `flutter analyze` 성공, 변경 코드·테스트·문서·`pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
+- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, `lib/home_page_manager.dart`, `test/item_manager_import_transform_dialog_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 7차 검토
 - 제외 범위: 앞선 6차까지 확정한 정책은 재검토하지 않고 연산 결과 길이, 타입별 연산 노출, 최대 1만 행 성능, 존재하지 않는 transform columnId와 warning/cancel 흐름을 확인했다.
 - 사용자 확정: 품명 100자·일반 컬럼 200자 초과 결과는 가져온 뒤 기존 저장 전 검증에서 차단한다. 날짜·시간·바코드·QR·GS1에도 모든 연산을 유지하고 최종 형식은 저장 전 검증에 맡긴다. 측정된 장애 없이 isolate를 추가하지 않고 현 동기 방식을 유지한다.
