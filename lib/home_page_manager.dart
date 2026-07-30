@@ -4760,6 +4760,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
     }
     if (mounted) setState(() {});
+    if (_selectedTabValue() == 'items') {
+      _showItemPreviewWindow();
+    }
   }
 
   Future<void> _handleItemPreviewCloseRequested() async {
@@ -7903,12 +7906,26 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     final itemChanged = oldWidget.rowIdentity != widget.rowIdentity;
     final labelSizeChanged =
         oldWidget.labelSize?.labelSizeId != widget.labelSize?.labelSizeId;
-    if (itemChanged || labelSizeChanged) {
-      _elementForm = _itemElementFormStateFor(widget.item, widget.labelSize);
-      _elementText = _elementForm.text;
+    final elementChanged =
+        oldWidget.item.item.element != widget.item.item.element ||
+        oldWidget.item.item.elementRTF != widget.item.item.elementRTF;
+    var elementFormChanged = false;
+    if (itemChanged || labelSizeChanged || elementChanged) {
+      final nextElementForm = _itemElementFormStateFor(
+        widget.item,
+        widget.labelSize,
+      );
+      if (!_itemElementWorkbookContentEquals(
+        _elementForm.workbook,
+        nextElementForm.workbook,
+      )) {
+        _elementForm = nextElementForm;
+        _elementText = nextElementForm.text;
+        elementFormChanged = true;
+      }
     }
     _replaceTabsPreservingSelection();
-    if (itemChanged || labelSizeChanged) {
+    if (itemChanged || labelSizeChanged || elementFormChanged) {
       _startElementRtfConversionIfNeeded();
     }
   }

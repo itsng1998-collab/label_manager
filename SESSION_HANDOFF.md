@@ -1,5 +1,18 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목 주원료 표-플로팅 시트 양방향 동기화
+- 표→플로팅 원인 1: `_applyItemElementDraft()`가 `_selectedItemOfMarket`만 갱신하고 열린 `PreviewFloatingWindow` child를 다시 설정하지 않는다.
+- 표→플로팅 원인 2: `_ItemPreviewPanel.didUpdateWidget()`이 같은 `rowIdentity`의 element text/payload 변경을 무시한다.
+- 반대 방향 확인: 플로팅 시트 `onChange`는 `_commitItemElementDraft()`를 거쳐 draft controller를 갱신하므로 ItemManage 표는 listener rebuild로 반영된다.
+- 수정 예정: element commit 후 열린 품목 preview를 갱신하고, panel이 같은 행의 외부 element 변경을 현재 local workbook과 다를 때만 반영하도록 한다. 양방향 widget 회귀를 추가한다.
+- 재현 완료: 같은 `rowIdentity`에 변경된 text/payload를 전달해도 FortuneSheet workbook은 기존 `원재료`를 유지해 focused 테스트가 수정 전 실패했다.
+- 편집 완료(`home_page_manager.dart`): element draft 적용 후 품목 탭의 열린 preview child를 갱신한다. panel은 같은 행의 element text/payload 변경도 감지하되 현재 local workbook과 내용이 다를 때만 form을 교체해 시트 자체 commit의 되돌림을 방지한다.
+- 테스트 추가: 표에서 같은 행의 text/payload가 바뀌면 preview workbook이 갱신되는 경로와, 시트 변경 commit을 부모 item이 다시 전달해도 local workbook이 유지되는 반대 경로를 검증한다.
+- focused 검증: 표→preview, 시트→parent echo, 신규 표 주원료→draft plain/payload 3개 경로 통과.
+- 전체 검증 실행 예정: `flutter test test/label_sheet_toolbar_test.dart`, `flutter test test/fortune_table_test.dart`, `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart test/fortune_table_test.dart`.
+- 최종 검증: `label_sheet_toolbar_test.dart` 166건, `fortune_table_test.dart` 61건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건.
+- stage 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 품목 인라인 editor 연속 입력 선택 오동작 수정
 - 현상: 신규 품목 컬럼 editor에서 입력 내용이 계속 선택되어 다음 키가 이전 입력을 대체하고 최종 문자만 남는다.
 - 로컬 가설: 기존 테스트의 `enterText()`는 전체 값을 직접 설정해 실제 키 입력 중 selection 변화를 검증하지 못했다. 실제 키 이벤트 연속 입력으로 controller text와 collapsed selection 계약을 재현한다.

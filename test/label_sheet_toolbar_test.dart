@@ -1123,6 +1123,122 @@ void main() {
     );
   });
 
+  testWidgets('item element preview syncs an external same-row update', (
+    tester,
+  ) async {
+    var item = _testItemOfMarket(itemId: 0, itemName: '신규 품목');
+    late StateSetter updateHost;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return debugItemPreviewPanelForTesting(
+                item: item,
+                rowIdentity: 'draft:sync',
+                labelSize: _testLabelSizeWithFormData(''),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final changedWorkbook = debugItemElementWorkbookForOutputTesting(
+      _testItemOfMarket(
+        itemId: 0,
+        element: '표에서 변경',
+      ),
+      _testLabelSizeWithFormData(''),
+    );
+    item = item.copyWith(
+      item: item.item.copyWith(
+        element: '표에서 변경',
+        elementRTF: labelSheetEncodeWorkbookSave(changedWorkbook),
+      ),
+    );
+    updateHost(() {});
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    expect(
+      sheetApp.workbook!.sheets.single.cells.values.single.renderedText,
+      '표에서 변경',
+    );
+  });
+
+  testWidgets('item element preview keeps a sheet edit after parent echo', (
+    tester,
+  ) async {
+    var item = _testItemOfMarket(itemId: 0, itemName: '신규 품목');
+    late StateSetter updateHost;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return debugItemPreviewPanelForTesting(
+                item: item,
+                rowIdentity: 'draft:echo',
+                labelSize: _testLabelSizeWithFormData(''),
+                onElementCommitted: (_, plain, payload) async {
+                  item = item.copyWith(
+                    item: item.item.copyWith(
+                      element: plain,
+                      elementRTF: payload,
+                    ),
+                  );
+                  updateHost(() {});
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    var sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'item_element',
+            name: '주원료 및 함량',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '시트에서 변경',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+    sheetApp.onOp!(const [
+      {'type': 'test'},
+    ]);
+    await tester.pump();
+    await tester.pump();
+
+    expect(item.item.element, '시트에서 변경');
+    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    expect(
+      sheetApp.workbook!.sheets.single.cells.values.single.renderedText,
+      '시트에서 변경',
+    );
+  });
+
   testWidgets('item element initial workbook sync does not dirty draft', (
     tester,
   ) async {
