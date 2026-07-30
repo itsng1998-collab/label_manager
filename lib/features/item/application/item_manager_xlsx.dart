@@ -405,7 +405,11 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
   }
 
   final rows = <ItemManagerImportedRow>[];
-  for (var rowIndex = 1; rowIndex < rowCount; rowIndex += 1) {
+  final dataRowIndexes = {
+    for (final coord in context.cellMetadata.keys)
+      if (coord.row > 0 && mappedHeaders.containsKey(coord.column)) coord.row,
+  }.toList()..sort();
+  for (final rowIndex in dataRowIndexes) {
     final values = <int, String>{
       for (final columnIndex in mappedHeaders.keys)
         columnIndex: _cellDisplayText(context, rowIndex, columnIndex),

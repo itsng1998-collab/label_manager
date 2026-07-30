@@ -308,6 +308,25 @@ void main() {
     expect(importBoolean('0'), 'FALSE');
   });
 
+  test('ignores an oversized worksheet dimension when reading data rows', () {
+    final result = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(dimensionEndRow: 1048576),
+      columns: const [
+        ItemManagerXlsxColumn(
+          columnId: 7,
+          name: '코드',
+          editable: true,
+          typeCode: TColumnType.TYPE_BASE,
+        ),
+      ],
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    expect(result.rows, hasLength(1));
+    expect(result.rows.single.itemName, '딸기잼');
+    expect(result.rows.single.excelRowNumber, 2);
+  });
+
   test('rejects a first worksheet without the item header', () {
     expect(
       () => itemManagerImportXlsxBytes(
@@ -554,6 +573,7 @@ Uint8List _itemWorkbookBytes({
   bool codeQuotePrefix = false,
   bool codeNumericMask = false,
   int dataRowNumber = 2,
+  int? dimensionEndRow,
   bool dataRowHidden = false,
 }) {
   final archive = Archive();
@@ -591,7 +611,7 @@ Uint8List _itemWorkbookBytes({
   }
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <dimension ref="A1:G${dataRowNumber + 1}"/>
+  <dimension ref="A1:G${dimensionEndRow ?? dataRowNumber + 1}"/>
   <cols><col min="2" max="2" width="14" customWidth="1"/></cols>
   <sheetData>
     <row r="1"><c r="A1" t="inlineStr"><is><t>$itemHeader</t></is></c><c r="B1" t="inlineStr"><is><t>주원료</t></is></c><c r="C1" t="inlineStr"><is><t>코드</t></is></c><c r="D1" t="inlineStr"><is><t>$dateHeader</t></is></c><c r="E1" t="inlineStr"><is><t>이미지</t></is></c><c r="G1" t="inlineStr"><is><t>품목</t></is></c></row>

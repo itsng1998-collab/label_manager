@@ -1,5 +1,18 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 12차 검토
+- 앞선 11차까지 확정한 정책은 재검토하지 않고 XLSX 데이터 행 탐색과 worksheet dimension 경계를 확인한다.
+- 검토 결론: 과소 dimension은 공용 parser가 실제 row/cell 좌표로 보정해 행 누락이 없다. 빈 품목명 행과 cache 없는 수식은 기존 확정 정책대로 유지한다.
+- 사용자 확정: worksheet dimension이 실제 데이터보다 큰 경우 품목/주원료/현재 컬럼에 실제 셀이 존재하는 행만 순회한다.
+- 확인된 문제: `sheet.rowCount`가 stale 과대 dimension을 포함하므로 실제 데이터가 적어도 최대 1,048,575개 빈 행을 순회할 수 있다.
+- application 편집 완료: 원본 cell metadata에서 매핑된 컬럼의 실제 행 좌표만 정렬해 순회한다. 빈 값 skip, 원본 Excel 행 번호, 최대 행 수 계약은 유지한다.
+- 테스트 추가: 실제 데이터는 2행 하나지만 dimension은 1,048,576행인 workbook이 한 행만 가져오고 원본 행 번호 2를 유지하는 계약을 고정했다.
+- 문서 편집 완료: `doc/item_manager_modify.txt`에 과대 dimension 시 실제 매핑 셀 행만 검사하는 정책을 반영했다.
+- 검증 완료: 과대 dimension 집중 테스트 1개 및 Excel parser/연산·dialog·draft focused 테스트 56개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
+- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 11차 검토
 - 앞선 10차까지 확정한 정책은 재검토하지 않고 XLSX parser의 실제 셀 타입 해석 경계를 확인한다.
 - 사용자 확정: Excel Boolean 셀은 내부 raw 값 `1/0`이 아니라 Excel 표시값 `TRUE/FALSE`로 가져온다.
