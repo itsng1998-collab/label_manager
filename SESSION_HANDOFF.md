@@ -9,6 +9,7 @@
 - 검증 완료: `item_manager_xlsx_test.dart`, `item_manager_import_transform_dialog_test.dart` focused 테스트 12개 통과. 변경 production/test 4개 파일 `flutter analyze` 성공, diagnostics 0건, `git diff --check` 성공.
 - 검토 결론: import 취소/경고/busy 해제, 숫자 오류·0 나눗셈·행/컬럼 오류 표시는 문제없어 유지했다. nullable 폼 값은 입력 삭제 중 상태 표현에 필요하고, `editable=false` 컬럼 제외는 기존 import 계약을 바꾸므로 추가 보완하지 않았다.
 - stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, 관련 테스트 2개, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `afc4454 엑셀 가져오기 연산 의미와 샘플 표시 보완`.
 
 ## 완료: 앱 버전 1.0.1 지정
 - 사용자 요청에 따라 `pubspec.yaml` 버전을 `1.0.2`에서 `1.0.1`로 변경한다. 명시 버전 요청이므로 자동 PATCH 증가를 적용하지 않는다.
