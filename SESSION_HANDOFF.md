@@ -11,6 +11,7 @@
 - 최종 검증: 관련 테스트 17개 통과, 변경 Dart 2개 analyzer `No issues found` (1.1초), diagnostics 0건. `git diff --check` 내용 오류 없음(LF→CRLF 정책 경고만 출력).
 - 완료 결과: capability metadata 검사와 실제 조회/저장/레거시 SQL의 object 이름 해석을 일치시켜 기본 schema의 기존 테이블을 `dbo` 누락으로 오탐하지 않는다. DB schema와 데이터는 변경하지 않았다.
 - stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 기능 커밋: `0ab01fb` (`라벨 항목 저장 스키마 판정 수정`).
 
 ## 완료: 날짜 타입 사용자 정의 형식 및 출력 반영
 - 원인 1: `DateManager`가 다이얼로그 preview에서 대문자 단일 토큰을 `replaceAll`할 뿐 소문자/연속 토큰 폭을 해석하지 않는다.
