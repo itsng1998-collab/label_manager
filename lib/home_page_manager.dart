@@ -2179,10 +2179,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         },
       );
       final reloaded = await _reloadItemDraftFromDatabase(
-        selectedItemId: execution.selectedItemId,
-        fallbackIndex: execution.selectedRowIndex < 0
-            ? null
-            : execution.selectedRowIndex,
+        keepInitialFirstSelection: true,
       );
       if (!reloaded) {
         _disposeItemDraftController();
@@ -2623,6 +2620,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<bool> _reloadItemDraftFromDatabase({
     int? selectedItemId,
     int? fallbackIndex,
+    bool keepInitialFirstSelection = false,
   }) async {
     final trace = ItemManagerDebugLog.nextTrace('reload');
     final labelSize = _currentLabelSize;
@@ -2638,12 +2636,25 @@ class _HomePageManagerState extends State<HomePageManager> {
         'labelSizeId': labelSize.labelSizeId,
         'selectedItemId': selectedItemId,
         'fallbackIndex': fallbackIndex,
+        'keepInitialFirstSelection': keepInitialFirstSelection,
       },
     );
     final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
     if (!loaded) {
       ItemManagerDebugLog.event('reload', 'loadFailed', trace: trace);
       return false;
+    }
+    if (keepInitialFirstSelection) {
+      ItemManagerDebugLog.event(
+        'reload',
+        'completed',
+        trace: trace,
+        fields: {
+          'restoredItemId': _selectedItemOfMarket?.item.itemId,
+          'index': _selectedItemIndex,
+        },
+      );
+      return true;
     }
     final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
     final index = resolveItemManagerReloadSelectionIndex(

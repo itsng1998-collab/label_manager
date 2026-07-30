@@ -195,6 +195,7 @@ class _ItemManageState extends State<ItemManage> {
     _selectionController.addListener(_handleSelectionChanged);
     _editingController.addListener(_handleEditingStateChanged);
     widget.draftController?.addListener(_handleDraftChanged);
+    _projectDraftSelection();
     _attachController();
   }
 
@@ -207,6 +208,7 @@ class _ItemManageState extends State<ItemManage> {
       _publishCheckedItemIds.clear();
       _publishCheckboxController.clearColumn(_publishColumnId);
       _notifyPublishCheckedItemIdsChanged();
+      _projectDraftSelection();
     }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?._detach(this);
@@ -241,17 +243,7 @@ class _ItemManageState extends State<ItemManage> {
       if (_publishCheckedItemIds.length != checkedCount) {
         _notifyPublishCheckedItemIdsChanged();
       }
-      final indexes = <int>[];
-      for (var index = 0; index < controller.rows.length; index += 1) {
-        if (controller.selectedRowKeys.contains(
-          controller.rows[index].rowKey,
-        )) {
-          indexes.add(index);
-        }
-      }
-      _projectingSelection = true;
-      _selectionController.setSelectedRows(indexes);
-      _projectingSelection = false;
+      final indexes = _projectDraftSelection();
       if (controller.focusRequestId != _lastFocusRequestId &&
           indexes.isNotEmpty) {
         _lastFocusRequestId = controller.focusRequestId;
@@ -268,6 +260,23 @@ class _ItemManageState extends State<ItemManage> {
       _projectPublishChecks();
     }
     if (mounted) setState(() {});
+  }
+
+  List<int> _projectDraftSelection() {
+    final controller = widget.draftController;
+    if (controller == null) return const [];
+    final rows = controller.rows;
+    final selectedRowKeys = controller.selectedRowKeys;
+    final indexes = <int>[];
+    for (var index = 0; index < rows.length; index += 1) {
+      if (selectedRowKeys.contains(rows[index].rowKey)) {
+        indexes.add(index);
+      }
+    }
+    _projectingSelection = true;
+    _selectionController.setSelectedRows(indexes);
+    _projectingSelection = false;
+    return indexes;
   }
 
   void _handlePublishChecksChanged() {

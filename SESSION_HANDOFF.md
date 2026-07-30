@@ -1,5 +1,20 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목관리 조회 렌더 완료 후 첫 행 자동 선택
+- 원인: 초기 session load는 draft 첫 행을 선택하지만 `ItemManage.initState()`가 해당 선택을 `FortuneTableSelectionController`에 투영하지 않아 첫 렌더의 선택 강조가 누락될 수 있다.
+- 저장 재조회는 초기 load가 첫 행을 선택하고 render-ready까지 기다린 뒤, 저장 전 행을 다시 복원하고 tabs를 재생성해 첫 행 선택 요구와 충돌한다.
+- 수정 예정: ItemManage 생성/새 draft 연결 시 draft 선택을 즉시 table selection에 투영한다. 저장 재조회는 초기 load의 첫 행 선택과 render-ready 결과를 유지한다. 변경 취소/품목 순서 변경의 기존 선택 복원은 유지한다.
+- stage 예정: `lib/features/item/presentation/item_manage.dart`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 편집 완료: `ItemManage.initState()`와 새 draft controller 연결 시 draft 선택 key를 한 번 snapshot해 `FortuneTableSelectionController`에 투영한다. 첫 렌더 ready 시점부터 첫 행이 선택 표시된다.
+- 편집 완료: 저장 reload는 `keepInitialFirstSelection` 경로를 사용해 session load가 선택한 첫 행과 render-ready 결과를 유지한다. 저장 전 행 복원과 추가 tab reset은 생략한다.
+- 테스트 추가: `ItemManage projects initial draft selection before ready`에서 ready 시점의 실제 table selection `{0}`을 검증한다.
+- focused 검증: `test/fortune_table_test.dart` 66개 통과(선택 key snapshot 최적화 전).
+- 최종 검증 실행 예정: `flutter test test/fortune_table_test.dart test/label_sheet_toolbar_test.dart`.
+- analyzer 실행 예정: `flutter analyze lib/features/item/presentation/item_manage.dart lib/home_page_manager.dart test/fortune_table_test.dart`.
+- 최종 검증: 관련 테스트 232개 통과. analyzer `No issues found` (3.6초), 변경 파일 diagnostics 0건.
+- 완료 결과: 초기 조회와 저장 재조회 모두 최종 ItemManage 렌더에서 첫 행이 선택 표시된다. 변경 취소와 품목 순서 변경은 기존 선택 복원 동작을 유지한다.
+- stage/commit 대상: `lib/features/item/presentation/item_manage.dart`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+
 ## 완료: 품목관리 1만 행 build/auto-fit 최적화
 - 병목 1: `FortuneTable`이 rebuild마다 전체 `행×컬럼` 문자열 signature를 만들고 다시 전체 셀을 TextPainter로 측정한다.
 - 병목 2: `ItemManage._resolveDisplayItems()`가 선택/busy 같은 UI rebuild에도 전체 draft 행의 preview 객체와 identity map을 재생성한다.

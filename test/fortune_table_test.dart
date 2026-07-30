@@ -1378,6 +1378,49 @@ void main() {
     expect(table().rows.single.item.itemName, '수정 품목');
   });
 
+  testWidgets('ItemManage projects initial draft selection before ready', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController.fromItems(
+      items: [
+        _testItemOfMarket(itemName: '첫 품목', itemId: 10),
+        _testItemOfMarket(itemName: '둘째 품목', itemId: 20),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    controller.setSelection(const ['item:10'], anchorRowKey: 'item:10');
+    addTearDown(controller.dispose);
+    var ready = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onReady: () => ready = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(ready, isTrue);
+    expect(table.selectionController!.selectedRows, {0});
+  });
+
   testWidgets('ItemManage reports ready after render work completes', (
     tester,
   ) async {
