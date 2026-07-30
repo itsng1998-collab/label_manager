@@ -648,6 +648,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
+    if (_editingRowIndex != null) {
+      return KeyEventResult.ignored;
+    }
     if (
         (event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.f2)) {

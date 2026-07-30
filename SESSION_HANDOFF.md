@@ -1,5 +1,14 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목 인라인 editor 문자별 초기화 수정
+- 현상: 품목 추가 행의 인라인 editor에서 연속 입력할 때 기존 입력이 지워지고 마지막 문자만 남는다.
+- 원인: `EditableText`가 처리할 문자 `KeyDownEvent`가 자식 `Focus`에서 테이블 `Focus`로 버블링되고, `_handleKeyEvent()`가 이를 선택 셀의 새 편집 시작으로 오인해 매 문자마다 `TextEditingController(initialText: 마지막 문자)`로 교체했다.
+- 편집 완료(`fortune_table.dart`): 인라인 편집 활성 중에는 테이블 단위 편집 시작/선택 단축키 처리를 건너뛰어 문자 키를 현재 `EditableText`만 처리하게 했다.
+- 테스트 추가(`fortune_table_test.dart`): 실제 품목 추가 후 빈 동적 셀 editor에서 문자 key event가 발생해도 동일 controller와 기존 text/selection이 유지되는지 검증한다.
+- focused 검증: `ItemManage keeps the active editor during character key events` 통과.
+- 최종 검증: `fortune_table_test.dart` 전체 62건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건.
+- stage 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 품목 주원료 표-플로팅 시트 양방향 동기화
 - 표→플로팅 원인 1: `_applyItemElementDraft()`가 `_selectedItemOfMarket`만 갱신하고 열린 `PreviewFloatingWindow` child를 다시 설정하지 않는다.
 - 표→플로팅 원인 2: `_ItemPreviewPanel.didUpdateWidget()`이 같은 `rowIdentity`의 element text/payload 변경을 무시한다.
