@@ -41,6 +41,41 @@ void main() {
     expect(result.extraFields[fortuneSheetGridClientHeightMmKey], 60);
   });
 
+  test('file-aware import layout only scales xlsx format', () {
+    final imported = FortuneSheet(
+      id: 'imported',
+      name: 'Imported',
+      rowCount: 1,
+      columnCount: 1,
+      rowHeights: const <int, double>{0: 100},
+      columnWidths: const <int, double>{0: 1000},
+    );
+    final current = FortuneSheet(
+      id: 'current',
+      name: 'Current',
+      extraFields: const <String, Object?>{
+        fortuneSheetGridClientWidthMmKey: 100,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+
+    final xlsx = labelSheetPrepareImportedSheetForFile(
+      imported,
+      currentSheet: current,
+      filePath: 'label.xlsx',
+      fileName: 'ignored.lms',
+    );
+    final lms = labelSheetPrepareImportedSheetForFile(
+      imported,
+      currentSheet: current,
+      filePath: 'label.lms',
+      fileName: 'ignored.xlsx',
+    );
+
+    expect(xlsx.columnWidths[0], lessThan(1000));
+    expect(lms.columnWidths[0], 1000);
+  });
+
   test('import layout preserves current physical size when source has none', () {
     final imported = FortuneSheet(
       id: 'imported',

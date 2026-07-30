@@ -1,9 +1,27 @@
 import 'dart:math' as math;
 
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_import_codec.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 const double labelSheetImportMinReadableFontHeightMm = 2.5;
+
+FortuneSheet labelSheetPrepareImportedSheetForFile(
+  FortuneSheet importedSheet, {
+  required FortuneSheet currentSheet,
+  required String filePath,
+  required String fileName,
+}) {
+  final format = labelSheetResolveImportFormat(
+    filePath: filePath,
+    fileName: fileName,
+  );
+  return labelSheetPrepareImportedSheet(
+    importedSheet,
+    currentSheet: currentSheet,
+    scaleToPhysicalWidth: format == LabelSheetImportFormat.xlsx,
+  );
+}
 
 FortuneSheet labelSheetPrepareImportedSheet(
   FortuneSheet importedSheet, {

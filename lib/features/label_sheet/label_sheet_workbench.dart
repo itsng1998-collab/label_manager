@@ -2531,27 +2531,22 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (updateImportDirectory && filePath.isNotEmpty) {
       await saveLabelSheetFileDirectoryForPath(filePath);
     }
-    final importFormat = labelSheetResolveImportFormat(
-      filePath: filePath,
-      fileName: fileName,
-    );
-    final scaleToPhysicalWidth = importFormat == LabelSheetImportFormat.xlsx;
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
     final rawImportedGridSize = fortuneSheetGridClientPhysicalSize(
       importedWorkbook.activeSheet,
     );
     final currentGridSize = fortuneSheetGridClientPhysicalSize(currentSheet);
-    final importedSheet = labelSheetPrepareImportedSheet(
+    final importedSheet = labelSheetPrepareImportedSheetForFile(
       importedWorkbook.activeSheet,
       currentSheet: currentSheet,
-      scaleToPhysicalWidth: scaleToPhysicalWidth,
+      filePath: filePath,
+      fileName: fileName,
     );
     final importedGridSize = fortuneSheetGridClientPhysicalSize(importedSheet);
     debugLog(
       'label sheet import apply sheet '
       'rows=${importedSheet.rowCount} columns=${importedSheet.columnCount} '
       'cells=${importedSheet.cells.length} '
-      'scaleToPhysicalWidth=$scaleToPhysicalWidth '
       'sourceGridWidthMm=${rawImportedGridSize?.widthMm} '
       'sourceGridHeightMm=${rawImportedGridSize?.heightMm} '
       'currentGridWidthMm=${currentGridSize?.widthMm} '
