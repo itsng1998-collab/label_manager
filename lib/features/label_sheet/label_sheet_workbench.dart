@@ -2145,35 +2145,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || settings == null || physicalSize == null) return null;
-    final geometry = resolveLabelSheetHybridPrintGeometry(
+    final preparation = prepareLabelSheetHybridPrint(
       sheet: sheet,
       settings: settings,
       physicalSize: physicalSize,
       metrics: metrics,
       options: options,
     );
-    final candidates = fortuneBuildNativeCandidates(
-      settings: settings,
-      sheet: sheet,
-      range: geometry.range,
-      transform: geometry.transform,
-    );
-    final descriptors = preflightLabelSheetEzplCandidates(
-      sheet: sheet,
-      transform: geometry.transform,
-      candidates: candidates,
-    );
-    final plan = fortuneFinalizeHybridRenderPlan(
-      settings: settings,
-      sheet: sheet,
-      range: geometry.range,
-      transform: geometry.transform,
-      candidates: candidates,
-      approvals: descriptors.map((descriptor) => descriptor.approval),
-    );
     final capture = await _controller.captureHybridPlanAsPng(
-      plan,
-      pixelRatio: geometry.metrics.dpi / fortuneSheetLogicalPixelsPerInch,
+      preparation.plan,
+      pixelRatio:
+          preparation.geometry.metrics.dpi /
+          fortuneSheetLogicalPixelsPerInch,
       includeCellBorders: true,
       outputLineHeightMultiplier: lineSpacingPercent == null
           ? null
@@ -2182,17 +2165,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (capture == null) return null;
     final bytes = await buildLabelSheetPlannedHybridEzplBytes(
       filteredPngBytes: capture.pngBytes,
-      metrics: geometry.metrics,
+      metrics: preparation.geometry.metrics,
       options: options,
-      plan: plan,
-      descriptors: descriptors,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
     );
     return LabelSheetHybridEzplCapture(
       bytes: bytes,
       sheet: capture.sheet,
       range: capture.range,
-      metrics: geometry.metrics,
-      plan: plan,
+      metrics: preparation.geometry.metrics,
+      plan: preparation.plan,
     );
   }
 

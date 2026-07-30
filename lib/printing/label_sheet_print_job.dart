@@ -187,6 +187,58 @@ LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
   );
 }
 
+class LabelSheetHybridPrintPreparation {
+  const LabelSheetHybridPrintPreparation({
+    required this.geometry,
+    required this.descriptors,
+    required this.plan,
+  });
+
+  final LabelSheetHybridPrintGeometry geometry;
+  final List<LabelSheetEzplNativeDescriptor> descriptors;
+  final FortuneHybridRenderPlan plan;
+}
+
+LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+}) {
+  final geometry = resolveLabelSheetHybridPrintGeometry(
+    sheet: sheet,
+    settings: settings,
+    physicalSize: physicalSize,
+    metrics: metrics,
+    options: options,
+  );
+  final candidates = fortuneBuildNativeCandidates(
+    settings: settings,
+    sheet: sheet,
+    range: geometry.range,
+    transform: geometry.transform,
+  );
+  final descriptors = preflightLabelSheetEzplCandidates(
+    sheet: sheet,
+    transform: geometry.transform,
+    candidates: candidates,
+  );
+  final plan = fortuneFinalizeHybridRenderPlan(
+    settings: settings,
+    sheet: sheet,
+    range: geometry.range,
+    transform: geometry.transform,
+    candidates: candidates,
+    approvals: descriptors.map((descriptor) => descriptor.approval),
+  );
+  return LabelSheetHybridPrintPreparation(
+    geometry: geometry,
+    descriptors: descriptors,
+    plan: plan,
+  );
+}
+
 class LabelSheetPrintLayout {
   const LabelSheetPrintLayout({
     required this.pageWidthMm,

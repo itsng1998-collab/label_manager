@@ -242,75 +242,44 @@ void main() {
         ),
       ],
     );
-    const transform = fs.FortunePrintTransform(
-      sourceLogicalBounds: Rect.fromLTWH(0, 0, 40, 40),
-      dpi: 96,
-      contentLeftMm: 0,
-      contentTopMm: 0,
-      clipRightMm: 20,
-      clipBottomMm: 20,
-      nativeAllowed: true,
+    const settings = fs.FortuneSettings(
+      defaultRowHeight: 20,
+      defaultColWidth: 20,
     );
-    final candidates = fs.fortuneBuildNativeCandidates(
-      settings: const fs.FortuneSettings(
-        defaultRowHeight: 20,
-        defaultColWidth: 20,
-      ),
-      sheet: sheet,
-      range: const fs.FortuneRange(
-        rowStart: 0,
-        rowEnd: 0,
-        columnStart: 0,
-        columnEnd: 0,
-      ),
-      transform: transform,
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
     );
-    final descriptors = preflightLabelSheetEzplCandidates(
+    final preparation = prepareLabelSheetHybridPrint(
       sheet: sheet,
-      transform: transform,
-      candidates: candidates,
-    );
-    final plan = fs.fortuneFinalizeHybridRenderPlan(
-      settings: const fs.FortuneSettings(
-        defaultRowHeight: 20,
-        defaultColWidth: 20,
+      settings: settings,
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 10,
+        heightMm: 10,
       ),
-      sheet: sheet,
-      range: const fs.FortuneRange(
-        rowStart: 0,
-        rowEnd: 1,
-        columnStart: 0,
-        columnEnd: 1,
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 20,
+        labelHeightMm: 20,
+        dpi: 96,
       ),
-      transform: transform,
-      candidates: candidates,
-      approvals: descriptors.map((descriptor) => descriptor.approval),
+      options: options,
     );
     final image = img.Image(width: 40, height: 40);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     final bytes = await buildLabelSheetPlannedHybridEzplBytes(
       filteredPngBytes: Uint8List.fromList(img.encodePng(image)),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 20,
-        labelHeightMm: 20,
-        sourceWidthMm: 10.5833333333,
-        sourceHeightMm: 10.5833333333,
-        dpi: 96,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-      plan: plan,
-      descriptors: descriptors,
+      metrics: preparation.geometry.metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
     );
     final text = ascii.decode(bytes, allowInvalid: true);
-    expect(plan.approvedCandidateTokens, hasLength(2));
-    for (final descriptor in descriptors) {
+    expect(preparation.plan.approvedCandidateTokens, hasLength(2));
+    for (final descriptor in preparation.descriptors) {
       expect(text, contains(descriptor.command));
     }
     expect(text, endsWith('E\r\n'));
