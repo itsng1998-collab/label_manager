@@ -15,9 +15,7 @@ Future<String> labelSheetWriteWorkbookFile({
   required FortuneWorkbook workbook,
 }) async {
   final outputPath = labelSheetEnsureFileExtension(path);
-  final encodedWorkbook = labelSheetEncodeWorkbookSave(
-    labelSheetWorkbookForPrintAreaSave(workbook),
-  );
-  await File(outputPath).writeAsString(encodedWorkbook, flush: true);
+  final payload = labelSheetBuildSavePayload(workbook);
+  await File(outputPath).writeAsString(payload.encodedWorkbook, flush: true);
   return outputPath;
 }

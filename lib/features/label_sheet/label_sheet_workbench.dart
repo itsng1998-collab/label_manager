@@ -2366,7 +2366,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (callback == null) {
       return;
     }
-    final payload = _encodedWorkbookForCurrentLabelFile();
+    final payload = labelSheetBuildSavePayload(
+      _currentWorkbookForLabelFile(),
+      fallbackPhysicalSize: _gridClientSize,
+    );
     try {
       final result = await Future<LabelSheetSaveResult>.sync(
         () => callback(
@@ -2388,22 +2391,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       });
       widget.onDirtyChanged?.call(false);
     }
-  }
-
-  ({int widthMm, int heightMm, String encodedWorkbook})
-  _encodedWorkbookForCurrentLabelFile() {
-    final workbook = _currentWorkbookForLabelFile();
-    final physicalSize =
-        fortuneSheetGridClientPhysicalSize(workbook.activeSheet) ??
-        _gridClientSize ??
-        const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
-    return (
-      widthMm: physicalSize.widthMm,
-      heightMm: physicalSize.heightMm,
-      encodedWorkbook: labelSheetEncodeWorkbookSave(
-        labelSheetWorkbookForPrintAreaSave(workbook),
-      ),
-    );
   }
 
   FortuneWorkbook _currentWorkbookForLabelFile() {

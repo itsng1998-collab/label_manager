@@ -275,6 +275,35 @@ String labelSheetEncodeWorkbookSave(FortuneWorkbook workbook) {
   return base64Encode(ZipEncoder().encodeBytes(archive));
 }
 
+class LabelSheetSavePayload {
+  const LabelSheetSavePayload({
+    required this.widthMm,
+    required this.heightMm,
+    required this.encodedWorkbook,
+  });
+
+  final int widthMm;
+  final int heightMm;
+  final String encodedWorkbook;
+}
+
+LabelSheetSavePayload labelSheetBuildSavePayload(
+  FortuneWorkbook workbook, {
+  FortuneSheetGridClientPhysicalSize? fallbackPhysicalSize,
+}) {
+  final physicalSize =
+      fortuneSheetGridClientPhysicalSize(workbook.activeSheet) ??
+      fallbackPhysicalSize ??
+      const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
+  return LabelSheetSavePayload(
+    widthMm: physicalSize.widthMm,
+    heightMm: physicalSize.heightMm,
+    encodedWorkbook: labelSheetEncodeWorkbookSave(
+      labelSheetWorkbookForPrintAreaSave(workbook),
+    ),
+  );
+}
+
 bool labelSheetWorkbookHasSaveContent(FortuneWorkbook workbook) {
   final sheet = labelSheetWorkbookForPrintAreaSave(workbook).activeSheet;
   return sheet.cells.isNotEmpty ||
