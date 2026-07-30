@@ -752,8 +752,10 @@ class _FloatingCard extends StatelessWidget {
     final scale = max(dominantScale, minScale);
     final width = base.width * scale;
     final height = base.height * scale;
+    final nextLeft = left ? base.right - width : base.left;
+    final nextTop = top ? base.bottom - height : base.top;
 
-    return Rect.fromLTWH(base.left, base.top, width, height);
+    return Rect.fromLTWH(nextLeft, nextTop, width, height);
   }
 }
 

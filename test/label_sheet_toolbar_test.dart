@@ -6184,7 +6184,7 @@ void main() {
     expect(afterSize.height, greaterThan(beforeSize.height));
   });
 
-  testWidgets('floating preview top corner resize keeps origin fixed', (
+  testWidgets('floating preview top-right resize keeps bottom-left fixed', (
     tester,
   ) async {
     final window = PreviewFloatingWindow(
@@ -6210,9 +6210,7 @@ void main() {
 
     await tester.tap(find.text('show'));
     await tester.pump();
-    final beforeTopLeft = tester.getTopLeft(
-      find.byKey(const ValueKey('floating-child')),
-    );
+    final beforeRect = window.rect;
     final beforeSize = tester.getSize(
       find.byKey(const ValueKey('floating-child')),
     );
@@ -6223,15 +6221,62 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      tester.getTopLeft(find.byKey(const ValueKey('floating-child'))),
-      beforeTopLeft,
-    );
+    expect(window.rect.bottomLeft, beforeRect.bottomLeft);
+    expect(window.rect.top, lessThan(beforeRect.top));
     final afterSize = tester.getSize(
       find.byKey(const ValueKey('floating-child')),
     );
     expect(afterSize.width, greaterThan(beforeSize.width));
     expect(afterSize.height, greaterThan(beforeSize.height));
+  });
+
+  testWidgets('floating preview left corners keep opposite corners fixed', (
+    tester,
+  ) async {
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(120, 90),
+      child: const SizedBox.expand(key: ValueKey('floating-child')),
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () => window.show(context),
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    await tester.pump();
+    final beforeBottomLeft = window.rect;
+
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-left'),
+      const Offset(-30, 20),
+    );
+    await tester.pump();
+
+    final afterBottomLeft = window.rect;
+    expect(afterBottomLeft.topRight, beforeBottomLeft.topRight);
+    expect(afterBottomLeft.left, lessThan(beforeBottomLeft.left));
+
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-top-left'),
+      const Offset(-20, -20),
+    );
+    await tester.pump();
+
+    expect(window.rect.bottomRight, afterBottomLeft.bottomRight);
+    expect(window.rect.left, lessThan(afterBottomLeft.left));
+    expect(window.rect.top, lessThan(afterBottomLeft.top));
   });
 
   testWidgets('floating preview top corner can expand and shrink', (
@@ -6260,9 +6305,7 @@ void main() {
 
     await tester.tap(find.text('show'));
     await tester.pump();
-    final beforeTopLeft = tester.getTopLeft(
-      find.byKey(const ValueKey('floating-child')),
-    );
+    final beforeRect = window.rect;
     final beforeSize = tester.getSize(
       find.byKey(const ValueKey('floating-child')),
     );
@@ -6289,10 +6332,7 @@ void main() {
     );
     await gesture.up();
 
-    expect(
-      tester.getTopLeft(find.byKey(const ValueKey('floating-child'))),
-      beforeTopLeft,
-    );
+    expect(window.rect.bottomLeft, beforeRect.bottomLeft);
     expect(expandedSize.width, greaterThan(beforeSize.width));
     expect(expandedSize.height, greaterThan(beforeSize.height));
     expect(returnedSize.width, lessThan(expandedSize.width));
