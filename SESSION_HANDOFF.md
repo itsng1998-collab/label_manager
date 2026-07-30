@@ -14,6 +14,7 @@
 - 오류 계약 보강: 변환 실패 시 설정된 전체 컬럼이 아니라 실제 실패한 Excel 행 번호와 컬럼명 하나를 표시하도록 적용 루프를 분리하고 테스트를 추가했다.
 - 정적 검증 완료: `git diff --check` 성공. `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
 - stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, `lib/home_page_manager.dart`, `test/item_manager_xlsx_test.dart`, `test/item_manager_import_transform_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+- 기능 커밋: `5d8d16d` (`품목관리 Excel 가져오기 컬럼 연산 추가`).
 
 ## 완료: 포커스 편집 커서를 세로 가운데 정렬
 - 제출 화면 확인: 신규 사용자 항목의 포커스 셀에서 편집 커서가 2px 외곽선 상단과 겹친다. 셀 높이는 전체 가용 영역을 사용하지만 `TextFormField`에 세로 정렬이 지정되지 않은 상태다.
