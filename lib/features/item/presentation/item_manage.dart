@@ -8,7 +8,6 @@ import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_column/domain/special_keyword.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
-import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/item/presentation/item_manager_table_dimensions.dart';
@@ -415,7 +414,7 @@ class _ItemManageState extends State<ItemManage> {
       if (!column.text(rows[index]).contains(query)) continue;
       _searchStartIndex = index + 1;
       _selectionController.setSelectedRows([index]);
-      final draft = _draftByDisplayItem[rows[index]];
+      final draft = _draftAtDisplayIndex(index);
       if (draft != null) {
         widget.draftController?.setSelection(
           [draft.rowKey],
@@ -517,8 +516,14 @@ class _ItemManageState extends State<ItemManage> {
     return displayItems;
   }
 
+  ItemManagerDraftRow? _draftAtDisplayIndex(int index) {
+    final rows = widget.draftController?.rows;
+    if (rows == null || index < 0 || index >= rows.length) return null;
+    return rows[index];
+  }
+
   void _handleRowSelected(ItemOfMarket row, int index) {
-    final draft = _draftByDisplayItem[row];
+    final draft = _draftAtDisplayIndex(index);
     if (draft != null) {
       final controller = widget.draftController!;
       final selectedKeys = <String>[];
@@ -534,7 +539,7 @@ class _ItemManageState extends State<ItemManage> {
 
   Color? _rowColor(ItemOfMarket row, int rowIndex, bool selected) {
     if (selected) return null;
-    final draft = _draftByDisplayItem[row];
+    final draft = _draftAtDisplayIndex(rowIndex);
     if (draft?.rowState == ItemManagerDraftRowState.added ||
         draft?.rowState == ItemManagerDraftRowState.imported) {
       return _addedRowColor;
@@ -552,7 +557,7 @@ class _ItemManageState extends State<ItemManage> {
     int rowIndex,
     TapDownDetails details,
   ) async {
-    await _showContextMenu(details, draftRow: _draftByDisplayItem[row]);
+    await _showContextMenu(details, draftRow: _draftAtDisplayIndex(rowIndex));
   }
 
   Future<void> _showEmptyTableContextMenu(TapDownDetails details) async {
@@ -1164,8 +1169,8 @@ class _ItemManageState extends State<ItemManage> {
     );
   }
 
-  Future<void> _selectBmpImage(ItemOfMarket row, TColumn column) async {
-    final draft = _draftByDisplayItem[row];
+  Future<void> _selectBmpImage(int rowIndex, TColumn column) async {
+    final draft = _draftAtDisplayIndex(rowIndex);
     if (!_canEditDynamicColumn(draft)) return;
     final targetDraft = draft!;
     const bmpGroup = XTypeGroup(label: 'BMP 이미지', extensions: <String>['bmp']);
@@ -1283,17 +1288,20 @@ class _ItemManageState extends State<ItemManage> {
                   )?.dataString ??
                   '';
             },
-            isTextEditable: (row, _) {
-              final draft = _draftByDisplayItem[row];
-              return c.columnType.code != TColumnType.TYPE_IMAGE &&
+            isTextEditable: (_, rowIndex) {
+              final draft = _draftAtDisplayIndex(rowIndex);
+              return itemManagerDynamicCellEditorForType(c.columnType.code) ==
+                      ItemManagerDynamicCellEditor.text &&
                   _canEditDynamicColumn(draft);
             },
             onDoubleTap:
-              widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
-                ? (row, _) => _selectBmpImage(row, c)
+              widget.canEdit &&
+                  itemManagerDynamicCellEditorForType(c.columnType.code) ==
+                      ItemManagerDynamicCellEditor.imagePicker
+                ? (_, rowIndex) => _selectBmpImage(rowIndex, c)
                 : null,
-            onTextCommitted: (row, _, value) async {
-              final draft = _draftByDisplayItem[row];
+            onTextCommitted: (_, rowIndex, value) async {
+              final draft = _draftAtDisplayIndex(rowIndex);
               if (draft == null) return;
               final editable = draft.isNew ||
                 (widget.draftController!.scopedColumnContents
@@ -1362,12 +1370,12 @@ class _ItemManageState extends State<ItemManage> {
         initialWidth: 280,
         minWidth: 70,
         text: _itemName,
-        isTextEditable: (row, _) =>
+        isTextEditable: (_, rowIndex) =>
             widget.canEdit &&
             !widget.commandBusy &&
-            _draftByDisplayItem.containsKey(row),
-        onTextCommitted: (row, _, value) async {
-          final draft = _draftByDisplayItem[row];
+            _draftAtDisplayIndex(rowIndex) != null,
+        onTextCommitted: (_, rowIndex, value) async {
+          final draft = _draftAtDisplayIndex(rowIndex);
           if (draft == null) return;
           try {
             await widget.onBeforeItemNameChange?.call(draft);

@@ -1,3 +1,15 @@
+import 'package:label_manager/features/label_column/domain/column_type.dart';
+
+enum ItemManagerDynamicCellEditor { text, imagePicker }
+
+ItemManagerDynamicCellEditor itemManagerDynamicCellEditorForType(
+  int columnTypeCode,
+) {
+  return columnTypeCode == TColumnType.TYPE_IMAGE
+      ? ItemManagerDynamicCellEditor.imagePicker
+      : ItemManagerDynamicCellEditor.text;
+}
+
 bool itemManagerCanPersistDynamicCell({
   required bool canManageItemStructure,
   required bool commandBusy,

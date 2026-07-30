@@ -1,5 +1,17 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 신규 품목 행 컬럼 타입별 편집
+- 확정 정책: 레거시 품목 편집과 동일하게 이미지형은 BMP 파일 선택, 그 외 편집 가능한 타입은 인라인 텍스트를 사용한다. 일반 품목 셀용 dropdown 선택지 데이터는 현재 모델과 레거시에 없다.
+- 수정 예정: `test/fortune_table_test.dart`에 신규 행 동적 텍스트 셀의 더블클릭 편집 회귀를 추가하고, 필요하면 `lib/features/item/presentation/item_manage.dart`의 draft 행 조회를 객체 identity 대신 안정적인 행 인덱스로 변경한다.
+- 편집 완료(`item_manager_rules.dart`): 컬럼 타입을 텍스트 editor 또는 BMP image picker로 매핑하는 `itemManagerDynamicCellEditorForType()` 정책을 추가했다.
+- 편집 완료(`item_manage.dart`): 신규/기존 draft의 편집·이미지 선택·선택·행 색상·context menu 대상 조회를 display 객체 identity가 아닌 현재 행 인덱스로 전환했다.
+- 테스트 추가(`fortune_table_test.dart`): 이미지 타입만 image picker이고 나머지 타입은 text editor인 계약, 신규 행 동적 텍스트 셀의 더블클릭 편집과 draft 반영을 검증한다.
+- focused 검증: 신규 행 텍스트 편집과 이미지 picker 열 배정 widget 테스트 2건 통과. editor 타입 정책 테스트도 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 실행 예정: `flutter test test/fortune_table_test.dart`, `flutter analyze lib/features/item/domain/item_manager_rules.dart lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart`.
+- 전체 widget 테스트 59건 통과. 첫 analyzer는 editor 정책 분리 후 남은 `item_manage.dart`의 `column_type.dart` 미사용 import 1건으로 실패해 해당 import를 제거했다.
+- 최종 검증: focused widget 2건 및 전체 `fortune_table_test.dart` 59건 통과. 변경 3개 Dart 파일 analyzer `No issues found`; `git diff --check` 확인 후 커밋한다.
+- stage 대상: `lib/features/item/domain/item_manager_rules.dart`, `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 품목 주원료 시트 개체보기 제거
 - 원인: 품목 미리보기에서 `showObjectPanelOpenButton: false`만 지정해 좁은 창의 버튼은 숨겼지만 `allowObjectPanel` 기본값이 true라 넓은 창에서는 dock형 개체 패널이 허용됐다.
 - 수정 예정: 품목 `주원료 및 함량`의 `LabelSheetWorkbench`에 `allowObjectPanel: false`를 지정하고 기존 widget 테스트에서 옵션을 직접 검증한다.

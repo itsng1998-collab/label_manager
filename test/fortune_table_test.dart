@@ -86,6 +86,22 @@ void main() {
     expect(submissions, 2);
   });
 
+  test('item dynamic column editor follows the column type', () {
+    expect(
+      itemManagerDynamicCellEditorForType(TColumnType.TYPE_IMAGE),
+      ItemManagerDynamicCellEditor.imagePicker,
+    );
+    for (var typeCode = TColumnType.TYPE_BASE;
+        typeCode < TColumnType.TYPE_END_OF_CULUMN;
+        typeCode += 1) {
+      if (typeCode == TColumnType.TYPE_IMAGE) continue;
+      expect(
+        itemManagerDynamicCellEditorForType(typeCode),
+        ItemManagerDynamicCellEditor.text,
+      );
+    }
+  });
+
   test('settings operation gate unlocks after failure', () async {
     final gate = SettingsOperationGate();
 
@@ -2449,6 +2465,144 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('ItemManage edits a dynamic text column on an added row', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = originalColumns);
+    final dynamicColumn = _testColumn(
+      columnId: 101,
+      columnName: '판매가격',
+    );
+    TColumn.datas = [dynamicColumn];
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'dynamic-edit',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateColumnValue(
+      'draft:dynamic-edit',
+      columnId: dynamicColumn.columnId,
+      editable: true,
+      dataString: '1000',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final dynamicTableColumn = table.columns.singleWhere(
+      (column) => column.id == 'dyn_101',
+    );
+    expect(dynamicTableColumn.isTextEditable!(table.rows.single, 0), isTrue);
+    expect(dynamicTableColumn.onDoubleTap, isNull);
+
+    await tester.tap(find.text('1000'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('1000'));
+    await tester.pump();
+    expect(find.byType(EditableText), findsOneWidget);
+
+    await tester.enterText(find.byType(EditableText), '2500');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(controller.columnValue(controller.rows.single, 101), '2500');
+    expect(find.text('2500'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('ItemManage assigns the image picker to an image column', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = originalColumns);
+    TColumn.datas = [
+      _testColumn(
+        columnId: 102,
+        columnName: '상품이미지',
+        typeCode: TColumnType.TYPE_IMAGE,
+      ),
+    ];
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'image-edit',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final imageColumn = table.columns.singleWhere(
+      (column) => column.id == 'dyn_102',
+    );
+    expect(imageColumn.isTextEditable!(table.rows.single, 0), isFalse);
+    expect(imageColumn.onDoubleTap, isNotNull);
+  });
+
   testWidgets('ItemManage disables Excel actions while a cell edit is active', (
     tester,
   ) async {
@@ -3061,6 +3215,7 @@ TColumn _testColumn({
   int columnId = 101,
   String columnName = '동적컬럼',
   int width = 120,
+  int typeCode = TColumnType.TYPE_FIX,
 }) {
   return TColumn(
     columnId: columnId,
@@ -3084,8 +3239,8 @@ TColumn _testColumn({
     qrTextFontSize: 0,
     qrTextFontName: '',
     qrCodeScalePercent: 100,
-    columnType: const TColumnType(
-      code: TColumnType.TYPE_FIX,
+    columnType: TColumnType(
+      code: typeCode,
       name: '고정',
       order: 0,
     ),
