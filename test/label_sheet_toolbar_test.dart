@@ -1531,6 +1531,10 @@ void main() {
     );
     await tester.pump();
 
+    final workbench = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
+    );
+    expect(workbench.allowObjectPanel, isFalse);
     expect(find.byTooltip('개체 패널 열기'), findsNothing);
     expect(
       find.widgetWithIcon(IconButton, Icons.layers_outlined),

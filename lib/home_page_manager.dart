@@ -8254,6 +8254,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
           hideStatisticBar: true,
           limitCellActionsToClipboardAndClear: true,
           canEditObjects: canEdit,
+            allowObjectPanel: false,
           showObjectPanelOpenButton: false,
           zoomToolbarPlacement:
               LabelSheetZoomToolbarPlacement.previewTabAreaEnd,

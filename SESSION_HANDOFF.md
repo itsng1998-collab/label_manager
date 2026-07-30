@@ -1,5 +1,75 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 품목 주원료 시트 개체보기 제거
+- 원인: 품목 미리보기에서 `showObjectPanelOpenButton: false`만 지정해 좁은 창의 버튼은 숨겼지만 `allowObjectPanel` 기본값이 true라 넓은 창에서는 dock형 개체 패널이 허용됐다.
+- 수정 예정: 품목 `주원료 및 함량`의 `LabelSheetWorkbench`에 `allowObjectPanel: false`를 지정하고 기존 widget 테스트에서 옵션을 직접 검증한다.
+- 커밋 정책 변경: 앞으로 코드/설정/문서 작업 완료 커밋에는 `SESSION_HANDOFF.md`를 함께 포함한다. 기존 unrelated `lib/core/app.dart`는 제외한다.
+- 편집 완료: `_ItemElementPreviewTab`의 workbench에 `allowObjectPanel: false`를 지정했다. 테스트는 렌더된 workbench 옵션과 개체 패널 버튼 부재를 함께 검증하며 focused 1건 통과.
+- 검증: 전체 `label_sheet_toolbar_test.dart` 164건 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` → `No issues found`; diagnostics 0건.
+- stage 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+- 커밋 메시지: `품목 주원료 시트 개체보기 제거`. 원격 push 없음.
+
+## 완료: 로그인 실패 메시지 색상 변경
+- 대상: 로그인 다이얼로그의 `_infoText` 로그 영역. 아이디 없음, 비밀번호 오류, 인증 예외 메시지가 표시되는 영역이다.
+- 수정 예정: 메시지 `Text`에 빨간색 스타일과 테스트 key를 적용하고 실제 다이얼로그 widget 테스트로 색상을 검증한다.
+- 편집 완료: `_infoText` 메시지에 `Colors.red`와 `startup-login-info-text` key를 적용했다.
+- 테스트 추가: 실제 로그인 다이얼로그를 열어 메시지 영역의 `TextStyle.color`가 빨간색인지 검증하며 focused 테스트 1건 통과.
+- 검증: 전체 `startup_dialog_test.dart` 4건 통과. `flutter analyze lib/features/login/presentation/startup_dialog.dart test/startup_dialog_test.dart` → `No issues found`; diagnostics 0건.
+- stage 예정: `lib/features/login/presentation/startup_dialog.dart`, `test/startup_dialog_test.dart`만 포함한다. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `23a3fcd` (`로그인 실패 메시지 빨간색 표시`). 원격 push 없음.
+
+## 완료: 품목 미리보기 resize의 편집 상태 전환 수정
+- 기대 계약: 플로팅 창 위치/크기는 UI 상태이며 품목 draft 데이터가 아니므로 resize만으로 편집/dirty가 되면 안 된다.
+- 확인 결과: 품목 `PreviewFloatingWindow`에는 geometry 콜백이 없고 resize handle은 opaque hit-test라 직접 draft 경로는 없다. 의심 경로는 resize rebuild 중 품목 `LabelSheetWorkbench`의 workbook op가 `onUserWorkbookChanged`로 전달되는 경우다.
+- 재현: 실제 품목 미리보기 플로팅 resize 후 `onElementCommitted`는 0회로 draft commit은 없었다. 그러나 업무 변경 필터가 `false`인 op 뒤에도 `LabelSheetWorkbench` 저장 버튼이 활성화되는 별도 내부 dirty 결함을 테스트로 재현했다.
+- 원인: `onUserWorkbookChangedShouldNotify`가 view-state 변경을 거부해도 `onOp`가 무조건 `_isDirty=true`로 전환했다.
+- 편집 완료: clear-sheet 특수 처리는 유지하고, 필터가 거부한 op는 dirty 전환 전에 반환한다.
+- 첫 회귀 테스트는 수정 전 저장 버튼 활성화로 실패했고 수정 후 통과했다.
+- 테스트 추가: 실제 품목 플로팅 resize가 draft commit을 만들지 않는 계약과 필터된 user op가 시트 dirty를 만들지 않는 계약.
+- 검증: focused 3건 통과, 전체 `label_sheet_toolbar_test.dart` 164건 통과. `flutter analyze lib/features/label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart` → `No issues found`; diagnostics 0건.
+- stage 예정: `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`만 포함한다. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `1884492` (`품목 미리보기 크기 변경 dirty 오인 수정`). 원격 push 없음.
+
+## 완료: 플로팅 창 모서리 기준 리사이징
+- 대상: 품목 미리보기, 공통 라벨 미리보기, 영양성분 RTF 미리보기가 공유하는 `PreviewFloatingWindow`.
+- 원인: `_buildProportionalCornerRect()`가 어느 모서리를 드래그해도 `base.left/top`을 고정해 모든 조작이 우측하단 resize처럼 동작한다.
+- 수정 예정: 좌/상단 모서리 drag 시 반대편 right/bottom을 고정하도록 rect 위치를 보정한다. 기존 top-right 테스트를 올바른 고정점 계약으로 변경하고 좌측 모서리 회귀를 추가한다.
+- 편집 완료(`preview_floating_window.dart`): left handle은 기존 right, top handle은 기존 bottom을 기준으로 새 left/top을 계산한다. bottom-right의 기존 left/top 고정은 유지한다.
+- 테스트 편집 완료(`label_sheet_toolbar_test.dart`): top-right는 bottom-left 고정으로 계약을 교정하고, bottom-left의 top-right 고정 및 top-left의 bottom-right 고정을 추가했다.
+- 첫 기존 테스트는 origin 고정 기대 때문에 의도대로 실패해 좌표 변화가 확인됐다. 계약 교정 후 네 모서리 관련 focused 테스트 4건 통과.
+- 검증: 전체 `label_sheet_toolbar_test.dart` 162건 통과. `flutter analyze lib/widgets/preview_floating_window.dart test/label_sheet_toolbar_test.dart` → `No issues found`; diagnostics 0건.
+- stage 예정: `lib/widgets/preview_floating_window.dart`, `test/label_sheet_toolbar_test.dart`만 포함한다. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `a66384b` (`플로팅 창 모서리 리사이징 기준 수정`). 원격 push 없음.
+
+## 완료: ODBC Driver 18 미설치 연결 실패 보완
+- 대상 로그: `.tmp/app_2026-07-16_15-12-30.log`. 로컬 SQLite 설정 DB는 정상 개방됐고 SQL Server 연결에서 `IM002`(지정한 ODBC 드라이버 없음)가 발생했다.
+- 원인: 현재 연결 문자열 후보가 `ODBC Driver 18 for SQL Server` 하나뿐이다. README의 Driver 17 이상 지원 안내와 달리 Driver 17만 설치된 PC에서 같은 오류가 재현된다.
+- 수정 예정: Driver 18을 우선 사용하고 IM002 등 연결 실패 시 Driver 17을 fallback으로 시도하도록 후보를 추가하며 순서 단위 테스트를 고정한다.
+- 편집 완료(`odbc_driver.dart`): 연결 문자열 후보를 Driver 18, Driver 17 순서로 생성한다. 첫 focused 검증에서 기존 ODBC 연결 상태 테스트 3건 통과.
+- 오류 보존: Driver 18의 인증·네트워크 오류를 Driver 17 시도로 덮지 않도록 fallback은 공급자 미등록 `IM002`에만 허용한다.
+- 테스트 추가(`odbc_connection_state_test.dart`): Driver 18→17 후보 순서와 IM002 허용/인증 오류 거부 계약을 추가했다.
+- 검증: ODBC 연결 상태 테스트 5건 통과. `flutter analyze lib/database/windows_odbc/odbc_driver.dart test/odbc_connection_state_test.dart` → `No issues found`.
+- 환경 확인: 개발 PC에는 `ODBC Driver 18 for SQL Server`가 32/64비트 모두 등록돼 있다. 운영 로그 자격 증명으로 실제 서버 연결은 수행하지 않았다.
+- stage 예정: `lib/database/windows_odbc/odbc_driver.dart`, `test/odbc_connection_state_test.dart`만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `f340004` (`ODBC 드라이버 17 연결 fallback 추가`). 원격 push 없음.
+
+## 완료: 브랜드·라벨 설정 CRUD UX 통일
+- 목표: 행 안에서 나타나는 인라인 수정/삽입/삭제를 제거하고 목록 위 고정 추가/수정/삭제 명령으로 통일한다. 추가/수정은 작은 입력 다이얼로그, 삭제는 기존 확인 다이얼로그를 사용한다.
+- 보존: 브랜드/라벨 활성 선택 더블클릭, 브랜드 selector, 순서 변경 모드·적용/취소, 라벨 전자저울 사용 값, 기존 DAO/reload/busy/error 경계.
+- 편집 완료: 브랜드·라벨 목록을 일반 `SwipeActionTable`로 전환하고 표 위에 고정 추가/수정/삭제 아이콘을 배치했다. 추가는 항상 활성, 수정·삭제는 선택 행이 있을 때 활성화된다.
+- 추가/수정: 공용 `SettingsNameEditDialog`를 root modeless overlay에 표시하며 이름 trim·빈 값 차단을 적용한다. 라벨은 같은 다이얼로그에서 전자저울 사용을 함께 편집한다. 입력 다이얼로그의 저장을 최종 확인으로 사용해 기존 중복 확인창은 제거했다.
+- 삭제: 선택 행을 대상으로 기존 삭제 확인·DAO·reload 경로를 유지한다. 순서 변경과 활성 브랜드/라벨 더블클릭 동작도 유지한다.
+- 테스트 추가: 공용 명령바의 선택 기반 활성화, 입력 trim·전자저울 값 반환, 빈 이름 저장 차단 3건.
+- 첫 widget 검증 2건 통과. manager 연결 후 label sheet toolbar 161건 통과, diagnostics 0건. CLI DAO/swipe/widget 회귀 30건 통과.
+- 테스트 어댑터가 다중 파일과 포맷 후 신규 파일을 `0 passed / 0 failed`로 반환해 CLI로 재실행했으며 신규 widget 3건 통과.
+- `git diff --check` 통과. 신규 widget/test만 포맷했고 대형 manager 전체 포맷은 실행하지 않았다.
+- stage 예정: `lib/home_page_manager.dart`, `lib/widgets/settings_name_edit_dialog.dart`, `test/settings_name_edit_dialog_test.dart`만 포함하고 `SESSION_HANDOFF.md`는 제외한다.
+- cached diff check 통과. 기능 커밋: `541e160` (`브랜드 라벨 설정 편집 UX 통일`). 원격 push 없음.
+- 오류 수정: 변경 없음 비교가 add handler에 잘못 삽입되어 `label`/`brand` undefined analyzer 오류 3건이 발생했다. 비교를 각 edit handler로 이동했다.
+- 인라인 UX 제거 후 남은 `_insertActionIndex`, insert toggle, 라벨 inline scale widget/painter를 제거해 미사용 경고 3건도 정리했다.
+- 수정 검증: `flutter analyze lib/home_page_manager.dart lib/widgets/settings_name_edit_dialog.dart` → `No issues found`; toolbar 161건 + CRUD widget 3건, 총 164 tests passed; `git diff --check` 확인 후 별도 오류 수정 커밋으로 기록한다.
+- 오류 수정 커밋: `e78b889` (`브랜드 라벨 설정 편집 오류 수정`). 원격 push 없음.
+
 ## 완료: 폴더 구조 변경 후 빈 폴더 정리
 - 삭제: `lib/models`, `lib/page_home`, `lib/page_login`, `lib/features/admin_access/data`와 그 결과 비게 된 `lib/features/admin_access`.
 - 확인: 삭제 대상에 Git 추적 파일, ignore placeholder, 일반 파일이 없었고 정리 후 `lib` 아래 빈 디렉터리는 0개다.
