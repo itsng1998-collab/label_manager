@@ -10,6 +10,7 @@
 - 최종 검증: 공용 테이블/라벨 항목 편집 테스트 46개 통과, 변경 Dart 3개 analyzer `No issues found` (1.6초), diagnostics 0건. `git diff --check` 내용 오류 없음(LF→CRLF 정책 경고만 출력).
 - 완료 결과: 158행 뒤 신규 사용자 항목은 400ms 안에 마지막 행까지 자동 스크롤되며, 사용자 후보 영역 426px에 열 전체가 들어가 가로 overflow 없이 176px 종류 드롭다운이 잘리지 않는다. row reorder 테이블의 가변 drop gap은 기존 동작을 유지한다.
 - stage/commit 대상: `lib/widgets/swipe_action_table.dart`, `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+- 기능 커밋: `fac568b` (`사용자 항목 추가 스크롤과 드롭다운 잘림 수정`).
 
 ## 완료: 사용자 항목 종류 드롭다운 한 줄 표시
 - 사용자 제출 화면에서 사용자 항목 수정 모드의 종류 드롭다운 폭 80px가 부족해 `2D 바코드(QR 코드)`가 두 줄로 표시된다.
