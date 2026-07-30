@@ -7,7 +7,7 @@
 - 검증 기준: 기존 draft 전체 교체 테스트에서 삭제 ID, imported rows, 선택 및 dirty 상태가 동일하게 통과해야 한다.
 - 검증 완료: draft 전체 교체 집중 테스트 1개 및 Excel parser/연산·dialog·draft focused 테스트 54개 통과. domain 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공, formatter churn 없음.
 - 사용자 확인: 새로 확정할 사용자 정책 없음.
-- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 기능 커밋: `4aa3625 엑셀 전체 교체 상태 반영 순서 정리`.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 
