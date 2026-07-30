@@ -243,10 +243,11 @@ class ItemManagerSaveDAO extends DAO {
 
     DECLARE @RowNo INT = 1;
     DECLARE @RowCount INT = (SELECT COUNT(*) FROM @NewInput);
+    DECLARE @CapturedItem TABLE (ITEM_ID INT NOT NULL);
     WHILE @RowNo <= @RowCount
     BEGIN
       DECLARE @DraftRowKey NVARCHAR(100);
-      DECLARE @CapturedItem TABLE (ITEM_ID INT NOT NULL);
+      DELETE FROM @CapturedItem;
       SELECT @DraftRowKey=DRAFT_ROW_KEY FROM @NewInput WHERE ROW_NO=@RowNo;
       INSERT INTO BM_RICH_ITEM (
         RICH_LABELSIZE_ID, RICH_ITEM_NAME, RICH_ELEMENT,

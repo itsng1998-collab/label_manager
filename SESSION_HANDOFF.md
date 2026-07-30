@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 신규 품목 다건 ID 매핑 중복 수정
+- 최신 로그 `app_2026-07-30_13-09-38.log`: 서로 다른 draft key의 신규 2건 저장 중 `@InsertedRows.DRAFT_ROW_KEY`에 두 번째 key가 중복 삽입되어 native 2627이 발생했고 transaction은 rollback됐다.
+- 원인: SQL `WHILE`의 `@CapturedItem` table variable에 이전 반복의 ITEM_ID가 남아, 두 번째 반복에서 누적된 두 ID를 모두 두 번째 draft key로 매핑했다.
+- 레거시 비교: batch INSERT 후 마지막 N건을 재조회해 매핑하므로 캡처 table 누적은 없다. 현재 `OUTPUT INSERTED` 방식은 유지하되 반복마다 캡처 table을 초기화한다.
+- 수정 예정: `@CapturedItem`을 루프 밖에서 선언하고 각 반복 시작 시 `DELETE FROM @CapturedItem`을 실행하며, SQL 선언/초기화 순서 계약 테스트를 추가한다.
+- 편집 완료(`item_manager_save.dart`): `@CapturedItem`을 루프 전에 선언하고 각 반복의 draft key 조회/INSERT 전에 내용을 삭제한다.
+- 테스트 추가(`item_manager_save_dao_test.dart`): 캡처 table 선언 < WHILE < 초기화 < OUTPUT 순서를 검증해 다건 반복 누적을 방지한다.
+- focused 검증: `item_manager_save_dao_test.dart` 4건 통과.
+- 최종 검증: `item_manager_save_dao_test.dart`와 `item_manager_draft_test.dart` 총 30건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건.
+- stage 대상: `lib/features/item/data/item_manager_save.dart`, `test/item_manager_save_dao_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 신규 품목 RICH_ELEMENT_RTF 저장 실패 수정
 - 최신 로그 `app_2026-07-30_13-03-43.log`: 신규 2건 저장의 첫 `BM_RICH_ITEM` INSERT에서 `RICH_ELEMENT_RTF` NOT NULL 위반(native 515, state 23000)이 발생했고 transaction은 rollback됐다.
 - 레거시 비교: `CItem` 신규 생성자는 element RTF를 빈 문자열로 초기화하고 `CItemDAO::Insert/InsertBatch`는 `RICH_ELEMENT_RTF`를 항상 INSERT한다.

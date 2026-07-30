@@ -122,6 +122,21 @@ void main() {
         contains('OUTPUT INSERTED.RICH_ITEM_ID INTO @CapturedItem'),
       );
       expect(ItemManagerSaveDAO.saveSql, contains('WHILE @RowNo <= @RowCount'));
+      final capturedItemDeclaration = ItemManagerSaveDAO.saveSql.indexOf(
+        'DECLARE @CapturedItem TABLE',
+      );
+      final insertLoop = ItemManagerSaveDAO.saveSql.indexOf(
+        'WHILE @RowNo <= @RowCount',
+      );
+      final capturedItemReset = ItemManagerSaveDAO.saveSql.indexOf(
+        'DELETE FROM @CapturedItem;',
+      );
+      final capturedItemOutput = ItemManagerSaveDAO.saveSql.indexOf(
+        'OUTPUT INSERTED.RICH_ITEM_ID INTO @CapturedItem',
+      );
+      expect(capturedItemDeclaration, lessThan(insertLoop));
+      expect(capturedItemReset, greaterThan(insertLoop));
+      expect(capturedItemReset, lessThan(capturedItemOutput));
       expect(
         ItemManagerSaveDAO.saveSql,
         contains(
