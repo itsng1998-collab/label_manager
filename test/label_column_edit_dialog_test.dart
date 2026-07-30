@@ -1038,6 +1038,15 @@ void main() {
       editorDecoration.border,
       Border.all(color: const Color(0xFF0188FB), width: 2),
     );
+    expect(
+      tester.getSize(
+        find.ancestor(
+          of: keywordEditor,
+          matching: find.byType(DecoratedBox),
+        ).first,
+      ),
+      const Size(105, 27),
+    );
     final editorText = tester.widget<EditableText>(
       find.descendant(of: keywordEditor, matching: find.byType(EditableText)),
     );

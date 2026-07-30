@@ -1120,6 +1120,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     if (row.key == _editingCustomerKey) {
       return SizedBox(
         width: width,
+        height: double.infinity,
         child: Focus(
           child: Builder(
             builder: (context) => DecoratedBox(
