@@ -1153,6 +1153,58 @@ void main() {
     expect(commitCount, 0);
   });
 
+  testWidgets('item preview floating resize does not commit draft', (
+    tester,
+  ) async {
+    var commitCount = 0;
+    late PreviewFloatingWindow window;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () {
+                  window = PreviewFloatingWindow(
+                    initialSize: const Size(670, 470),
+                    minSize: const Size(420, 280),
+                    child: debugItemPreviewPanelForTesting(
+                      item: _testItemOfMarket(
+                        itemId: 578,
+                        itemName: '조회 품목',
+                      ),
+                      rowIdentity: 'item:578',
+                      labelSize: _testLabelSizeWithFormData(''),
+                      onElementCommitted: (_, _, _) async {
+                        commitCount += 1;
+                      },
+                    ),
+                  );
+                  window.show(context);
+                },
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    addTearDown(window.dispose);
+    await tester.pumpAndSettle();
+    expect(commitCount, 0);
+
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+      const Offset(60, 40),
+    );
+    await tester.pumpAndSettle();
+
+    expect(commitCount, 0);
+  });
+
   testWidgets('item element is read-only without edit permission', (
     tester,
   ) async {
@@ -2668,6 +2720,46 @@ void main() {
     );
     sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
     saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    expect(saveItem.disabled, isTrue);
+  });
+
+  testWidgets('filtered user workbook op does not mark sheet dirty', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 400,
+          height: 300,
+          child: LabelSheetWorkbench(
+            initialWorkbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 's1', name: 'Label')],
+            ),
+            onUserWorkbookChangedShouldNotify: (_, _) => false,
+            onSave: (_, _, _) => LabelSheetSaveResult.applied,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [FortuneSheet(id: 's1', name: 'Label', status: 0)],
+      ),
+    );
+    sheetApp.onOp!(const [
+      {'type': 'view-state'},
+    ]);
+    await tester.pump();
+
+    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
       (item) => item.key == labelSheetSaveToolbarCommand,
     );
     expect(saveItem.disabled, isTrue);

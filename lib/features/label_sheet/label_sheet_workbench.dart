@@ -2762,6 +2762,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   }
                   return;
                 }
+                if (!shouldNotify) {
+                  return;
+                }
                 if (_isDirty) {
                   return;
                 }
