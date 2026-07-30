@@ -1162,26 +1162,28 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         ),
       );
     }
-    return Listener(
-      onPointerDown: (event) {
-        if (event.buttons == kPrimaryMouseButton) {
-          _focusedColumnIndex = columnIndex;
-          _selectedIndex = rowIndex;
-        }
-      },
-      onPointerUp: (_) => FocusScope.of(context).requestFocus(_focusNode),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onDoubleTap: column.onDoubleTap != null
-            ? () => column.onDoubleTap!(row, rowIndex)
-            : _isTextEditable(column, row, rowIndex)
-            ? () => _startTextEditing(row, rowIndex, columnIndex, column)
-            : null,
-        child: Text(
-          column.text(row),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+    return SizedBox.expand(
+      child: Listener(
+        onPointerDown: (event) {
+          if (event.buttons == kPrimaryMouseButton) {
+            _focusedColumnIndex = columnIndex;
+            _selectedIndex = rowIndex;
+          }
+        },
+        onPointerUp: (_) => FocusScope.of(context).requestFocus(_focusNode),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onDoubleTap: column.onDoubleTap != null
+              ? () => column.onDoubleTap!(row, rowIndex)
+              : _isTextEditable(column, row, rowIndex)
+              ? () => _startTextEditing(row, rowIndex, columnIndex, column)
+              : null,
+          child: Text(
+            column.text(row),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+          ),
         ),
       ),
     );

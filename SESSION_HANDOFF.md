@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 신규 품목 빈 셀 편집 진입 수정
+- 사용자 재현 로그 `app_2026-07-30_11-57-45.log`: 품목 1개 추가는 성공했으나 빈 셀 더블클릭 후 편집 commit 이벤트가 없었다.
+- 원인: `FortuneTable._buildTextCell()`의 비편집 `GestureDetector`가 셀 전체가 아니라 내부 `Text`의 크기만 사용해 빈 문자열 셀은 double-tap hit 영역 폭이 0이다.
+- 수정 예정: 실제 품목 추가 명령 후 빈 동적 셀을 더블클릭하는 widget 회귀를 추가하고, 비편집 text cell의 hit 영역을 셀 내부 전체로 확장한다.
+- 재현 완료: 실제 추가 명령 후 빈 동적 셀 좌표를 더블클릭했을 때 `EditableText`가 생성되지 않아 focused 테스트가 수정 전 실패했다.
+- 편집 완료(`fortune_table.dart`): 비편집 text cell의 listener/gesture를 `SizedBox.expand`로 감싸 빈 문자열과 텍스트 오른쪽 여백도 셀 전체에서 hit-test되도록 변경했다.
+- focused 검증: 신규 빈 셀 회귀, 기존 값 동적 셀 편집, 이미지 picker 분기 3건 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 실행 예정: `flutter test test/fortune_table_test.dart`, `flutter analyze third_party/fortune_sheet/lib/src/fortune_table.dart test/fortune_table_test.dart`.
+- 최종 검증: 전체 `fortune_table_test.dart` 60건 통과. 변경 파일 analyzer `No issues found`.
+- stage 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 신규 품목 행 컬럼 타입별 편집
 - 확정 정책: 레거시 품목 편집과 동일하게 이미지형은 BMP 파일 선택, 그 외 편집 가능한 타입은 인라인 텍스트를 사용한다. 일반 품목 셀용 dropdown 선택지 데이터는 현재 모델과 레거시에 없다.
 - 수정 예정: `test/fortune_table_test.dart`에 신규 행 동적 텍스트 셀의 더블클릭 편집 회귀를 추가하고, 필요하면 `lib/features/item/presentation/item_manage.dart`의 draft 행 조회를 객체 identity 대신 안정적인 행 인덱스로 변경한다.

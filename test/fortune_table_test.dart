@@ -2543,6 +2543,66 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('ItemManage opens an editor for an empty added-row cell', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = originalColumns);
+    TColumn.datas = [
+      _testColumn(columnId: 101, columnName: '판매가격'),
+    ];
+    final controller = ItemManagerDraftController(
+      rows: const [],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              emptyElementPayload: 'UEsDempty',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 추가'));
+    await tester.pumpAndSettle();
+    expect(controller.rows, hasLength(1));
+
+    final dynamicHeaderCenter = tester.getCenter(
+      find.byKey(const ValueKey('fortune_table_header_text:판매가격')),
+    );
+    final emptyCellCenter = Offset(
+      dynamicHeaderCenter.dx,
+      tableTopLeft.dy + 36 + 14,
+    );
+    await tester.tapAt(emptyCellCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(emptyCellCenter);
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('ItemManage assigns the image picker to an image column', (
     tester,
   ) async {
