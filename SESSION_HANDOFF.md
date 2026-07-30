@@ -1,5 +1,17 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 라벨 항목 저장 schema 판정 수정
+- 사용자 제출 이미지/최신 로그 `app_2026-07-30_14-45-52.log` 분석: 라벨 항목 158행 조회는 성공했지만 저장 전 capability query 결과가 `hasCoreSchema=false`여서 `Required label column schema is not supported.`가 발생했다.
+- 레거시 비교: `.tmp/LabelManager/LabelManagerLib/Column.cpp`의 조회/INSERT/UPDATE와 현재 실제 조회/저장 SQL은 테이블을 schema 없이 참조한다. capability 검사만 `dbo.`로 고정되어 연결 계정 기본 schema의 테이블을 오탐한다.
+- 수정 예정: capability metadata 조회도 실제 SQL과 동일한 비정규화 object 이름을 사용하고, `dbo.` 재도입 방지 테스트를 추가한다. DB schema/migration은 변경하지 않는다.
+- 편집 완료: `LabelColumnSaveDao.capabilitySql`의 core/optional `OBJECT_ID`·`COL_LENGTH` 대상에서 `dbo.` 고정을 제거했다. 실제 조회/저장 SQL과 같은 기본 schema 해석을 사용한다.
+- 테스트 추가: capability metadata SQL에 `DBO.`가 없음을 고정했다.
+- 집중 검증: `test/label_column_save_test.dart` 14개 통과.
+- 최종 검증 예정: `test/label_column_save_test.dart`, `test/label_column_edit_dialog_test.dart`, `test/column_mapping_test.dart` 실행 후 변경 Dart 2개 analyzer 및 `git diff --check`.
+- 최종 검증: 관련 테스트 17개 통과, 변경 Dart 2개 analyzer `No issues found` (1.1초), diagnostics 0건. `git diff --check` 내용 오류 없음(LF→CRLF 정책 경고만 출력).
+- 완료 결과: capability metadata 검사와 실제 조회/저장/레거시 SQL의 object 이름 해석을 일치시켜 기본 schema의 기존 테이블을 `dbo` 누락으로 오탐하지 않는다. DB schema와 데이터는 변경하지 않았다.
+- stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+
 ## 완료: 날짜 타입 사용자 정의 형식 및 출력 반영
 - 원인 1: `DateManager`가 다이얼로그 preview에서 대문자 단일 토큰을 `replaceAll`할 뿐 소문자/연속 토큰 폭을 해석하지 않는다.
 - 원인 2: 실제 출력 공용 `projectLabelPrintColumnValues()`가 `LabelSizeSetup`을 입력받지 않아 날짜 설정 저장 후 preview를 재생성해도 raw `yyyyMMdd`/`HHmm` 값이 다시 치환된다.

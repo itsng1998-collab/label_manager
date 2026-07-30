@@ -129,6 +129,7 @@ void main() {
       expect(sql, isNot(contains('CREATE ')));
       expect(sql, isNot(contains('ALTER ')));
       expect(sql, isNot(contains('DROP ')));
+      expect(sql, isNot(contains('DBO.')));
     });
 
     test('builds one returnsRows XML transaction statement', () {
