@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 신규 품목 RICH_ELEMENT_RTF 저장 실패 수정
+- 최신 로그 `app_2026-07-30_13-03-43.log`: 신규 2건 저장의 첫 `BM_RICH_ITEM` INSERT에서 `RICH_ELEMENT_RTF` NOT NULL 위반(native 515, state 23000)이 발생했고 transaction은 rollback됐다.
+- 레거시 비교: `CItem` 신규 생성자는 element RTF를 빈 문자열로 초기화하고 `CItemDAO::Insert/InsertBatch`는 `RICH_ELEMENT_RTF`를 항상 INSERT한다.
+- 원인: 현재 `ItemManagerSaveDAO.saveSql`의 신규 `BM_RICH_ITEM` INSERT가 기준 데이터인 `RICH_ELEMENT_SHEET`만 기록하고 legacy 필수 컬럼 `RICH_ELEMENT_RTF`를 누락했다.
+- 수정 예정: 신규 INSERT에 `RICH_ELEMENT_RTF=N''`를 명시하고 SQL 계약 테스트를 추가한다. DB schema/default/migration은 변경하지 않는다.
+- 편집 완료(`item_manager_save.dart`): 신규 `BM_RICH_ITEM` INSERT 컬럼/SELECT에 `RICH_ELEMENT_RTF`와 `N''`를 같은 위치로 추가했다.
+- 테스트 추가(`item_manager_save_dao_test.dart`): 신규 INSERT가 `RICH_ELEMENT_SHEET` 다음에 legacy RTF 컬럼과 빈 값을 명시하는 계약을 검증한다.
+- focused 검증: `item_manager_save_dao_test.dart` 4건 통과.
+- 최종 검증: `item_manager_save_dao_test.dart`와 `item_manager_draft_test.dart` 총 30건 통과. 변경 파일 analyzer `No issues found`; diagnostics 0건.
+- stage 대상: `lib/features/item/data/item_manager_save.dart`, `test/item_manager_save_dao_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ## 완료: 품목 인라인 editor 문자별 초기화 수정
 - 현상: 품목 추가 행의 인라인 editor에서 연속 입력할 때 기존 입력이 지워지고 마지막 문자만 남는다.
 - 원인: `EditableText`가 처리할 문자 `KeyDownEvent`가 자식 `Focus`에서 테이블 `Focus`로 버블링되고, `_handleKeyEvent()`가 이를 선택 셀의 새 편집 시작으로 오인해 매 문자마다 `TextEditingController(initialText: 마지막 문자)`로 교체했다.

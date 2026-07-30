@@ -124,6 +124,16 @@ void main() {
       expect(ItemManagerSaveDAO.saveSql, contains('WHILE @RowNo <= @RowCount'));
       expect(
         ItemManagerSaveDAO.saveSql,
+        contains(
+          'RICH_ELEMENT_SHEET, RICH_ELEMENT_RTF, RICH_PRICE, RICH_ITEM_ORDER',
+        ),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains("ELEMENT_SHEET, N'', 0, ITEM_ORDER"),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
         contains('INSERT INTO BM_ITEM_OF_MARKET'),
       );
       expect(
