@@ -5,6 +5,7 @@
 - `DebugLogger`는 `PackageInfo`의 앱 버전을 사용하므로 다음 실행 로그에도 `1.0.1`이 기록된다.
 - 검증 완료: `dart run lib/utils/generate_version.dart`에서 `Generated version.txt: 1.0.1` 확인. 검증용 미추적 `version.txt`는 삭제했다.
 - stage/commit 대상: `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `389645d 앱 버전을 1.0.1로 지정`.
 
 ## 완료: DebugLogger 버전 선설정
 - 사용자 요청: `main()`에서 `DebugLogger.setVersion`을 로그 초기화보다 먼저 처리한다.
