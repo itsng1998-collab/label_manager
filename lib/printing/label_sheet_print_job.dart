@@ -65,6 +65,46 @@ class LabelSheetPrintPageMetrics {
       (millimeters * dpi / 25.4).round();
 }
 
+FortuneRange labelSheetPrintRange(
+  FortuneSheet sheet,
+  FortuneSheetGridClientPhysicalSize physicalSize,
+) {
+  final logicalSize = physicalSize.logicalSize;
+  return FortuneRange(
+    rowStart: 0,
+    rowEnd: _lastPrintIndexForExtent(
+      logicalSize.height,
+      lengthForIndex: (row) =>
+          sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? 19,
+    ),
+    columnStart: 0,
+    columnEnd: _lastPrintIndexForExtent(
+      logicalSize.width,
+      lengthForIndex: (column) =>
+          sheet.columnWidths[column] ?? sheet.defaultColWidth ?? 73,
+    ),
+  );
+}
+
+int _lastPrintIndexForExtent(
+  double extent, {
+  required double Function(int index) lengthForIndex,
+}) {
+  if (extent <= 0) {
+    return 0;
+  }
+  var offset = 0.0;
+  var index = 0;
+  while (offset < extent) {
+    offset += lengthForIndex(index);
+    if (offset >= extent) {
+      return index;
+    }
+    index += 1;
+  }
+  return index;
+}
+
 class LabelSheetPrintLayout {
   const LabelSheetPrintLayout({
     required this.pageWidthMm,

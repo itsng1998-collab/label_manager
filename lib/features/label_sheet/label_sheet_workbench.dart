@@ -2059,7 +2059,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     final capture = await _controller.captureRangeAsPng(
-      _labelSheetPrintRange(sheet, physicalSize),
+      labelSheetPrintRange(sheet, physicalSize),
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
       includeGridLines: false,
       includeCellBorders: true,
@@ -2107,7 +2107,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || physicalSize == null) return null;
-    final range = _labelSheetPrintRange(sheet, physicalSize);
+    final range = labelSheetPrintRange(sheet, physicalSize);
     final capture = await _controller.captureRangeAsPng(
       range,
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
@@ -2145,7 +2145,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || settings == null || physicalSize == null) return null;
-    final requestedRange = _labelSheetPrintRange(sheet, physicalSize);
+    final requestedRange = labelSheetPrintRange(sheet, physicalSize);
     final sheetMetrics = sheet.metrics(settings);
     final rowStart = math.min(requestedRange.rowStart, requestedRange.rowEnd);
     final rowEnd = math.max(requestedRange.rowStart, requestedRange.rowEnd);
@@ -2273,46 +2273,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   double _doubleFromPrintInput(String value) {
     return math.max(0, double.tryParse(value.trim()) ?? 0);
-  }
-
-  FortuneRange _labelSheetPrintRange(
-    FortuneSheet sheet,
-    FortuneSheetGridClientPhysicalSize physicalSize,
-  ) {
-    final logicalSize = physicalSize.logicalSize;
-    return FortuneRange(
-      rowStart: 0,
-      rowEnd: _lastPrintIndexForExtent(
-        logicalSize.height,
-        lengthForIndex: (row) =>
-            sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? 19,
-      ),
-      columnStart: 0,
-      columnEnd: _lastPrintIndexForExtent(
-        logicalSize.width,
-        lengthForIndex: (column) =>
-            sheet.columnWidths[column] ?? sheet.defaultColWidth ?? 73,
-      ),
-    );
-  }
-
-  int _lastPrintIndexForExtent(
-    double extent, {
-    required double Function(int index) lengthForIndex,
-  }) {
-    if (extent <= 0) {
-      return 0;
-    }
-    var offset = 0.0;
-    var index = 0;
-    while (offset < extent) {
-      offset += lengthForIndex(index);
-      if (offset >= extent) {
-        return index;
-      }
-      index += 1;
-    }
-    return index;
   }
 
   void _closePrintSettingsDialog() {

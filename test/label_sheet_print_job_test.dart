@@ -8,6 +8,28 @@ import 'package:image/image.dart' as img;
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 void main() {
+  test('print range uses physical size with custom and default axes', () {
+    final range = labelSheetPrintRange(
+      fs.FortuneSheet(
+        id: 'sheet',
+        name: 'Sheet',
+        rowHeights: const <int, double>{0: 20},
+        columnWidths: const <int, double>{0: 30},
+        defaultRowHeight: 10,
+        defaultColWidth: 5,
+      ),
+      const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 10,
+        heightMm: 10,
+      ),
+    );
+
+    expect(range.rowStart, 0);
+    expect(range.rowEnd, 2);
+    expect(range.columnStart, 0);
+    expect(range.columnEnd, 2);
+  });
+
   test('physical layout keeps source size and applies margin push and clip', () {
     final layout = LabelSheetPrintLayout.resolve(
       metrics: const LabelSheetPrintPageMetrics(
