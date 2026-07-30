@@ -102,6 +102,14 @@ void main() {
     );
   });
 
+  test('accepts only unambiguous transform number separators', () {
+    expect(itemManagerTryParseImportTransformNumber('1,234.5'), 1234.5);
+    expect(itemManagerTryParseImportTransformNumber('1e3'), 1000);
+    expect(itemManagerTryParseImportTransformNumber('1,2,3'), isNull);
+    expect(itemManagerTryParseImportTransformNumber('2,5'), isNull);
+    expect(itemManagerTryParseImportTransformNumber('Infinity'), isNull);
+  });
+
   test('applies configured transforms to imported item and column values', () {
     const columns = [
       ItemManagerXlsxColumn(
@@ -264,6 +272,23 @@ void main() {
       expect(element.columnWidths[0], closeTo(112, 0.01));
     },
   );
+
+  test('preserves leading zeros from an Excel zero number mask', () {
+    final result = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(codeValue: '123', codeNumericMask: true),
+      columns: const [
+        ItemManagerXlsxColumn(
+          columnId: 7,
+          name: '코드',
+          editable: true,
+          typeCode: TColumnType.TYPE_BASE,
+        ),
+      ],
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    expect(result.rows.single.columnDrafts[7]?.dataString, '00123');
+  });
 
   test('rejects a first worksheet without the item header', () {
     expect(
@@ -508,6 +533,7 @@ Uint8List _itemWorkbookBytes({
   String itemName = '딸기잼',
   String codeValue = '00123',
   bool codeQuotePrefix = false,
+  bool codeNumericMask = false,
   int dataRowNumber = 2,
   bool dataRowHidden = false,
 }) {
@@ -527,19 +553,23 @@ Uint8List _itemWorkbookBytes({
 </Relationships>''');
   addXml('xl/styles.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1"><numFmt numFmtId="164" formatCode="00000"/></numFmts>
   <fonts count="2"><font><sz val="11"/></font><font><b/><sz val="12"/></font></fonts>
   <fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/></patternFill></fill></fills>
   <borders count="1"><border/></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFill="1" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" quotePrefix="1"/></cellXfs>
+  <cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFill="1" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" quotePrefix="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0"/></cellXfs>
 </styleSheet>''');
+  final codeCell = codeNumericMask
+      ? '<c r="C$dataRowNumber" s="4"><v>$codeValue</v></c>'
+      : '<c r="C$dataRowNumber" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c>';
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <dimension ref="A1:G${dataRowNumber + 1}"/>
   <cols><col min="2" max="2" width="14" customWidth="1"/></cols>
   <sheetData>
     <row r="1"><c r="A1" t="inlineStr"><is><t>$itemHeader</t></is></c><c r="B1" t="inlineStr"><is><t>주원료</t></is></c><c r="C1" t="inlineStr"><is><t>코드</t></is></c><c r="D1" t="inlineStr"><is><t>$dateHeader</t></is></c><c r="E1" t="inlineStr"><is><t>이미지</t></is></c><c r="G1" t="inlineStr"><is><t>품목</t></is></c></row>
-    <row r="$dataRowNumber" ht="24" customHeight="1"${dataRowHidden ? ' hidden="1"' : ''}><c r="A$dataRowNumber" t="inlineStr"><is><t>$itemName</t></is></c><c r="B$dataRowNumber" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c><c r="C$dataRowNumber" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c><c r="D$dataRowNumber" s="1"><v>45000</v></c><c r="E$dataRowNumber" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
+    <row r="$dataRowNumber" ht="24" customHeight="1"${dataRowHidden ? ' hidden="1"' : ''}><c r="A$dataRowNumber" t="inlineStr"><is><t>$itemName</t></is></c><c r="B$dataRowNumber" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c>$codeCell<c r="D$dataRowNumber" s="1"><v>45000</v></c><c r="E$dataRowNumber" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
     <row r="${dataRowNumber + 1}"/>
   </sheetData>
 </worksheet>''');

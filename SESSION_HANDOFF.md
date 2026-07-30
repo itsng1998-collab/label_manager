@@ -1,5 +1,14 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 6차 검토
+- 제외 범위: 앞선 5차까지 확정한 정책은 재검토하지 않고 숫자 연산 입력과 Excel 사용자 지정 숫자 서식을 확인했다.
+- 사용자 확정: 연산값은 올바른 천 단위 쉼표와 점 소수점을 허용하고 쉼표 소수/잘못된 그룹은 거부한다. 과학 표기는 허용한다. Excel `00000` 숫자 서식은 표시값의 선행 0을 보존한다.
+- 편집 완료: application 공용 숫자 parser로 다이얼로그 validator와 실제 연산 판정을 통일하고 유한하지 않은 숫자도 거부한다. `_formatNumeric`에 순수 0 자리 마스크의 선행 0 보존을 추가했다.
+- 테스트 추가: `1,234.5`/`1e3` 허용, `1,2,3`/`2,5`/`Infinity` 거부, 다이얼로그 오류 표시, Excel `00000`의 `00123` import를 고정했다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 51개 통과. 변경 production/test 4개 파일 `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공.
+- stage/commit 대상: Excel application/dialog production 2개, 관련 테스트 2개, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 5차 검토
 - 제외 범위: 앞선 4차까지 확정한 정책은 재검토하지 않고 컬럼명 공백, 수식 cache, 숨김 행, 빈 품목명 행과 숫자 표시 형식을 확인했다.
 - 사용자 확정: 현재 라벨 컬럼명은 앞뒤 공백을 trim해 Excel 헤더 생성·매핑·중복 판정을 통일한다. 숨김 행도 가져오며, 품목명이 비고 다른 값이 있는 행은 draft에 가져온 뒤 저장 전 검증에서 차단한다.

@@ -162,6 +162,45 @@ void main() {
     expect(selected?.columns[7]?.decimalPlaces, 3);
     expect(selected?.columns[7]?.apply('3'), '0.6');
   });
+
+  testWidgets('rejects ambiguous comma grouping in numeric settings', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showItemManagerImportTransformDialog(
+                context,
+                result: _result(),
+                columns: _columns,
+              ),
+              child: const Text('열기'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('열기'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('item-import-operation:column:7')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('× 곱하기').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('item-import-value:column:7')),
+      '1,2,3',
+    );
+    await tester.tap(find.byKey(const Key('item-import-transform-apply')));
+    await tester.pump();
+
+    expect(find.text('천 단위 쉼표와 소수점(.)을 확인하세요.'), findsOneWidget);
+    expect(find.text('Excel 가져오기 연산 설정'), findsOneWidget);
+  });
 }
 
 const _columns = [

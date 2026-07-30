@@ -234,13 +234,15 @@ class _TransformRow extends StatelessWidget {
             onChanged: (value) => draft.value = value,
             validator: (value) {
               if (value == null || value.isEmpty) return '설정값을 입력하세요.';
-              if (numeric &&
-                  double.tryParse(value.trim().replaceAll(',', '')) == null) {
-                return '숫자를 입력하세요.';
+              final parsedNumber = numeric
+                  ? itemManagerTryParseImportTransformNumber(value)
+                  : null;
+              if (numeric && parsedNumber == null) {
+                return '천 단위 쉼표와 소수점(.)을 확인하세요.';
               }
               if (draft.operation ==
                       ItemManagerImportTransformOperation.divide &&
-                  double.tryParse(value.trim().replaceAll(',', '')) == 0) {
+                  parsedNumber == 0) {
                 return '0으로 나눌 수 없습니다.';
               }
               return null;

@@ -175,8 +175,19 @@ String _applyImportTransform(
   }
 }
 
+double? itemManagerTryParseImportTransformNumber(String source) {
+  final input = source.trim();
+  if (!RegExp(
+    r'^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$',
+  ).hasMatch(input)) {
+    return null;
+  }
+  final value = double.tryParse(input.replaceAll(',', ''));
+  return value?.isFinite == true ? value : null;
+}
+
 double _parseTransformNumber(String source) {
-  final value = double.tryParse(source.trim().replaceAll(',', ''));
+  final value = itemManagerTryParseImportTransformNumber(source);
   if (value == null) throw FormatException('숫자 값이 아닙니다: $source');
   return value;
 }
@@ -552,6 +563,10 @@ String _formatNumeric(
     return format.contains('s')
         ? '$base:${seconds.toString().padLeft(2, '0')}'
         : base;
+  }
+  if (RegExp(r'^0+$').hasMatch(format) && value == value.truncateToDouble()) {
+    final integer = value.abs().toInt().toString().padLeft(format.length, '0');
+    return value.isNegative ? '-$integer' : integer;
   }
   final decimalMatch = RegExp(r'\.([0#]+)').firstMatch(format);
   final decimals = decimalMatch?.group(1)?.length;
