@@ -9,6 +9,7 @@
 - 추가 확인: 일반 컬럼명이 Excel 기본 헤더 `품목`/`주원료`와 같은 경우도 같은 모호성이므로 import/export 전에 실패하도록 했다. 경고 순서, transform 대상 타입, import 이후 원본 행 metadata 미보존은 현재 실행 계약에 문제없어 유지했다.
 - 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 46개 통과. 변경 production/test `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공.
 - stage/commit 대상: `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `pubspec.yaml`, `pubspec.lock`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `65e7b2a 엑셀 컬럼명 충돌과 문자 위치 처리 보완`.
 
 ## 완료: Excel 가져오기 신규 코드 3차 검토
 - 제외 범위: 기존에 확정한 Mid/빈 셀/샘플/중복 헤더/10*8/전체 교체/busy 정책은 재검토하지 않고, 원본 행 번호·숫자 서식·미매핑 헤더·적용 결과 일치 여부를 확인했다.
