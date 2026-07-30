@@ -9,9 +9,10 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
-const double _labelColumnDialogMaxWidth = 1232;
-const double _labelColumnDialogMinContentWidth = 1092;
-const double _customerTypeColumnWidth = 144;
+const double _labelColumnDialogMaxWidth = 1264;
+const double _labelColumnDialogMinContentWidth = 1144;
+const double _customerCandidateRegionWidth = 426;
+const double _customerTypeColumnWidth = 176;
 
 @visibleForTesting
 double labelColumnEditDialogWidth(double screenWidth) =>
@@ -595,8 +596,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                               _buildCommandRail(),
                             ),
                           ),
-                          Expanded(
-                            flex: 4,
+                          SizedBox(
+                            width: _customerCandidateRegionWidth,
                             child: _propertyLockedRegion(
                               const Key('label-column-candidate-region'),
                               _buildCandidates(),

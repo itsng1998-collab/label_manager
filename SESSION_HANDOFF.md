@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: 사용자 항목 추가 스크롤 및 드롭다운 잘림 재수정
+- 최신 로그 `app_2026-07-30_15-15-05.log`: 신규 159행 추가 후 row 15부터 row 158까지 약 3.3초 동안 순차 build되어 자동 스크롤이 즉시 완료되지 않았다. 고정 높이 행 ListView에 `itemExtent`가 없어 max scroll extent를 점진 추정하는 것이 원인이다.
+- 제출 화면 비교: 사용자 후보 영역은 약 386px인데 현재 열 합계가 `34+105+111+144=394px`라 144px로 확장한 종류 드롭다운도 8px 잘린다.
+- 수정 예정: 공용 테이블 세로 ListView에 `itemExtent=rowHeight`를 적용하고, 사용자 후보 영역을 열 합계에 맞는 426px로 고정한다. 종류 열은 176px, 다이얼로그 최대 폭은 1264px로 조정한다.
+- 1차 집중 검증: `itemExtent` 적용 후 대량 행은 즉시 마지막 구간을 materialize했지만 첫 callback의 max extent는 이전 행 기준이라 28px 부족했다. 첫 180ms 이동 완료 후 확정 extent로 두 번째 이동하는 기존 보정을 유지하며 완료 제한을 400ms로 검증한다.
+- 테스트 보강: 사용자 후보 영역 426px와 종류 dropdown 176px뿐 아니라 사용자 테이블의 헤더/본문 가로 `maxScrollExtent=0`을 검증해 열 잘림이 없음을 고정한다.
+- 전체 회귀 1차 결과: 46개 중 42개 통과, row reorder 4개가 drop gap의 가변 높이와 `itemExtent` 충돌로 실패했다. `rowReorderEnabled` 테이블은 기존 가변 extent를 유지하고, 일반 고정 행 테이블에만 `itemExtent`를 적용하도록 범위를 제한했다.
+- 최종 검증: 공용 테이블/라벨 항목 편집 테스트 46개 통과, 변경 Dart 3개 analyzer `No issues found` (1.6초), diagnostics 0건. `git diff --check` 내용 오류 없음(LF→CRLF 정책 경고만 출력).
+- 완료 결과: 158행 뒤 신규 사용자 항목은 400ms 안에 마지막 행까지 자동 스크롤되며, 사용자 후보 영역 426px에 열 전체가 들어가 가로 overflow 없이 176px 종류 드롭다운이 잘리지 않는다. row reorder 테이블의 가변 drop gap은 기존 동작을 유지한다.
+- stage/commit 대상: `lib/widgets/swipe_action_table.dart`, `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart` 제외.
+
 ## 완료: 사용자 항목 종류 드롭다운 한 줄 표시
 - 사용자 제출 화면에서 사용자 항목 수정 모드의 종류 드롭다운 폭 80px가 부족해 `2D 바코드(QR 코드)`가 두 줄로 표시된다.
 - 수정 예정: 사용자 항목 종류 열을 64px 넓힌 144px로 조정하고, 다이얼로그 최대 폭과 내부 최소 폭도 각각 같은 64px만큼 늘린다. 가장 긴 메뉴 항목의 한 줄 높이와 실제 프레임/열 폭을 widget 테스트로 고정한다.

@@ -628,6 +628,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       width: widget.rowNumberWidth,
       child: ListView.builder(
         controller: _vScrollIndex,
+        itemExtent: widget.rowReorderEnabled ? null : widget.rowHeight,
         itemCount: widget.rows.length,
         itemBuilder: (context, index) => _buildRowNumber(index, widths),
       ),
@@ -1352,6 +1353,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                                   width: contentWidth,
                                   child: ListView.builder(
                                     controller: _vScrollBody,
+                                    itemExtent:
+                                      widget.rows.isEmpty ||
+                                        widget.rowReorderEnabled
+                                        ? null
+                                        : widget.rowHeight,
                                     itemCount: widget.rows.isEmpty
                                         ? 1
                                         : widget.rows.length,

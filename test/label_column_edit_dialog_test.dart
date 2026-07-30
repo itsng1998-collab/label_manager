@@ -229,7 +229,7 @@ void main() {
     await _pumpDialog(tester);
 
     expect(find.text('라벨 항목 편집'), findsOneWidget);
-    expect(labelColumnEditDialogWidth(1300), 1232);
+    expect(labelColumnEditDialogWidth(1400), 1264);
     expect(find.text('속성'), findsOneWidget);
     expect(find.text('사용 항목'), findsOneWidget);
     expect(find.text('고정 A'), findsOneWidget);
@@ -416,7 +416,7 @@ void main() {
     );
     expect(tester.widget<EditableText>(dropdownEditor).style.fontSize, 13);
     await _tapVisible(tester, typeDropdown);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     final barcodeMenuItem = find.widgetWithText(MenuItemButton, '바코드');
     expect(barcodeMenuItem, findsAtLeastNWidgets(1));
     expect(tester.getSize(barcodeMenuItem.last).height, 28);
@@ -1058,9 +1058,33 @@ void main() {
       userTable.columns
           .firstWhere((dynamic column) => column.header == '종류')
           .initialWidth,
-      144,
+      176,
     );
-    expect(tester.getSize(typeDropdown).width, 144);
+    expect(tester.getSize(typeDropdown).width, 176);
+    expect(
+      tester.getSize(find.byKey(const Key('label-column-candidate-region'))).width,
+      426,
+    );
+    final horizontalScrollViews = tester.widgetList<SingleChildScrollView>(
+      find.descendant(
+        of: find.byKey(const Key('label-column-user-editor')),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+      ),
+    );
+    expect(
+      horizontalScrollViews,
+      everyElement(
+        isA<SingleChildScrollView>().having(
+          (view) => view.controller!.position.maxScrollExtent,
+          'maxScrollExtent',
+          0,
+        ),
+      ),
+    );
     final compactArrow = find.descendant(
       of: typeDropdown,
       matching: find.byIcon(Icons.arrow_drop_down),
