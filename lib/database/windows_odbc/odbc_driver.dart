@@ -20,6 +20,16 @@ bool odbcErrorInvalidatesConnection(OdbcException error) {
       error.message.contains('failed: ${OdbcConst.sqlInvalidHandle}');
 }
 
+@visibleForTesting
+List<String> odbcSqlServerDriverNames() => const <String>[
+  '{ODBC Driver 18 for SQL Server}',
+  '{ODBC Driver 17 for SQL Server}',
+];
+
+@visibleForTesting
+bool odbcErrorAllowsDriverFallback(OdbcException error) =>
+    error.sqlState?.trim().toUpperCase() == 'IM002';
+
 class OdbcMssqlDriver implements DbDriver {
   OdbcMssqlDriver({void Function(String message)? logger}) : _logger = logger;
 
@@ -68,6 +78,7 @@ class OdbcMssqlDriver implements DbDriver {
           final state = e.sqlState ?? 'unknown';
           _log('[OdbcMssqlDriver] connect failed ($state): ${e.message}');
           lastError = e;
+          if (!odbcErrorAllowsDriverFallback(e)) break;
         }
       }
       if (lastError != null) {
@@ -626,7 +637,7 @@ class OdbcMssqlDriver implements DbDriver {
   }) {
     final base =
         'Server=$ip,$port;Database=$databaseName;UID=$username;PWD=$password;Encrypt=No;Login Timeout=$timeoutInSeconds;';
-    final drivers = <String>['{ODBC Driver 18 for SQL Server}'];
+    final drivers = odbcSqlServerDriverNames();
     return drivers.map((driver) => 'Driver=$driver;$base').toList();
   }
 }
