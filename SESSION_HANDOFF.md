@@ -9,6 +9,7 @@
 - 전체 검증 완료: `flutter test test/label_column_edit_dialog_test.dart test/swipe_action_table_test.dart test/fortune_table_test.dart` 성공(112개), formatter 후 집중 테스트 성공(1개), 수정 파일 진단 0건, `git diff --check` whitespace 오류 없음(LF/CRLF 안내만 출력).
 - analyzer: `flutter analyze`는 이번 변경 오류 없이 기존 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 미사용 코드 경고 10건으로 종료 코드 1.
 - stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외.
+- 기능 커밋: `5126c00` (`라벨 사용자 항목 편집 스타일 통일`).
 
 ## 완료: 사용자 항목 추가 스크롤 및 드롭다운 잘림 재수정
 - 최신 로그 `app_2026-07-30_15-15-05.log`: 신규 159행 추가 후 row 15부터 row 158까지 약 3.3초 동안 순차 build되어 자동 스크롤이 즉시 완료되지 않았다. 고정 높이 행 ListView에 `itemExtent`가 없어 max scroll extent를 점진 추정하는 것이 원인이다.
