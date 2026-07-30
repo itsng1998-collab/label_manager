@@ -8,7 +8,7 @@
 - 테스트 완료: 연산 종류 변경 후 설정값 유지와 화면 밖 invalid draft 전체 검증을 추가했다.
 - 문서 편집 완료: `doc/item_manager_modify.txt`에 연산 변경 값 유지, 전체 설정·전체 행 검증, 실패 시 dialog 유지, 성공 결과 단일 적용 정책을 반영했다.
 - 검증 완료: dialog focused 테스트 8개 및 Excel parser/연산·dialog·draft focused 테스트 54개 통과. 변경 Dart 3개 파일 `flutter analyze` 성공, 변경 코드·테스트·문서·`pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
-- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다.
+- 기능 커밋: `48c325f 엑셀 연산 다이얼로그 전체 검증 보완`.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/features/item/presentation/item_manager_import_transform_dialog.dart`, `lib/home_page_manager.dart`, `test/item_manager_import_transform_dialog_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 
