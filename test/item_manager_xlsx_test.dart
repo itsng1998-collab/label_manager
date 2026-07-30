@@ -169,6 +169,45 @@ void main() {
     );
   });
 
+  test('reports the original Excel row after empty rows are skipped', () {
+    const columns = [
+      ItemManagerXlsxColumn(
+        columnId: 7,
+        name: '코드',
+        editable: true,
+        typeCode: TColumnType.TYPE_BASE,
+      ),
+    ];
+    final imported = itemManagerImportXlsxBytes(
+      _itemWorkbookBytes(codeValue: '서울', dataRowNumber: 4),
+      columns: columns,
+      emptyElementPayload: 'UEsDempty',
+    );
+
+    expect(imported.rows.single.excelRowNumber, 4);
+    expect(
+      () => itemManagerApplyImportTransforms(
+        imported,
+        columns: columns,
+        transforms: const ItemManagerImportTransforms(
+          columns: {
+            7: ItemManagerImportTransform(
+              operation: ItemManagerImportTransformOperation.add,
+              value: '5',
+            ),
+          },
+        ),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('Excel 4행 코드 연산 실패'),
+        ),
+      ),
+    );
+  });
+
   test(
     'imports first-sheet item rows with formatted values and element style',
     () {
@@ -330,6 +369,7 @@ Uint8List _itemWorkbookBytes({
   String dateHeader = '날짜',
   String codeValue = '00123',
   bool codeQuotePrefix = false,
+  int dataRowNumber = 2,
 }) {
   final archive = Archive();
   void addXml(String name, String content) {
@@ -355,12 +395,12 @@ Uint8List _itemWorkbookBytes({
 </styleSheet>''');
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <dimension ref="A1:G3"/>
+  <dimension ref="A1:G${dataRowNumber + 1}"/>
   <cols><col min="2" max="2" width="14" customWidth="1"/></cols>
   <sheetData>
     <row r="1"><c r="A1" t="inlineStr"><is><t>$itemHeader</t></is></c><c r="B1" t="inlineStr"><is><t>주원료</t></is></c><c r="C1" t="inlineStr"><is><t>코드</t></is></c><c r="D1" t="inlineStr"><is><t>$dateHeader</t></is></c><c r="E1" t="inlineStr"><is><t>이미지</t></is></c><c r="G1" t="inlineStr"><is><t>품목</t></is></c></row>
-    <row r="2" ht="24" customHeight="1"><c r="A2" t="inlineStr"><is><t>딸기잼</t></is></c><c r="B2" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c><c r="C2" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c><c r="D2" s="1"><v>45000</v></c><c r="E2" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
-    <row r="3"/>
+    <row r="$dataRowNumber" ht="24" customHeight="1"><c r="A$dataRowNumber" t="inlineStr"><is><t>딸기잼</t></is></c><c r="B$dataRowNumber" t="inlineStr" s="2"><is><t>딸기 60%</t></is></c><c r="C$dataRowNumber" t="inlineStr"${codeQuotePrefix ? ' s="3"' : ''}><is><t>$codeValue</t></is></c><c r="D$dataRowNumber" s="1"><v>45000</v></c><c r="E$dataRowNumber" t="inlineStr"><is><t>C:\\images\\상품.BMP</t></is></c></row>
+    <row r="${dataRowNumber + 1}"/>
   </sheetData>
 </worksheet>''');
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));

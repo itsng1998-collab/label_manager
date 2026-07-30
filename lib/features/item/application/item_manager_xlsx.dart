@@ -120,7 +120,7 @@ ItemManagerXlsxImportResult itemManagerApplyImportTransforms(
   final rows = <ItemManagerImportedRow>[];
   for (var index = 0; index < result.rows.length; index += 1) {
     final row = result.rows[index];
-    final rowNumber = index + 2;
+    final rowNumber = row.excelRowNumber ?? index + 2;
     final drafts = Map<int, ItemManagerColumnDraft>.of(row.columnDrafts);
     for (final entry in transforms.columns.entries) {
       final draft = drafts[entry.key];
@@ -148,6 +148,7 @@ ItemManagerXlsxImportResult itemManagerApplyImportTransforms(
         elementPlain: row.elementPlain,
         elementPayload: row.elementPayload,
         columnDrafts: Map.unmodifiable(drafts),
+        excelRowNumber: row.excelRowNumber,
       ),
     );
   }
@@ -427,6 +428,7 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
         elementPlain: elementPlain,
         elementPayload: elementPayload,
         columnDrafts: Map.unmodifiable(columnDrafts),
+        excelRowNumber: rowIndex + 1,
       ),
     );
   }

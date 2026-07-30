@@ -114,12 +114,14 @@ class ItemManagerImportedRow {
     required this.elementPlain,
     required this.elementPayload,
     this.columnDrafts = const {},
+    this.excelRowNumber,
   });
 
   final String itemName;
   final String elementPlain;
   final String elementPayload;
   final Map<int, ItemManagerColumnDraft> columnDrafts;
+  final int? excelRowNumber;
 }
 
 @immutable

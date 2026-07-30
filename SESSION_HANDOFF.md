@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 완료: Excel 가져오기 신규 코드 3차 검토
+- 제외 범위: 기존에 확정한 Mid/빈 셀/샘플/중복 헤더/10*8/전체 교체/busy 정책은 재검토하지 않고, 원본 행 번호·숫자 서식·미매핑 헤더·적용 결과 일치 여부를 확인했다.
+- 사용자 확정: 백분율 셀은 Excel 원 숫자값(예: `0.5`)으로, 통화 셀은 통화 기호를 제외한 숫자로 가져온다. 현재 formatter와 숫자 parser가 이 계약을 충족해 추가 변환하지 않는다.
+- 편집 완료: import row에 원본 Excel 행 번호를 보존하고, 빈 행을 건너뛴 뒤 연산이 실패해도 실제 Excel 행 번호를 오류에 표시한다. transform 적용 후에도 원본 행 번호를 유지한다.
+- 문서 정합성: `doc/item_manager_modify.txt`의 과거 중복 헤더 첫 값 사용 설명을 사용자 확정 정책인 중복 헤더 실패로 갱신했다.
+- 테스트 추가: Excel 2~3행이 비고 4행의 숫자 연산이 실패할 때 `Excel 4행 코드 연산 실패`가 표시되는 계약을 고정했다.
+- 검토 결론: 알 수 없는 헤더는 현재 라벨 크기의 컬럼명과 일치할 때만 매핑하는 기존 명시 계약이므로 경고를 추가하지 않는다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- 검증 완료: Excel parser/연산 다이얼로그/draft 전체 교체 focused 테스트 43개 통과. 변경 Dart 3개 파일 `flutter analyze` 성공, 변경 파일 diagnostics 0건, `git diff --check` 성공. 중복 헤더의 과거 첫 값 사용 설명이 문서에 남지 않은 것을 확인했다.
+- stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `lib/features/item/application/item_manager_xlsx.dart`, `test/item_manager_xlsx_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 2차 검토
 - 검토 범위: 직전 연산 의미/샘플 보완을 제외한 헤더 매핑, 전체 교체, 10*8 파생값, 취소/오류 상태와 관련 테스트. 과도한 보완/예외 처리는 추가하지 않는다.
 - 사용자 확정: 알려진 헤더가 중복되면 첫/마지막 값을 임의 선택하지 않고 가져오기를 실패시킨다. 10*8의 매수·발행수량은 자동 재계산하지 않고 Excel 값을 그대로 유지한다.
