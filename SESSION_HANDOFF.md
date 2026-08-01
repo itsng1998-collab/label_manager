@@ -6,7 +6,9 @@
 - 편집 완료: 출력 미리보기 replacement map에 `#품목`을 선택 행 `item.item.itemName`으로 추가했다.
 - 테스트 완료: `#ITEMNAME`과 `#품목`이 같은 선택 행 품명으로 치환되는 회귀를 기존 private active sheet 테스트에 추가했다.
 - 검증 완료: 집중 테스트 1개와 출력 미리보기·바코드 resolver·출력 pipeline focused 테스트 166개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
-- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+- 수정 위치: `lib/home_page_manager.dart`의 `_itemOutputPreviewReplacements()`.
+- 기능 커밋: `435365a 출력 미리보기 품명 별칭 매핑`.
+- 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 
