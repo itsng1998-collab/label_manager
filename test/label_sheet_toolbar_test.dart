@@ -939,6 +939,35 @@ void main() {
     );
   });
 
+  test('item output element skips trailing keyword whitespace adjustment', () {
+    const alignmentSpaces = '                              ';
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 120},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '원부재료$alignmentSpaces#ELEMENT',
+                textWrap: '2',
+                fontSize: 8,
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#ELEMENT': '밀가루, 설탕, 버터, 우유'},
+      elementCell: const FortuneCell(value: '밀가루, 설탕, 버터, 우유'),
+    ).sheets.single;
+
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
+      '원부재료$alignmentSpaces밀가루, 설탕, 버터, 우유',
+    );
+  });
+
   test('item output element uses target layout without source font scale', () {
     FortuneSheet materialize(String text) {
       final workbook = FortuneWorkbook(

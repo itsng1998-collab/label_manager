@@ -9198,7 +9198,7 @@ fs.FortuneSheet _replaceSheetKeywords(
             entry.value,
             settings,
           );
-    if (renderedTextLayout != null) {
+    if (renderedTextLayout != null && !containsElementKeyword) {
       nextCell = _trimOverflowingWhitespaceBeforeTrailingKeywordGroup(
         entry.value,
         nextCell,

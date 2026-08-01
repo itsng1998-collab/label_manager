@@ -274,6 +274,18 @@
 - 기능 커밋: `439e115 플로팅 닫기 상태 완전 복원`.
 - 최종 계약: 모든 공용 플로팅창은 닫기 애니메이션과 다시보기 사이 동일 window/child element/Rect를 유지해 내부 탭 선택, 스크롤·편집 state, 창 위치와 크기를 닫기 직전 상태로 복원한다.
 
+## 완료: `#ELEMENT` 최소 공백 조정 제외 v1.0.23
+- 사용자 요구: 끝부분 일반 키워드의 overflow만큼 앞 공백을 줄이는 처리는 주원료 `#ELEMENT` 치환에는 적용하지 않는다.
+- 원인 확정: `_replaceSheetKeywords`가 `containsElementKeyword`를 계산하면서도 `_trimOverflowingWhitespaceBeforeTrailingKeywordGroup` 호출 조건에 사용하지 않아 `#ELEMENT` 셀도 일반 키워드와 동일하게 공백을 삭제했다.
+- 수정 완료: renderer 폭/행 높이 측정은 그대로 유지하고, 최소 공백 helper만 `containsElementKeyword=false`인 셀에 호출한다. `#ELEMENT`가 포함된 셀은 앞 공백을 원본 그대로 보존한다.
+- 공용 적용 범위: 품목관리·라벨출력·저울출력 미리보기와 실제 PNG/PDF/RAW/EZPL 출력이 공유하는 materialized workbook 단계에서 제외한다.
+- 테스트 추가: 좁은 셀의 `원부재료 + 다수 공백 + #ELEMENT` 치환 후에도 모든 공백이 유지되는지 검증한다.
+- 버전 적용 완료: 앱 `1.0.23`.
+- 집중 검증 완료: 신규 `#ELEMENT` 공백 보존 1건과 일반 trailing keyword 최소 공백 조정 3건, 총 4건 통과. 변경 Dart 파일 diagnostics 0건.
+- 전체 검증 완료: `test/label_sheet_toolbar_test.dart` 182건, `test/nutrition_box_dialog_test.dart` 11건 모두 통과. `git diff --check` 통과.
+- 정적 분석: 변경 Dart 파일 diagnostics 0건. 전체 `flutter analyze`는 이번 변경과 무관한 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 기존 미사용 코드 warning 10건만 보고했다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
