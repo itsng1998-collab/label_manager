@@ -1,5 +1,17 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: `#ELEMENT` 하단 clip-safe 최소 여백 v1.0.6
+- 제출 이미지/실행 v7 로그 비교: 두 번째 `유자마왕파이`의 source/result 마지막 문자는 `기타소금(호수염)`이며 trailing 공백·탭·개행이 없다. result line metrics도 실내용 5줄뿐이라 trim 대상이 아니다.
+- 세 품목 모두 `targetBottomPadding=2.107142857...`, 실제 selection 하단 여백 `2.33876...px`로 동일했다. 200% 미리보기에서는 고정 여백이 약 4.2 화면 px로 확대돼 긴 셀에서 넓게 보인다.
+- 수정: 상단 0px은 유지하고 하단을 잘림 방지용 고정 1px로 축소한다. 결과 길이·원본 행 높이와 무관하게 `rowHeight=textHeight+1px`을 사용한다.
+- 버전: 앱 `1.0.6`, item debug schema v8.
+- 집중 검증 완료: 1줄/3줄 및 실제 8pt/5pt 혼합 fixture 모두 `textOffsetY=0`, `lineBoxBottomPadding=1`, 줄 수와 무관한 고정 1px을 확인했다. diagnostics 0건.
+- v8 로그는 설정값 `configuredBottomPadding`과 최종 측정값 `fixedBottomPadding`을 분리한다.
+- 전체 검증 완료: 앱 관련 테스트 171개, FortuneSheet 캡처 테스트 6개 통과. 변경 Dart 파일 `flutter analyze` issue 없음.
+- 최종 변경 검증 예정: `git diff --check`, 버전 및 stage 범위를 확인한다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+- 실행 검증 예정: 기능 커밋 후 v1.0.6 Windows Debug를 빌드·재실행해 앱 버전을 확인한다.
+- 최종 변경 검증 완료: `git diff --check` 통과, `pubspec.yaml=1.0.6` 확인. stage 대상은 `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이다.
+
 ## 완료: `#ELEMENT` 대상 라벨 하단 최소 여백 v1.0.5
 - 최신 v1.0.4 이미지: 상단은 고정됐지만 짧은 내용은 하단 획이 경계에 붙어 잘리고, 긴 내용은 하단 여백이 더 넓어 보인다.
 - v6 로그 원인: 두 결과 모두 line-box 하단 0px, selection 하단 약 0.232px로 동일하지만 대상 라벨의 최소 여백보다 작아 클립에 취약하다.

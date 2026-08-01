@@ -131,7 +131,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
-const double itemElementMaximumBottomPadding = 3.0;
+const double itemElementFixedBottomPadding = 1.0;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9204,10 +9204,7 @@ fs.FortuneSheet _replaceSheetKeywords(
         0.0,
         previousRowHeight - (templateMeasurement?.textHeight ?? 0),
       );
-      final targetBottomPadding = min(
-        itemElementMaximumBottomPadding,
-        templateRemainingHeight / 2,
-      );
+      const targetBottomPadding = itemElementFixedBottomPadding;
       final measurement = _itemPreviewRowHeightMeasurement(
         nextCell,
         cellRect.width,
@@ -9248,7 +9245,7 @@ fs.FortuneSheet _replaceSheetKeywords(
             'templateTightHeight': templateMeasurement?.tightHeight,
             'templateLineMetrics': templateMeasurement?.lineMetrics,
             'templateRemainingHeight': templateRemainingHeight,
-            'maximumBottomPadding': itemElementMaximumBottomPadding,
+            'configuredBottomPadding': itemElementFixedBottomPadding,
             'targetTopPadding': 0.0,
             'targetBottomPadding': targetBottomPadding,
           'textHeight': measurement?.textHeight,

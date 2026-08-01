@@ -1026,8 +1026,14 @@ void main() {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 400);
 
-    expect(oneLineHeight - singleTextPainter.height, closeTo(3, 0.001));
-    expect(threeLineHeight - multilineTextPainter.height, closeTo(3, 0.001));
+    expect(
+      oneLineHeight - singleTextPainter.height,
+      closeTo(itemElementFixedBottomPadding, 0.001),
+    );
+    expect(
+      threeLineHeight - multilineTextPainter.height,
+      closeTo(itemElementFixedBottomPadding, 0.001),
+    );
   });
 
   test('item output element uses compact line boxes for mixed font sizes', () {
@@ -1091,7 +1097,7 @@ void main() {
       cell.inlineRuns!.every((run) => run.extraFields['lineHeight'] == 1.0),
       isTrue,
     );
-    const targetBottomPadding = (12.214285714285715 - 8) / 2;
+    const targetBottomPadding = itemElementFixedBottomPadding;
     expect(
       sheet.rowHeights[0],
       closeTo(painter.height + targetBottomPadding, 0.001),
