@@ -98,7 +98,7 @@
 - Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 7228로 실행했다. 최신 `.tmp/log/app_2026-08-01_21-01-10.log`에서 `DebugLogger version: 1.0.13`을 확인했다.
 - 사용자 재현 확인 기준: 문제 품목 선택 후 v14 `resultTextOffsetMode=nativeVerticalAlign`, `resultStoredTextOffsetY=null`, `resultMergePreserved=true`, `stylePreserved=true`와 화면/capture별 `NativeTextOffsetY`, `CellBottomPadding`을 확인한다.
 
-## 진행 중: `#ELEMENT` native 하단 정렬 고정 v1.0.14
+## 완료: `#ELEMENT` native 하단 정렬 고정 v1.0.14
 - v1.0.13 사용자 재현: 짧은 두 품목보다 마지막 줄이 6자인 `유자마왕파이`에서 하단 여백이 더 크게 보인다.
 - v14 로그 분석: 세 품목 모두 source/result `leading=0`, `trailing=0`, 마지막 code unit `41`(`)`)로 공백·탭·개행이 없다. 병합은 유지되고 강제 offset도 없다.
 - 원인 확정: 세 품목의 논리 line-box 하단은 동일한 2.107143px이지만 200% 화면의 가운데 정렬은 행 경계 반올림과 공용 inset을 포함해 하단을 5px로 만든다. 짧은 마지막 줄에서 이 공간이 더 크게 보인다.
@@ -115,6 +115,8 @@
 - 실행 로그 확인: `.tmp/log/app_2026-08-01_21-23-39.log`의 `DebugLogger version: 1.0.14` 확인. 품목 이벤트가 아직 없어 v15 이벤트 행은 미발생이며 다음 사용자 재현에서 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 native bottom 및 v15 상세 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 구현 커밋: `5348a84 주원료 병합 셀 하단 여백 고정`.
+- 다음 사용자 재현 확인 기준: v15 `source/resultControlCharacters`, `verticalAlignOverride=0->2`, 화면/capture `CellBottomPadding=2.0`, `CellBottomPaddingError=0.0`을 확인한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
