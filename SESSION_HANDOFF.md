@@ -1,5 +1,18 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: `#ELEMENT` 대상 라벨 하단 최소 여백 v1.0.5
+- 최신 v1.0.4 이미지: 상단은 고정됐지만 짧은 내용은 하단 획이 경계에 붙어 잘리고, 긴 내용은 하단 여백이 더 넓어 보인다.
+- v6 로그 원인: 두 결과 모두 line-box 하단 0px, selection 하단 약 0.232px로 동일하지만 대상 라벨의 최소 여백보다 작아 클립에 취약하다.
+- 대상 기준: 원본 대상 셀은 `rowHeight 12.214 - template textHeight 8 = 4.214px` 잔여 공간을 가진다. 현재 고정된 상단 0px은 유지하고 하단에 절반인 약 2.107px을 고정한다.
+- 구현: `targetBottomPadding=min(3px, (원본 행 높이-template line box 높이)/2)`, `textOffsetY=0`, `rowHeight=result textHeight+targetBottomPadding`. 과대 원본 행은 최대 3px로 제한한다.
+- 로그 보강: v7 trace에 `targetTopPadding=0`, `targetBottomPadding`, `lineBoxBottomPadding`, `selectionBottomPadding`을 함께 기록한다.
+- 버전: 앱 `1.0.5`, item debug schema v7.
+- 집중 검증 완료: 실제 8pt/5pt fixture는 상단 0px, 하단 2.107px. 1줄/3줄 fixture는 모두 상단 0px, 하단 3px으로 내용 길이와 무관하게 고정됨을 확인했다. diagnostics 0건.
+- 전체 검증 완료: 앱 출력 미리보기·resolver·출력 pipeline 관련 테스트 171개, FortuneSheet 캡처 테스트 6개 통과. 변경 Dart 파일 `flutter analyze` issue 없음.
+- 최종 변경 검증 예정: `git diff --check`, 버전 및 stage 범위를 확인한다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+- 실행 검증 예정: 기능 커밋 후 `flutter build windows --debug`로 v1.0.5를 빌드·재실행하고 새 로그의 앱/debug schema 버전을 확인한다.
+- 최종 변경 검증 완료: `git diff --check` 통과, `pubspec.yaml=1.0.5` 확인. stage 대상은 `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이다.
+
 ## 진행 중: `#ELEMENT` 하단 여백 line-box 고정 v1.0.4
 - 최신 v1.0.3 이미지: 상단 여백은 고정됐지만 하단 여백이 내용에 따라 달라진다.
 - v5 로그 원인: Windows `BoxHeightStyle.tight`가 실제 glyph bitmap이 아니라 line box 바깥 overhang을 포함해 `tightTop=-2.216`, `tightBottom=12.768`처럼 반환된다. 이를 행 높이/offset에 사용해 painter line box와 셀 하단이 어긋났다.

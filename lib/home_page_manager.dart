@@ -131,7 +131,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
-const double itemElementFixedVerticalPadding = 0.0;
+const double itemElementMaximumBottomPadding = 3.0;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9202,17 +9202,18 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
       final templateRemainingHeight = max(
         0.0,
-        previousRowHeight - (templateMeasurement?.tightHeight ?? 0),
+        previousRowHeight - (templateMeasurement?.textHeight ?? 0),
       );
-      const targetPadding = itemElementFixedVerticalPadding;
+      final targetBottomPadding = min(
+        itemElementMaximumBottomPadding,
+        templateRemainingHeight / 2,
+      );
       final measurement = _itemPreviewRowHeightMeasurement(
         nextCell,
         cellRect.width,
-        verticalPadding: targetPadding,
+        verticalPadding: targetBottomPadding,
       );
-      final textOffsetY = measurement == null
-          ? null
-          : targetPadding / 2;
+      final textOffsetY = measurement == null ? null : 0.0;
       final positionedCell = textOffsetY == null
           ? nextCell
           : nextCell.copyWith(
@@ -9247,17 +9248,19 @@ fs.FortuneSheet _replaceSheetKeywords(
             'templateTightHeight': templateMeasurement?.tightHeight,
             'templateLineMetrics': templateMeasurement?.lineMetrics,
             'templateRemainingHeight': templateRemainingHeight,
-            'fixedVerticalPadding': itemElementFixedVerticalPadding,
+            'maximumBottomPadding': itemElementMaximumBottomPadding,
+            'targetTopPadding': 0.0,
+            'targetBottomPadding': targetBottomPadding,
           'textHeight': measurement?.textHeight,
           'resultTightTop': measurement?.tightTop,
           'resultTightBottom': measurement?.tightBottom,
           'resultTightHeight': measurement?.tightHeight,
             'resultLineMetrics': measurement?.lineMetrics,
-            'fixedPadding': measurement == null ? null : targetPadding,
-            'fixedTopPadding': measurement == null ? null : targetPadding / 2,
-            'fixedBottomPadding': measurement == null
-              ? null
-              : targetPadding / 2,
+              'fixedPadding': measurement == null ? null : targetBottomPadding,
+              'fixedTopPadding': measurement == null ? null : 0.0,
+              'fixedBottomPadding': measurement == null
+                ? null
+                : targetBottomPadding,
           'measuredRowHeight': measurement?.rowHeight,
             'textOffsetY': textOffsetY,
               'lineBoxTopPadding': measurement == null || textOffsetY == null
