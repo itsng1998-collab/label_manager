@@ -1,5 +1,16 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: 품목 출력 미리보기 특수 품명 키 충돌 수정
+- 최신 재현 로그: `itemOutputPreviewMapping-5`에서 `itemName=황치즈쿠키`와 `#품목`은 정상이지만 `#ITEMNAME`은 빈 값이다.
+- 원인: 일반 컬럼 보호 뒤에도 `TColumnSpecial`의 `ITEMNAME`이 scale 전용 가상 ID `-1`로 해석돼 빈 projected value를 같은 replacement key에 다시 등록한다.
+- 수정 예정: 특수 컬럼 loop에서도 `ITEMNAME`/`품목` 예약 키를 제외하고, `TColumnSpecial` 충돌 회귀를 추가한다.
+- 편집 완료: 특수 컬럼 loop에서 예약 키 재등록을 막고, 일반·특수 `ITEMNAME` 충돌 fixture를 기존 출력 미리보기 회귀 테스트에 추가했다.
+- 1차 검증 완료: `flutter test test/label_sheet_toolbar_test.dart --plain-name "item output preview uses private active saved sheet only"` 통과. 변경 Dart 파일 diagnostics 0건.
+- formatter 완료: `dart format lib/home_page_manager.dart test/label_sheet_toolbar_test.dart`.
+- 검증 완료: `runTests(test/label_sheet_toolbar_test.dart, test/item_code_data_resolver_test.dart, test/label_print_pipeline_test.dart)` 결과 176개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` 결과 issue 없음.
+- Debug 번들 완료: 실행 중이던 이전 Debug 앱을 종료하고 `flutter build windows --debug` 성공. 최신 `kernel_blob.bin`에 이번 Dart 수정이 반영됐다.
+- 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전은 `1.0.1`이다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 남기고 대상 파일만 stage/commit한다.
+
 ## 완료: 품목 출력 미리보기 제품명 매핑 수정
 - 재현 로그 확인: `itemOutputPreviewMapping-3`에서 선택 행 `itemName=황치즈쿠키`는 정상이나, 템플릿 셀 `#ITEMNAME`은 빈 문자열로 치환됐다. `TColumn`의 `ITEMNAME` 일반 컬럼 entry가 앞서 넣은 예약 품명 값을 빈 컬럼값으로 덮어쓰는 것이 원인이다.
 - 수정 예정: 일반 컬럼 replacement 생성에서 `ITEMNAME`과 `품목` 예약 키를 제외하고, 동일 이름의 빈 컬럼이 품명을 덮어쓰지 않도록 한다. 진단 로그는 확인 완료 후 기본 비활성화한다.

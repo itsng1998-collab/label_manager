@@ -128,7 +128,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'auto_update' ||
   tabValue == 'scale_output';
 
-const bool itemOutputPreviewMappingDebugEnabled = false;
+const bool itemOutputPreviewMappingDebugEnabled = true;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9056,7 +9056,10 @@ Map<String, String> _itemOutputPreviewReplacements({
           TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
           '',
     for (final special in TColumnSpecial.datas ?? const <TColumnBase>[])
-      if (scaleOutputSpecialColumnIdForKeyword(special.keyword) case final columnId?)
+      if (special.keyword.trim().toUpperCase() != 'ITEMNAME' &&
+          special.keyword.trim() != '품목')
+        if (scaleOutputSpecialColumnIdForKeyword(special.keyword)
+            case final columnId?)
         '#${special.keyword}': columnValue?.call(columnId) ?? '',
   };
 }

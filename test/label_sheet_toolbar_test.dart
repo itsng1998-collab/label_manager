@@ -17,7 +17,9 @@ import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
+import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/item/data/item_dao.dart';
 import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item.dart';
@@ -687,9 +689,22 @@ void main() {
 
   test('item output preview uses private active saved sheet only', () {
     final previousColumns = TColumn.datas;
+    final previousSpecialColumns = TColumnSpecial.datas;
     TColumn.datas = [_testColumn(7, 'ITEMNAME')];
+    TColumnSpecial.datas = [
+      TColumnBase(
+        columnType: const TColumnType(
+          code: TColumnType.TYPE_FIX,
+          name: '고정',
+          order: 1,
+        ),
+        keyword: 'ITEMNAME',
+        columnName: '품목명',
+      ),
+    ];
     addTearDown(() {
       TColumn.datas = previousColumns;
+      TColumnSpecial.datas = previousSpecialColumns;
     });
     final encoded = labelSheetEncodeWorkbookSave(
       FortuneWorkbook(
