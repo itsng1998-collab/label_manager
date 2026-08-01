@@ -298,6 +298,7 @@
 - 회귀 검증 완료: Flutter CLI `test/lifecycle_test.dart` 3건 통과, Windows Debug 빌드 성공.
 - 실제 종료 검증 완료: v1.0.24 PID 2264에서 첫 `WM_CLOSE`는 열린 모달 응답을 6초 이상 기다린 뒤 정상 `Window close cancelled`로 복귀해 기존 5초 강제 timeout이 제거됐음을 확인했다. 모달 정리 후 두 번째 요청은 `Window close approved`, `Window close post start`를 기록하고 PID가 소멸했다.
 - stage/commit 대상: `lib/main.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `05f239f Windows 앱 종료 대기 제한 제거`.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
