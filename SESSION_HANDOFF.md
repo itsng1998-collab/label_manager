@@ -9,6 +9,8 @@
 - formatter 완료: `dart format lib/features/label_sheet/presentation/common_label_manage.dart test/common_label_manage_test.dart`.
 - 전체 검증 완료: `test/common_label_manage_test.dart`, `test/label_sheet_toolbar_test.dart` 총 178개 통과. 변경 파일 `flutter analyze` issue 없음.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
+- 기능 커밋: `22fdba4 주원료 줄 수별 여백 누적 제거`.
+- Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 최신 앱을 다시 실행했다.
 - 기능 커밋: `bbfc665 공용라벨 필수등록 변경 즉시 반영`.
 - Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 최신 앱을 다시 실행했다.
 
