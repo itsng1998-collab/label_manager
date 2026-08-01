@@ -58,6 +58,9 @@
 - 전체 관련 회귀 완료: `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 총 181개 통과.
 - 최종 정적 검증 완료: 변경 파일 diagnostics 0건, analyzer 새 오류 없음. FortuneSheet canvas 기존 미사용 코드 warning 10건만 유지하며 `--no-fatal-warnings` 통과, `git diff --check` 통과.
 - stage 대상: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일/hunk는 제외한다.
+- 기능 커밋: `7127b55 주원료 병합 셀 하단 여백 최소화`.
+- Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 13420으로 실행했다. 최신 `.tmp/log/app_2026-08-01_19-49-43.log`에서 `DebugLogger version: 1.0.11`을 확인했다.
+- 사용자 재현 확인 기준: 세 품목 선택 후 `item-manager-debug-v12`의 `resultLastLine`, `resultCaptureAppliedTextOffsetY`, `resultCaptureCellBottomPadding`, `resultRenderedAppliedTextOffsetY`, `resultRenderedCellBottomPadding`을 비교한다. 모든 결과의 text rect 내부 하단은 0px, 셀 경계 하단은 2px이어야 한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
