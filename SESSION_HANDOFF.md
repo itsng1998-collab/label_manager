@@ -8,6 +8,8 @@
 - 추가 테스트 완료: 4열 병합 `#ELEMENT`의 180px 행이 일반 셀 여백 높이로 축소되고 아래 이미지가 같은 delta로 위로 이동하는 회귀 테스트 통과. 변경 파일 diagnostics 0건.
 - 추가 전체 검증 완료: 관련 출력 미리보기·바코드 resolver·출력 pipeline 테스트 178개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
 - 추가 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
+- 추가 기능 커밋: `69eb92d 병합 주원료 셀 높이 계산 수정`.
+- Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 최신 앱을 다시 실행했다.
 - 제출 화면 확인: 주원료 시트 셀을 라벨 시트 `#ELEMENT` 셀에 병합하면 대상 라벨의 일반 셀보다 위/아래 여백이 크게 출력된다.
 - 원인 가설: `_replaceElementKeywordInCell()`이 주원료 셀·inline run의 `lineHeight`를 대상 라벨 셀에 덮어써 행 높이 계산과 렌더링 모두 주원료 편집 셀의 줄 간격을 사용한다.
 - 수정 예정: 주원료의 글자 서식은 유지하되 병합 레이아웃은 대상 라벨 셀의 `extraFields`/`lineHeight`를 사용한다. 공용 output workbook 생성 경로를 수정해 품목관리·라벨출력·저울출력 미리보기와 실제 캡처/프린트에 함께 적용한다.
