@@ -9698,7 +9698,7 @@ fs.FortuneCell _replaceElementKeywordInCell(
     return cell.copyWith();
   }
   return _itemRichTextCell(
-    nextRuns,
+    nextRuns.map(_itemElementCompactRunForOutput).toList(),
     base: cell,
     extraFields: cell.extraFields,
   ).copyWith(textWrap: '2', rawTextWrap: '2', hasRawTextWrap: true);
@@ -9746,6 +9746,14 @@ fs.FortuneInlineTextRun _itemElementRunForOutput(
   final extraFields = Map<String, Object?>.from(run.extraFields)
     ..remove('lineHeight')
     ..remove('fontScale');
+  return run.copyWith(extraFields: extraFields);
+}
+
+fs.FortuneInlineTextRun _itemElementCompactRunForOutput(
+  fs.FortuneInlineTextRun run,
+) {
+  final extraFields = Map<String, Object?>.from(run.extraFields)
+    ..['lineHeight'] = 1.0;
   return run.copyWith(extraFields: extraFields);
 }
 

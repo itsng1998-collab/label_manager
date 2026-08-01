@@ -12,6 +12,12 @@
 - 기능 커밋: `6478429 주원료 셀 높이 진단 로그 추가`.
 - Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 진단 로그가 포함된 최신 앱을 다시 실행했다.
 - 사용자 재현 후 확인 대상: 최신 `.tmp/log/app_*.log`의 동일 `itemElementLayout-*` trace에 있는 `started`, `rowHeightMeasured`, `rowHeightApplied` 이벤트.
+- 재현 로그 분석 완료: 짧은/중간/긴 품목 모두 외부 여백은 6px로 고정됐지만 `textHeight`가 11/17/35px로 증가했다. 5pt 주원료의 자연 line box가 줄마다 약 6px 누적돼 glyph 외부 공간이 여백처럼 보이는 것이 원인이다.
+- 수정 예정: `#ELEMENT` 결과의 모든 inline run에만 `lineHeight=1.0`을 적용해 화면·PDF·EZPL capture의 줄별 내부 leading을 제거한다. 대상 라벨 일반 셀과 원본 주원료 시트는 변경하지 않는다.
+- 편집 완료: 제목 prefix와 삽입 주원료를 포함한 결과 run 전체에 compact line-height 1.0을 적용했다. 혼합 8pt/5pt 다중 줄 수치 회귀를 추가했다.
+- 집중 검증 완료: 고정 외부 여백 테스트와 혼합 8pt/5pt compact line box 테스트 2개 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 완료: 출력 미리보기·resolver·출력 pipeline 관련 테스트 181개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
+- 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
 
 ## 완료: 공용라벨 필수등록 수동 변경 반영
 - 재현 화면: 특별 항목의 `저울중량`, `최종가격` 필수등록을 언체크해도 저장 시 누락 경고가 계속 표시된다. 사용 항목도 같은 구조다.

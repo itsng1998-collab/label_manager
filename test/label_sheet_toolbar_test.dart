@@ -820,9 +820,12 @@ void main() {
       cell.inlineRuns!
           .where((run) => run.text == '딸기')
           .single
-          .extraFields
-          .containsKey('lineHeight'),
-      isFalse,
+          .extraFields['lineHeight'],
+      1.0,
+    );
+    expect(
+      cell.inlineRuns!.every((run) => run.extraFields['lineHeight'] == 1.0),
+      isTrue,
     );
     expect(preview.workbook!.sheets.single.customHeight[0], 1);
     expect(preview.workbook!.sheets.single.rowHeights[0], greaterThan(19));
@@ -1010,20 +1013,83 @@ void main() {
     final singleTextPainter = TextPainter(
       text: const TextSpan(
         text: '한 줄',
-        style: TextStyle(fontSize: 10),
+        style: TextStyle(fontSize: 10, height: 1.0),
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 400);
     final multilineTextPainter = TextPainter(
       text: const TextSpan(
         text: '첫째 줄\n둘째 줄\n셋째 줄',
-        style: TextStyle(fontSize: 10),
+        style: TextStyle(fontSize: 10, height: 1.0),
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 400);
 
     expect(oneLineHeight - singleTextPainter.height, closeTo(6, 0.001));
     expect(threeLineHeight - multilineTextPainter.height, closeTo(6, 0.001));
+  });
+
+  test('item output element uses compact line boxes for mixed font sizes', () {
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 276.7142857142856},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '원부재료 | #ELEMENT',
+                textWrap: '2',
+                fontSize: 8,
+                inlineRuns: [
+                  FortuneInlineTextRun(text: '원부재료 | ', fontSize: 8),
+                  FortuneInlineTextRun(text: '#ELEMENT', fontSize: 8),
+                ],
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#ELEMENT': ''},
+      elementCell: const FortuneCell(
+        value:
+            '유자앙금, 밀가루, 가공버터, 호두분태, 우유, 계란, 분당, 아몬드분말, 난황액, 박력분, 망고쿠키크런치, 기타소금',
+        inlineRuns: [
+          FortuneInlineTextRun(
+            text:
+                '유자앙금, 밀가루, 가공버터, 호두분태, 우유, 계란, 분당, 아몬드분말, 난황액, 박력분, 망고쿠키크런치, 기타소금',
+            fontSize: 5,
+            fontFamily: '굴림',
+          ),
+        ],
+      ),
+    ).sheets.single;
+
+    final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
+    final painter = TextPainter(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 8, height: 1.0),
+        children: [
+          for (final run in cell.inlineRuns!)
+            TextSpan(
+              text: run.text,
+              style: TextStyle(
+                fontSize: run.fontSize ?? 8,
+                fontFamily: run.fontFamily,
+                height: 1.0,
+              ),
+            ),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 276.7142857142856);
+
+    expect(
+      cell.inlineRuns!.every((run) => run.extraFields['lineHeight'] == 1.0),
+      isTrue,
+    );
+    expect(sheet.rowHeights[0], closeTo(painter.height + 6, 0.001));
   });
 
   test('output preview uses the same saved item element workbook', () {
