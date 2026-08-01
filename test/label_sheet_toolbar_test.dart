@@ -1,10 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' show max, min;
-import 'dart:ui'
-  as ui
-  show BoxHeightStyle, BoxWidthStyle, PointerDeviceKind, Rect;
+import 'dart:ui' as ui show PointerDeviceKind, Rect;
 
 import 'package:archive/archive.dart';
 import 'package:flutter/gestures.dart';
@@ -1100,44 +1097,16 @@ void main() {
       cell.inlineRuns!.every((run) => run.extraFields['lineHeight'] == 1.0),
       isTrue,
     );
-    final templatePainter = TextPainter(
-      text: const TextSpan(
-        text: '원부재료 | #ELEMENT',
-        style: TextStyle(fontSize: 8, height: 1.0),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: 276.7142857142856);
-    final templateBoxes = templatePainter.getBoxesForSelection(
-      const TextSelection(baseOffset: 0, extentOffset: 16),
-      boxHeightStyle: ui.BoxHeightStyle.tight,
-      boxWidthStyle: ui.BoxWidthStyle.tight,
-    );
-    final templateTightHeight =
-        templateBoxes.map((box) => box.bottom).reduce(max) -
-        templateBoxes.map((box) => box.top).reduce(min);
-    expect(
-      12.214285714285715 - templateTightHeight,
-      greaterThan(itemElementFixedVerticalPadding),
-    );
     const targetPadding = itemElementFixedVerticalPadding;
-    final resultBoxes = painter.getBoxesForSelection(
-      TextSelection(baseOffset: 0, extentOffset: cell.renderedText.length),
-      boxHeightStyle: ui.BoxHeightStyle.tight,
-      boxWidthStyle: ui.BoxWidthStyle.tight,
-    );
-    final resultTightTop = resultBoxes.map((box) => box.top).reduce(min);
-    final resultTightBottom = resultBoxes
-        .map((box) => box.bottom)
-        .reduce(max);
     expect(
       sheet.rowHeights[0],
-      closeTo(resultTightBottom - resultTightTop + targetPadding, 0.001),
+      closeTo(painter.height + targetPadding, 0.001),
     );
     final textOffsetY =
         cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
-    expect(textOffsetY + resultTightTop, closeTo(targetPadding / 2, 0.001));
+    expect(textOffsetY, closeTo(targetPadding / 2, 0.001));
     expect(
-      sheet.rowHeights[0]! - (textOffsetY + resultTightBottom),
+      sheet.rowHeights[0]! - (textOffsetY + painter.height),
       closeTo(targetPadding / 2, 0.001),
     );
   });

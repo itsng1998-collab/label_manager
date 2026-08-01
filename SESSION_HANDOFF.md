@@ -1,5 +1,19 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: `#ELEMENT` 하단 여백 line-box 고정 v1.0.4
+- 최신 v1.0.3 이미지: 상단 여백은 고정됐지만 하단 여백이 내용에 따라 달라진다.
+- v5 로그 원인: Windows `BoxHeightStyle.tight`가 실제 glyph bitmap이 아니라 line box 바깥 overhang을 포함해 `tightTop=-2.216`, `tightBottom=12.768`처럼 반환된다. 이를 행 높이/offset에 사용해 painter line box와 셀 하단이 어긋났다.
+- 수정 예정: tight bounds는 진단에만 유지하고 배치는 `rowHeight=TextPainter.height`, `textOffsetY=0`으로 고정한다. 화면·캡처 모두 line box가 셀 상·하 경계에 맞는다.
+- 로그 보강: v6 trace에 `lineBoxTopPadding`, `lineBoxBottomPadding`, 진단용 `selectionTopPadding`, `selectionBottomPadding`을 분리 기록한다.
+- 버전: renderer 배치 변경을 구분하도록 `pubspec.yaml=1.0.4`, item debug schema v6으로 갱신했다.
+- 집중 검증 완료: 혼합 8pt/5pt, 1줄, 3줄 모두 `textOffsetY=0`, `lineBoxTopPadding=0`, `lineBoxBottomPadding=0` 확인. 변경 파일 diagnostics 0건.
+- 테스트 정리: 더 이상 assertion에 사용하지 않는 tight box 및 math import를 제거했다.
+- 전체 검증 예정: 앱 관련 테스트, FortuneSheet 출력 캡처 테스트, 앱 변경 파일 정적 분석을 실행한다.
+- 1차 전체 검증: 앱 관련 테스트 171개 및 FortuneSheet 캡처 테스트 6개 통과. 정적 분석은 테스트의 미사용 `templatePainter` 한 건만 보고했다.
+- 분석 보완: 새 line-box assertion에 불필요한 `templatePainter` 블록을 제거했다.
+- 최종 검증 완료: 보완 후 정적 분석 issue 없음. 혼합 8pt/5pt 집중 로그에서 `textHeight=13`, `measuredRowHeight=13`, `textOffsetY=0`, `lineBoxTopPadding=0`, `lineBoxBottomPadding=0` 확인.
+- 최종 변경 검증: `git diff --check` 통과, `pubspec.yaml=1.0.4` 확인. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 다섯 파일만 stage/commit한다.
+
 ## 진행 중: `#ELEMENT` 대상 라벨 최소 여백 고정 v1.0.2
 - 최신 v1.0.2 이미지/로그 재확인: line box 기준 상·하 padding은 두 품목 모두 2.107px로 동일하지만 화면에서는 실제 glyph 획 경계 여백이 다르다. 8pt 첫 줄과 5pt 후속 줄의 line box 내부 inset 비대칭이 원인이다.
 - 추가 수정 예정: FortuneSheet 공용 화면·캡처 renderer에 runtime cell text Y offset을 지원한다. 결과 행은 tight glyph bounds 높이 + target padding으로 계산하고 glyph top/bottom이 정확히 같은 padding을 갖도록 offset을 적용한다.

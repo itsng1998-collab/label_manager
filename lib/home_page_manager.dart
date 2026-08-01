@@ -9212,7 +9212,7 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
       final textOffsetY = measurement == null
           ? null
-          : targetPadding / 2 - measurement.tightTop;
+          : targetPadding / 2;
       final positionedCell = textOffsetY == null
           ? nextCell
           : nextCell.copyWith(
@@ -9260,13 +9260,20 @@ fs.FortuneSheet _replaceSheetKeywords(
               : targetPadding / 2,
           'measuredRowHeight': measurement?.rowHeight,
             'textOffsetY': textOffsetY,
-            'visualTopPadding': measurement == null || textOffsetY == null
+              'lineBoxTopPadding': measurement == null || textOffsetY == null
               ? null
-              : textOffsetY + measurement.tightTop,
-            'visualBottomPadding': measurement == null || textOffsetY == null
+                : textOffsetY,
+              'lineBoxBottomPadding': measurement == null || textOffsetY == null
               ? null
               : measurement.rowHeight -
-                (textOffsetY + measurement.tightBottom),
+                  (textOffsetY + measurement.textHeight),
+              'selectionTopPadding': measurement == null || textOffsetY == null
+                ? null
+                : textOffsetY + measurement.tightTop,
+              'selectionBottomPadding': measurement == null || textOffsetY == null
+                ? null
+                : measurement.rowHeight -
+                  (textOffsetY + measurement.tightBottom),
           'measurementMode': measurement?.mode,
             'previousRowHeight': previousRowHeight,
             'rowHeightDelta': measurement == null
@@ -9514,7 +9521,7 @@ _itemPreviewRowHeightMeasurement(
     tightTop: measurement.tightTop,
     tightBottom: measurement.tightBottom,
     tightHeight: measurement.tightHeight,
-    rowHeight: max(4.0, measurement.tightHeight + verticalPadding),
+    rowHeight: max(4.0, measurement.textHeight + verticalPadding),
     mode: measurement.mode,
     lineMetrics: measurement.lineMetrics,
   );
