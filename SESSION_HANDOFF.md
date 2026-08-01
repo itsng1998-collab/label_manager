@@ -16,6 +16,9 @@
 - 최소 여백 재검증 완료: 1줄/3줄 모두 `fixed/visual top/visual bottom padding=0`, 혼합 8pt/5pt도 상·하 0px 수치 테스트 통과. 변경 파일 diagnostics 0건.
 - 최종 전체 검증 완료: 앱 출력 미리보기·resolver·출력 pipeline 관련 테스트 171개 통과, 앱 변경 파일 `flutter analyze` issue 없음. FortuneSheet 패키지 `fortune_print_capture_test.dart` 6개 통과.
 - 최종 변경 검증: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.3` 확인. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 일곱 파일만 stage/commit한다.
+- 기능 커밋: `2306645 주원료 병합 셀 최소 여백 고정`.
+- Debug 검증 완료: `flutter build windows --debug` 성공 후 앱 재실행. 새 로그 `.tmp/log/app_2026-08-01_16-23-20.log`에 `DebugLogger version: 1.0.3`, 새 `kernel_blob.bin` 시각 2026-08-01 16:23:03을 확인했다.
+- 재현 로그 확인 기준: `item-manager-debug-v5`, `appVersion=1.0.3`, `fixedVerticalPadding=0`, `textOffsetY=0`, `visualTopPadding=0`, `visualBottomPadding=0`.
 - 최신 이미지 확인: compact line-height 적용 후에도 긴 주원료와 짧은 주원료의 위/아래 여백이 다르게 보인다.
 - 로그/코드 원인: 결과 행 높이는 여전히 `textHeight + 6px` 하드코딩이다. 실제 대상 라벨 원본 행은 약 12.214px, compact 8pt 한 줄은 약 8px이므로 대상 라벨 최소 여백은 약 4.214px이다.
 - 수정 예정: 원본 `#ELEMENT` 셀을 compact line-height로 측정해 `원본 행 높이 - 원본 텍스트 높이`를 target padding으로 고정하고 모든 결과 길이에 동일 적용한다.
