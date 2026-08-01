@@ -1036,7 +1036,7 @@ void main() {
     );
   });
 
-  test('item output element preserves target vertical alignment padding', () {
+  test('item output element fixes native bottom alignment padding', () {
     FortuneSheet materialize(String verticalAlign) {
       return debugMaterializeItemImagesForTesting(
         FortuneWorkbook(
@@ -1079,11 +1079,11 @@ void main() {
     expect(bottom.rowHeights[0], closeTo(16, 0.001));
     expect(
       top.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
-      '1',
+      '2',
     );
     expect(
       middle.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
-      '0',
+      '2',
     );
     expect(
       bottom.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
@@ -1093,6 +1093,8 @@ void main() {
       final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
       expect(cell.merge?.columnSpan, 2);
       expect(cell.normalizedTextWrap, '2');
+      expect(cell.rawVerticalAlign, '2');
+      expect(cell.hasRawVerticalAlign, isTrue);
       expect(
         cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
         isFalse,
@@ -1196,10 +1198,13 @@ void main() {
       cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
       isFalse,
     );
+    final resultTextOffsetY = sheet.rowHeights[0]! - painter.height;
     final resultLineBoxBottomPadding =
-        (sheet.rowHeights[0]! - painter.height) / 2;
-    expect(resultLineBoxBottomPadding, closeTo(targetPadding / 2, 0.001));
-    expect(cell.normalizedVerticalAlign, '0');
+      sheet.rowHeights[0]! - (resultTextOffsetY + painter.height);
+    expect(resultLineBoxBottomPadding, closeTo(0, 0.001));
+    expect(cell.normalizedVerticalAlign, '2');
+    expect(cell.rawVerticalAlign, '2');
+    expect(cell.hasRawVerticalAlign, isTrue);
   });
 
   test('output preview uses the same saved item element workbook', () {

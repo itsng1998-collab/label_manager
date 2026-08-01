@@ -98,6 +98,24 @@
 - Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 7228로 실행했다. 최신 `.tmp/log/app_2026-08-01_21-01-10.log`에서 `DebugLogger version: 1.0.13`을 확인했다.
 - 사용자 재현 확인 기준: 문제 품목 선택 후 v14 `resultTextOffsetMode=nativeVerticalAlign`, `resultStoredTextOffsetY=null`, `resultMergePreserved=true`, `stylePreserved=true`와 화면/capture별 `NativeTextOffsetY`, `CellBottomPadding`을 확인한다.
 
+## 진행 중: `#ELEMENT` native 하단 정렬 고정 v1.0.14
+- v1.0.13 사용자 재현: 짧은 두 품목보다 마지막 줄이 6자인 `유자마왕파이`에서 하단 여백이 더 크게 보인다.
+- v14 로그 분석: 세 품목 모두 source/result `leading=0`, `trailing=0`, 마지막 code unit `41`(`)`)로 공백·탭·개행이 없다. 병합은 유지되고 강제 offset도 없다.
+- 원인 확정: 세 품목의 논리 line-box 하단은 동일한 2.107143px이지만 200% 화면의 가운데 정렬은 행 경계 반올림과 공용 inset을 포함해 하단을 5px로 만든다. 짧은 마지막 줄에서 이 공간이 더 크게 보인다.
+- `lib/home_page_manager.dart` 편집 완료: 병합·border·wrap·run 스타일은 유지하고 결과 셀의 `verticalAlign/rawVerticalAlign`만 native bottom(`2`)으로 설정했다. 별도 `cellTextOffsetY` 없이 화면/capture 모두 공용 inset 2px 하단으로 고정한다.
+- `lib/home_page_manager.dart` 로그 보강 완료: source/result raw·normalized wrap/verticalAlign, 전체 공백성 제어문자 위치, 마지막 줄 시작/끝, 화면/capture 하단 목표 2px과 오차를 기록한다.
+- `test/label_sheet_toolbar_test.dart` 편집 완료: 원본 위/가운데/아래 정렬 모두 결과 native bottom으로 고정되고 병합·wrap·행 높이가 유지되는 회귀 검증으로 변경했다.
+- 버전 편집 완료: `pubspec.yaml` 1.0.14, item debug schema v15.
+- 집중 검증 완료: `label_sheet_toolbar_test.dart`의 `item output element fixes native bottom alignment padding`, `item output element uses compact line boxes for mixed font sizes` 2건 통과. 테스트 로그의 화면/capture 하단은 각각 2.0px, 목표 오차 0.0px.
+- 전체 테스트 완료: 앱 `test/label_sheet_toolbar_test.dart` 173건, `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 8건, 총 181건 통과.
+- diagnostics 완료: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart` 오류 0건.
+- 정적 검증 완료: 앱/`third_party/fortune_sheet` `flutter analyze`는 기존 `fortune_sheet_canvas.dart` warning 10건만 유지하며 새 오류가 없다. `git diff --check` 통과.
+- 정리 후 집중 테스트 재검증 완료: native bottom 2건 통과.
+- Debug 검증 완료: `flutter build windows --debug` 성공. 기존 v1.0.13 PID 7228과 잘못된 working directory로 실행한 PID 13596을 종료하고, 프로젝트 루트에서 v1.0.14 PID 9536을 실행했다.
+- 실행 로그 확인: `.tmp/log/app_2026-08-01_21-23-39.log`의 `DebugLogger version: 1.0.14` 확인. 품목 이벤트가 아직 없어 v15 이벤트 행은 미발생이며 다음 사용자 재현에서 확인한다.
+- stage/commit 대상: `lib/home_page_manager.dart`의 native bottom 및 v15 상세 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
