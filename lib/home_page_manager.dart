@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' show File, Platform;
 import 'dart:math' show max, min;
 import 'dart:typed_data';
+import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle;
 
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
@@ -130,7 +131,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
-const double itemElementMaximumVerticalPadding = 6.0;
+const double itemElementFixedVerticalPadding = 0.0;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9201,17 +9202,26 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
       final templateRemainingHeight = max(
         0.0,
-        previousRowHeight - (templateMeasurement?.textHeight ?? 0),
+        previousRowHeight - (templateMeasurement?.tightHeight ?? 0),
       );
-      final targetPadding = min(
-        itemElementMaximumVerticalPadding,
-        templateRemainingHeight,
-      );
+      const targetPadding = itemElementFixedVerticalPadding;
       final measurement = _itemPreviewRowHeightMeasurement(
         nextCell,
         cellRect.width,
         verticalPadding: targetPadding,
       );
+      final textOffsetY = measurement == null
+          ? null
+          : targetPadding / 2 - measurement.tightTop;
+      final positionedCell = textOffsetY == null
+          ? nextCell
+          : nextCell.copyWith(
+              extraFields: {
+                ...nextCell.extraFields,
+                fs.fortuneCellTextOffsetYExtraKey: textOffsetY,
+              },
+            );
+      nextCells[entry.key] = positionedCell;
       _itemElementLayoutLog(
         'rowHeightMeasured',
         trace: elementLayoutTrace,
@@ -9232,10 +9242,16 @@ fs.FortuneSheet _replaceSheetKeywords(
           'cellExtraFields': nextCell.extraFields,
             'verticalAlign': nextCell.normalizedVerticalAlign,
             'templateTextHeight': templateMeasurement?.textHeight,
+            'templateTightTop': templateMeasurement?.tightTop,
+            'templateTightBottom': templateMeasurement?.tightBottom,
+            'templateTightHeight': templateMeasurement?.tightHeight,
             'templateLineMetrics': templateMeasurement?.lineMetrics,
             'templateRemainingHeight': templateRemainingHeight,
-            'maximumVerticalPadding': itemElementMaximumVerticalPadding,
+            'fixedVerticalPadding': itemElementFixedVerticalPadding,
           'textHeight': measurement?.textHeight,
+          'resultTightTop': measurement?.tightTop,
+          'resultTightBottom': measurement?.tightBottom,
+          'resultTightHeight': measurement?.tightHeight,
             'resultLineMetrics': measurement?.lineMetrics,
             'fixedPadding': measurement == null ? null : targetPadding,
             'fixedTopPadding': measurement == null ? null : targetPadding / 2,
@@ -9243,6 +9259,14 @@ fs.FortuneSheet _replaceSheetKeywords(
               ? null
               : targetPadding / 2,
           'measuredRowHeight': measurement?.rowHeight,
+            'textOffsetY': textOffsetY,
+            'visualTopPadding': measurement == null || textOffsetY == null
+              ? null
+              : textOffsetY + measurement.tightTop,
+            'visualBottomPadding': measurement == null || textOffsetY == null
+              ? null
+              : measurement.rowHeight -
+                (textOffsetY + measurement.tightBottom),
           'measurementMode': measurement?.mode,
             'previousRowHeight': previousRowHeight,
             'rowHeightDelta': measurement == null
@@ -9410,7 +9434,14 @@ Rect _itemCellRect(
   );
 }
 
-({double textHeight, String mode, String lineMetrics})?
+({
+  double textHeight,
+  double tightTop,
+  double tightBottom,
+  double tightHeight,
+  String mode,
+  String lineMetrics,
+})?
 _itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
   if (cell.renderedText.isEmpty || columnWidth <= 0) {
     return null;
@@ -9419,6 +9450,9 @@ _itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
     final textHeight = _itemPreviewExplicitInlineLinesHeight(cell);
     return (
       textHeight: textHeight,
+      tightTop: 0,
+      tightBottom: textHeight,
+      tightHeight: textHeight,
       mode: 'explicitInlineLines',
       lineMetrics: 'explicitTotal=$textHeight',
     );
@@ -9435,8 +9469,22 @@ _itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
             : double.infinity,
       );
   final metrics = painter.computeLineMetrics();
+  final boxes = painter.getBoxesForSelection(
+    TextSelection(baseOffset: 0, extentOffset: cell.renderedText.length),
+    boxHeightStyle: ui.BoxHeightStyle.tight,
+    boxWidthStyle: ui.BoxWidthStyle.tight,
+  );
+  final tightTop = boxes.isEmpty
+      ? 0.0
+      : boxes.map((box) => box.top).reduce(min);
+  final tightBottom = boxes.isEmpty
+      ? painter.height
+      : boxes.map((box) => box.bottom).reduce(max);
   return (
     textHeight: painter.height,
+    tightTop: tightTop,
+    tightBottom: tightBottom,
+    tightHeight: tightBottom - tightTop,
     mode: 'textPainterWrap',
     lineMetrics: [
       for (final line in metrics)
@@ -9445,7 +9493,15 @@ _itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
   );
 }
 
-({double textHeight, double rowHeight, String mode, String lineMetrics})?
+({
+  double textHeight,
+  double tightTop,
+  double tightBottom,
+  double tightHeight,
+  double rowHeight,
+  String mode,
+  String lineMetrics,
+})?
 _itemPreviewRowHeightMeasurement(
   fs.FortuneCell cell,
   double columnWidth, {
@@ -9455,7 +9511,10 @@ _itemPreviewRowHeightMeasurement(
   if (measurement == null) return null;
   return (
     textHeight: measurement.textHeight,
-    rowHeight: max(4.0, measurement.textHeight + verticalPadding),
+    tightTop: measurement.tightTop,
+    tightBottom: measurement.tightBottom,
+    tightHeight: measurement.tightHeight,
+    rowHeight: max(4.0, measurement.tightHeight + verticalPadding),
     mode: measurement.mode,
     lineMetrics: measurement.lineMetrics,
   );

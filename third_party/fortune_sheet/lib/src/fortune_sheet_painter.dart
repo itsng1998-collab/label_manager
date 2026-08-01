@@ -44381,6 +44381,7 @@ const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
 const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
 const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
 const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
+const String fortuneCellTextOffsetYExtraKey = 'cellTextOffsetY';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
     'barcodeIdLabelPrintExcluded';
 const double fortuneBarcodeObjectIdLabelScale = 1.5;
@@ -73389,11 +73390,14 @@ class FortuneSheetPainter extends CustomPainter {
           maxWidth: rect.width,
         );
 
-    final dy = switch (cell.normalizedVerticalAlign) {
-      '1' => rect.top,
-      '2' => rect.bottom - painter.height,
-      _ => rect.top + math.max(0, (rect.height - painter.height) / 2),
-    };
+    final textOffsetY = _cellTextOffsetY(cell);
+    final dy = textOffsetY == null
+        ? switch (cell.normalizedVerticalAlign) {
+            '1' => rect.top,
+            '2' => rect.bottom - painter.height,
+            _ => rect.top + math.max(0, (rect.height - painter.height) / 2),
+          }
+        : rect.top + textOffsetY;
 
     canvas.save();
     canvas.clipRect(rect);
@@ -74894,6 +74898,12 @@ class FortuneSheetPainter extends CustomPainter {
       return value.toDouble();
     }
     return double.tryParse('$value');
+  }
+
+  double? _cellTextOffsetY(FortuneCell cell) {
+    final value = cell.extraFields[fortuneCellTextOffsetYExtraKey];
+    final offset = value is num ? value.toDouble() : double.tryParse('$value');
+    return offset == null || !offset.isFinite ? null : offset;
   }
 
   double _inlineRunBaselineShift(

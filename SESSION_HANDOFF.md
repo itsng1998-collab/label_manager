@@ -1,6 +1,21 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 진행 중: `#ELEMENT` 대상 라벨 최소 여백 고정 v1.0.2
+- 최신 v1.0.2 이미지/로그 재확인: line box 기준 상·하 padding은 두 품목 모두 2.107px로 동일하지만 화면에서는 실제 glyph 획 경계 여백이 다르다. 8pt 첫 줄과 5pt 후속 줄의 line box 내부 inset 비대칭이 원인이다.
+- 추가 수정 예정: FortuneSheet 공용 화면·캡처 renderer에 runtime cell text Y offset을 지원한다. 결과 행은 tight glyph bounds 높이 + target padding으로 계산하고 glyph top/bottom이 정확히 같은 padding을 갖도록 offset을 적용한다.
+- 추가 편집 완료: `fortuneCellTextOffsetYExtraKey`를 화면 painter와 screenshot/capture가 공통 사용한다. `#ELEMENT` materialization은 tight box top/bottom/height, offset, 최종 visual top/bottom padding을 v4 로그에 기록한다.
+- 1차 집중 검증 실패: tight box API의 `dart:ui` 및 테스트 `dart:math` import 누락으로 컴파일 실패. 로직 assertion 전의 국소 import 문제다.
+- 컴파일 보완: production/test에 필요한 `BoxHeightStyle`, `BoxWidthStyle`, `max`, `min` import를 명시했다.
+- tight box 검증 결과: Flutter `BoxHeightStyle.tight`도 실제 glyph bitmap 경계가 아니라 font ascent/descent box를 반환해 기존 line box와 동일했다. offset만 추가해서는 화면 차이가 줄지 않는다.
+- 최소 여백 확정: v1.0.2는 원본 target 잔여 여백 4.214px(상·하 2.107px)를 계속 보존하고 있었다. `#ELEMENT` 결과의 세로 padding을 0px로 고정해 line box가 병합 셀 상·하 경계에 정확히 맞도록 변경한다.
+- 최소 여백 집중 검증 완료: 혼합 8pt/5pt 다중 줄에서 `fixedPadding=0`, `textOffsetY=0`, `visualTopPadding=0`, `visualBottomPadding=0`, 행 높이=tight/line box 13px를 확인했다. diagnostics 0건.
+- 버전 갱신: 공용 FortuneSheet 화면·캡처 renderer 동작 변경을 구분하도록 앱 버전을 `1.0.3`, item debug schema를 v5로 올렸다.
+- 전체 검증 예정: 출력 미리보기·resolver·출력 pipeline 및 FortuneSheet 관련 회귀와 변경 파일 정적 분석을 실행한다.
+- 1차 전체 회귀: 기존 6px 기대 테스트 1개만 실패했고 실제 로그는 1줄/3줄 모두 0px으로 새 계약대로 동작했다. 테스트 기대값을 `itemElementFixedVerticalPadding=0`으로 갱신한다.
+- 정적 분석: 앱 변경 파일은 새 issue 없음. FortuneSheet 전체 파일 분석에서 기존 미사용 코드 warning 10건이 보고됐으며 이번 변경 위치와 무관하다.
+- 최소 여백 재검증 완료: 1줄/3줄 모두 `fixed/visual top/visual bottom padding=0`, 혼합 8pt/5pt도 상·하 0px 수치 테스트 통과. 변경 파일 diagnostics 0건.
+- 최종 전체 검증 완료: 앱 출력 미리보기·resolver·출력 pipeline 관련 테스트 171개 통과, 앱 변경 파일 `flutter analyze` issue 없음. FortuneSheet 패키지 `fortune_print_capture_test.dart` 6개 통과.
+- 최종 변경 검증: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.3` 확인. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 일곱 파일만 stage/commit한다.
 - 최신 이미지 확인: compact line-height 적용 후에도 긴 주원료와 짧은 주원료의 위/아래 여백이 다르게 보인다.
 - 로그/코드 원인: 결과 행 높이는 여전히 `textHeight + 6px` 하드코딩이다. 실제 대상 라벨 원본 행은 약 12.214px, compact 8pt 한 줄은 약 8px이므로 대상 라벨 최소 여백은 약 4.214px이다.
 - 수정 예정: 원본 `#ELEMENT` 셀을 compact line-height로 측정해 `원본 행 높이 - 원본 텍스트 높이`를 target padding으로 고정하고 모든 결과 길이에 동일 적용한다.

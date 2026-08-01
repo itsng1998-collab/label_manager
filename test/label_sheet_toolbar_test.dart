@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui show PointerDeviceKind, Rect;
+import 'dart:math' show max, min;
+import 'dart:ui'
+  as ui
+  show BoxHeightStyle, BoxWidthStyle, PointerDeviceKind, Rect;
 
 import 'package:archive/archive.dart';
 import 'package:flutter/gestures.dart';
@@ -983,7 +986,7 @@ void main() {
     );
   });
 
-  test('item output element keeps fixed padding across line counts', () {
+  test('item output element keeps minimum padding across line counts', () {
     double materializedHeight(String text) {
       final workbook = FortuneWorkbook(
         sheets: [
@@ -1026,8 +1029,14 @@ void main() {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 400);
 
-    expect(oneLineHeight - singleTextPainter.height, closeTo(6, 0.001));
-    expect(threeLineHeight - multilineTextPainter.height, closeTo(6, 0.001));
+    expect(
+      oneLineHeight - singleTextPainter.height,
+      closeTo(itemElementFixedVerticalPadding, 0.001),
+    );
+    expect(
+      threeLineHeight - multilineTextPainter.height,
+      closeTo(itemElementFixedVerticalPadding, 0.001),
+    );
   });
 
   test('item output element uses compact line boxes for mixed font sizes', () {
@@ -1098,10 +1107,38 @@ void main() {
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 276.7142857142856);
-    final targetPadding = 12.214285714285715 - templatePainter.height;
+    final templateBoxes = templatePainter.getBoxesForSelection(
+      const TextSelection(baseOffset: 0, extentOffset: 16),
+      boxHeightStyle: ui.BoxHeightStyle.tight,
+      boxWidthStyle: ui.BoxWidthStyle.tight,
+    );
+    final templateTightHeight =
+        templateBoxes.map((box) => box.bottom).reduce(max) -
+        templateBoxes.map((box) => box.top).reduce(min);
+    expect(
+      12.214285714285715 - templateTightHeight,
+      greaterThan(itemElementFixedVerticalPadding),
+    );
+    const targetPadding = itemElementFixedVerticalPadding;
+    final resultBoxes = painter.getBoxesForSelection(
+      TextSelection(baseOffset: 0, extentOffset: cell.renderedText.length),
+      boxHeightStyle: ui.BoxHeightStyle.tight,
+      boxWidthStyle: ui.BoxWidthStyle.tight,
+    );
+    final resultTightTop = resultBoxes.map((box) => box.top).reduce(min);
+    final resultTightBottom = resultBoxes
+        .map((box) => box.bottom)
+        .reduce(max);
     expect(
       sheet.rowHeights[0],
-      closeTo(painter.height + targetPadding, 0.001),
+      closeTo(resultTightBottom - resultTightTop + targetPadding, 0.001),
+    );
+    final textOffsetY =
+        cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
+    expect(textOffsetY + resultTightTop, closeTo(targetPadding / 2, 0.001));
+    expect(
+      sheet.rowHeights[0]! - (textOffsetY + resultTightBottom),
+      closeTo(targetPadding / 2, 0.001),
     );
   });
 
