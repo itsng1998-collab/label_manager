@@ -39,6 +39,9 @@
 - 실행 검증 예정: 관련 변경만 커밋한 뒤 `flutter build windows --debug`로 v1.0.10을 빌드·재실행하고 최신 로그의 `DebugLogger version: 1.0.10`, `item-manager-debug-v11`을 확인한다.
 - stage 대상: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일/hunk는 제외한다.
 - stage 검증 완료: 대상 6개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`는 worktree에 유지하고 index에서 제외했다.
+- 기능 커밋: `722187b 주원료 병합 셀 실제 하단 여백 고정`.
+- Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 18352로 실행했다. 최신 `.tmp/log/app_2026-08-01_18-53-16.log`에서 `DebugLogger version: 1.0.10`을 확인했다.
+- 사용자 재현 확인 기준: 세 품목 선택 후 최신 로그의 `item-manager-debug-v11`, `sourceBoundaryWhitespace/resultBoundaryWhitespace`, `templateLineTexts/resultLineTexts`, `targetSelectionBottomPadding`, `selectionBottomBeforeCorrection`, `selectionBottomCorrection`, `selectionBottomPadding`을 비교한다. 보정 후 `selectionBottomPadding`은 대상 값과 같아야 한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
