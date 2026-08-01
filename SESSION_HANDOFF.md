@@ -21,6 +21,8 @@
 - 최종 추가 검증 완료: 앱 공용 출력 workbook과 FortuneSheet capture 전체 회귀 180개 통과. 추가 테스트 analyzer issue 없음, `git diff --check` 통과.
 - 적용 범위 확정: 품목관리·라벨출력·저울출력 미리보기와 라벨/저울 PDF, RAW/EZPL native+bitmap fallback 모두 같은 materialized workbook 및 capture renderer 계약을 사용한다.
 - 후속 stage 대상: `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일은 제외한다.
+- 후속 검증 커밋: `a572ad6 실제 라벨 캡처 여백 회귀 검증 추가`.
+- 현재 실행 상태: v1.0.9 Debug PID 15332. 문제 품목 선택 후 최신 로그에서 `item-manager-debug-v10`, `resultTextOffsetMode=targetVerticalAlign`, `resultStoredTextOffsetY=null`, `resultRenderedTopPadding/resultRenderedBottomPadding`을 확인한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
