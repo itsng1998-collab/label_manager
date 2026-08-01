@@ -1,7 +1,7 @@
 import 'package:label_manager/utils/log_context.dart';
 
 abstract final class ItemManagerDebugLog {
-  static const String version = 'item-manager-debug-v3';
+  static const String version = 'item-manager-debug-v4';
   static int _sequence = 0;
 
   static String nextTrace(String operation) {

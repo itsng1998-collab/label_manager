@@ -991,6 +991,7 @@ void main() {
             id: 'label',
             name: '라벨',
             columnWidths: const {0: 400},
+            rowHeights: const {0: 16},
             cells: {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '#ELEMENT',
@@ -1037,6 +1038,7 @@ void main() {
             id: 'label',
             name: '라벨',
             columnWidths: const {0: 276.7142857142856},
+            rowHeights: const {0: 12.214285714285715},
             cells: {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '원부재료 | #ELEMENT',
@@ -1089,7 +1091,18 @@ void main() {
       cell.inlineRuns!.every((run) => run.extraFields['lineHeight'] == 1.0),
       isTrue,
     );
-    expect(sheet.rowHeights[0], closeTo(painter.height + 6, 0.001));
+    final templatePainter = TextPainter(
+      text: const TextSpan(
+        text: '원부재료 | #ELEMENT',
+        style: TextStyle(fontSize: 8, height: 1.0),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 276.7142857142856);
+    final targetPadding = 12.214285714285715 - templatePainter.height;
+    expect(
+      sheet.rowHeights[0],
+      closeTo(painter.height + targetPadding, 0.001),
+    );
   });
 
   test('output preview uses the same saved item element workbook', () {

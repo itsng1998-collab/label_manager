@@ -1,5 +1,20 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: `#ELEMENT` 대상 라벨 최소 여백 고정 v1.0.2
+- 최신 이미지 확인: compact line-height 적용 후에도 긴 주원료와 짧은 주원료의 위/아래 여백이 다르게 보인다.
+- 로그/코드 원인: 결과 행 높이는 여전히 `textHeight + 6px` 하드코딩이다. 실제 대상 라벨 원본 행은 약 12.214px, compact 8pt 한 줄은 약 8px이므로 대상 라벨 최소 여백은 약 4.214px이다.
+- 수정 예정: 원본 `#ELEMENT` 셀을 compact line-height로 측정해 `원본 행 높이 - 원본 텍스트 높이`를 target padding으로 고정하고 모든 결과 길이에 동일 적용한다.
+- 로그 보강: item manager debug schema v4, appVersion, template/result line별 height/ascent/descent/baseline/width, 원본 행 높이, 고정 상·하 padding, 최종 delta를 활성 로그에 기록한다.
+- 버전: patch 변경으로 `pubspec.yaml`을 `1.0.2`로 갱신했다. 앱 시작 시 PackageInfo의 1.0.2를 `DebugLogger.setVersion()`에 먼저 설정하고 trace의 `appVersion`에도 기록한다.
+- 편집 완료: 원본 compact template text 높이와 원본 행 높이 차이를 target padding으로 계산하고 결과 행에 동일 적용한다. 측정 trace에 line metrics와 상·하 padding을 추가했다.
+- 집중 검증 완료: 1줄/3줄 고정 target padding 및 실제 8pt/5pt 혼합 글꼴 회귀 테스트 2개 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 예정: 출력 미리보기·resolver·출력 pipeline 관련 테스트와 변경 파일 정적 분석을 실행한다.
+- 1차 전체 검증: 181개 중 180개 통과, 과대 원본 행(180px) 축소 회귀 1개 실패. 원본 잔여 공간 170px 전체를 padding으로 보존한 것이 원인이다.
+- 경계 수정: target padding을 `min(원본 행 - compact template text 높이, 6px)`로 제한한다. 실제 라벨의 약 4.214px는 유지하고 과대 원본 행은 기존 FortuneSheet 최소 여백 6px로 축소한다.
+- 경계 집중 검증 완료: 과대 병합 행 축소, 1줄/3줄 고정 padding, 혼합 8pt/5pt 최소 여백 테스트 3개 통과. diagnostics 0건.
+- 최종 전체 검증 완료: 출력 미리보기·resolver·출력 pipeline 관련 테스트 181개 통과. 변경 파일 `flutter analyze` issue 없음.
+- 최종 변경 검증: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.2` 확인. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 다섯 파일만 stage/commit한다.
+
 ## 진행 중: `#ELEMENT` 병합 셀 여백 진단 로그
 - 사용자 확인: 기본 줄 높이 누적 제거 후에도 주원료 내용이 많을수록 병합 셀 위/아래 여백이 증가한다.
 - 진단 가설: workbook materialization에서 계산한 행 높이와 FortuneSheet 실제 렌더링 높이 중 어느 쪽이 증가하는지 런타임 값으로 구분해야 한다.

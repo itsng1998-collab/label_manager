@@ -130,6 +130,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
+const double itemElementMaximumVerticalPadding = 6.0;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -8654,6 +8655,7 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
     'started',
     trace: elementLayoutTrace,
     fields: {
+      'appVersion': appVersion,
       'itemId': item.item.itemId,
       'itemName': item.item.itemName,
       'labelSizeId': labelSize?.labelSizeId,
@@ -9188,9 +9190,27 @@ fs.FortuneSheet _replaceSheetKeywords(
     }
     if (elementCell != null && containsElementKeyword) {
       final cellRect = _itemCellRect(sheet, entry.key, cell: entry.value);
+      final previousRowHeight =
+          sheet.rowHeights[entry.key.row] ??
+          sheet.defaultRowHeight ??
+          19;
+      final templateCell = _itemElementCompactCellForOutput(entry.value);
+      final templateMeasurement = _itemPreviewTextMeasurement(
+        templateCell,
+        cellRect.width,
+      );
+      final templateRemainingHeight = max(
+        0.0,
+        previousRowHeight - (templateMeasurement?.textHeight ?? 0),
+      );
+      final targetPadding = min(
+        itemElementMaximumVerticalPadding,
+        templateRemainingHeight,
+      );
       final measurement = _itemPreviewRowHeightMeasurement(
         nextCell,
         cellRect.width,
+        verticalPadding: targetPadding,
       );
       _itemElementLayoutLog(
         'rowHeightMeasured',
@@ -9210,14 +9230,24 @@ fs.FortuneSheet _replaceSheetKeywords(
           'fontSize': nextCell.fontSize,
           'fontFamily': nextCell.fontFamily,
           'cellExtraFields': nextCell.extraFields,
+            'verticalAlign': nextCell.normalizedVerticalAlign,
+            'templateTextHeight': templateMeasurement?.textHeight,
+            'templateLineMetrics': templateMeasurement?.lineMetrics,
+            'templateRemainingHeight': templateRemainingHeight,
+            'maximumVerticalPadding': itemElementMaximumVerticalPadding,
           'textHeight': measurement?.textHeight,
-          'fixedPadding': measurement == null ? null : 6.0,
+            'resultLineMetrics': measurement?.lineMetrics,
+            'fixedPadding': measurement == null ? null : targetPadding,
+            'fixedTopPadding': measurement == null ? null : targetPadding / 2,
+            'fixedBottomPadding': measurement == null
+              ? null
+              : targetPadding / 2,
           'measuredRowHeight': measurement?.rowHeight,
           'measurementMode': measurement?.mode,
-          'previousRowHeight':
-              sheet.rowHeights[entry.key.row] ??
-              sheet.defaultRowHeight ??
-              19,
+            'previousRowHeight': previousRowHeight,
+            'rowHeightDelta': measurement == null
+              ? null
+              : measurement.rowHeight - previousRowHeight,
         },
       );
       if (measurement != null) {
@@ -9380,8 +9410,8 @@ Rect _itemCellRect(
   );
 }
 
-({double textHeight, double rowHeight, String mode})?
-_itemPreviewRowHeightMeasurement(fs.FortuneCell cell, double columnWidth) {
+({double textHeight, String mode, String lineMetrics})?
+_itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
   if (cell.renderedText.isEmpty || columnWidth <= 0) {
     return null;
   }
@@ -9389,8 +9419,8 @@ _itemPreviewRowHeightMeasurement(fs.FortuneCell cell, double columnWidth) {
     final textHeight = _itemPreviewExplicitInlineLinesHeight(cell);
     return (
       textHeight: textHeight,
-      rowHeight: max(4.0, textHeight + 6.0),
       mode: 'explicitInlineLines',
+      lineMetrics: 'explicitTotal=$textHeight',
     );
   }
   final painter =
@@ -9404,10 +9434,30 @@ _itemPreviewRowHeightMeasurement(fs.FortuneCell cell, double columnWidth) {
             ? max(1.0, columnWidth)
             : double.infinity,
       );
+  final metrics = painter.computeLineMetrics();
   return (
     textHeight: painter.height,
-    rowHeight: max(4.0, painter.height + 6.0),
     mode: 'textPainterWrap',
+    lineMetrics: [
+      for (final line in metrics)
+        '#${line.lineNumber}:h=${line.height},a=${line.ascent},d=${line.descent},base=${line.baseline},w=${line.width},hard=${line.hardBreak}',
+    ].join('|'),
+  );
+}
+
+({double textHeight, double rowHeight, String mode, String lineMetrics})?
+_itemPreviewRowHeightMeasurement(
+  fs.FortuneCell cell,
+  double columnWidth, {
+  required double verticalPadding,
+}) {
+  final measurement = _itemPreviewTextMeasurement(cell, columnWidth);
+  if (measurement == null) return null;
+  return (
+    textHeight: measurement.textHeight,
+    rowHeight: max(4.0, measurement.textHeight + verticalPadding),
+    mode: measurement.mode,
+    lineMetrics: measurement.lineMetrics,
   );
 }
 
@@ -9756,6 +9806,15 @@ fs.FortuneInlineTextRun _itemElementCompactRunForOutput(
     ..['lineHeight'] = 1.0;
   return run.copyWith(extraFields: extraFields);
 }
+
+fs.FortuneCell _itemElementCompactCellForOutput(fs.FortuneCell cell) =>
+    _itemRichTextCell(
+      _itemInlineRunsFromCell(cell)
+          .map(_itemElementCompactRunForOutput)
+          .toList(),
+      base: cell,
+      extraFields: cell.extraFields,
+    ).copyWith(textWrap: '2', rawTextWrap: '2', hasRawTextWrap: true);
 
 fs.FortuneCell _itemRichTextCell(
   List<fs.FortuneInlineTextRun> runs, {
