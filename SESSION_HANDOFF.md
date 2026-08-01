@@ -9,6 +9,8 @@
 - 집중 검증 완료: source `fontScale=80`이 결과 run에서 제거되고 긴 내용이 대상 셀 일반 줄바꿈으로 확장되는 회귀 테스트 통과. 변경 파일 diagnostics 0건.
 - 전체 검증 완료: 관련 출력 미리보기·바코드 resolver·출력 pipeline 테스트 179개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
+- 기능 커밋: `2141101 주원료 셀 세로 여백 고정`.
+- Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 최신 앱을 다시 실행했다.
 - 추가 제출 화면 확인: 주원료 줄 간격 제거 후에도 `#ELEMENT` 행 자체가 크게 남아 텍스트가 가운데 배치된다.
 - 추가 원인: 대상은 가로 병합 셀인데 `_itemCellRect()`가 anchor의 첫 열 너비만 사용해 텍스트를 과도하게 여러 줄로 측정한다. 또한 계산 높이가 기존 행보다 작으면 행을 줄이지 않는다.
 - 추가 수정 예정: 병합 전체 열 너비로 높이를 계산하고 `#ELEMENT` 행을 계산 높이로 축소·확장한다. 축소 시 아래 이미지·선·도형도 같은 delta로 이동한다.
