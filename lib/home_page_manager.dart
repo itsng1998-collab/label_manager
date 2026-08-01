@@ -128,7 +128,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'auto_update' ||
   tabValue == 'scale_output';
 
-const bool itemOutputPreviewMappingDebugEnabled = true;
+const bool itemOutputPreviewMappingDebugEnabled = false;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9526,7 +9526,7 @@ fs.FortuneCell _replaceElementKeywordInCell(
       if (prefix.isNotEmpty) {
         nextRuns.add(run.copyWith(text: prefix));
       }
-      nextRuns.addAll(elementRuns.map((source) => source.copyWith()));
+      nextRuns.addAll(elementRuns.map(_itemElementRunForOutput));
       rest = rest.substring(index + keyword.length);
       changed = true;
     }
@@ -9537,7 +9537,7 @@ fs.FortuneCell _replaceElementKeywordInCell(
   return _itemRichTextCell(
     nextRuns,
     base: cell,
-    extraFields: {...cell.extraFields, ...elementCell.extraFields},
+    extraFields: cell.extraFields,
   ).copyWith(textWrap: '2', rawTextWrap: '2', hasRawTextWrap: true);
 }
 
@@ -9575,6 +9575,14 @@ List<fs.FortuneInlineTextRun> _itemInlineRunsFromCell(fs.FortuneCell cell) {
       extraFields: cell.extraFields,
     ),
   ];
+}
+
+fs.FortuneInlineTextRun _itemElementRunForOutput(
+  fs.FortuneInlineTextRun run,
+) {
+  final extraFields = Map<String, Object?>.from(run.extraFields)
+    ..remove('lineHeight');
+  return run.copyWith(extraFields: extraFields);
 }
 
 fs.FortuneCell _itemRichTextCell(

@@ -762,6 +762,7 @@ void main() {
             cells: {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '원재료: #ELEMENT / 보관',
+                extraFields: {'lineHeight': 1.2},
               ),
             },
           ),
@@ -785,6 +786,7 @@ void main() {
                   hasRawFontFamily: true,
                   fontSize: 14,
                   hasRawFontSize: true,
+                  extraFields: {'lineHeight': 3.0},
                 ),
                 FortuneInlineTextRun(text: '\n'),
                 FortuneInlineTextRun(
@@ -795,6 +797,7 @@ void main() {
                   hasRawFontSize: true,
                 ),
               ],
+              extraFields: {'lineHeight': 3.0},
             ),
           },
         ),
@@ -812,6 +815,15 @@ void main() {
         preview.workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]!;
     expect(cell.renderedText, '원재료: 딸기\n설탕 / 보관');
     expect(cell.textWrap, '2');
+    expect(cell.extraFields['lineHeight'], 1.2);
+    expect(
+      cell.inlineRuns!
+          .where((run) => run.text == '딸기')
+          .single
+          .extraFields
+          .containsKey('lineHeight'),
+      isFalse,
+    );
     expect(preview.workbook!.sheets.single.customHeight[0], 1);
     expect(preview.workbook!.sheets.single.rowHeights[0], greaterThan(19));
     final runs = cell.inlineRuns!;
@@ -827,6 +839,52 @@ void main() {
       isTrue,
     );
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
+  });
+
+  test('item output element row height uses target label line spacing', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'label',
+          name: '라벨',
+          columnWidths: {0: 120},
+          cells: {
+            FortuneCellCoord(0, 0): FortuneCell(
+              value: '#ELEMENT',
+              textWrap: '2',
+              extraFields: {'lineHeight': 1.2},
+            ),
+          },
+        ),
+      ],
+    );
+    const normalElement = FortuneCell(value: '첫째 줄\n둘째 줄');
+    const wideElement = FortuneCell(
+      value: '첫째 줄\n둘째 줄',
+      inlineRuns: [
+        FortuneInlineTextRun(
+          text: '첫째 줄\n둘째 줄',
+          extraFields: {'lineHeight': 3.0},
+        ),
+      ],
+      extraFields: {'lineHeight': 3.0},
+    );
+
+    final normal = debugMaterializeItemImagesForTesting(
+      workbook,
+      const {'#ELEMENT': '첫째 줄\n둘째 줄'},
+      elementCell: normalElement,
+    );
+    final wide = debugMaterializeItemImagesForTesting(
+      workbook,
+      const {'#ELEMENT': '첫째 줄\n둘째 줄'},
+      elementCell: wideElement,
+    );
+
+    expect(
+      wide.sheets.single.rowHeights[0],
+      closeTo(normal.sheets.single.rowHeights[0]!, 0.001),
+    );
   });
 
   test('output preview uses the same saved item element workbook', () {
