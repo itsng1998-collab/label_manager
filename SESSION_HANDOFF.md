@@ -1,6 +1,6 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
-## 진행 중: `#ELEMENT` 하단 clip-safe 최소 여백 v1.0.6
+## 완료: `#ELEMENT` 하단 clip-safe 최소 여백 v1.0.6
 - 제출 이미지/실행 v7 로그 비교: 두 번째 `유자마왕파이`의 source/result 마지막 문자는 `기타소금(호수염)`이며 trailing 공백·탭·개행이 없다. result line metrics도 실내용 5줄뿐이라 trim 대상이 아니다.
 - 세 품목 모두 `targetBottomPadding=2.107142857...`, 실제 selection 하단 여백 `2.33876...px`로 동일했다. 200% 미리보기에서는 고정 여백이 약 4.2 화면 px로 확대돼 긴 셀에서 넓게 보인다.
 - 수정: 상단 0px은 유지하고 하단을 잘림 방지용 고정 1px로 축소한다. 결과 길이·원본 행 높이와 무관하게 `rowHeight=textHeight+1px`을 사용한다.
@@ -11,6 +11,9 @@
 - 최종 변경 검증 예정: `git diff --check`, 버전 및 stage 범위를 확인한다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
 - 실행 검증 예정: 기능 커밋 후 v1.0.6 Windows Debug를 빌드·재실행해 앱 버전을 확인한다.
 - 최종 변경 검증 완료: `git diff --check` 통과, `pubspec.yaml=1.0.6` 확인. stage 대상은 `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이다.
+- 기능 커밋: `564edd3 주원료 셀 하단 여백 최소화`.
+- Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 4844로 앱 실행. 새 로그 `.tmp/log/app_2026-08-01_16-47-13.log`에서 `DebugLogger version: 1.0.6` 확인.
+- 재현 확인 기준: 두 번째 `유자마왕파이`를 선택하면 v8 로그에 `configuredBottomPadding=1`, `targetBottomPadding=1`, `lineBoxBottomPadding=1`이 기록되고, 200% 미리보기의 하단 여백은 약 2 화면 px이어야 한다.
 
 ## 완료: `#ELEMENT` 대상 라벨 하단 최소 여백 v1.0.5
 - 최신 v1.0.4 이미지: 상단은 고정됐지만 짧은 내용은 하단 획이 경계에 붙어 잘리고, 긴 내용은 하단 여백이 더 넓어 보인다.
