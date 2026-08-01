@@ -1,6 +1,14 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: `#ELEMENT` 병합 셀 세로 여백 통일
+- 추가 제출 화면 확인: 병합 폭 수정 후에도 주원료 내용이 길수록 위/아래 여백이 증가한다.
+- 추가 원인: `fontScale`/첨자 inline run은 FortuneSheet가 저장된 개행 단위로 렌더링하지만 `_itemPreviewRequiredRowHeight()`는 폭 기준 자동 줄바꿈으로 높이를 측정해 실제로 그리지 않는 줄 높이를 누적한다.
+- 추가 수정 예정: FortuneSheet와 동일하게 해당 rich run은 저장된 줄 단위 높이만 합산하고, 일반 셀과 같은 고정 세로 여백 6px만 더한다.
+- 출력 경로 확인: PDF/EZPL 캡처는 `captureRangeAsPng()`/`captureHybridPlanAsPng()`의 일반 TextPainter 줄바꿈을 사용한다. 미리보기와 실제 출력 일치를 위해 주원료 편집 전용 `fontScale`도 병합 run에서 제거하고 대상 라벨 셀의 일반 줄바꿈·고정 6px 여백을 사용한다.
+- 편집 완료: 병합 run에서 `lineHeight`와 `fontScale`만 제거한다. 내용이 길면 대상 셀 폭에 맞춰 필요한 줄 수만 증가하고, 행 높이는 실제 text height + 고정 6px로 계산된다.
+- 집중 검증 완료: source `fontScale=80`이 결과 run에서 제거되고 긴 내용이 대상 셀 일반 줄바꿈으로 확장되는 회귀 테스트 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 완료: 관련 출력 미리보기·바코드 resolver·출력 pipeline 테스트 179개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
+- 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
 - 추가 제출 화면 확인: 주원료 줄 간격 제거 후에도 `#ELEMENT` 행 자체가 크게 남아 텍스트가 가운데 배치된다.
 - 추가 원인: 대상은 가로 병합 셀인데 `_itemCellRect()`가 anchor의 첫 열 너비만 사용해 텍스트를 과도하게 여러 줄로 측정한다. 또한 계산 높이가 기존 행보다 작으면 행을 줄이지 않는다.
 - 추가 수정 예정: 병합 전체 열 너비로 높이를 계산하고 `#ELEMENT` 행을 계산 높이로 축소·확장한다. 축소 시 아래 이미지·선·도형도 같은 delta로 이동한다.

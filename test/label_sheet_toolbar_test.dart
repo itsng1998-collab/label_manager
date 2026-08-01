@@ -936,6 +936,50 @@ void main() {
     );
   });
 
+  test('item output element uses target layout without source font scale', () {
+    FortuneSheet materialize(String text) {
+      final workbook = FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 240},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ELEMENT',
+                textWrap: '2',
+              ),
+            },
+          ),
+        ],
+      );
+      return debugMaterializeItemImagesForTesting(
+        workbook,
+        {'#ELEMENT': text},
+        elementCell: FortuneCell(
+          value: text,
+          inlineRuns: [
+            FortuneInlineTextRun(
+              text: text,
+              extraFields: const {'fontScale': 80},
+            ),
+          ],
+        ),
+      ).sheets.single;
+    }
+
+    final short = materialize('짧은 주원료');
+    final long = materialize(
+      '박력분 34.1%, 버터 21.2%, 설탕, 아몬드 17.6%, 초콜릿, 치즈혼합분말, 물엿',
+    );
+
+    expect(long.rowHeights[0], greaterThan(short.rowHeights[0]!));
+    expect(
+      long.cells[const FortuneCellCoord(0, 0)]!.inlineRuns!.single.extraFields,
+      isNot(contains('fontScale')),
+    );
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [

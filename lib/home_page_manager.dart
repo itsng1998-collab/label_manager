@@ -9327,6 +9327,9 @@ double? _itemPreviewRequiredRowHeight(fs.FortuneCell cell, double columnWidth) {
   if (cell.renderedText.isEmpty || columnWidth <= 0) {
     return null;
   }
+  if (_itemPreviewUsesExplicitInlineLines(cell)) {
+    return max(4.0, _itemPreviewExplicitInlineLinesHeight(cell) + 6.0);
+  }
   final painter =
       TextPainter(
         text: _itemPreviewTextSpan(cell),
@@ -9339,6 +9342,68 @@ double? _itemPreviewRequiredRowHeight(fs.FortuneCell cell, double columnWidth) {
             : double.infinity,
       );
   return max(4.0, painter.height + 6.0);
+}
+
+bool _itemPreviewUsesExplicitInlineLines(fs.FortuneCell cell) {
+  final runs = cell.inlineRuns;
+  if (runs == null || runs.isEmpty) return false;
+  return runs.any((run) {
+    if (run.extraFields['script'] != null) return true;
+    final fontScale = _itemPreviewDoubleExtra(run.extraFields, 'fontScale');
+    return fontScale != null && fontScale.isFinite && fontScale != 100;
+  });
+}
+
+double _itemPreviewExplicitInlineLinesHeight(fs.FortuneCell cell) {
+  final lines = <List<fs.FortuneInlineTextRun>>[
+    <fs.FortuneInlineTextRun>[],
+  ];
+  for (final run in cell.inlineRuns ?? const <fs.FortuneInlineTextRun>[]) {
+    final parts = run.text.split('\n');
+    for (var index = 0; index < parts.length; index += 1) {
+      if (parts[index].isNotEmpty) {
+        lines.last.add(run.copyWith(text: parts[index]));
+      }
+      if (index < parts.length - 1) {
+        lines.add(<fs.FortuneInlineTextRun>[]);
+      }
+    }
+  }
+  final baseStyle = _itemPreviewTextStyle(
+    fontSize: cell.fontSize ?? 10,
+    fontFamily: cell.fontFamily,
+    bold: cell.bold,
+    italic: cell.italic,
+    foreground: cell.foreground,
+    extraFields: cell.extraFields,
+  );
+  var height = 0.0;
+  for (final line in lines) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: line.isEmpty ? ' ' : null,
+        style: baseStyle,
+        children: [
+          for (final run in line)
+            TextSpan(
+              text: run.text,
+              style: _itemPreviewTextStyle(
+                fontSize: run.fontSize ?? cell.fontSize ?? 10,
+                fontFamily: run.fontFamily ?? cell.fontFamily,
+                bold: run.bold ?? cell.bold,
+                italic: run.italic ?? cell.italic,
+                foreground: run.foreground ?? cell.foreground,
+                extraFields: run.extraFields,
+              ),
+            ),
+        ],
+      ),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    height += painter.height;
+  }
+  return height;
 }
 
 TextSpan _itemPreviewTextSpan(fs.FortuneCell cell) {
@@ -9590,7 +9655,8 @@ fs.FortuneInlineTextRun _itemElementRunForOutput(
   fs.FortuneInlineTextRun run,
 ) {
   final extraFields = Map<String, Object?>.from(run.extraFields)
-    ..remove('lineHeight');
+    ..remove('lineHeight')
+    ..remove('fontScale');
   return run.copyWith(extraFields: extraFields);
 }
 
