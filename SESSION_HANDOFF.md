@@ -136,7 +136,7 @@
 - 구현 커밋: `ead58cd 주원료 셀 원본 정렬 복원`.
 - 다음 사용자 재현 확인 기준: v16 `verticalAlignPreserved=true`, `targetCellStyle`과 `resultCellStyle`, `cellStyleDifferences`, source/result run raw 스타일, 화면/capture 여백을 함께 확인한다.
 
-## 진행 중: 병합 셀 자동개행 행 높이 동기화 v1.0.16
+## 완료: 병합 셀 자동개행 행 높이 동기화 v1.0.16
 - v16 사용자 재현: 짧은 품목은 측정/화면 모두 2줄이지만 긴 `유자마왕파이`는 로그 측정 5줄, 첨부 화면 실제 4줄이다. 행 높이는 5줄 기준 `28+6=34`로 계산되어 한 줄 높이 5px만큼 과대하다.
 - 원인 확정: `_itemCellRect`는 12열 병합 폭을 순수 열 너비 합계로 계산하지만 FortuneSheet renderer는 각 열마다 `((width + 1) * zoom).round()`한 경계를 사용한 뒤 text rect를 2px deflate한다. 병합 열 수만큼 누적된 폭 차이가 자동개행 줄 수를 바꾼다.
 - `lib/home_page_manager.dart` 편집 완료: FortuneSheet 공용 `sheet.metrics(settings).visibleDataColumns` 경계로 병합 셀의 실제 rendered/content 폭을 구하고 template/result TextPainter 행 높이 측정에 사용한다.
@@ -152,6 +152,8 @@
 - 품목 미리보기 이벤트는 아직 발생하지 않아 실제 v17 품목 행은 미확인이다. 다음 사용자 재현에서 `renderedTextContentWidth`, `resultLineCount`, `resultRowHeight`를 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 공용 metrics 폭 측정 및 v17 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 구현 커밋: `e8f764b 병합 셀 자동개행 행 높이 동기화`.
+- 다음 사용자 재현 예상: `유자마왕파이`는 기존 raw 폭 측정 5줄/34px에서 renderer content 폭 측정 4줄/29px로 바뀌며, 대상 셀 가운데 정렬은 유지된다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
