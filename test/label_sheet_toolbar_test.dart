@@ -1065,18 +1065,49 @@ void main() {
     final top = materialize('1');
     final middle = materialize('0');
     final bottom = materialize('2');
-    double offset(FortuneSheet sheet) =>
-        sheet
-                .cells[const FortuneCellCoord(0, 0)]!
-                .extraFields[fortuneCellTextOffsetYExtraKey]
-            as double;
-
     expect(top.rowHeights[0], closeTo(16, 0.001));
     expect(middle.rowHeights[0], closeTo(16, 0.001));
     expect(bottom.rowHeights[0], closeTo(16, 0.001));
-    expect(offset(top), closeTo(0, 0.001));
-    expect(offset(middle), closeTo(3, 0.001));
-    expect(offset(bottom), closeTo(6, 0.001));
+    expect(
+      top.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
+      '1',
+    );
+    expect(
+      middle.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
+      '0',
+    );
+    expect(
+      bottom.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
+      '2',
+    );
+    for (final sheet in [top, middle, bottom]) {
+      expect(
+        sheet
+            .cells[const FortuneCellCoord(0, 0)]!
+            .extraFields
+            .containsKey(fortuneCellTextOffsetYExtraKey),
+        isFalse,
+      );
+    }
+  });
+
+  test('fortune cell text offset scales with preview zoom', () {
+    const logicalRowHeight = 17.214285714285715;
+    const logicalTextHeight = 13.0;
+    const logicalTopPadding = 2.1071428571428577;
+    const zoomRatio = 2.0;
+
+    final renderedRowHeight = logicalRowHeight * zoomRatio;
+    final renderedTextHeight = logicalTextHeight * zoomRatio;
+    final renderedTopPadding = fortuneScaledCellTextOffsetY(
+      logicalTopPadding,
+      zoomRatio,
+    );
+    final renderedBottomPadding =
+        renderedRowHeight - (renderedTopPadding + renderedTextHeight);
+
+    expect(renderedTopPadding, closeTo(logicalTopPadding * 2, 0.001));
+    expect(renderedBottomPadding, closeTo(logicalTopPadding * 2, 0.001));
   });
 
   test('item output element uses compact line boxes for mixed font sizes', () {
@@ -1141,19 +1172,15 @@ void main() {
       isTrue,
     );
     const targetPadding = 12.214285714285715 - 8;
-    const targetTopPadding = targetPadding / 2;
-    const targetBottomPadding = targetPadding / 2;
     expect(
       sheet.rowHeights[0],
       closeTo(painter.height + targetPadding, 0.001),
     );
-    final textOffsetY =
-        cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
-    expect(textOffsetY, closeTo(targetTopPadding, 0.001));
     expect(
-      sheet.rowHeights[0]! - (textOffsetY + painter.height),
-      closeTo(targetBottomPadding, 0.001),
+      cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
+      isFalse,
     );
+    expect(cell.normalizedVerticalAlign, '0');
   });
 
   test('output preview uses the same saved item element workbook', () {

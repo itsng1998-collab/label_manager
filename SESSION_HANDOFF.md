@@ -1,3 +1,18 @@
+# 진행 중: `#ELEMENT` 200% 하단 여백 zoom 보정
+- 최신 v1.0.8 로그/이미지: `유자마왕파이` 결과는 논리 좌표 기준 5줄 28px, 행 32.214px, 상·하 2.107px로 계산됐지만 200% 화면에서 하단 여백이 더 크게 보인다.
+- 원인 확정: 행 높이·글꼴은 zoom 배율을 적용하지만 저장된 `cellTextOffsetY`는 화면 px에 직접 더해졌다. 또한 화면 painter는 2px inset과 border/zoom 반올림을 적용하므로 논리 offset 강제값만으로 대상 셀의 최종 화면 여백을 정확히 재현할 수 없다.
+- FortuneSheet 편집 완료: 공용 cell text Y offset helper가 현재 text scale을 적용한다.
+- 품목 출력 편집 완료: `#ELEMENT` 결과에서 강제 `cellTextOffsetY`를 제거하고 대상 셀의 `verticalAlign`을 최종 행 높이에 renderer가 직접 적용하게 했다. target과 result가 같은 화면 inset·border·zoom 정렬 경로를 사용한다.
+- 로그 편집 완료: item debug schema v10. 논리 top/bottom과 별도로 zoom, 반올림된 화면 셀 높이, 확대 text 높이, 고정 2px inset, free height, 최종 화면 top/bottom을 기록한다.
+- 테스트 편집 완료: 위/가운데/아래 target 정렬 보존과 offset 제거, 공용 offset 200% 배율, 혼합 8pt/5pt compact 행 높이 계약을 갱신했다.
+- 버전: 호환 가능한 국소 렌더 수정으로 `1.0.8` → `1.0.9` PATCH 증가.
+- 1차 집중 검증: 기존 테스트는 제거된 offset cast 한 곳에서만 예상대로 실패했고 새 계약으로 갱신 후 관련 3개 테스트 통과.
+- 관련 회귀 완료: `test/label_sheet_toolbar_test.dart`와 FortuneSheet `fortune_print_capture_test.dart` 총 173개 통과. 변경 파일 diagnostics 0건.
+- 1차 정적 분석: 테스트의 제거된 offset assertion에 딸린 미사용 padding 상수 2건만 보고해 해당 두 줄을 제거했다.
+- 최종 검증 완료: 변경 Dart 4개 analyzer issue 없음, `git diff --check` 통과, 집중 테스트 3개 재통과. 범위 밖 `lib/core/app_menu_controller.dart` LF→CRLF 경고만 유지한다.
+- stage 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+- stage 검증 완료: 대상 6개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`는 worktree에 유지하고 index에서 제외했다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8

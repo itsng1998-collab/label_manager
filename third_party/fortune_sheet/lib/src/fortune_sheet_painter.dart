@@ -44382,6 +44382,12 @@ const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
 const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
 const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneCellTextOffsetYExtraKey = 'cellTextOffsetY';
+
+double fortuneScaledCellTextOffsetY(double offset, double textScale) {
+  final scale = textScale.isFinite && textScale > 0 ? textScale : 1.0;
+  return offset * scale;
+}
+
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
     'barcodeIdLabelPrintExcluded';
 const double fortuneBarcodeObjectIdLabelScale = 1.5;
@@ -73397,7 +73403,7 @@ class FortuneSheetPainter extends CustomPainter {
             '2' => rect.bottom - painter.height,
             _ => rect.top + math.max(0, (rect.height - painter.height) / 2),
           }
-        : rect.top + textOffsetY;
+        : rect.top + fortuneScaledCellTextOffsetY(textOffsetY, textScale);
 
     canvas.save();
     canvas.clipRect(rect);

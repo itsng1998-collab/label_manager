@@ -9233,7 +9233,30 @@ fs.FortuneSheet _replaceSheetKeywords(
         settings: settings,
         verticalPadding: targetVerticalPadding,
       );
-      final textOffsetY = measurement == null ? null : targetTopPadding;
+      final zoomRatio = sheet.zoomRatio.isFinite && sheet.zoomRatio > 0
+          ? sheet.zoomRatio
+          : 1.0;
+      final renderedCellHeight = measurement == null
+          ? null
+          : ((measurement.rowHeight + 1) * zoomRatio).roundToDouble();
+      final renderedTextHeight = measurement == null
+          ? null
+          : measurement.textHeight * zoomRatio;
+      final renderedFreeHeight =
+          renderedCellHeight == null || renderedTextHeight == null
+          ? null
+          : max(0.0, renderedCellHeight - 4 - renderedTextHeight);
+      final (renderedTopPadding, renderedBottomPadding) = switch (
+        (entry.value.normalizedVerticalAlign, renderedFreeHeight)
+      ) {
+        (_, null) => (null, null),
+        ('1', final freeHeight?) => (2.0, 2.0 + freeHeight),
+        ('2', final freeHeight?) => (2.0 + freeHeight, 2.0),
+        (_, final freeHeight?) => (
+          2.0 + freeHeight / 2,
+          2.0 + freeHeight / 2,
+        ),
+      };
       _itemElementLayoutLog(
         'targetLayoutResolved',
         trace: elementLayoutTrace,
@@ -9265,23 +9288,30 @@ fs.FortuneSheet _replaceSheetKeywords(
           'resultTextHeight': measurement?.textHeight,
           'resultLineCount': measurement?.lineCount,
           'resultRowHeight': measurement?.rowHeight,
-          'resultTextOffsetY': textOffsetY,
-          'resultLineBoxTop': textOffsetY,
-          'resultLineBoxBottom': measurement == null || textOffsetY == null
+            'resultTextOffsetMode': 'targetVerticalAlign',
+            'resultStoredTextOffsetY': null,
+            'resultLogicalTopPadding': targetTopPadding,
+            'resultLogicalBottomPadding': targetBottomPadding,
+            'resultLineBoxTop': targetTopPadding,
+            'resultLineBoxBottom': measurement == null
               ? null
-              : textOffsetY + measurement.textHeight,
+              : targetTopPadding + measurement.textHeight,
           'resultCellBottom': measurement?.rowHeight,
-          'resultLineBoxBottomPadding':
-              measurement == null || textOffsetY == null
+            'resultLineBoxBottomPadding': targetBottomPadding,
+            'resultSelectionTop': measurement == null
               ? null
-              : measurement.rowHeight -
-                    (textOffsetY + measurement.textHeight),
-          'resultSelectionTop': measurement == null || textOffsetY == null
+              : targetTopPadding + measurement.tightTop,
+            'resultSelectionBottom': measurement == null
               ? null
-              : textOffsetY + measurement.tightTop,
-          'resultSelectionBottom': measurement == null || textOffsetY == null
-              ? null
-              : textOffsetY + measurement.tightBottom,
+              : targetTopPadding + measurement.tightBottom,
+            'resultZoomRatio': zoomRatio,
+            'resultRenderedCellHeight': renderedCellHeight,
+            'resultRenderedTextHeight': renderedTextHeight,
+            'resultRenderedFixedTopInset': 2.0,
+            'resultRenderedFixedBottomInset': 2.0,
+            'resultRenderedFreeHeight': renderedFreeHeight,
+            'resultRenderedTopPadding': renderedTopPadding,
+            'resultRenderedBottomPadding': renderedBottomPadding,
           'resultResolvedCellFontFamily': fs.fortuneResolveFontFamily(
             nextCell.fontFamily,
             settings.fontFamilies,
@@ -9290,14 +9320,12 @@ fs.FortuneSheet _replaceSheetKeywords(
               _itemElementResolvedRunFontFamilies(nextCell, settings),
         },
       );
-      final positionedCell = textOffsetY == null
-          ? nextCell
-          : nextCell.copyWith(
-              extraFields: {
-                ...nextCell.extraFields,
-                fs.fortuneCellTextOffsetYExtraKey: textOffsetY,
-              },
-            );
+      final positionedExtraFields = <String, Object?>{
+        ...nextCell.extraFields,
+      }..remove(fs.fortuneCellTextOffsetYExtraKey);
+      final positionedCell = nextCell.copyWith(
+        extraFields: positionedExtraFields,
+      );
       nextCells[entry.key] = positionedCell;
       _itemElementLayoutLog(
         'rowHeightMeasured',
@@ -9362,21 +9390,29 @@ fs.FortuneSheet _replaceSheetKeywords(
                 ? null
                 : targetBottomPadding,
           'measuredRowHeight': measurement?.rowHeight,
-            'textOffsetY': textOffsetY,
-              'lineBoxTopPadding': measurement == null || textOffsetY == null
+            'textOffsetMode': 'targetVerticalAlign',
+            'storedTextOffsetY': null,
+              'lineBoxTopPadding': measurement == null
               ? null
-                : textOffsetY,
-              'lineBoxBottomPadding': measurement == null || textOffsetY == null
+                : targetTopPadding,
+              'lineBoxBottomPadding': measurement == null
               ? null
-              : measurement.rowHeight -
-                  (textOffsetY + measurement.textHeight),
-              'selectionTopPadding': measurement == null || textOffsetY == null
+              : targetBottomPadding,
+              'selectionTopPadding': measurement == null
                 ? null
-                : textOffsetY + measurement.tightTop,
-              'selectionBottomPadding': measurement == null || textOffsetY == null
+                : targetTopPadding + measurement.tightTop,
+              'selectionBottomPadding': measurement == null
                 ? null
                 : measurement.rowHeight -
-                  (textOffsetY + measurement.tightBottom),
+                  (targetTopPadding + measurement.tightBottom),
+            'renderedZoomRatio': zoomRatio,
+            'renderedCellHeight': renderedCellHeight,
+            'renderedTextHeight': renderedTextHeight,
+            'renderedFixedTopInset': 2.0,
+            'renderedFixedBottomInset': 2.0,
+            'renderedFreeHeight': renderedFreeHeight,
+            'renderedTopPadding': renderedTopPadding,
+            'renderedBottomPadding': renderedBottomPadding,
           'measurementMode': measurement?.mode,
             'previousRowHeight': previousRowHeight,
             'rowHeightDelta': measurement == null
