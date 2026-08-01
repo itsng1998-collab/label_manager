@@ -9233,6 +9233,23 @@ fs.FortuneSheet _replaceSheetKeywords(
         settings: settings,
         verticalPadding: targetVerticalPadding,
       );
+      final targetSelectionBottomPadding = templateMeasurement == null
+          ? targetBottomPadding
+          : max(
+              0.0,
+              previousRowHeight -
+                  (targetTopPadding + templateMeasurement.tightBottom),
+            );
+      final resultTextOffsetY = measurement == null
+          ? null
+          : measurement.rowHeight -
+                measurement.tightBottom -
+                targetSelectionBottomPadding;
+      final resultSelectionBottomPadding =
+          measurement == null || resultTextOffsetY == null
+              ? null
+              : measurement.rowHeight -
+                    (resultTextOffsetY + measurement.tightBottom);
       final zoomRatio = sheet.zoomRatio.isFinite && sheet.zoomRatio > 0
           ? sheet.zoomRatio
           : 1.0;
@@ -9287,31 +9304,43 @@ fs.FortuneSheet _replaceSheetKeywords(
           'cell': '${entry.key.row},${entry.key.column}',
           'resultTextHeight': measurement?.textHeight,
           'resultLineCount': measurement?.lineCount,
+          'resultLineTexts': measurement?.lineTexts,
           'resultRowHeight': measurement?.rowHeight,
-            'resultTextOffsetMode': 'targetVerticalAlign',
-            'resultStoredTextOffsetY': null,
-            'resultLogicalTopPadding': targetTopPadding,
-            'resultLogicalBottomPadding': targetBottomPadding,
-            'resultLineBoxTop': targetTopPadding,
-            'resultLineBoxBottom': measurement == null
+          'resultTextOffsetMode': 'targetSelectionBottom',
+          'resultStoredTextOffsetY': resultTextOffsetY,
+          'targetSelectionBottomPadding': targetSelectionBottomPadding,
+          'resultSelectionBottomBeforeCorrection': measurement == null
+              ? null
+              : measurement.rowHeight -
+                    (targetTopPadding + measurement.tightBottom),
+          'resultSelectionBottomCorrection': resultTextOffsetY == null
+              ? null
+              : resultTextOffsetY - targetTopPadding,
+          'resultLogicalTopPadding': targetTopPadding,
+          'resultLogicalBottomPadding': targetBottomPadding,
+          'resultLineBoxTop': targetTopPadding,
+          'resultLineBoxBottom': measurement == null
               ? null
               : targetTopPadding + measurement.textHeight,
           'resultCellBottom': measurement?.rowHeight,
-            'resultLineBoxBottomPadding': targetBottomPadding,
-            'resultSelectionTop': measurement == null
+          'resultLineBoxBottomPadding': targetBottomPadding,
+          'resultSelectionTop':
+              measurement == null || resultTextOffsetY == null
               ? null
-              : targetTopPadding + measurement.tightTop,
-            'resultSelectionBottom': measurement == null
+              : resultTextOffsetY + measurement.tightTop,
+          'resultSelectionBottom':
+              measurement == null || resultTextOffsetY == null
               ? null
-              : targetTopPadding + measurement.tightBottom,
-            'resultZoomRatio': zoomRatio,
-            'resultRenderedCellHeight': renderedCellHeight,
-            'resultRenderedTextHeight': renderedTextHeight,
-            'resultRenderedFixedTopInset': 2.0,
-            'resultRenderedFixedBottomInset': 2.0,
-            'resultRenderedFreeHeight': renderedFreeHeight,
-            'resultRenderedTopPadding': renderedTopPadding,
-            'resultRenderedBottomPadding': renderedBottomPadding,
+              : resultTextOffsetY + measurement.tightBottom,
+          'resultSelectionBottomPadding': resultSelectionBottomPadding,
+          'resultZoomRatio': zoomRatio,
+          'resultRenderedCellHeight': renderedCellHeight,
+          'resultRenderedTextHeight': renderedTextHeight,
+          'resultRenderedFixedTopInset': 2.0,
+          'resultRenderedFixedBottomInset': 2.0,
+          'resultRenderedFreeHeight': renderedFreeHeight,
+          'resultRenderedTopPadding': renderedTopPadding,
+          'resultRenderedBottomPadding': renderedBottomPadding,
           'resultResolvedCellFontFamily': fs.fortuneResolveFontFamily(
             nextCell.fontFamily,
             settings.fontFamilies,
@@ -9322,7 +9351,8 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
       final positionedExtraFields = <String, Object?>{
         ...nextCell.extraFields,
-      }..remove(fs.fortuneCellTextOffsetYExtraKey);
+        fs.fortuneCellTextOffsetYExtraKey: ?resultTextOffsetY,
+      };
       final positionedCell = nextCell.copyWith(
         extraFields: positionedExtraFields,
       );
@@ -9345,77 +9375,81 @@ fs.FortuneSheet _replaceSheetKeywords(
           'fontSize': nextCell.fontSize,
           'fontFamily': nextCell.fontFamily,
           'cellExtraFields': nextCell.extraFields,
-            'targetVerticalAlign': entry.value.normalizedVerticalAlign,
-            'resultVerticalAlign': nextCell.normalizedVerticalAlign,
-            'targetOriginalRowHeight': previousRowHeight,
-            'templateTextHeight': templateMeasurement?.textHeight,
-              'templateLineCount': templateMeasurement?.lineCount,
-            'templateTightTop': templateMeasurement?.tightTop,
-            'templateTightBottom': templateMeasurement?.tightBottom,
-            'templateTightHeight': templateMeasurement?.tightHeight,
-            'templateLineMetrics': templateMeasurement?.lineMetrics,
-            'templateRemainingHeight': templateRemainingHeight,
-            'maximumTargetVerticalPadding':
-                itemElementMaximumTargetVerticalPadding,
-            'targetVerticalPadding': targetVerticalPadding,
-            'targetTopPadding': targetTopPadding,
-            'targetBottomPadding': targetBottomPadding,
-            'sourceBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
-              elementCell.renderedText,
-            ),
-            'resultBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
-              nextCell.renderedText,
-            ),
-            'resolvedCellFontFamily': fs.fortuneResolveFontFamily(
-              nextCell.fontFamily,
-              settings.fontFamilies,
-            ),
-            'resolvedRunFontFamilies': _itemElementResolvedRunFontFamilies(
-              nextCell,
-              settings,
-            ),
+          'targetVerticalAlign': entry.value.normalizedVerticalAlign,
+          'resultVerticalAlign': nextCell.normalizedVerticalAlign,
+          'targetOriginalRowHeight': previousRowHeight,
+          'templateTextHeight': templateMeasurement?.textHeight,
+          'templateLineCount': templateMeasurement?.lineCount,
+          'templateTightTop': templateMeasurement?.tightTop,
+          'templateTightBottom': templateMeasurement?.tightBottom,
+          'templateTightHeight': templateMeasurement?.tightHeight,
+          'templateLineMetrics': templateMeasurement?.lineMetrics,
+          'templateLineTexts': templateMeasurement?.lineTexts,
+          'templateRemainingHeight': templateRemainingHeight,
+          'maximumTargetVerticalPadding':
+              itemElementMaximumTargetVerticalPadding,
+          'targetVerticalPadding': targetVerticalPadding,
+          'targetTopPadding': targetTopPadding,
+          'targetBottomPadding': targetBottomPadding,
+          'sourceBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
+            elementCell.renderedText,
+          ),
+          'resultBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
+            nextCell.renderedText,
+          ),
+          'resolvedCellFontFamily': fs.fortuneResolveFontFamily(
+            nextCell.fontFamily,
+            settings.fontFamilies,
+          ),
+          'resolvedRunFontFamilies': _itemElementResolvedRunFontFamilies(
+            nextCell,
+            settings,
+          ),
           'textHeight': measurement?.textHeight,
           'resultLineCount': measurement?.lineCount,
           'resultTightTop': measurement?.tightTop,
           'resultTightBottom': measurement?.tightBottom,
           'resultTightHeight': measurement?.tightHeight,
-            'resultLineMetrics': measurement?.lineMetrics,
-              'appliedVerticalPadding': measurement == null
-                ? null
-                : targetVerticalPadding,
-              'appliedTopPadding': measurement == null
-                ? null
-                : targetTopPadding,
-              'appliedBottomPadding': measurement == null
-                ? null
-                : targetBottomPadding,
-          'measuredRowHeight': measurement?.rowHeight,
-            'textOffsetMode': 'targetVerticalAlign',
-            'storedTextOffsetY': null,
-              'lineBoxTopPadding': measurement == null
+          'resultLineMetrics': measurement?.lineMetrics,
+          'resultLineTexts': measurement?.lineTexts,
+          'appliedVerticalPadding': measurement == null
               ? null
-                : targetTopPadding,
-              'lineBoxBottomPadding': measurement == null
+              : targetVerticalPadding,
+          'appliedTopPadding': measurement == null ? null : targetTopPadding,
+          'appliedBottomPadding': measurement == null
               ? null
               : targetBottomPadding,
-              'selectionTopPadding': measurement == null
-                ? null
-                : targetTopPadding + measurement.tightTop,
-              'selectionBottomPadding': measurement == null
-                ? null
-                : measurement.rowHeight -
-                  (targetTopPadding + measurement.tightBottom),
-            'renderedZoomRatio': zoomRatio,
-            'renderedCellHeight': renderedCellHeight,
-            'renderedTextHeight': renderedTextHeight,
-            'renderedFixedTopInset': 2.0,
-            'renderedFixedBottomInset': 2.0,
-            'renderedFreeHeight': renderedFreeHeight,
-            'renderedTopPadding': renderedTopPadding,
-            'renderedBottomPadding': renderedBottomPadding,
+          'measuredRowHeight': measurement?.rowHeight,
+          'textOffsetMode': 'targetSelectionBottom',
+          'storedTextOffsetY': resultTextOffsetY,
+          'targetSelectionBottomPadding': targetSelectionBottomPadding,
+          'selectionBottomBeforeCorrection': measurement == null
+              ? null
+              : measurement.rowHeight -
+                    (targetTopPadding + measurement.tightBottom),
+          'selectionBottomCorrection': resultTextOffsetY == null
+              ? null
+              : resultTextOffsetY - targetTopPadding,
+          'lineBoxTopPadding': measurement == null ? null : targetTopPadding,
+          'lineBoxBottomPadding': measurement == null
+              ? null
+              : targetBottomPadding,
+          'selectionTopPadding':
+              measurement == null || resultTextOffsetY == null
+              ? null
+              : resultTextOffsetY + measurement.tightTop,
+          'selectionBottomPadding': resultSelectionBottomPadding,
+          'renderedZoomRatio': zoomRatio,
+          'renderedCellHeight': renderedCellHeight,
+          'renderedTextHeight': renderedTextHeight,
+          'renderedFixedTopInset': 2.0,
+          'renderedFixedBottomInset': 2.0,
+          'renderedFreeHeight': renderedFreeHeight,
+          'renderedTopPadding': renderedTopPadding,
+          'renderedBottomPadding': renderedBottomPadding,
           'measurementMode': measurement?.mode,
-            'previousRowHeight': previousRowHeight,
-            'rowHeightDelta': measurement == null
+          'previousRowHeight': previousRowHeight,
+          'rowHeightDelta': measurement == null
               ? null
               : measurement.rowHeight - previousRowHeight,
         },
@@ -9588,6 +9622,7 @@ Rect _itemCellRect(
   int lineCount,
   String mode,
   String lineMetrics,
+  String lineTexts,
 })?
 _itemPreviewTextMeasurement(
   fs.FortuneCell cell,
@@ -9607,6 +9642,7 @@ _itemPreviewTextMeasurement(
       lineCount: 1,
       mode: 'explicitInlineLines',
       lineMetrics: 'explicitTotal=$textHeight',
+      lineTexts: _itemElementLayoutLogText(cell.renderedText),
     );
   }
   final painter =
@@ -9621,6 +9657,7 @@ _itemPreviewTextMeasurement(
             : double.infinity,
       );
   final metrics = painter.computeLineMetrics();
+  final lineTexts = _itemPreviewLineTexts(painter, cell.renderedText);
   final boxes = painter.getBoxesForSelection(
     TextSelection(baseOffset: 0, extentOffset: cell.renderedText.length),
     boxHeightStyle: ui.BoxHeightStyle.tight,
@@ -9643,7 +9680,28 @@ _itemPreviewTextMeasurement(
       for (final line in metrics)
         '#${line.lineNumber}:h=${line.height},a=${line.ascent},d=${line.descent},base=${line.baseline},w=${line.width},hard=${line.hardBreak}',
     ].join('|'),
+    lineTexts: lineTexts,
   );
+}
+
+String _itemPreviewLineTexts(TextPainter painter, String text) {
+  if (text.isEmpty) return '';
+  final lines = <String>[];
+  var offset = 0;
+  while (offset < text.length) {
+    var range = painter.getLineBoundary(TextPosition(offset: offset));
+    if (range.end <= offset && offset + 1 < text.length) {
+      range = painter.getLineBoundary(TextPosition(offset: offset + 1));
+    }
+    if (range.end <= offset) break;
+    final lineText = text.substring(range.start, range.end);
+    lines.add(
+      '#${lines.length}:${range.start}-${range.end}:'
+      '${_itemElementLayoutLogText(lineText)}',
+    );
+    offset = range.end;
+  }
+  return lines.join('|');
 }
 
 ({
@@ -9655,6 +9713,7 @@ _itemPreviewTextMeasurement(
   int lineCount,
   String mode,
   String lineMetrics,
+  String lineTexts,
 })?
 _itemPreviewRowHeightMeasurement(
   fs.FortuneCell cell,
@@ -9677,6 +9736,7 @@ _itemPreviewRowHeightMeasurement(
     lineCount: measurement.lineCount,
     mode: measurement.mode,
     lineMetrics: measurement.lineMetrics,
+    lineTexts: measurement.lineTexts,
   );
 }
 

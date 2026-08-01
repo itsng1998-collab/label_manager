@@ -1080,15 +1080,14 @@ void main() {
       bottom.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
       '2',
     );
-    for (final sheet in [top, middle, bottom]) {
-      expect(
+    double offset(FortuneSheet sheet) =>
         sheet
-            .cells[const FortuneCellCoord(0, 0)]!
-            .extraFields
-            .containsKey(fortuneCellTextOffsetYExtraKey),
-        isFalse,
-      );
-    }
+                .cells[const FortuneCellCoord(0, 0)]!
+                .extraFields[fortuneCellTextOffsetYExtraKey]
+            as double;
+    expect(offset(top), closeTo(0, 0.001));
+    expect(offset(middle), closeTo(3, 0.001));
+    expect(offset(bottom), closeTo(6, 0.001));
   });
 
   test('fortune cell text offset scales with preview zoom', () {
@@ -1176,9 +1175,29 @@ void main() {
       sheet.rowHeights[0],
       closeTo(painter.height + targetPadding, 0.001),
     );
+    final templatePainter = TextPainter(
+      text: const TextSpan(
+        text: '원부재료 | #ELEMENT',
+        style: TextStyle(fontSize: 8, height: 1.0),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 276.7142857142856);
+    final templateBoxes = templatePainter.getBoxesForSelection(
+      const TextSelection(baseOffset: 0, extentOffset: 15),
+    );
+    final resultBoxes = painter.getBoxesForSelection(
+      TextSelection(baseOffset: 0, extentOffset: cell.renderedText.length),
+    );
+    final textOffset =
+        cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
+    final targetSelectionBottomPadding =
+        12.214285714285715 -
+        (targetPadding / 2 + templateBoxes.last.bottom);
+    final resultSelectionBottomPadding =
+        sheet.rowHeights[0]! - (textOffset + resultBoxes.last.bottom);
     expect(
-      cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
-      isFalse,
+      resultSelectionBottomPadding,
+      closeTo(targetSelectionBottomPadding, 0.001),
     );
     expect(cell.normalizedVerticalAlign, '0');
   });

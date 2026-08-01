@@ -278,6 +278,88 @@ void main() {
     expect((topPadding - bottomPadding).abs(), lessThanOrEqualTo(1));
   });
 
+  testWidgets('print capture applies forced cell text bottom offset', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        defaultRowHeight: 40,
+        defaultColWidth: 120,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 1,
+          columnCount: 1,
+          rowHeights: const {0: 40},
+          columnWidths: const {0: 120},
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              value: 'MMMM',
+              fontSize: 12,
+              verticalAlign: '0',
+              extraFields: {
+                fortuneCellTextOffsetYExtraKey: 24.0,
+              },
+            ),
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 240,
+          height: 180,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 0,
+          columnStart: 0,
+          columnEnd: 0,
+        ),
+        pixelRatio: 1,
+        includeGridLines: false,
+        includeCellBorders: false,
+        includeRulerGuides: false,
+        includeLabelAreaBoundary: false,
+      ),
+    );
+
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    final width = capture!.pixelSize.width.toInt();
+    final height = capture.pixelSize.height.toInt();
+    final bounds = _darkPixelVerticalBounds(pixels!, width, height);
+
+    expect(bounds, isNotNull);
+    final topPadding = bounds!.$1;
+    final bottomPadding = height - 1 - bounds.$2;
+    expect(topPadding, greaterThan(bottomPadding));
+    expect(bottomPadding, lessThanOrEqualTo(6));
+  });
+
   testWidgets('print capture includes cell borders when requested', (
     tester,
   ) async {

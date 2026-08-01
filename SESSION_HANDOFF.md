@@ -24,6 +24,22 @@
 - 후속 검증 커밋: `a572ad6 실제 라벨 캡처 여백 회귀 검증 추가`.
 - 현재 실행 상태: v1.0.9 Debug PID 15332. 문제 품목 선택 후 최신 로그에서 `item-manager-debug-v10`, `resultTextOffsetMode=targetVerticalAlign`, `resultStoredTextOffsetY=null`, `resultRenderedTopPadding/resultRenderedBottomPadding`을 확인한다.
 
+## 진행 중: `#ELEMENT` 실제 glyph 하단 여백 고정 v1.0.10
+- v1.0.9 이미지/로그 재현: `유자마왕파이`의 line-box 하단 여백은 다른 품목과 같지만 실제 마지막 glyph selection 하단 여백이 대상 template보다 약 `0.577px` 커서 화면에서 아래가 더 넓게 보인다.
+- 공백·개행 배제: 세 품목 모두 source/result `leading=0`, `trailing=0`, 마지막 code unit `41`(`)`)이다.
+- 병합 폭 가설 배제: 실제 문자열을 순수 병합 폭과 화면 경계 포함 폭으로 각각 측정해도 모두 6줄이었다. 화면/capture에서 동일 폭을 보장하지 못하는 임시 layout width 구현은 제거했다.
+- 원인 확정: 대상 8pt template과 결과 5pt 마지막 줄은 line-box 여백이 같아도 `TextPainter.getBoxesForSelection()`의 실제 selection bottom이 다르다.
+- 품목 출력 편집 완료: 결과 `cellTextOffsetY`를 `결과 행 높이 - 결과 selection bottom - 대상 selection 하단 여백`으로 계산해 대상 셀의 실제 하단 여백을 강제 보존한다.
+- 로그 편집 완료: item debug schema v11에 source/result 경계 공백, 줄별 text range, 보정 전/후 selection 하단 여백과 correction을 기록한다.
+- 실제 출력 검증 추가: FortuneSheet PNG capture가 저장된 `cellTextOffsetY`를 실제 raster에 적용해 하단 여백을 줄이는 픽셀 테스트를 추가했다. PDF와 EZPL bitmap fallback이 이 capture 경로를 공유한다.
+- 집중 검증 완료: 대상 위/가운데/아래 offset `0/3/6px`, 혼합 8pt/5pt 대상·결과 selection 하단 여백 수치 일치, 실제 PNG 강제 offset 픽셀 테스트가 통과했다. 변경 파일 diagnostics 0건.
+- 버전: 호환 가능한 국소 출력 수정으로 `1.0.9` → `1.0.10` PATCH 증가.
+- 전체 관련 회귀 완료: `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 총 181개 통과.
+- 최종 정적 검증 완료: 변경 Dart 4개 analyzer issue 없음, `git diff --check` 통과. 범위 밖 `lib/core/app_menu_controller.dart` LF→CRLF 경고만 유지한다.
+- 실행 검증 예정: 관련 변경만 커밋한 뒤 `flutter build windows --debug`로 v1.0.10을 빌드·재실행하고 최신 로그의 `DebugLogger version: 1.0.10`, `item-manager-debug-v11`을 확인한다.
+- stage 대상: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일/hunk는 제외한다.
+- stage 검증 완료: 대상 6개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`는 worktree에 유지하고 index에서 제외했다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
