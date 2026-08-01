@@ -229,7 +229,6 @@ class PreviewFloatingWindow {
       _hideTargetRect = null;
       _hideProgress.value = 0;
       _visible.value = false;
-      if (_portalController.isShowing) _portalController.hide();
       return;
     }
     if (route == null) {
@@ -269,9 +268,6 @@ class PreviewFloatingWindow {
       await Future<void>.delayed(stepDuration);
     }
     _visible.value = false;
-    if (usePortalHost && _portalController.isShowing) {
-      _portalController.hide();
-    }
     _hideProgress.value = 0;
     _hideTargetRect = null;
     _controlsVisible.value = true;

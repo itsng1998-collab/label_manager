@@ -2407,6 +2407,55 @@ void main() {
     expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsOneWidget);
   });
 
+  testWidgets('portal floating preview keeps child tab state while hidden', (
+    tester,
+  ) async {
+    final window = PreviewFloatingWindow(usePortalHost: true);
+    addTearDown(window.dispose);
+    late BuildContext hostContext;
+
+    Widget preview() => const DefaultTabController(
+      length: 2,
+      child: Material(
+        child: Column(
+          children: [
+            TabBar(tabs: [Tab(text: '첫 미리보기'), Tab(text: '둘째 미리보기')]),
+            Expanded(
+              child: TabBarView(
+                children: [Text('첫 내용'), Text('둘째 내용')],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            hostContext = context;
+            return window.wrapPortalHost(child: const SizedBox.expand());
+          },
+        ),
+      ),
+    );
+    window.show(hostContext, child: preview());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('둘째 미리보기'));
+    await tester.pumpAndSettle();
+    expect(find.text('둘째 내용'), findsOneWidget);
+
+    window.hide();
+    await tester.pump();
+    expect(find.text('둘째 내용'), findsNothing);
+
+    window.show(hostContext, child: preview());
+    await tester.pumpAndSettle();
+    expect(find.text('둘째 내용'), findsOneWidget);
+  });
+
   testWidgets('item preview blocks output tab while draft context is locked', (
     tester,
   ) async {

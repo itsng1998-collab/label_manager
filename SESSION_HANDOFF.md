@@ -240,6 +240,21 @@
 - 기능 커밋: `449703e 끝부분 동적 컬럼 누락 방지`.
 - 최종 계약: 마지막 동적 키워드가 셀 끝에 있는 복수 키워드 구간은 키워드 사이 고정 문자를 허용한다. 첫 키워드 이전의 가장 긴 정렬 공백만 renderer 초과 폭만큼 줄이며 모든 치환값과 고정 문구를 보존한다.
 
+## 진행 중: 모든 portal 플로팅창 내부 선택 상태 유지 v1.0.21
+- 사용자 재현: 품목관리 플로팅창에서 `출력내용 미리보기`를 선택한 뒤 다른 메인 탭으로 이동하고 돌아오면 `주원료 및 함량`으로 초기화된다.
+- 원인 확정: route 방식 플로팅창은 hide 시 `Offstage`로 child subtree를 유지하지만 portal 방식은 `OverlayPortalController.hide()`로 subtree를 제거해 내부 tab controller state를 폐기했다.
+- 공용 수정 완료: `PreviewFloatingWindow.hide()`와 `hideToRect()`의 portal 경로도 `_visible=false` Offstage만 적용한다. 실제 `dispose()`에서는 기존대로 portal controller를 hide한다.
+- 적용 범위: 품목관리/자동변경 공유 미리보기, 공통라벨, 영양성분 등 `usePortalHost=true`인 모든 공용 플로팅창 내부의 탭·스크롤·편집 widget state가 hide/show 사이 유지된다.
+- 테스트 추가: 공용 portal 플로팅창에서 두 번째 내부 탭 선택 후 hide/show 및 동등한 child 갱신 뒤에도 두 번째 내용이 선택되어 있는지 검증한다.
+- 버전 적용 완료: 앱 `1.0.21`.
+- 포맷/집중 검증 완료: 변경 Dart 2개 diagnostics 0건. 공용 portal 내부 탭 hide/show 상태, 품목 행 변경 시 선택 탭 유지, 출력 탭 잠금 테스트 3건 통과.
+- 전체 검증 예정: `test/label_sheet_toolbar_test.dart` 전체와 `test/nutrition_box_dialog_test.dart` 전체를 실행하고 변경 Dart analyzer를 확인한다.
+- 전체 검증 완료: 앱 라벨 시트 181건 통과. test adapter가 영양성분 파일을 0건 반환해 `flutter test test/nutrition_box_dialog_test.dart` 직접 실행했고 11건 모두 통과. 변경 Dart 2개 analyzer `No issues found`.
+- Debug 검증 예정: v1.0.20 PID 368을 종료하고 `flutter build windows --debug` 후 v1.0.21을 실행한다.
+- Debug 검증 완료: 기존 PID 368은 이미 종료된 상태였고 Windows Debug 빌드 성공. v1.0.21 PID 11720 실행, `.tmp/log/app_2026-08-01_23-07-53.log`에서 `DebugLogger version: 1.0.21` 확인.
+- stage/commit 대상: `lib/widgets/preview_floating_window.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
