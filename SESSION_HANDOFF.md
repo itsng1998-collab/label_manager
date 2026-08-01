@@ -93,6 +93,10 @@
 - 적용 범위 재확인: 품목관리·라벨출력·저울출력의 materialized workbook에서 offset이 제거되며, 화면 painter와 PNG/PDF/RAW/EZPL capture renderer 모두 기존 `verticalAlign` 경로를 사용한다.
 - stage 예정: `SESSION_HANDOFF.md`, `lib/features/item/item_manager_debug_log.dart`, `lib/home_page_manager.dart`, `pubspec.yaml`, `test/label_sheet_toolbar_test.dart`. 사용자 변경 3개 파일/hunk는 제외한다.
 - stage 검증 완료: 대상 5개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`와 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 유지하고 제외했다.
+- 기능 커밋: `e7d39b4 주원료 병합 셀 원본 정렬 복원`.
+- 실행 검증 예정: `flutter build windows --debug` 후 v1.0.13 앱을 프로젝트 루트에서 재실행하고 최신 로그의 `DebugLogger version: 1.0.13`, 품목 선택 후 `item-manager-debug-v14`를 확인한다.
+- Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 7228로 실행했다. 최신 `.tmp/log/app_2026-08-01_21-01-10.log`에서 `DebugLogger version: 1.0.13`을 확인했다.
+- 사용자 재현 확인 기준: 문제 품목 선택 후 v14 `resultTextOffsetMode=nativeVerticalAlign`, `resultStoredTextOffsetY=null`, `resultMergePreserved=true`, `stylePreserved=true`와 화면/capture별 `NativeTextOffsetY`, `CellBottomPadding`을 확인한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
