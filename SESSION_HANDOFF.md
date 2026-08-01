@@ -240,7 +240,7 @@
 - 기능 커밋: `449703e 끝부분 동적 컬럼 누락 방지`.
 - 최종 계약: 마지막 동적 키워드가 셀 끝에 있는 복수 키워드 구간은 키워드 사이 고정 문자를 허용한다. 첫 키워드 이전의 가장 긴 정렬 공백만 renderer 초과 폭만큼 줄이며 모든 치환값과 고정 문구를 보존한다.
 
-## 진행 중: 모든 portal 플로팅창 내부 선택 상태 유지 v1.0.21
+## 완료: 모든 portal 플로팅창 내부 선택 상태 유지 v1.0.21
 - 사용자 재현: 품목관리 플로팅창에서 `출력내용 미리보기`를 선택한 뒤 다른 메인 탭으로 이동하고 돌아오면 `주원료 및 함량`으로 초기화된다.
 - 원인 확정: route 방식 플로팅창은 hide 시 `Offstage`로 child subtree를 유지하지만 portal 방식은 `OverlayPortalController.hide()`로 subtree를 제거해 내부 tab controller state를 폐기했다.
 - 공용 수정 완료: `PreviewFloatingWindow.hide()`와 `hideToRect()`의 portal 경로도 `_visible=false` Offstage만 적용한다. 실제 `dispose()`에서는 기존대로 portal controller를 hide한다.
@@ -254,6 +254,8 @@
 - Debug 검증 완료: 기존 PID 368은 이미 종료된 상태였고 Windows Debug 빌드 성공. v1.0.21 PID 11720 실행, `.tmp/log/app_2026-08-01_23-07-53.log`에서 `DebugLogger version: 1.0.21` 확인.
 - stage/commit 대상: `lib/widgets/preview_floating_window.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`.
+- 기능 커밋: `c7ce461 플로팅 미리보기 선택 상태 유지`.
+- 최종 계약: portal 플로팅창의 hide/hideToRect는 표시와 입력만 중단하고 child subtree를 유지한다. 실제 owner dispose에서만 portal subtree를 제거한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
