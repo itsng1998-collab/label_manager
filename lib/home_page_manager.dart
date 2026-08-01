@@ -10335,7 +10335,10 @@ fs.FortuneCell _replaceCellKeywords(
   final afterElement = elementCell == null
       ? cell
       : _replaceElementKeywordInCell(cell, elementCell);
-  final target = afterElement;
+  final target = _trimWhitespaceBeforeTrailingKeywordGroup(
+    afterElement,
+    replacements.keys,
+  );
   final targetRuns = target.inlineRuns;
   if (targetRuns != null && targetRuns.isNotEmpty) {
     var changed = false;
@@ -10361,6 +10364,60 @@ fs.FortuneCell _replaceCellKeywords(
     return target.copyWith();
   }
   return _itemTextCell(text, base: target);
+}
+
+fs.FortuneCell _trimWhitespaceBeforeTrailingKeywordGroup(
+  fs.FortuneCell cell,
+  Iterable<String> keywords,
+) {
+  final text = cell.renderedText;
+  final matchingKeywords = keywords
+      .where((keyword) => keyword.isNotEmpty && text.contains(keyword))
+      .toList()
+    ..sort((left, right) => right.length.compareTo(left.length));
+  if (matchingKeywords.isEmpty) return cell;
+
+  final keywordPattern = matchingKeywords.map(RegExp.escape).join('|');
+  final trailingGroup = RegExp(
+    '(?:$keywordPattern)(?:[ \t]*(?:$keywordPattern))*[ \t]*\$',
+  ).firstMatch(text);
+  if (trailingGroup == null || trailingGroup.start == 0) return cell;
+
+  var whitespaceStart = trailingGroup.start;
+  while (whitespaceStart > 0) {
+    final codeUnit = text.codeUnitAt(whitespaceStart - 1);
+    if (codeUnit != 0x20 && codeUnit != 0x09) break;
+    whitespaceStart -= 1;
+  }
+  if (whitespaceStart == trailingGroup.start) return cell;
+
+  final runs = cell.inlineRuns;
+  if (runs == null || runs.isEmpty) {
+    return _itemTextCell(
+      text.replaceRange(whitespaceStart, trailingGroup.start, ''),
+      base: cell,
+    );
+  }
+
+  var runStart = 0;
+  final nextRuns = <fs.FortuneInlineTextRun>[];
+  for (final run in runs) {
+    final runEnd = runStart + run.text.length;
+    final removeStart = whitespaceStart <= runStart
+        ? 0
+        : whitespaceStart - runStart;
+    final removeEnd = trailingGroup.start >= runEnd
+        ? run.text.length
+        : trailingGroup.start - runStart;
+    final overlaps = removeStart < run.text.length && removeEnd > 0;
+    nextRuns.add(
+      overlaps
+          ? run.copyWith(text: run.text.replaceRange(removeStart, removeEnd, ''))
+          : run.copyWith(),
+    );
+    runStart = runEnd;
+  }
+  return cell.copyWith(inlineRuns: nextRuns);
 }
 
 fs.FortuneCell _replaceElementKeywordInCell(

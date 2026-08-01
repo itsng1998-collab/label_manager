@@ -115,6 +115,7 @@
 - 실행 로그 확인: `.tmp/log/app_2026-08-01_21-23-39.log`의 `DebugLogger version: 1.0.14` 확인. 품목 이벤트가 아직 없어 v15 이벤트 행은 미발생이며 다음 사용자 재현에서 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 native bottom 및 v15 상세 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 복수 키워드 fixture의 fallback `value`를 inline run 문자열과 일치시킨 뒤 신규 테스트 2건 재통과.
 - 구현 커밋: `5348a84 주원료 병합 셀 하단 여백 고정`.
 - 다음 사용자 재현 확인 기준: v15 `source/resultControlCharacters`, `verticalAlignOverride=0->2`, 화면/capture `CellBottomPadding=2.0`, `CellBottomPaddingError=0.0`을 확인한다.
 
@@ -177,6 +178,29 @@
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
 - 구현 커밋: `4c1e77f 모든 키워드 자동개행 높이 적용`.
 - 최종 계약: `#ELEMENT`는 원재료 rich run 스타일을 이식하고 대상 셀 레이아웃 속성을 유지한다. 그 외 키워드는 비병합 여부를 변경하지 않고 대상 셀과 해당 keyword run의 모든 스타일 metadata를 유지하며 텍스트와 필요한 행 높이만 갱신한다.
+
+## 진행 중: 끝부분 키워드 그룹 앞 공백 제거 v1.0.18
+- 사용자 재현 로그: `.tmp/log/app_2026-08-01_22-28-06.log`의 cell `3,1`은 `알레르기유발물질`과 `#ALLERGY` 사이 약 70칸 공백이 치환 후에도 남아 `우유, 밀, 계란, 호두 함유`를 셀 밖으로 밀었다.
+- 원인 확정: 일반 rich-text 키워드 치환은 각 run의 키워드 텍스트만 바꾸므로 키워드 직전의 같은/이전 run 공백을 보존한다.
+- 수정 예정: 셀 끝부분이 `키워드 + 키워드 사이 가로 공백 + 추가 키워드 + 뒤 가로 공백`인 경우 첫 키워드 바로 앞의 연속 가로 공백만 제거한다. 키워드 사이/뒤 공백, 셀 속성, 각 keyword run 속성은 유지한다.
+- 공용 적용 경로: `_replaceSheetKeywords`가 materialize하는 workbook을 품목관리·라벨출력·저울출력 미리보기와 실제 capture/print가 공유하므로 해당 치환 단계 한 곳에 적용한다.
+- 수정 예정 파일: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `lib/features/item/item_manager_debug_log.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 품목 출력 편집 완료: `_trimWhitespaceBeforeTrailingKeywordGroup`가 끝부분 일반 키워드 그룹을 찾고 첫 키워드 앞의 space/tab 범위만 같은 run 또는 이전 run에서 제거한 뒤 기존 `_replaceKeywordText` 치환을 수행한다.
+- 속성 보존: 삭제 범위 밖 텍스트와 키워드 사이/뒤 공백은 유지하며 모든 inline run은 `copyWith(text: ...)`로 기존 style/metadata를 보존한다. plain text 셀도 기존 셀을 base로 재생성한다.
+- 테스트 편집 완료: 단일 `#ALLERGY`, 끝부분이 아닌 키워드, run 경계를 넘는 앞 공백, 끝부분 복수 키워드, 키워드 사이/뒤 공백과 각 keyword run 스타일 보존을 추가했다.
+- 버전 적용 완료: 앱 `1.0.18`, item debug schema `item-manager-debug-v19`.
+- 1차 집중 검증 완료: test adapter는 새 테스트를 아직 찾지 못했으나 `.\flutter.ps1 test test/label_sheet_toolbar_test.dart --plain-name "trailing keyword"`의 root 대상 신규 테스트 2건 통과.
+- 포맷/진단 완료: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart` 포맷 후 변경 Dart 3개 diagnostics 0건.
+- 관련 회귀 완료: 일반 키워드 행 높이·공용 출력 preview·style 보존·신규 단일/복수 끝부분 키워드 테스트 5건 통과.
+- 전체 검증 예정: `test/label_sheet_toolbar_test.dart` 전체와 `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 전체를 실행해 공용 workbook 및 실제 capture 회귀를 확인한다.
+- 전체 관련 회귀 완료: `test/label_sheet_toolbar_test.dart` 179건, `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 8건 모두 통과.
+- 정적 검증 예정: `.\flutter.ps1 analyze lib/home_page_manager.dart lib/features/item/item_manager_debug_log.dart test/label_sheet_toolbar_test.dart` 및 `git diff --check`를 실행한다.
+- 정적 검증 완료: wrapper는 하위 패키지에서 루트 상대 경로 파일 없음으로 종료 코드 1이었으나 root target은 성공했다. `C:\Flutter\bin\flutter.bat analyze ...` 직접 실행 결과 3개 변경 Dart 파일 `No issues found`, `git diff --check` 통과.
+- Debug 검증 예정: 실행 중인 v1.0.17 PID 14540을 종료하고 `flutter build windows --debug` 후 v1.0.18을 실행해 시작 로그를 확인한다.
+- Debug 검증 완료: 기존 PID 14540은 이미 종료된 상태였고 `flutter build windows --debug` 성공. v1.0.18 PID 6232 실행, `.tmp/log/app_2026-08-01_22-43-36.log`에서 `DebugLogger version: 1.0.18` 확인.
+- 품목 선택 전이라 v19 event는 아직 없으며 다음 사용자 재현에서 `cellAfter`의 앞 공백 제거 결과를 확인한다.
+- stage/commit 대상: `lib/home_page_manager.dart`의 끝부분 키워드 그룹 앞 공백 helper hunk, `test/label_sheet_toolbar_test.dart`, `lib/features/item/item_manager_debug_log.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
 
 # 완료: 라벨 workbench 업무 정책 분리
 

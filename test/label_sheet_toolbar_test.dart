@@ -1571,6 +1571,102 @@ void main() {
     expect(resultRun.extraFields, keywordRun.extraFields);
   });
 
+  test('trailing keyword replacement removes only its leading whitespace', () {
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '알레르기유발물질      #ALLERGY  ',
+                textWrap: '2',
+                fontSize: 8,
+              ),
+              const FortuneCellCoord(1, 0): const FortuneCell(
+                value: '앞 공백 유지   #ALLERGY   안내',
+                textWrap: '2',
+                fontSize: 8,
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#ALLERGY': '우유, 밀, 계란, 호두 함유'},
+    ).sheets.single;
+
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
+      '알레르기유발물질우유, 밀, 계란, 호두 함유  ',
+    );
+    expect(
+      sheet.cells[const FortuneCellCoord(1, 0)]!.renderedText,
+      '앞 공백 유지   우유, 밀, 계란, 호두 함유   안내',
+    );
+  });
+
+  test('trailing keyword group trims across runs and preserves group spacing', () {
+    const allergyRun = FortuneInlineTextRun(
+      text: '#ALLERGY',
+      bold: true,
+      rawBold: 1,
+      hasRawBold: true,
+      extraFields: {'runKey': 'allergy'},
+    );
+    const keepingRun = FortuneInlineTextRun(
+      text: '#KEEPING',
+      italic: true,
+      rawItalic: 1,
+      hasRawItalic: true,
+      extraFields: {'runKey': 'keeping'},
+    );
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '표시사항      #ALLERGY  #KEEPING  ',
+                textWrap: '2',
+                inlineRuns: [
+                  FortuneInlineTextRun(text: '표시사항'),
+                  FortuneInlineTextRun(
+                    text: '      ',
+                    extraFields: {'runKey': 'leading-space'},
+                  ),
+                  allergyRun,
+                  FortuneInlineTextRun(text: '  '),
+                  keepingRun,
+                  FortuneInlineTextRun(text: '  '),
+                ],
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#ALLERGY': '우유, 밀', '#KEEPING': '냉동보관'},
+    ).sheets.single;
+
+    final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
+    expect(cell.renderedText, '표시사항우유, 밀  냉동보관  ');
+    expect(cell.inlineRuns![1].text, isEmpty);
+    final resultAllergyRun = cell.inlineRuns!.singleWhere(
+      (run) => run.extraFields['runKey'] == 'allergy',
+    );
+    final resultKeepingRun = cell.inlineRuns!.singleWhere(
+      (run) => run.extraFields['runKey'] == 'keeping',
+    );
+    expect(resultAllergyRun.bold, allergyRun.bold);
+    expect(resultAllergyRun.rawBold, allergyRun.rawBold);
+    expect(resultAllergyRun.hasRawBold, allergyRun.hasRawBold);
+    expect(resultKeepingRun.italic, keepingRun.italic);
+    expect(resultKeepingRun.rawItalic, keepingRun.rawItalic);
+    expect(resultKeepingRun.hasRawItalic, keepingRun.hasRawItalic);
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [
