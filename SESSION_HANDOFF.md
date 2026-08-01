@@ -1,6 +1,6 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
-## 진행 중: `#ELEMENT` 병합 셀 세로 여백 통일
+## 완료: `#ELEMENT` 병합 셀 세로 여백 통일
 - 제출 화면 확인: 주원료 시트 셀을 라벨 시트 `#ELEMENT` 셀에 병합하면 대상 라벨의 일반 셀보다 위/아래 여백이 크게 출력된다.
 - 원인 가설: `_replaceElementKeywordInCell()`이 주원료 셀·inline run의 `lineHeight`를 대상 라벨 셀에 덮어써 행 높이 계산과 렌더링 모두 주원료 편집 셀의 줄 간격을 사용한다.
 - 수정 예정: 주원료의 글자 서식은 유지하되 병합 레이아웃은 대상 라벨 셀의 `extraFields`/`lineHeight`를 사용한다. 공용 output workbook 생성 경로를 수정해 품목관리·라벨출력·저울출력 미리보기와 실제 캡처/프린트에 함께 적용한다.
@@ -12,6 +12,7 @@
 - 검증 완료: 출력 미리보기·바코드 resolver·출력 pipeline 관련 테스트 177개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
 - 실제 출력 적용 확인: 라벨출력과 저울출력 모두 `_ItemOutputPreviewTab`에서 생성된 같은 workbook을 `LabelSheetOutputCaptureController.capture()` 또는 `captureHybridEzpl()`로 캡처하므로 PDF·EZPL hybrid 출력에도 같은 셀/행 높이가 적용된다.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`만 stage/commit한다.
+- 기능 커밋: `74be4c7 주원료 병합 셀 세로 여백 통일`.
 
 ## 진행 중: 품목 출력 미리보기 특수 품명 키 충돌 수정
 - 최신 재현 로그: `itemOutputPreviewMapping-5`에서 `itemName=황치즈쿠키`와 `#품목`은 정상이지만 `#ITEMNAME`은 빈 값이다.
