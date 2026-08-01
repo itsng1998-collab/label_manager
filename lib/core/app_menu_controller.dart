@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/core/app_menu_policy.dart';
 import 'package:label_manager/core/user.dart';
@@ -20,6 +21,9 @@ class AppMenuController extends ChangeNotifier {
   bool _workBlocked = false;
   Set<AppMenuCommandId> _busyCommands = const {};
   Set<AppMenuCommandId> _contextBlockedCommands = const {};
+
+  bool _notificationScheduled = false;
+  bool _disposed = false;
 
   Map<AppMenuCommandId, AppMenuCommandState> get commandStates {
     final policy = AppMenuPolicy(
@@ -47,12 +51,12 @@ class AppMenuController extends ChangeNotifier {
     required Map<AppMenuCommandId, AppMenuCommandHandler> handlers,
   }) {
     _handlersByOwner[owner] = Map.unmodifiable(handlers);
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   void detach(Object owner) {
     if (_handlersByOwner.remove(owner) != null) {
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
@@ -72,7 +76,7 @@ class AppMenuController extends ChangeNotifier {
     _isAdminConnect = isAdminConnect;
     _isCoopAdminConnect = isCoopAdminConnect;
     _isFirstConnectByAdmin = isFirstConnectByAdmin;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   void updateWorkState({
@@ -91,7 +95,7 @@ class AppMenuController extends ChangeNotifier {
     _workBlocked = workBlocked;
     _busyCommands = Set.unmodifiable(busyCommands);
     _contextBlockedCommands = Set.unmodifiable(contextBlockedCommands);
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   Future<void> execute(AppMenuCommandId id) async {
@@ -100,13 +104,37 @@ class AppMenuController extends ChangeNotifier {
     if (state?.enabled != true || handler == null) return;
 
     _runningCommands.add(id);
-    notifyListeners();
+    _notifyListenersSafely();
     try {
       await handler();
     } finally {
       _runningCommands.remove(id);
-      notifyListeners();
+      _notifyListenersSafely();
     }
+  }
+
+  void _notifyListenersSafely() {
+    if (_disposed || _notificationScheduled) return;
+
+    // Do not notify AnimatedBuilder synchronously. attach/updateWorkState can
+    // be called from a descendant's initState or didUpdateWidget while an
+    // ancestor AnimatedBuilder has already been built in the same build pass.
+    // Deferring every notification avoids relying on schedulerPhase, which is
+    // not a reliable public indicator for every BuildOwner.buildScope call.
+    _notificationScheduled = true;
+
+    final binding = WidgetsBinding.instance;
+    binding.addPostFrameCallback((_) {
+      _notificationScheduled = false;
+      if (!_disposed) {
+        notifyListeners();
+      }
+    });
+
+    // addPostFrameCallback does not request a frame by itself. This is needed
+    // when the controller changes while the scheduler is idle or already in a
+    // post-frame callback.
+    binding.ensureVisualUpdate();
   }
 
   bool _hasHandler(AppMenuCommandId id) => _handlerFor(id) != null;
@@ -117,5 +145,11 @@ class AppMenuController extends ChangeNotifier {
       if (handler != null) return handler;
     }
     return null;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

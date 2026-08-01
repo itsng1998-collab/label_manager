@@ -129,7 +129,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'auto_update' ||
   tabValue == 'scale_output';
 
-const bool itemOutputPreviewMappingDebugEnabled = false;
+const bool itemOutputPreviewMappingDebugEnabled = true;
 const bool itemElementLayoutDebugEnabled = true;
 const double itemKeywordMinimumRendererVerticalPadding = 4.0;
 const double itemElementMaximumTargetVerticalPadding = 6.0;
