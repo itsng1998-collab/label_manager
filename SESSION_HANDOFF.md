@@ -256,7 +256,7 @@
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`.
 - 기능 커밋: `c7ce461 플로팅 미리보기 선택 상태 유지`.
 - 최종 계약: portal 플로팅창의 hide/hideToRect는 표시와 입력만 중단하고 child subtree를 유지한다. 실제 owner dispose에서만 portal subtree를 제거한다.
-## 진행 중: 플로팅창 닫기/다시보기 완전 상태 복원 v1.0.22
+## 완료: 플로팅창 닫기/다시보기 완전 상태 복원 v1.0.22
 - 모든 `PreviewFloatingWindow` owner가 닫힌 window 객체를 유지하고 다시보기에서 재사용함을 확인했다. 공용 테스트를 실제 `hideToRect` 닫기 애니메이션으로 변경해 내부 탭 선택과 사용자 조정 `Rect`(위치·크기)가 닫기 전후 동일한지 검증한다.
 - 강화 테스트 1차 실패로 추가 원인 확정: `hideToRect` 진행 중에만 `_FloatingCard` 위 `Transform/Opacity` wrapper를 삽입하고 종료 후 제거해 element 계층이 바뀌면서 내부 tab state가 폐기됐다.
 - 공용 애니메이션 수정 완료: wrapper 계층을 항상 유지하고 닫기 target/progress 값만 변경한다. 닫기 애니메이션 전후에도 동일 child element가 유지된다.
@@ -271,6 +271,8 @@
 - Debug 검증 완료: 기존 PID 11720은 이미 종료된 상태였고 Windows Debug 빌드 성공. v1.0.22 PID 14988 실행, `.tmp/log/app_2026-08-01_23-23-37.log`에서 `DebugLogger version: 1.0.22` 확인.
 - stage/commit 대상: `lib/widgets/preview_floating_window.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`.
+- 기능 커밋: `439e115 플로팅 닫기 상태 완전 복원`.
+- 최종 계약: 모든 공용 플로팅창은 닫기 애니메이션과 다시보기 사이 동일 window/child element/Rect를 유지해 내부 탭 선택, 스크롤·편집 state, 창 위치와 크기를 닫기 직전 상태로 복원한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
