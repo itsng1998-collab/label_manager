@@ -285,6 +285,7 @@
 - 전체 검증 완료: `test/label_sheet_toolbar_test.dart` 182건, `test/nutrition_box_dialog_test.dart` 11건 모두 통과. `git diff --check` 통과.
 - 정적 분석: 변경 Dart 파일 diagnostics 0건. 전체 `flutter analyze`는 이번 변경과 무관한 `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 기존 미사용 코드 warning 10건만 보고했다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `156ac0d 주원료 키워드 공백 조정 제외`.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
