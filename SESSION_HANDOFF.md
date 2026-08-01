@@ -9,6 +9,20 @@
 - 수정 위치: `lib/home_page_manager.dart`의 `_itemOutputPreviewReplacements()`.
 - 기능 커밋: `435365a 출력 미리보기 품명 별칭 매핑`.
 - 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+
+## 완료: 품목 출력 미리보기 제품명 매핑 진단 로그
+- 사용자 확인: `#품목` 별칭 매핑 추가 후에도 제품명이 표시되지 않아, 추가 추측 수정 대신 실제 선택 행·template·cell 치환 경로를 로그로 확인한다.
+- 수정 예정: `home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled` 한 상수로 제어되는 전용 로그를 추가한다. 선택 item ID/품명, replacement map, 템플릿 keyword cell의 좌표·원문·치환 결과, 완료 상태를 같은 trace로 기록한다.
+- 로그 제거 방법: 확인 완료 후 같은 상수를 `false`로 바꾸면 전용 로그가 중단된다.
+- 편집 완료: `started → templateDecoded → cellBefore/cellAfter → completed` 순서의 전용 trace 로그를 추가했다. 저장된 라벨 없음·RTF 차단·decode 실패도 별도 event로 기록한다.
+- 1차 검증 완료: 기존 출력 미리보기 집중 테스트 1개와 변경 파일 diagnostics 0건을 확인했다.
+- formatter 완료: `dart format lib/home_page_manager.dart`.
+- 검증 완료: `runTests(test/label_sheet_toolbar_test.dart, test/item_code_data_resolver_test.dart, test/label_print_pipeline_test.dart)` 결과 176개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` 결과 issue 없음.
+- 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml`의 버전은 `1.0.1`이다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 남기고 대상 파일만 stage/commit한다.
+- 커밋: `c94576a 출력 미리보기 매핑 진단 로그 추가`.
+- 사용자 확인: 문제의 품목 행을 선택해 출력내용 미리보기를 열고, 최신 `.tmp/log/app_*.log`에서 같은 `itemOutputPreviewMapping-*` trace의 `started`, `templateDecoded`, `cellBefore`, `cellAfter`, `completed` event를 제출한다. 확인 완료 뒤 `itemOutputPreviewMappingDebugEnabled`를 `false`로 바꿔 전용 로그를 중단한다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
 - 버전: 사용자 지정에 따라 `1.0.1` 유지.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 

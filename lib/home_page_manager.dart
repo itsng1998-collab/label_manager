@@ -128,6 +128,9 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'auto_update' ||
   tabValue == 'scale_output';
 
+// Set false after the selected-row output preview mapping investigation.
+const bool itemOutputPreviewMappingDebugEnabled = true;
+
 @visibleForTesting
 Object? homeTabShortcutValue({
   required LogicalKeyboardKey key,
@@ -8641,13 +8644,31 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
   required DateTime referenceAt,
   Map<int, String>? projectedColumnValues,
 }) {
+  final mappingTrace = itemOutputPreviewMappingDebugEnabled
+      ? ItemManagerDebugLog.nextTrace('itemOutputPreviewMapping')
+      : null;
+  _itemOutputPreviewMappingLog(
+    'started',
+    trace: mappingTrace,
+    fields: {
+      'itemId': item.item.itemId,
+      'itemName': item.item.itemName,
+      'labelSizeId': labelSize?.labelSizeId,
+      'projectedColumnIds': projectedColumnValues?.keys.join(',') ?? '',
+    },
+  );
   final encodedWorkbook = labelSize?.labelSizeCommon?.rtf;
   if (labelSheetLooksLikeRichEditRtf(encodedWorkbook)) {
+    _itemOutputPreviewMappingLog(
+      'blockedRichEditRtf',
+      trace: mappingTrace,
+    );
     return (workbook: null, hintText: '* 라벨을 편집 저장 후 가능합니다.');
   }
   if (encodedWorkbook != null && encodedWorkbook.trim().isNotEmpty) {
     final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
     if (workbook == null) {
+      _itemOutputPreviewMappingLog('decodeFailed', trace: mappingTrace);
       return (workbook: null, hintText: '* 저장된 라벨에 문제가 있습니다.');
     }
     final columns = [
@@ -8659,35 +8680,70 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
     String columnValue(int columnId) =>
         projectedColumnValues?[columnId] ??
       rawColumnValue(columnId);
-    return (
-      workbook: _replaceItemPreviewKeywords(
-        _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
-        _itemOutputPreviewReplacements(
-          item: item,
-          elementText: elementText,
-          columnValue: columnValue,
-        ),
-        codeDataResolver: ItemCodeDataResolver(
-          itemName: item.item.itemName,
+    final replacements = _itemOutputPreviewReplacements(
+      item: item,
+      elementText: elementText,
+      columnValue: columnValue,
+    );
+    _itemOutputPreviewMappingLog(
+      'templateDecoded',
+      trace: mappingTrace,
+      fields: {
+        'sheetCount': workbook.sheets.length,
+        'activeSheetIndex': workbook.activeSheetIndex,
+        'replacements': replacements,
+      },
+    );
+    final previewWorkbook = _replaceItemPreviewKeywords(
+      _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
+      replacements,
+      codeDataResolver: ItemCodeDataResolver(
+        itemName: item.item.itemName,
+        columns: columns,
+        columnValue: columnValue,
+        tokenColumnValue: (column) => itemCodeTokenColumnValue(
+          column: column,
           columns: columns,
-          columnValue: columnValue,
-          tokenColumnValue: (column) => itemCodeTokenColumnValue(
-            column: column,
-            columns: columns,
-            columnValue: rawColumnValue,
-            referenceAt: referenceAt,
-          ),
-          gs1Definitions: Gs1AiDefinitions.values,
+          columnValue: rawColumnValue,
+          referenceAt: referenceAt,
         ),
-        elementCell: _itemElementCellFromWorkbook(
-          elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
-        ),
-        imageKeywords: _itemOutputPreviewImageKeywords(),
+        gs1Definitions: Gs1AiDefinitions.values,
       ),
+      elementCell: _itemElementCellFromWorkbook(
+        elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
+      ),
+      imageKeywords: _itemOutputPreviewImageKeywords(),
+      mappingTrace: mappingTrace,
+    );
+    _itemOutputPreviewMappingLog(
+      'completed',
+      trace: mappingTrace,
+      fields: {
+        'sheet': previewWorkbook.activeSheet.name,
+        'cells': previewWorkbook.activeSheet.cells.length,
+      },
+    );
+    return (
+      workbook: previewWorkbook,
       hintText: null,
     );
   }
+  _itemOutputPreviewMappingLog('missingSavedWorkbook', trace: mappingTrace);
   return (workbook: null, hintText: null);
+}
+
+void _itemOutputPreviewMappingLog(
+  String event, {
+  String? trace,
+  Map<String, Object?> fields = const {},
+}) {
+  if (!itemOutputPreviewMappingDebugEnabled) return;
+  ItemManagerDebugLog.event(
+    'itemOutputPreviewMapping',
+    event,
+    trace: trace,
+    fields: fields,
+  );
 }
 
 class _ItemElementFormState {
@@ -9019,6 +9075,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
   ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
+  String? mappingTrace,
 }) {
   final nextSheets = [
     for (final sheet in workbook.sheets)
@@ -9028,6 +9085,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
         codeDataResolver: codeDataResolver,
         elementCell: elementCell,
         imageKeywords: imageKeywords,
+        mappingTrace: mappingTrace,
       ),
   ];
   return workbook.copyWith(sheets: nextSheets);
@@ -9039,12 +9097,26 @@ fs.FortuneSheet _replaceSheetKeywords(
   ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
+  String? mappingTrace,
 }) {
   final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
   final insertedImages = <fs.FortuneImage>[];
   final nextRowHeights = <int, double>{...sheet.rowHeights};
   final nextCustomHeight = <int, double>{...sheet.customHeight};
   for (final entry in sheet.cells.entries) {
+    final sourceText = entry.value.renderedText;
+    final hasKeyword = sourceText.contains('#');
+    if (hasKeyword) {
+      _itemOutputPreviewMappingLog(
+        'cellBefore',
+        trace: mappingTrace,
+        fields: {
+          'sheet': sheet.name,
+          'cell': '${entry.key.row},${entry.key.column}',
+          'text': sourceText,
+        },
+      );
+    }
     final imageReplacement = _itemImageReplacementForCell(
       sheet,
       entry.key,
@@ -9058,6 +9130,18 @@ fs.FortuneSheet _replaceSheetKeywords(
         insertedImages.add(image);
       }
       nextCells[entry.key] = imageReplacement.cell;
+      if (hasKeyword) {
+        _itemOutputPreviewMappingLog(
+          'cellAfterImage',
+          trace: mappingTrace,
+          fields: {
+            'sheet': sheet.name,
+            'cell': '${entry.key.row},${entry.key.column}',
+            'text': imageReplacement.cell.renderedText,
+            'imageInserted': image != null,
+          },
+        );
+      }
       continue;
     }
     final containsElementKeyword = entry.value.renderedText.contains(
@@ -9069,6 +9153,18 @@ fs.FortuneSheet _replaceSheetKeywords(
       elementCell: elementCell,
     );
     nextCells[entry.key] = nextCell;
+    if (hasKeyword) {
+      _itemOutputPreviewMappingLog(
+        'cellAfter',
+        trace: mappingTrace,
+        fields: {
+          'sheet': sheet.name,
+          'cell': '${entry.key.row},${entry.key.column}',
+          'text': nextCell.renderedText,
+          'changed': nextCell.renderedText != sourceText,
+        },
+      );
+    }
     if (elementCell != null && containsElementKeyword) {
       final rowHeight = _itemPreviewRequiredRowHeight(
         nextCell,
