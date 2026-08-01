@@ -1572,15 +1572,25 @@ void main() {
   });
 
   test('trailing keyword replacement removes only its leading whitespace', () {
+    const leadingSpaces = '                              ';
+    const noGapText = '알레르기유발물질우유, 밀, 계란, 호두 함유  ';
+    TextPainter painter(String text) => TextPainter(
+      text: TextSpan(text: text, style: const TextStyle(fontSize: 8)),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: double.infinity);
+    final spaceWidth =
+        painter('공 백').width - painter('공백').width;
+    final columnWidth = painter(noGapText).width + (spaceWidth * 8) + 3;
     final sheet = debugMaterializeItemImagesForTesting(
       FortuneWorkbook(
         sheets: [
           FortuneSheet(
             id: 'label',
             name: '라벨',
+            columnWidths: {0: columnWidth},
             cells: {
-              const FortuneCellCoord(0, 0): const FortuneCell(
-                value: '알레르기유발물질      #ALLERGY  ',
+              const FortuneCellCoord(0, 0): FortuneCell(
+                value: '알레르기유발물질$leadingSpaces#ALLERGY  ',
                 textWrap: '2',
                 fontSize: 8,
               ),
@@ -1596,9 +1606,19 @@ void main() {
       const {'#ALLERGY': '우유, 밀, 계란, 호두 함유'},
     ).sheets.single;
 
+    final resultText =
+        sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText;
+    final gapStart = '알레르기유발물질'.length;
+    final gapEnd = resultText.indexOf('우유');
+    final remainingGap = resultText.substring(gapStart, gapEnd);
+    final contentWidth =
+      sheet.metrics(const FortuneSettings()).visibleDataColumns.first - 4;
+    expect(remainingGap, isNotEmpty);
+    expect(remainingGap.length, lessThan(leadingSpaces.length));
+    expect(painter(resultText).width, lessThanOrEqualTo(contentWidth));
     expect(
-      sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
-      '알레르기유발물질우유, 밀, 계란, 호두 함유  ',
+      painter(resultText.replaceRange(gapStart, gapStart, ' ')).width,
+      greaterThan(contentWidth),
     );
     expect(
       sheet.cells[const FortuneCellCoord(1, 0)]!.renderedText,
@@ -1607,6 +1627,7 @@ void main() {
   });
 
   test('trailing keyword group trims across runs and preserves group spacing', () {
+    const leadingSpaces = '                                        ';
     const allergyRun = FortuneInlineTextRun(
       text: '#ALLERGY',
       bold: true,
@@ -1627,14 +1648,15 @@ void main() {
           FortuneSheet(
             id: 'label',
             name: '라벨',
+            columnWidths: const {0: 240},
             cells: {
               const FortuneCellCoord(0, 0): const FortuneCell(
-                value: '표시사항      #ALLERGY  #KEEPING  ',
+                value: '표시사항$leadingSpaces#ALLERGY  #KEEPING  ',
                 textWrap: '2',
                 inlineRuns: [
                   FortuneInlineTextRun(text: '표시사항'),
                   FortuneInlineTextRun(
-                    text: '      ',
+                    text: leadingSpaces,
                     extraFields: {'runKey': 'leading-space'},
                   ),
                   allergyRun,
@@ -1651,8 +1673,10 @@ void main() {
     ).sheets.single;
 
     final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
-    expect(cell.renderedText, '표시사항우유, 밀  냉동보관  ');
-    expect(cell.inlineRuns![1].text, isEmpty);
+  expect(cell.renderedText, startsWith('표시사항 '));
+  expect(cell.renderedText, endsWith('우유, 밀  냉동보관  '));
+  expect(cell.inlineRuns![1].text, isNotEmpty);
+  expect(cell.inlineRuns![1].text.length, lessThan(leadingSpaces.length));
     final resultAllergyRun = cell.inlineRuns!.singleWhere(
       (run) => run.extraFields['runKey'] == 'allergy',
     );

@@ -9185,11 +9185,28 @@ fs.FortuneSheet _replaceSheetKeywords(
       for (final keyword in replacements.keys)
         if (sourceText.contains(keyword)) keyword,
     ];
-    final nextCell = _replaceCellKeywords(
+    var nextCell = _replaceCellKeywords(
       entry.value,
       replacements,
       elementCell: elementCell,
     );
+    final renderedTextLayout = replacedKeywords.isEmpty
+        ? null
+        : _itemRenderedCellTextLayout(
+            sheet,
+            entry.key,
+            entry.value,
+            settings,
+          );
+    if (renderedTextLayout != null) {
+      nextCell = _trimOverflowingWhitespaceBeforeTrailingKeywordGroup(
+        entry.value,
+        nextCell,
+        replacedKeywords,
+        contentWidth: renderedTextLayout.contentWidth,
+        settings: settings,
+      );
+    }
     nextCells[entry.key] = nextCell;
     if (hasKeyword) {
       _itemOutputPreviewMappingLog(
@@ -9214,13 +9231,7 @@ fs.FortuneSheet _replaceSheetKeywords(
           ? elementCell
           : nextCell;
       final cellRect = _itemCellRect(sheet, entry.key, cell: entry.value);
-      final renderedTextLayout = _itemRenderedCellTextLayout(
-        sheet,
-        entry.key,
-        entry.value,
-        settings,
-      );
-      final textContentWidth = renderedTextLayout.contentWidth;
+      final textContentWidth = renderedTextLayout!.contentWidth;
       final previousRowHeight =
           sheet.rowHeights[entry.key.row] ??
           sheet.defaultRowHeight ??
@@ -10335,10 +10346,7 @@ fs.FortuneCell _replaceCellKeywords(
   final afterElement = elementCell == null
       ? cell
       : _replaceElementKeywordInCell(cell, elementCell);
-  final target = _trimWhitespaceBeforeTrailingKeywordGroup(
-    afterElement,
-    replacements.keys,
-  );
+  final target = afterElement;
   final targetRuns = target.inlineRuns;
   if (targetRuns != null && targetRuns.isNotEmpty) {
     var changed = false;
@@ -10366,22 +10374,25 @@ fs.FortuneCell _replaceCellKeywords(
   return _itemTextCell(text, base: target);
 }
 
-fs.FortuneCell _trimWhitespaceBeforeTrailingKeywordGroup(
-  fs.FortuneCell cell,
-  Iterable<String> keywords,
-) {
-  final text = cell.renderedText;
+fs.FortuneCell _trimOverflowingWhitespaceBeforeTrailingKeywordGroup(
+  fs.FortuneCell sourceCell,
+  fs.FortuneCell resultCell,
+  Iterable<String> keywords, {
+  required double contentWidth,
+  required fs.FortuneSettings settings,
+}) {
+  final text = sourceCell.renderedText;
   final matchingKeywords = keywords
       .where((keyword) => keyword.isNotEmpty && text.contains(keyword))
       .toList()
     ..sort((left, right) => right.length.compareTo(left.length));
-  if (matchingKeywords.isEmpty) return cell;
+  if (matchingKeywords.isEmpty) return resultCell;
 
   final keywordPattern = matchingKeywords.map(RegExp.escape).join('|');
   final trailingGroup = RegExp(
     '(?:$keywordPattern)(?:[ \t]*(?:$keywordPattern))*[ \t]*\$',
   ).firstMatch(text);
-  if (trailingGroup == null || trailingGroup.start == 0) return cell;
+  if (trailingGroup == null || trailingGroup.start == 0) return resultCell;
 
   var whitespaceStart = trailingGroup.start;
   while (whitespaceStart > 0) {
@@ -10389,12 +10400,54 @@ fs.FortuneCell _trimWhitespaceBeforeTrailingKeywordGroup(
     if (codeUnit != 0x20 && codeUnit != 0x09) break;
     whitespaceStart -= 1;
   }
-  if (whitespaceStart == trailingGroup.start) return cell;
+  if (whitespaceStart == trailingGroup.start ||
+      _itemPreviewTextWidth(resultCell, settings) <= contentWidth) {
+    return resultCell;
+  }
+
+  var removeEnd = whitespaceStart;
+  while (removeEnd < trailingGroup.start) {
+    removeEnd += 1;
+    final candidate = _removeItemCellTextRange(
+      resultCell,
+      whitespaceStart,
+      removeEnd,
+    );
+    if (_itemPreviewTextWidth(candidate, settings) <= contentWidth) {
+      return candidate;
+    }
+  }
+  return _removeItemCellTextRange(
+    resultCell,
+    whitespaceStart,
+    trailingGroup.start,
+  );
+}
+
+double _itemPreviewTextWidth(
+  fs.FortuneCell cell,
+  fs.FortuneSettings settings,
+) {
+  final painter = TextPainter(
+    text: _itemPreviewTextSpan(cell, settings),
+    maxLines: 1,
+    textDirection: TextDirection.ltr,
+  )..layout(maxWidth: double.infinity);
+  return painter.width;
+}
+
+fs.FortuneCell _removeItemCellTextRange(
+  fs.FortuneCell cell,
+  int start,
+  int end,
+) {
+  if (start >= end) return cell;
+  final text = cell.renderedText;
 
   final runs = cell.inlineRuns;
   if (runs == null || runs.isEmpty) {
     return _itemTextCell(
-      text.replaceRange(whitespaceStart, trailingGroup.start, ''),
+      text.replaceRange(start, end, ''),
       base: cell,
     );
   }
@@ -10403,12 +10456,10 @@ fs.FortuneCell _trimWhitespaceBeforeTrailingKeywordGroup(
   final nextRuns = <fs.FortuneInlineTextRun>[];
   for (final run in runs) {
     final runEnd = runStart + run.text.length;
-    final removeStart = whitespaceStart <= runStart
-        ? 0
-        : whitespaceStart - runStart;
-    final removeEnd = trailingGroup.start >= runEnd
+    final removeStart = start <= runStart ? 0 : start - runStart;
+    final removeEnd = end >= runEnd
         ? run.text.length
-        : trailingGroup.start - runStart;
+      : end - runStart;
     final overlaps = removeStart < run.text.length && removeEnd > 0;
     nextRuns.add(
       overlaps

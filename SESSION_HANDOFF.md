@@ -115,7 +115,6 @@
 - 실행 로그 확인: `.tmp/log/app_2026-08-01_21-23-39.log`의 `DebugLogger version: 1.0.14` 확인. 품목 이벤트가 아직 없어 v15 이벤트 행은 미발생이며 다음 사용자 재현에서 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 native bottom 및 v15 상세 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
-- 복수 키워드 fixture의 fallback `value`를 inline run 문자열과 일치시킨 뒤 신규 테스트 2건 재통과.
 - 구현 커밋: `5348a84 주원료 병합 셀 하단 여백 고정`.
 - 다음 사용자 재현 확인 기준: v15 `source/resultControlCharacters`, `verticalAlignOverride=0->2`, 화면/capture `CellBottomPadding=2.0`, `CellBottomPaddingError=0.0`을 확인한다.
 
@@ -179,7 +178,7 @@
 - 구현 커밋: `4c1e77f 모든 키워드 자동개행 높이 적용`.
 - 최종 계약: `#ELEMENT`는 원재료 rich run 스타일을 이식하고 대상 셀 레이아웃 속성을 유지한다. 그 외 키워드는 비병합 여부를 변경하지 않고 대상 셀과 해당 keyword run의 모든 스타일 metadata를 유지하며 텍스트와 필요한 행 높이만 갱신한다.
 
-## 진행 중: 끝부분 키워드 그룹 앞 공백 제거 v1.0.18
+## 완료: 끝부분 키워드 그룹 앞 공백 제거 v1.0.18
 - 사용자 재현 로그: `.tmp/log/app_2026-08-01_22-28-06.log`의 cell `3,1`은 `알레르기유발물질`과 `#ALLERGY` 사이 약 70칸 공백이 치환 후에도 남아 `우유, 밀, 계란, 호두 함유`를 셀 밖으로 밀었다.
 - 원인 확정: 일반 rich-text 키워드 치환은 각 run의 키워드 텍스트만 바꾸므로 키워드 직전의 같은/이전 run 공백을 보존한다.
 - 수정 예정: 셀 끝부분이 `키워드 + 키워드 사이 가로 공백 + 추가 키워드 + 뒤 가로 공백`인 경우 첫 키워드 바로 앞의 연속 가로 공백만 제거한다. 키워드 사이/뒤 공백, 셀 속성, 각 keyword run 속성은 유지한다.
@@ -200,6 +199,24 @@
 - Debug 검증 완료: 기존 PID 14540은 이미 종료된 상태였고 `flutter build windows --debug` 성공. v1.0.18 PID 6232 실행, `.tmp/log/app_2026-08-01_22-43-36.log`에서 `DebugLogger version: 1.0.18` 확인.
 - 품목 선택 전이라 v19 event는 아직 없으며 다음 사용자 재현에서 `cellAfter`의 앞 공백 제거 결과를 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 끝부분 키워드 그룹 앞 공백 helper hunk, `test/label_sheet_toolbar_test.dart`, `lib/features/item/item_manager_debug_log.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 복수 키워드 fixture의 fallback `value`를 inline run 문자열과 일치시킨 뒤 신규 테스트 2건 재통과.
+- 기능 커밋: `f8e5f4a 끝부분 키워드 앞 공백 제거`.
+
+## 진행 중: 끝부분 키워드 최소 공백 제거 v1.0.19
+- v1.0.18 사용자 재현 결과: 키워드 앞 공백을 모두 제거해 알레르기 값이 제목 바로 뒤에 붙었다. 요구 계약은 끝 배치를 최대한 유지하고 잘림을 일으키는 초과 폭만큼만 제거하는 것이다.
+- v19 로그 확인: cell `3,1`이 `알레르기유발물질 + 70칸 + #ALLERGY`에서 `알레르기유발물질우유, 밀, 계란, 호두 함유`로 바뀌어 70칸 전체가 삭제됐다.
+- 수정 완료: 치환 결과의 rich text 폭을 FortuneSheet와 같은 cell/run font span으로 측정하고 renderer content 폭을 초과할 때만 첫 키워드 앞 공백을 한 칸씩 제거한다. 최초로 폭 안에 들어오는 지점에서 중단해 남길 수 있는 공백을 모두 유지한다.
+- 여러 끝부분 키워드는 그룹 전체 치환 결과 폭을 기준으로 같은 최소 삭제 계산을 적용한다. 키워드 사이/뒤 공백과 셀/run 속성은 유지한다.
+- 버전 적용 완료: 앱 `1.0.19`, item debug schema `item-manager-debug-v20`.
+- 테스트 수정 완료: 단일 키워드는 30칸 중 8칸을 남긴 결과가 renderer content 폭 안에 있고 한 칸을 복원하면 초과하는지 검증한다. 복수 키워드는 앞 공백 run의 일부 보존과 키워드 사이/뒤 공백 및 run style 보존을 검증한다.
+- 1차 집중 검증 완료: 최소 공백 삭제 단일/복수 키워드 테스트 2건 통과.
+- 관련 회귀/진단 완료: 일반 키워드 높이·공용 preview·style 보존·최소 공백 삭제 테스트 5건 통과, 변경 Dart 3개 diagnostics 0건.
+- 전체 검증 예정: `test/label_sheet_toolbar_test.dart`와 `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 전체를 실행한다.
+- 전체 검증 완료: 앱 라벨 시트 179건, FortuneSheet 실제 capture 8건 모두 통과. 변경 Dart 3개 직접 analyzer `No issues found`.
+- Debug 검증 예정: v1.0.18 PID 6232를 종료하고 `flutter build windows --debug` 후 v1.0.19를 실행해 시작 로그를 확인한다.
+- Debug 검증 완료: 기존 PID 6232는 이미 종료된 상태였고 Windows Debug 빌드 성공. v1.0.19 PID 3028 실행, `.tmp/log/app_2026-08-01_22-50-05.log`에서 `DebugLogger version: 1.0.19` 확인.
+- stage/commit 대상: `lib/home_page_manager.dart` 최소 overflow 공백 계산 hunk, `test/label_sheet_toolbar_test.dart`, `lib/features/item/item_manager_debug_log.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
 
 # 완료: 라벨 workbench 업무 정책 분리
