@@ -44391,8 +44391,12 @@ double fortuneScaledCellTextOffsetY(double offset, double textScale) {
 double fortuneClampedCellTextOffsetY(
   double offset,
   double rectHeight,
-  double textHeight,
-) => offset.clamp(0.0, math.max(0.0, rectHeight - textHeight));
+  double textHeight, {
+  double bottomOverflow = 0,
+}) => offset.clamp(
+  0.0,
+  math.max(0.0, rectHeight - textHeight + math.max(0.0, bottomOverflow)),
+);
 
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
     'barcodeIdLabelPrintExcluded';
@@ -73403,6 +73407,10 @@ class FortuneSheetPainter extends CustomPainter {
         );
 
     final textOffsetY = _cellTextOffsetY(cell);
+    final lineMetrics = painter.computeLineMetrics();
+    final lastLineDescent = lineMetrics.isEmpty
+      ? 0.0
+      : lineMetrics.last.descent;
     final dy = textOffsetY == null
         ? switch (cell.normalizedVerticalAlign) {
             '1' => rect.top,
@@ -73414,6 +73422,7 @@ class FortuneSheetPainter extends CustomPainter {
                 fortuneScaledCellTextOffsetY(textOffsetY, textScale),
                 rect.height,
                 painter.height,
+                bottomOverflow: lastLineDescent,
               );
 
     canvas.save();

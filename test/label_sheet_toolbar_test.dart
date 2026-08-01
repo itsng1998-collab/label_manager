@@ -1085,9 +1085,9 @@ void main() {
                 .cells[const FortuneCellCoord(0, 0)]!
                 .extraFields[fortuneCellTextOffsetYExtraKey]
             as double;
-    expect(offset(top), closeTo(6, 0.001));
-    expect(offset(middle), closeTo(6, 0.001));
-    expect(offset(bottom), closeTo(6, 0.001));
+    expect(offset(top), closeTo(8.5, 0.001));
+    expect(offset(middle), closeTo(8.5, 0.001));
+    expect(offset(bottom), closeTo(8.5, 0.001));
   });
 
   test('fortune cell text offset scales with preview zoom', () {
@@ -1110,6 +1110,10 @@ void main() {
     expect(fortuneClampedCellTextOffsetY(-1, 20, 13), 0);
     expect(fortuneClampedCellTextOffsetY(4, 20, 13), 4);
     expect(fortuneClampedCellTextOffsetY(10, 20, 13), 7);
+    expect(
+      fortuneClampedCellTextOffsetY(10, 20, 13, bottomOverflow: 1),
+      8,
+    );
   });
 
   test('item output element uses compact line boxes for mixed font sizes', () {
@@ -1182,9 +1186,10 @@ void main() {
         cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
     final resultLineBoxBottomPadding =
         sheet.rowHeights[0]! - (textOffset + painter.height);
+    final lastLineDescent = painter.computeLineMetrics().last.descent;
     expect(
       resultLineBoxBottomPadding,
-      closeTo(itemElementMinimumBottomPadding, 0.001),
+      closeTo(-lastLineDescent, 0.001),
     );
     expect(cell.normalizedVerticalAlign, '0');
   });

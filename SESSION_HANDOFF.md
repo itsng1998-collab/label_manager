@@ -62,6 +62,20 @@
 - Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 13420으로 실행했다. 최신 `.tmp/log/app_2026-08-01_19-49-43.log`에서 `DebugLogger version: 1.0.11`을 확인했다.
 - 사용자 재현 확인 기준: 세 품목 선택 후 `item-manager-debug-v12`의 `resultLastLine`, `resultCaptureAppliedTextOffsetY`, `resultCaptureCellBottomPadding`, `resultRenderedAppliedTextOffsetY`, `resultRenderedCellBottomPadding`을 비교한다. 모든 결과의 text rect 내부 하단은 0px, 셀 경계 하단은 2px이어야 한다.
 
+## 진행 중: `#ELEMENT` 마지막 줄 descent 하단 여백 제거 v1.0.12
+- v1.0.11 사용자 재현: 하단 여백은 아주 조금 줄었지만 `유자마왕파이` 병합 셀에는 여전히 눈에 띄는 빈 공간이 남는다.
+- v12 로그 분석: source/result 경계 공백·개행은 없고 마지막 문자는 `)`이다. 화면/capture line-box 하단은 이미 0px이며 셀 경계의 공용 inset만 2px이다.
+- 원인 가설: 마지막 5pt 줄의 `LineMetrics.descent=1.25px`가 line-box 내부 빈 하단으로 남는다. 마지막 줄은 `금(호수염)`처럼 짧아 descender 획이 없어 이 공간이 그대로 시각적 여백이 된다.
+- 품목 출력 편집 완료: 저장 offset을 `rowHeight-textHeight+lastLineDescent`로 계산해 마지막 줄의 빈 descent만 셀 clip 아래로 이동한다. 일반 TextPainter 측정의 마지막 descent를 row 측정 record까지 전달한다.
+- FortuneSheet 편집 완료: 공용 clamp helper에 선택적 `bottomOverflow`를 추가했다. 화면 painter와 PNG/PDF/EZPL capture renderer가 각자의 실제 TextPainter 마지막 줄 descent를 전달해 동일하게 적용한다.
+- v13 로그 편집 완료: 논리/확대 마지막 줄 descent, clamp 후 line-box 하단 음수값, 실제 clip된 descent를 화면/capture별로 기록한다. 앱 버전 `1.0.12`, debug schema `item-manager-debug-v13`.
+- 적용 범위: 품목관리·라벨출력·저울출력 미리보기와 PNG/PDF/RAW/EZPL bitmap 출력이 같은 materialized workbook 및 두 공용 renderer를 사용한다.
+- 집중 검증 완료: 정렬별 저장 offset, zoom clamp의 descent overflow, 혼합 8pt/5pt 마지막 줄 descent, 실제 PNG 강제 offset 테스트 4개 통과.
+- 전체 관련 회귀 완료: `test/label_sheet_toolbar_test.dart`와 `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 총 181개 통과. formatter 후 집중 테스트 4개도 재통과했다.
+- 정적 검증 완료: 변경 파일 diagnostics 0건, 앱 analyzer issue 없음. FortuneSheet는 기존 미사용 코드 warning 10건만 유지하며 `--no-fatal-warnings` 통과, `git diff --check` 통과.
+- stage 예정: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일/hunk는 제외한다.
+- stage 검증 완료: 대상 7개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`와 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 유지하고 제외했다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8

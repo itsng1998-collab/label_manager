@@ -17396,6 +17396,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       cell.extraFields,
       fortuneCellTextOffsetYExtraKey,
     );
+    final lineMetrics = textPainter.computeLineMetrics();
+    final lastLineDescent = lineMetrics.isEmpty
+        ? 0.0
+        : lineMetrics.last.descent;
     final dy = textOffsetY == null || !textOffsetY.isFinite
         ? _screenshotTextTop(cell, rect, textPainter.height)
         : rect.top +
@@ -17403,6 +17407,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 textOffsetY,
                 rect.height,
                 textPainter.height,
+                bottomOverflow: lastLineDescent,
               );
     final rotation = cell.normalizedTextRotation;
     canvas.save();
