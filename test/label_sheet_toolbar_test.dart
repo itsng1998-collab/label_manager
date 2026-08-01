@@ -686,6 +686,11 @@ void main() {
   );
 
   test('item output preview uses private active saved sheet only', () {
+    final previousColumns = TColumn.datas;
+    TColumn.datas = [_testColumn(7, 'ITEMNAME')];
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+    });
     final encoded = labelSheetEncodeWorkbookSave(
       FortuneWorkbook(
         activeSheetIndex: 1,

@@ -128,8 +128,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'auto_update' ||
   tabValue == 'scale_output';
 
-// Set false after the selected-row output preview mapping investigation.
-const bool itemOutputPreviewMappingDebugEnabled = true;
+const bool itemOutputPreviewMappingDebugEnabled = false;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9051,6 +9050,7 @@ Map<String, String> _itemOutputPreviewReplacements({
     '#품목': item.item.itemName,
     '#ELEMENT': elementText,
     for (final column in TColumn.datas ?? const <TColumn>[])
+      if (column.keyword != 'ITEMNAME' && column.keyword != '품목')
       '#${column.keyword}':
           columnValue?.call(column.columnId) ??
           TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
