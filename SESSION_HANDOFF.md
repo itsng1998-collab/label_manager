@@ -287,6 +287,18 @@
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 기능 커밋: `156ac0d 주원료 키워드 공백 조정 제외`.
 
+## 완료: Windows 앱 종료 대기 제한 제거 v1.0.24
+- 재현 로그: `app_2026-08-01_23-47-51.log`에서 `23:59:29.374 Window close start` 후 사용자 확인을 기다리다 `23:59:34.819 Window close cleanup timed out`과 `Window close cancelled`가 기록됐다. 실제 로그아웃/DB disconnect는 `23:59:38.214` 정상 완료됐지만 닫기 재시도가 없어 프로세스가 남았다.
+- 원인 확정: `_AppWindowListener.onWindowClose()`의 5초 timeout이 비동기 정리뿐 아니라 저장하지 않은 작업에 대한 사용자 확인 시간까지 포함했다.
+- 수정 완료: 종료 요청 전체의 5초 timeout을 제거해 사용자 승인과 정상 로그아웃/DB disconnect가 끝난 뒤 창을 닫는다. 승인 완료를 `Window close approved`로 기록한다.
+- 버전 적용 완료: 앱 `1.0.24`.
+- 잔존 프로세스 정리 완료: 로그상 DB disconnect까지 끝난 PID 16116을 종료하고 프로세스 소멸을 확인했다.
+- 1차 검증 완료: 종료 관련 `lib/main.dart`, `lib/core/lifecycle.dart`, `lib/home_page.dart` 정적 분석 `No issues found`, `git diff --check` 통과. 테스트 어댑터는 `test/lifecycle_test.dart`를 발견하지 못해 Flutter CLI로 재실행한다.
+- 실행 검증 예정: `flutter test test/lifecycle_test.dart`, `flutter build windows --debug` 후 v1.0.24 앱에 `WM_CLOSE`를 보내 `Window close approved`, 프로세스 종료를 확인한다.
+- 회귀 검증 완료: Flutter CLI `test/lifecycle_test.dart` 3건 통과, Windows Debug 빌드 성공.
+- 실제 종료 검증 완료: v1.0.24 PID 2264에서 첫 `WM_CLOSE`는 열린 모달 응답을 6초 이상 기다린 뒤 정상 `Window close cancelled`로 복귀해 기존 5초 강제 timeout이 제거됐음을 확인했다. 모달 정리 후 두 번째 요청은 `Window close approved`, `Window close post start`를 기록하고 PID가 소멸했다.
+- stage/commit 대상: `lib/main.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
