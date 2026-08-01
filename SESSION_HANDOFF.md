@@ -13,6 +13,9 @@
 - 분석 보완: 새 line-box assertion에 불필요한 `templatePainter` 블록을 제거했다.
 - 최종 검증 완료: 보완 후 정적 분석 issue 없음. 혼합 8pt/5pt 집중 로그에서 `textHeight=13`, `measuredRowHeight=13`, `textOffsetY=0`, `lineBoxTopPadding=0`, `lineBoxBottomPadding=0` 확인.
 - 최종 변경 검증: `git diff --check` 통과, `pubspec.yaml=1.0.4` 확인. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 다섯 파일만 stage/commit한다.
+- 기능 커밋: `ab83482 주원료 병합 셀 하단 여백 고정`.
+- Debug 검증 완료: `flutter build windows --debug` 성공 후 앱 재실행. 새 로그 `.tmp/log/app_2026-08-01_16-31-57.log`에 `DebugLogger version: 1.0.4`, 새 `kernel_blob.bin` 시각 2026-08-01 16:31:41을 확인했다.
+- 재현 로그 확인 기준: `item-manager-debug-v6`, `appVersion=1.0.4`, `textOffsetY=0`, `lineBoxTopPadding=0`, `lineBoxBottomPadding=0`. selection overhang 값은 진단용이며 행 높이에 사용하지 않는다.
 
 ## 진행 중: `#ELEMENT` 대상 라벨 최소 여백 고정 v1.0.2
 - 최신 v1.0.2 이미지/로그 재확인: line box 기준 상·하 padding은 두 품목 모두 2.107px로 동일하지만 화면에서는 실제 glyph 획 경계 여백이 다르다. 8pt 첫 줄과 5pt 후속 줄의 line box 내부 inset 비대칭이 원인이다.
