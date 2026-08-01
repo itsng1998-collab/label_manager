@@ -118,7 +118,7 @@
 - 구현 커밋: `5348a84 주원료 병합 셀 하단 여백 고정`.
 - 다음 사용자 재현 확인 기준: v15 `source/resultControlCharacters`, `verticalAlignOverride=0->2`, 화면/capture `CellBottomPadding=2.0`, `CellBottomPaddingError=0.0`을 확인한다.
 
-## 진행 중: `#ELEMENT` 대상 셀 정렬 복원 v1.0.15
+## 완료: `#ELEMENT` 대상 셀 정렬 복원 v1.0.15
 - v15 사용자 재현 및 로그 결론: 대상 셀은 `targetVerticalAlign=0`, `targetRawVerticalAlign=null`인데 v1.0.14가 결과를 `resultVerticalAlign=2`, `resultRawVerticalAlign=2`, `resultHasRawVerticalAlign=true`로 강제해 세 품목 모두 아래에 붙었다.
 - 공백 확인: source/result 앞뒤 공백과 개행은 없고 내부 구분용 일반 공백만 존재한다. 이번 현상의 원인은 텍스트가 아니라 강제 세로 정렬이다.
 - `lib/home_page_manager.dart` 편집 완료: `layoutCell.copyWith(verticalAlign: '2', ...)`를 제거해 대상 라벨 셀의 verticalAlign raw metadata를 그대로 유지한다. 저장된 과거 `cellTextOffsetY`만 제거한다.
@@ -133,6 +133,8 @@
 - 실행 로그 확인: `.tmp/log/app_2026-08-01_21-59-19.log`의 `DebugLogger version: 1.0.15` 확인. 품목 이벤트가 아직 없어 v16 이벤트 행은 다음 사용자 재현에서 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 강제 정렬 제거 및 v16 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 구현 커밋: `ead58cd 주원료 셀 원본 정렬 복원`.
+- 다음 사용자 재현 확인 기준: v16 `verticalAlignPreserved=true`, `targetCellStyle`과 `resultCellStyle`, `cellStyleDifferences`, source/result run raw 스타일, 화면/capture 여백을 함께 확인한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
