@@ -9198,11 +9198,7 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
     }
     if (elementCell != null && containsElementKeyword) {
-      final layoutCell = nextCell.copyWith(
-        verticalAlign: '2',
-        rawVerticalAlign: '2',
-        hasRawVerticalAlign: true,
-      );
+      final layoutCell = nextCell;
       final cellRect = _itemCellRect(sheet, entry.key, cell: entry.value);
       final previousRowHeight =
           sheet.rowHeights[entry.key.row] ??
@@ -9330,6 +9326,7 @@ fs.FortuneSheet _replaceSheetKeywords(
           'targetTextWrap': entry.value.normalizedTextWrap,
           'targetRawTextWrap': entry.value.rawTextWrap,
           'targetHasRawTextWrap': entry.value.hasRawTextWrap,
+          'targetCellStyle': _itemElementCellStyleLog(entry.value),
           'targetOriginalRowHeight': previousRowHeight,
           'targetTemplateTextHeight': templateMeasurement?.textHeight,
           'targetTemplateLineCount': templateMeasurement?.lineCount,
@@ -9359,6 +9356,11 @@ fs.FortuneSheet _replaceSheetKeywords(
           'resultTextWrap': layoutCell.normalizedTextWrap,
           'resultRawTextWrap': layoutCell.rawTextWrap,
           'resultHasRawTextWrap': layoutCell.hasRawTextWrap,
+          'resultCellStyle': _itemElementCellStyleLog(layoutCell),
+          'resultCellStyleDifferences': _itemElementCellStyleDifferences(
+            entry.value,
+            layoutCell,
+          ),
           'resultStoredTextOffsetY':
               positionedExtraFields[fs.fortuneCellTextOffsetYExtraKey],
           'resultComputedTextOffsetY': resultTextOffsetY,
@@ -9434,9 +9436,15 @@ fs.FortuneSheet _replaceSheetKeywords(
           'cell': '${entry.key.row},${entry.key.column}',
           'sourceText': _itemElementLayoutLogText(elementCell.renderedText),
           'sourceRuns': _itemElementLayoutRuns(elementCell),
+          'targetCellStyle': _itemElementCellStyleLog(entry.value),
           'templateText': _itemElementLayoutLogText(sourceText),
           'resultText': _itemElementLayoutLogText(nextCell.renderedText),
           'resultRuns': _itemElementLayoutRuns(nextCell),
+          'resultCellStyle': _itemElementCellStyleLog(positionedCell),
+          'cellStyleDifferences': _itemElementCellStyleDifferences(
+            entry.value,
+            positionedCell,
+          ),
           'mergeRows': entry.value.merge?.rowSpan ?? 1,
           'mergeColumns': entry.value.merge?.columnSpan ?? 1,
           'columnWidth': cellRect.width,
@@ -9506,8 +9514,12 @@ fs.FortuneSheet _replaceSheetKeywords(
           'stylePreserved':
               entry.value.normalizedTextWrap ==
               positionedCell.normalizedTextWrap,
-          'verticalAlignOverride':
-              '${entry.value.normalizedVerticalAlign}->${positionedCell.normalizedVerticalAlign}',
+            'verticalAlignPreserved':
+              entry.value.verticalAlign == positionedCell.verticalAlign &&
+              entry.value.rawVerticalAlign ==
+                positionedCell.rawVerticalAlign &&
+              entry.value.hasRawVerticalAlign ==
+                positionedCell.hasRawVerticalAlign,
           'selectionBottomBeforeCorrection': measurement == null
               ? null
               : measurement.rowHeight -
@@ -9911,8 +9923,58 @@ String _itemElementLayoutLogText(String text) =>
 
 String _itemElementLayoutRuns(fs.FortuneCell cell) => [
   for (final run in cell.inlineRuns ?? const <fs.FortuneInlineTextRun>[])
-    '{text:${_itemElementLayoutLogText(run.text)},fontSize:${run.fontSize},fontFamily:${run.fontFamily},bold:${run.bold},italic:${run.italic},extra:${run.extraFields}}',
+  '{text:${_itemElementLayoutLogText(run.text)},fontSize:${run.fontSize},rawFontSize:${run.rawFontSize},hasRawFontSize:${run.hasRawFontSize},fontFamily:${run.fontFamily},rawFontFamily:${run.rawFontFamily},hasRawFontFamily:${run.hasRawFontFamily},bold:${run.bold},rawBold:${run.rawBold},hasRawBold:${run.hasRawBold},italic:${run.italic},rawItalic:${run.rawItalic},hasRawItalic:${run.hasRawItalic},foreground:${run.foreground},rawForeground:${run.rawForeground},hasRawForeground:${run.hasRawForeground},extra:${run.extraFields}}',
 ].join('|');
+
+String _itemElementCellStyleLog(fs.FortuneCell cell) =>
+  'horizontal=${cell.horizontalAlign}/${cell.rawHorizontalAlign}/${cell.hasRawHorizontalAlign},'
+  'vertical=${cell.verticalAlign}/${cell.rawVerticalAlign}/${cell.hasRawVerticalAlign},'
+  'wrap=${cell.textWrap}/${cell.rawTextWrap}/${cell.hasRawTextWrap},'
+  'rotation=${cell.textRotation}/${cell.rawTextRotation}/${cell.hasRawTextRotation},'
+  'rotationMode=${cell.textRotationMode}/${cell.rawTextRotationMode}/${cell.hasRawTextRotationMode},'
+  'fontSize=${cell.fontSize}/${cell.rawFontSize}/${cell.hasRawFontSize},'
+  'fontFamily=${cell.fontFamily}/${cell.rawFontFamily}/${cell.hasRawFontFamily},'
+  'bold=${cell.bold}/${cell.rawBold}/${cell.hasRawBold},'
+  'italic=${cell.italic}/${cell.rawItalic}/${cell.hasRawItalic},'
+  'extraKeys=${cell.extraFields.keys.toList()..sort()}';
+
+String _itemElementCellStyleDifferences(
+  fs.FortuneCell target,
+  fs.FortuneCell result,
+) {
+  final differences = <String>[];
+  void add(String name, Object? before, Object? after) {
+    if (before != after) differences.add('$name:$before->$after');
+  }
+
+  add('horizontal', target.horizontalAlign, result.horizontalAlign);
+  add('rawHorizontal', target.rawHorizontalAlign, result.rawHorizontalAlign);
+  add(
+    'hasRawHorizontal',
+    target.hasRawHorizontalAlign,
+    result.hasRawHorizontalAlign,
+  );
+  add('vertical', target.verticalAlign, result.verticalAlign);
+  add('rawVertical', target.rawVerticalAlign, result.rawVerticalAlign);
+  add(
+    'hasRawVertical',
+    target.hasRawVerticalAlign,
+    result.hasRawVerticalAlign,
+  );
+  add('wrap', target.textWrap, result.textWrap);
+  add('rawWrap', target.rawTextWrap, result.rawTextWrap);
+  add('hasRawWrap', target.hasRawTextWrap, result.hasRawTextWrap);
+  add('rotation', target.textRotation, result.textRotation);
+  add('rotationMode', target.textRotationMode, result.textRotationMode);
+  add('fontSize', target.fontSize, result.fontSize);
+  add('fontFamily', target.fontFamily, result.fontFamily);
+  add('bold', target.bold, result.bold);
+  add('italic', target.italic, result.italic);
+  final targetKeys = target.extraFields.keys.toList()..sort();
+  final resultKeys = result.extraFields.keys.toList()..sort();
+  add('extraKeys', targetKeys.join(','), resultKeys.join(','));
+  return differences.isEmpty ? 'none' : differences.join('|');
+}
 
 String _itemElementBoundaryWhitespaceLog(String text) {
   var leading = 0;

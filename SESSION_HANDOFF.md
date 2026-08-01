@@ -118,6 +118,22 @@
 - 구현 커밋: `5348a84 주원료 병합 셀 하단 여백 고정`.
 - 다음 사용자 재현 확인 기준: v15 `source/resultControlCharacters`, `verticalAlignOverride=0->2`, 화면/capture `CellBottomPadding=2.0`, `CellBottomPaddingError=0.0`을 확인한다.
 
+## 진행 중: `#ELEMENT` 대상 셀 정렬 복원 v1.0.15
+- v15 사용자 재현 및 로그 결론: 대상 셀은 `targetVerticalAlign=0`, `targetRawVerticalAlign=null`인데 v1.0.14가 결과를 `resultVerticalAlign=2`, `resultRawVerticalAlign=2`, `resultHasRawVerticalAlign=true`로 강제해 세 품목 모두 아래에 붙었다.
+- 공백 확인: source/result 앞뒤 공백과 개행은 없고 내부 구분용 일반 공백만 존재한다. 이번 현상의 원인은 텍스트가 아니라 강제 세로 정렬이다.
+- `lib/home_page_manager.dart` 편집 완료: `layoutCell.copyWith(verticalAlign: '2', ...)`를 제거해 대상 라벨 셀의 verticalAlign raw metadata를 그대로 유지한다. 저장된 과거 `cellTextOffsetY`만 제거한다.
+- `lib/home_page_manager.dart` 로그 보강 완료: target/result의 horizontal/vertical align, wrap, rotation, font, raw/hasRaw metadata, extraFields key 차이, source/result run별 raw font/bold/italic/foreground를 기록한다. `cellStyleDifferences`는 달라진 속성 이름과 전후 값을 직접 기록한다.
+- `test/label_sheet_toolbar_test.dart` 편집 완료: 원본 위/가운데/아래 정렬 값과 `rawVerticalAlign/hasRawVerticalAlign` 보존을 검증하고 혼합 글꼴 셀의 가운데 정렬 하단 여백 계약을 복원했다.
+- 버전 편집 완료: `pubspec.yaml` 1.0.15, item debug schema v16.
+- 집중 검증 완료: `item output element preserves target vertical alignment metadata`, `item output element uses compact line boxes for mixed font sizes` 2건 통과.
+- 대상 셀 속성 테스트 강화 완료: 수평 정렬, 회전, 글꼴의 value/raw/hasRaw metadata도 치환 후 동일함을 검증했고 집중 테스트 1건 통과.
+- 전체 테스트 완료: 앱 `label_sheet_toolbar_test.dart` 173건, FortuneSheet capture 8건, 총 181건 통과. 변경 파일 diagnostics 0건.
+- 정적 검증 완료: 앱/`third_party/fortune_sheet` `flutter analyze`는 기존 `fortune_sheet_canvas.dart` warning 10건만 유지하며 새 오류가 없다. `git diff --check` 통과.
+- Debug 검증 완료: `flutter build windows --debug` 성공. v1.0.14 PID 9536을 종료하고 프로젝트 루트에서 v1.0.15 PID 11752를 실행했다.
+- 실행 로그 확인: `.tmp/log/app_2026-08-01_21-59-19.log`의 `DebugLogger version: 1.0.15` 확인. 품목 이벤트가 아직 없어 v16 이벤트 행은 다음 사용자 재현에서 확인한다.
+- stage/commit 대상: `lib/home_page_manager.dart`의 강제 정렬 제거 및 v16 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8

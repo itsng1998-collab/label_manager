@@ -1036,7 +1036,7 @@ void main() {
     );
   });
 
-  test('item output element fixes native bottom alignment padding', () {
+  test('item output element preserves target vertical alignment metadata', () {
     FortuneSheet materialize(String verticalAlign) {
       return debugMaterializeItemImagesForTesting(
         FortuneWorkbook(
@@ -1051,7 +1051,18 @@ void main() {
                   value: '#ELEMENT',
                   textWrap: '2',
                   fontSize: 10,
+                  rawFontSize: 10,
+                  hasRawFontSize: true,
+                  fontFamily: 'Arial',
+                  rawFontFamily: 'Arial',
+                  hasRawFontFamily: true,
+                  horizontalAlign: '2',
+                  rawHorizontalAlign: '2',
+                  hasRawHorizontalAlign: true,
                   verticalAlign: verticalAlign,
+                  textRotation: '15',
+                  rawTextRotation: 15,
+                  hasRawTextRotation: true,
                   extraFields: {
                     fortuneCellTextOffsetYExtraKey: 99.0,
                   },
@@ -1079,22 +1090,39 @@ void main() {
     expect(bottom.rowHeights[0], closeTo(16, 0.001));
     expect(
       top.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
-      '2',
+      '1',
     );
     expect(
       middle.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
-      '2',
+      '0',
     );
     expect(
       bottom.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
       '2',
     );
-    for (final sheet in [top, middle, bottom]) {
+    for (final (sheet, verticalAlign) in [
+      (top, '1'),
+      (middle, '0'),
+      (bottom, '2'),
+    ]) {
       final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
       expect(cell.merge?.columnSpan, 2);
       expect(cell.normalizedTextWrap, '2');
-      expect(cell.rawVerticalAlign, '2');
-      expect(cell.hasRawVerticalAlign, isTrue);
+      expect(cell.horizontalAlign, '2');
+      expect(cell.rawHorizontalAlign, '2');
+      expect(cell.hasRawHorizontalAlign, isTrue);
+      expect(cell.verticalAlign, verticalAlign);
+      expect(cell.rawVerticalAlign, isNull);
+      expect(cell.hasRawVerticalAlign, isFalse);
+      expect(cell.textRotation, '15');
+      expect(cell.rawTextRotation, 15);
+      expect(cell.hasRawTextRotation, isTrue);
+      expect(cell.fontSize, 10);
+      expect(cell.rawFontSize, 10);
+      expect(cell.hasRawFontSize, isTrue);
+      expect(cell.fontFamily, 'Arial');
+      expect(cell.rawFontFamily, 'Arial');
+      expect(cell.hasRawFontFamily, isTrue);
       expect(
         cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
         isFalse,
@@ -1198,13 +1226,13 @@ void main() {
       cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
       isFalse,
     );
-    final resultTextOffsetY = sheet.rowHeights[0]! - painter.height;
+    final resultTextOffsetY = (sheet.rowHeights[0]! - painter.height) / 2;
     final resultLineBoxBottomPadding =
       sheet.rowHeights[0]! - (resultTextOffsetY + painter.height);
-    expect(resultLineBoxBottomPadding, closeTo(0, 0.001));
-    expect(cell.normalizedVerticalAlign, '2');
-    expect(cell.rawVerticalAlign, '2');
-    expect(cell.hasRawVerticalAlign, isTrue);
+    expect(resultLineBoxBottomPadding, closeTo(targetPadding / 2, 0.001));
+    expect(cell.normalizedVerticalAlign, '0');
+    expect(cell.rawVerticalAlign, isNull);
+    expect(cell.hasRawVerticalAlign, isFalse);
   });
 
   test('output preview uses the same saved item element workbook', () {
