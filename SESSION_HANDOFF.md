@@ -203,7 +203,7 @@
 - 복수 키워드 fixture의 fallback `value`를 inline run 문자열과 일치시킨 뒤 신규 테스트 2건 재통과.
 - 기능 커밋: `f8e5f4a 끝부분 키워드 앞 공백 제거`.
 
-## 진행 중: 끝부분 키워드 최소 공백 제거 v1.0.19
+## 완료: 끝부분 키워드 최소 공백 제거 v1.0.19
 - v1.0.18 사용자 재현 결과: 키워드 앞 공백을 모두 제거해 알레르기 값이 제목 바로 뒤에 붙었다. 요구 계약은 끝 배치를 최대한 유지하고 잘림을 일으키는 초과 폭만큼만 제거하는 것이다.
 - v19 로그 확인: cell `3,1`이 `알레르기유발물질 + 70칸 + #ALLERGY`에서 `알레르기유발물질우유, 밀, 계란, 호두 함유`로 바뀌어 70칸 전체가 삭제됐다.
 - 수정 완료: 치환 결과의 rich text 폭을 FortuneSheet와 같은 cell/run font span으로 측정하고 renderer content 폭을 초과할 때만 첫 키워드 앞 공백을 한 칸씩 제거한다. 최초로 폭 안에 들어오는 지점에서 중단해 남길 수 있는 공백을 모두 유지한다.
@@ -218,6 +218,8 @@
 - Debug 검증 완료: 기존 PID 6232는 이미 종료된 상태였고 Windows Debug 빌드 성공. v1.0.19 PID 3028 실행, `.tmp/log/app_2026-08-01_22-50-05.log`에서 `DebugLogger version: 1.0.19` 확인.
 - stage/commit 대상: `lib/home_page_manager.dart` 최소 overflow 공백 계산 hunk, `test/label_sheet_toolbar_test.dart`, `lib/features/item/item_manager_debug_log.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 교정 커밋: `7672ac6 끝부분 키워드 공백 최소 조정`.
+- 최종 계약: 끝부분 단일/복수 키워드 치환 후 전체 rich text 폭이 renderer content 폭을 넘는 경우에만 첫 키워드 앞 공백을 최소 개수만 제거한다. 들어맞는 범위의 공백은 유지해 원래 끝 배치를 최대한 보존한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
