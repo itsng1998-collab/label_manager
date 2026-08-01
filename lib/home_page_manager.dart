@@ -132,7 +132,6 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
 const double itemElementMaximumTargetVerticalPadding = 6.0;
-const double itemElementMinimumBottomPadding = 0.0;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -9236,10 +9235,11 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
       final resultTextOffsetY = measurement == null
           ? null
-          : measurement.rowHeight -
-                measurement.textHeight -
-            itemElementMinimumBottomPadding +
-            measurement.lastLineDescent;
+          : _itemPreviewVerticalTextOffset(
+              nextCell.normalizedVerticalAlign,
+              measurement.rowHeight,
+              measurement.textHeight,
+            );
       final resultLineBoxBottomPadding =
           measurement == null || resultTextOffsetY == null
               ? null
@@ -9259,22 +9259,17 @@ fs.FortuneSheet _replaceSheetKeywords(
       final renderedTextHeight = measurement == null
           ? null
           : measurement.textHeight * zoomRatio;
-        final renderedLastLineDescent = measurement == null
-          ? null
-          : measurement.lastLineDescent * zoomRatio;
       final captureTextRectHeight = measurement == null
           ? null
           : max(0.0, measurement.rowHeight - 4);
       final captureAppliedTextOffsetY =
           measurement == null ||
-              resultTextOffsetY == null ||
               captureTextRectHeight == null
               ? null
-              : fs.fortuneClampedCellTextOffsetY(
-                  resultTextOffsetY,
+            : _itemPreviewVerticalTextOffset(
+              nextCell.normalizedVerticalAlign,
                   captureTextRectHeight,
                   measurement.textHeight,
-                  bottomOverflow: measurement.lastLineDescent,
                 );
       final captureLineBoxBottomPadding =
           measurement == null ||
@@ -9283,22 +9278,20 @@ fs.FortuneSheet _replaceSheetKeywords(
               ? null
               : captureTextRectHeight -
                     (captureAppliedTextOffsetY + measurement.textHeight);
+            final captureCellBottomPadding = captureLineBoxBottomPadding == null
+              ? null
+              : 2.0 + captureLineBoxBottomPadding;
       final renderedTextRectHeight = renderedCellHeight == null
           ? null
           : max(0.0, renderedCellHeight - 4);
-      final renderedRequestedTextOffsetY = resultTextOffsetY == null
-          ? null
-          : fs.fortuneScaledCellTextOffsetY(resultTextOffsetY, zoomRatio);
       final renderedAppliedTextOffsetY =
-          renderedRequestedTextOffsetY == null ||
-              renderedTextRectHeight == null ||
+                renderedTextRectHeight == null ||
               renderedTextHeight == null
               ? null
-              : fs.fortuneClampedCellTextOffsetY(
-                  renderedRequestedTextOffsetY,
+                  : _itemPreviewVerticalTextOffset(
+                    nextCell.normalizedVerticalAlign,
                   renderedTextRectHeight,
                   renderedTextHeight,
-                  bottomOverflow: renderedLastLineDescent ?? 0,
                 );
       final renderedLineBoxBottomPadding =
           renderedAppliedTextOffsetY == null ||
@@ -9307,6 +9300,16 @@ fs.FortuneSheet _replaceSheetKeywords(
               ? null
               : renderedTextRectHeight -
                     (renderedAppliedTextOffsetY + renderedTextHeight);
+            final renderedCellBottomPadding = renderedLineBoxBottomPadding == null
+              ? null
+              : 2.0 + renderedLineBoxBottomPadding;
+            final positionedExtraFields = Map<String, Object?>.from(
+              nextCell.extraFields,
+            )..remove(fs.fortuneCellTextOffsetYExtraKey);
+            final mergePreserved = _itemCellMergeLayoutEquals(
+              entry.value.merge,
+              nextCell.merge,
+            );
       _itemElementLayoutLog(
         'targetLayoutResolved',
         trace: elementLayoutTrace,
@@ -9341,9 +9344,13 @@ fs.FortuneSheet _replaceSheetKeywords(
           'resultLineTexts': measurement?.lineTexts,
           'resultLastLine': measurement?.lastLine,
           'resultRowHeight': measurement?.rowHeight,
-          'resultTextOffsetMode': 'clipLastLineDescent',
-          'resultStoredTextOffsetY': resultTextOffsetY,
-          'resultMinimumBottomPadding': itemElementMinimumBottomPadding,
+            'resultTextOffsetMode': 'nativeVerticalAlign',
+            'resultStoredTextOffsetY':
+              positionedExtraFields[fs.fortuneCellTextOffsetYExtraKey],
+            'resultComputedTextOffsetY': resultTextOffsetY,
+            'resultMergePreserved': mergePreserved,
+            'resultMergeRows': nextCell.merge?.rowSpan ?? 1,
+            'resultMergeColumns': nextCell.merge?.columnSpan ?? 1,
           'resultSelectionBottomBeforeCorrection': measurement == null
               ? null
               : measurement.rowHeight -
@@ -9371,34 +9378,18 @@ fs.FortuneSheet _replaceSheetKeywords(
           'resultZoomRatio': zoomRatio,
           'resultRenderedCellHeight': renderedCellHeight,
           'resultRenderedTextHeight': renderedTextHeight,
-          'resultRenderedLastLineDescent': renderedLastLineDescent,
           'resultCaptureTextRectHeight': captureTextRectHeight,
-          'resultCaptureRequestedTextOffsetY': resultTextOffsetY,
+            'resultCaptureNativeTextOffsetY': captureAppliedTextOffsetY,
           'resultCaptureAppliedTextOffsetY': captureAppliedTextOffsetY,
           'resultCaptureLineBoxBottomPadding':
               captureLineBoxBottomPadding,
-            'resultCaptureClippedLastLineDescent':
-              captureLineBoxBottomPadding == null
-              ? null
-              : max(0.0, -captureLineBoxBottomPadding),
-          'resultCaptureCellBottomPadding':
-              captureLineBoxBottomPadding == null
-              ? null
-              : 2.0 + captureLineBoxBottomPadding,
+            'resultCaptureCellBottomPadding': captureCellBottomPadding,
           'resultRenderedTextRectHeight': renderedTextRectHeight,
-          'resultRenderedRequestedTextOffsetY':
-              renderedRequestedTextOffsetY,
+            'resultRenderedNativeTextOffsetY': renderedAppliedTextOffsetY,
           'resultRenderedAppliedTextOffsetY': renderedAppliedTextOffsetY,
           'resultRenderedLineBoxBottomPadding':
               renderedLineBoxBottomPadding,
-            'resultRenderedClippedLastLineDescent':
-              renderedLineBoxBottomPadding == null
-              ? null
-              : max(0.0, -renderedLineBoxBottomPadding),
-          'resultRenderedCellBottomPadding':
-              renderedLineBoxBottomPadding == null
-              ? null
-              : 2.0 + renderedLineBoxBottomPadding,
+            'resultRenderedCellBottomPadding': renderedCellBottomPadding,
           'resultResolvedCellFontFamily': fs.fortuneResolveFontFamily(
             nextCell.fontFamily,
             settings.fontFamilies,
@@ -9407,10 +9398,6 @@ fs.FortuneSheet _replaceSheetKeywords(
               _itemElementResolvedRunFontFamilies(nextCell, settings),
         },
       );
-      final positionedExtraFields = <String, Object?>{
-        ...nextCell.extraFields,
-        fs.fortuneCellTextOffsetYExtraKey: ?resultTextOffsetY,
-      };
       final positionedCell = nextCell.copyWith(
         extraFields: positionedExtraFields,
       );
@@ -9481,9 +9468,16 @@ fs.FortuneSheet _replaceSheetKeywords(
               ? null
               : targetBottomPadding,
           'measuredRowHeight': measurement?.rowHeight,
-          'textOffsetMode': 'clipLastLineDescent',
-          'storedTextOffsetY': resultTextOffsetY,
-          'minimumBottomPadding': itemElementMinimumBottomPadding,
+            'textOffsetMode': 'nativeVerticalAlign',
+            'storedTextOffsetY':
+              positionedExtraFields[fs.fortuneCellTextOffsetYExtraKey],
+            'computedTextOffsetY': resultTextOffsetY,
+            'mergePreserved': mergePreserved,
+            'stylePreserved':
+              entry.value.normalizedVerticalAlign ==
+                positionedCell.normalizedVerticalAlign &&
+              entry.value.normalizedTextWrap ==
+                positionedCell.normalizedTextWrap,
           'selectionBottomBeforeCorrection': measurement == null
               ? null
               : measurement.rowHeight -
@@ -9501,29 +9495,16 @@ fs.FortuneSheet _replaceSheetKeywords(
           'renderedZoomRatio': zoomRatio,
           'renderedCellHeight': renderedCellHeight,
           'renderedTextHeight': renderedTextHeight,
-          'renderedLastLineDescent': renderedLastLineDescent,
           'captureTextRectHeight': captureTextRectHeight,
-          'captureRequestedTextOffsetY': resultTextOffsetY,
+            'captureNativeTextOffsetY': captureAppliedTextOffsetY,
           'captureAppliedTextOffsetY': captureAppliedTextOffsetY,
           'captureLineBoxBottomPadding': captureLineBoxBottomPadding,
-            'captureClippedLastLineDescent':
-              captureLineBoxBottomPadding == null
-              ? null
-              : max(0.0, -captureLineBoxBottomPadding),
-          'captureCellBottomPadding': captureLineBoxBottomPadding == null
-              ? null
-              : 2.0 + captureLineBoxBottomPadding,
+            'captureCellBottomPadding': captureCellBottomPadding,
           'renderedTextRectHeight': renderedTextRectHeight,
-          'renderedRequestedTextOffsetY': renderedRequestedTextOffsetY,
+            'renderedNativeTextOffsetY': renderedAppliedTextOffsetY,
           'renderedAppliedTextOffsetY': renderedAppliedTextOffsetY,
           'renderedLineBoxBottomPadding': renderedLineBoxBottomPadding,
-            'renderedClippedLastLineDescent':
-              renderedLineBoxBottomPadding == null
-              ? null
-              : max(0.0, -renderedLineBoxBottomPadding),
-          'renderedCellBottomPadding': renderedLineBoxBottomPadding == null
-              ? null
-              : 2.0 + renderedLineBoxBottomPadding,
+            'renderedCellBottomPadding': renderedCellBottomPadding,
           'measurementMode': measurement?.mode,
           'previousRowHeight': previousRowHeight,
           'rowHeightDelta': measurement == null
@@ -9689,6 +9670,30 @@ Rect _itemCellRect(
     width,
     height,
   );
+}
+
+double _itemPreviewVerticalTextOffset(
+  String verticalAlign,
+  double rectHeight,
+  double textHeight,
+) {
+  final freeHeight = max(0.0, rectHeight - textHeight);
+  return switch (verticalAlign) {
+    '1' => 0.0,
+    '2' => freeHeight,
+    _ => freeHeight / 2,
+  };
+}
+
+bool _itemCellMergeLayoutEquals(
+  fs.FortuneCellMerge? left,
+  fs.FortuneCellMerge? right,
+) {
+  if (left == null || right == null) return left == right;
+  return left.row == right.row &&
+      left.column == right.column &&
+      left.rowSpan == right.rowSpan &&
+      left.columnSpan == right.columnSpan;
 }
 
 ({

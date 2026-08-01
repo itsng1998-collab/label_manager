@@ -1052,6 +1052,15 @@ void main() {
                   textWrap: '2',
                   fontSize: 10,
                   verticalAlign: verticalAlign,
+                  extraFields: {
+                    fortuneCellTextOffsetYExtraKey: 99.0,
+                  },
+                  merge: const FortuneCellMerge(
+                    row: 0,
+                    column: 0,
+                    rowSpan: 1,
+                    columnSpan: 2,
+                  ),
                 ),
               },
             ),
@@ -1080,14 +1089,15 @@ void main() {
       bottom.cells[const FortuneCellCoord(0, 0)]!.normalizedVerticalAlign,
       '2',
     );
-    double offset(FortuneSheet sheet) =>
-        sheet
-                .cells[const FortuneCellCoord(0, 0)]!
-                .extraFields[fortuneCellTextOffsetYExtraKey]
-            as double;
-    expect(offset(top), closeTo(8.5, 0.001));
-    expect(offset(middle), closeTo(8.5, 0.001));
-    expect(offset(bottom), closeTo(8.5, 0.001));
+    for (final sheet in [top, middle, bottom]) {
+      final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
+      expect(cell.merge?.columnSpan, 2);
+      expect(cell.normalizedTextWrap, '2');
+      expect(
+        cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
+        isFalse,
+      );
+    }
   });
 
   test('fortune cell text offset scales with preview zoom', () {
@@ -1182,15 +1192,13 @@ void main() {
       sheet.rowHeights[0],
       closeTo(painter.height + targetPadding, 0.001),
     );
-    final textOffset =
-        cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
-    final resultLineBoxBottomPadding =
-        sheet.rowHeights[0]! - (textOffset + painter.height);
-    final lastLineDescent = painter.computeLineMetrics().last.descent;
     expect(
-      resultLineBoxBottomPadding,
-      closeTo(-lastLineDescent, 0.001),
+      cell.extraFields.containsKey(fortuneCellTextOffsetYExtraKey),
+      isFalse,
     );
+    final resultLineBoxBottomPadding =
+        (sheet.rowHeights[0]! - painter.height) / 2;
+    expect(resultLineBoxBottomPadding, closeTo(targetPadding / 2, 0.001));
     expect(cell.normalizedVerticalAlign, '0');
   });
 

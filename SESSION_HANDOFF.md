@@ -80,6 +80,20 @@
 - Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 프로젝트 루트를 working directory로 PID 13876을 실행했다. 최신 `.tmp/log/app_2026-08-01_20-25-17.log`에서 `DebugLogger version: 1.0.12`를 확인했다.
 - 사용자 재현 확인 기준: 문제 품목 선택 후 `item-manager-debug-v13`의 `resultLastLineDescent`, `resultStoredTextOffsetY`, `resultCaptureClippedLastLineDescent`, `resultRenderedClippedLastLineDescent`를 확인한다. 5pt 마지막 줄은 논리 약 0.94px(환경별 font metric), 화면 200%는 그 2배가 clip되어야 한다.
 
+## 진행 중: `#ELEMENT` 원본 병합 셀 속성 배치 복원 v1.0.13
+- v1.0.12 사용자 재현: 세 품목 모두 텍스트가 하단 경계에 붙어 과보정됐다.
+- v13 로그 원인 확정: 200% 화면의 공용 하단 inset 2px에서 확대된 마지막 descent 1.879252px 전체를 overflow로 허용해 최종 하단이 0.120748px만 남았다. capture는 논리 descent 0.939626px를 적용해 1.060374px가 남았다.
+- 사용자 제안 반영: 기존 병합 anchor 셀의 `merge`, border, wrap, verticalAlign 등 속성은 그대로 유지하고 `#ELEMENT` run만 실제 원재료 run으로 교체한다. 텍스트 길이에 따른 행 높이만 다시 계산한다.
+- 품목 출력 편집 완료: `cellTextOffsetY`를 저장하지 않고 기존 값도 명시적으로 제거한다. 화면/capture renderer의 기본 `verticalAlign` 배치가 원본 셀 속성대로 동작한다.
+- v14 로그 편집 완료: 병합 row/column span과 보존 여부, verticalAlign/wrap 보존 여부, 강제 offset 부재, 기본 정렬이 계산한 논리/화면/capture 상하 여백을 기록한다. 앱 버전 `1.0.13`, debug schema `item-manager-debug-v14`.
+- 테스트 편집 완료: 위/가운데/아래 정렬, 2열 병합, wrap 속성이 유지되고 `cellTextOffsetY`가 없는 계약 및 혼합 8pt/5pt 행 높이·가운데 여백 계약으로 갱신했다.
+- 집중 검증 완료: 과거 `cellTextOffsetY=99`가 남은 2열 병합 fixture에서도 병합·위/가운데/아래 정렬·wrap은 유지되고 강제 offset은 제거됐다.
+- 전체 관련 회귀 완료: 앱 toolbar 173개와 FortuneSheet capture 8개, 총 181개 통과.
+- 정적 검증 완료: 변경 파일 diagnostics 0건, 앱 analyzer issue 없음. FortuneSheet는 기존 미사용 코드 warning 10건만 유지하며 `--no-fatal-warnings` 통과, `git diff --check` 통과.
+- 적용 범위 재확인: 품목관리·라벨출력·저울출력의 materialized workbook에서 offset이 제거되며, 화면 painter와 PNG/PDF/RAW/EZPL capture renderer 모두 기존 `verticalAlign` 경로를 사용한다.
+- stage 예정: `SESSION_HANDOFF.md`, `lib/features/item/item_manager_debug_log.dart`, `lib/home_page_manager.dart`, `pubspec.yaml`, `test/label_sheet_toolbar_test.dart`. 사용자 변경 3개 파일/hunk는 제외한다.
+- stage 검증 완료: 대상 5개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`와 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 유지하고 제외했다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
