@@ -155,7 +155,7 @@
 - 구현 커밋: `e8f764b 병합 셀 자동개행 행 높이 동기화`.
 - 다음 사용자 재현 예상: `유자마왕파이`는 기존 raw 폭 측정 5줄/34px에서 renderer content 폭 측정 4줄/29px로 바뀌며, 대상 셀 가운데 정렬은 유지된다.
 
-## 진행 중: 모든 텍스트 키워드 자동개행 높이 적용 v1.0.17
+## 완료: 모든 텍스트 키워드 자동개행 높이 적용 v1.0.17
 - 현재 제한: renderer content 폭 행 높이 측정이 `#ELEMENT` 블록에만 연결되어 `#ITEMNAME`, `#CONTENTAMT` 등 일반 키워드는 긴 치환 후 자동개행 행 높이가 갱신되지 않는다.
 - 공용 경로 확인: 품목관리·라벨출력·저울출력 미리보기와 실제 PNG/PDF/RAW bitmap fallback은 `_replaceItemPreviewKeywords → _replaceSheetKeywords`에서 만든 동일 materialized workbook을 사용한다.
 - `lib/home_page_manager.dart` 편집 완료: 실제 치환된 모든 `textWrap=2` 텍스트 셀에 공용 FortuneSheet renderer content 폭 측정을 적용했다. 이미지 키워드와 비자동개행 셀은 제외한다.
@@ -175,6 +175,8 @@
 - 품목 이벤트가 아직 없어 v18 이벤트 행은 다음 사용자 재현에서 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`의 모든 자동개행 키워드 높이/최대 행 높이/최소 inset 및 v18 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
 - stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+- 구현 커밋: `4c1e77f 모든 키워드 자동개행 높이 적용`.
+- 최종 계약: `#ELEMENT`는 원재료 rich run 스타일을 이식하고 대상 셀 레이아웃 속성을 유지한다. 그 외 키워드는 비병합 여부를 변경하지 않고 대상 셀과 해당 keyword run의 모든 스타일 metadata를 유지하며 텍스트와 필요한 행 높이만 갱신한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
