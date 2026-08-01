@@ -9,6 +9,9 @@
 - 범위 정리: 전체 파일 formatter가 만든 기존 미포맷 구간 변경은 원복하고 진단 로그 코드만 재적용했다. 재적용 후 고정 여백 집중 테스트 통과, diagnostics 0건, 대상 파일 `git diff --check` 통과.
 - 최종 전체 검증 완료: 재적용 상태에서 관련 테스트 180개 통과, `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
 - stage 예정: `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+- 기능 커밋: `6478429 주원료 셀 높이 진단 로그 추가`.
+- Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 진단 로그가 포함된 최신 앱을 다시 실행했다.
+- 사용자 재현 후 확인 대상: 최신 `.tmp/log/app_*.log`의 동일 `itemElementLayout-*` trace에 있는 `started`, `rowHeightMeasured`, `rowHeightApplied` 이벤트.
 
 ## 완료: 공용라벨 필수등록 수동 변경 반영
 - 재현 화면: 특별 항목의 `저울중량`, `최종가격` 필수등록을 언체크해도 저장 시 누락 경고가 계속 표시된다. 사용 항목도 같은 구조다.
