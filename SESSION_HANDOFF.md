@@ -1,6 +1,13 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: `#ELEMENT` 병합 셀 세로 여백 통일
+- 추가 제출 화면 확인: 주원료 줄 간격 제거 후에도 `#ELEMENT` 행 자체가 크게 남아 텍스트가 가운데 배치된다.
+- 추가 원인: 대상은 가로 병합 셀인데 `_itemCellRect()`가 anchor의 첫 열 너비만 사용해 텍스트를 과도하게 여러 줄로 측정한다. 또한 계산 높이가 기존 행보다 작으면 행을 줄이지 않는다.
+- 추가 수정 예정: 병합 전체 열 너비로 높이를 계산하고 `#ELEMENT` 행을 계산 높이로 축소·확장한다. 축소 시 아래 이미지·선·도형도 같은 delta로 이동한다.
+- 추가 편집 완료: `FortuneCellMerge.columnSpan`의 전체 열 폭을 합산해 텍스트 높이를 측정하고, 기존 행보다 작아도 계산 높이를 적용한다. row shift는 음수 delta도 처리한다.
+- 추가 테스트 완료: 4열 병합 `#ELEMENT`의 180px 행이 일반 셀 여백 높이로 축소되고 아래 이미지가 같은 delta로 위로 이동하는 회귀 테스트 통과. 변경 파일 diagnostics 0건.
+- 추가 전체 검증 완료: 관련 출력 미리보기·바코드 resolver·출력 pipeline 테스트 178개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
+- 추가 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
 - 제출 화면 확인: 주원료 시트 셀을 라벨 시트 `#ELEMENT` 셀에 병합하면 대상 라벨의 일반 셀보다 위/아래 여백이 크게 출력된다.
 - 원인 가설: `_replaceElementKeywordInCell()`이 주원료 셀·inline run의 `lineHeight`를 대상 라벨 셀에 덮어써 행 높이 계산과 렌더링 모두 주원료 편집 셀의 줄 간격을 사용한다.
 - 수정 예정: 주원료의 글자 서식은 유지하되 병합 레이아웃은 대상 라벨 셀의 `extraFields`/`lineHeight`를 사용한다. 공용 output workbook 생성 경로를 수정해 품목관리·라벨출력·저울출력 미리보기와 실제 캡처/프린트에 함께 적용한다.

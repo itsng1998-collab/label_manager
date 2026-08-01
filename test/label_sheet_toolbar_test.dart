@@ -887,6 +887,55 @@ void main() {
     );
   });
 
+  test('item output element row height uses merged target width', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'label',
+          name: '라벨',
+          rowHeights: const {0: 180, 1: 20},
+          columnWidths: const {0: 60, 1: 60, 2: 60, 3: 60},
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              value: '#ELEMENT',
+              textWrap: '2',
+              merge: FortuneCellMerge(
+                row: 0,
+                column: 0,
+                columnSpan: 4,
+              ),
+            ),
+          },
+          images: const [
+            FortuneImage(
+              id: 'below',
+              src: 'data:image/png;base64,AAA=',
+              left: 0,
+              top: 185,
+              width: 20,
+              height: 10,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final materialized = debugMaterializeItemImagesForTesting(
+      workbook,
+      const {'#ELEMENT': '박력분 34.1%, 버터 21.2%, 설탕, 아몬드 17.6%'},
+      elementCell: const FortuneCell(
+        value: '박력분 34.1%, 버터 21.2%, 설탕, 아몬드 17.6%',
+      ),
+    ).sheets.single;
+
+    expect(materialized.rowHeights[0], lessThan(180));
+    expect(materialized.rowHeights[0], greaterThan(19));
+    expect(
+      materialized.images.single.top,
+      closeTo(185 - (180 - materialized.rowHeights[0]!), 0.001),
+    );
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [

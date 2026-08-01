@@ -9171,11 +9171,9 @@ fs.FortuneSheet _replaceSheetKeywords(
     if (elementCell != null && containsElementKeyword) {
       final rowHeight = _itemPreviewRequiredRowHeight(
         nextCell,
-        _itemCellRect(sheet, entry.key).width,
+        _itemCellRect(sheet, entry.key, cell: entry.value).width,
       );
-      if (rowHeight != null &&
-          rowHeight >
-              (nextRowHeights[entry.key.row] ?? sheet.defaultRowHeight ?? 19)) {
+      if (rowHeight != null) {
         nextRowHeights[entry.key.row] = rowHeight;
         nextCustomHeight[entry.key.row] = 1;
       }
@@ -9225,7 +9223,7 @@ List<({double boundary, double delta})> _itemPreviewRowShifts(
     final previousHeight =
         sheet.rowHeights[entry.key] ?? sheet.defaultRowHeight ?? 19;
     final delta = entry.value - previousHeight;
-    if (delta <= 0) continue;
+    if (delta == 0) continue;
     final boundary = _itemCellRect(
       sheet,
       fs.FortuneCellCoord(entry.key, 0),
@@ -9289,7 +9287,11 @@ double _itemPreviewShiftedY(
   return null;
 }
 
-Rect _itemCellRect(fs.FortuneSheet sheet, fs.FortuneCellCoord coord) {
+Rect _itemCellRect(
+  fs.FortuneSheet sheet,
+  fs.FortuneCellCoord coord, {
+  fs.FortuneCell? cell,
+}) {
   double offsetFor(int count, double Function(int index) sizeFor) {
     var offset = 0.0;
     for (var index = 0; index < count; index += 1) {
@@ -9298,7 +9300,14 @@ Rect _itemCellRect(fs.FortuneSheet sheet, fs.FortuneCellCoord coord) {
     return offset;
   }
 
-  final width = sheet.columnWidths[coord.column] ?? sheet.defaultColWidth ?? 73;
+  final columnSpan = max(1, cell?.merge?.columnSpan ?? 1);
+  final width = offsetFor(
+    columnSpan,
+    (offset) =>
+        sheet.columnWidths[coord.column + offset] ??
+        sheet.defaultColWidth ??
+        73,
+  );
   final height = sheet.rowHeights[coord.row] ?? sheet.defaultRowHeight ?? 19;
   return Rect.fromLTWH(
     offsetFor(
