@@ -75,6 +75,10 @@
 - 정적 검증 완료: 변경 파일 diagnostics 0건, 앱 analyzer issue 없음. FortuneSheet는 기존 미사용 코드 warning 10건만 유지하며 `--no-fatal-warnings` 통과, `git diff --check` 통과.
 - stage 예정: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일/hunk는 제외한다.
 - stage 검증 완료: 대상 7개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`와 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 유지하고 제외했다.
+- 기능 커밋: `69721c0 주원료 마지막 줄 하단 여백 제거`.
+- 실행 검증 예정: `flutter build windows --debug` 후 v1.0.12 앱을 재실행하고 최신 로그의 `DebugLogger version: 1.0.12`, `item-manager-debug-v13`을 확인한다.
+- Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 프로젝트 루트를 working directory로 PID 13876을 실행했다. 최신 `.tmp/log/app_2026-08-01_20-25-17.log`에서 `DebugLogger version: 1.0.12`를 확인했다.
+- 사용자 재현 확인 기준: 문제 품목 선택 후 `item-manager-debug-v13`의 `resultLastLineDescent`, `resultStoredTextOffsetY`, `resultCaptureClippedLastLineDescent`, `resultRenderedClippedLastLineDescent`를 확인한다. 5pt 마지막 줄은 논리 약 0.94px(환경별 font metric), 화면 200%는 그 2배가 clip되어야 한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 
