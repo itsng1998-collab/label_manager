@@ -980,6 +980,52 @@ void main() {
     );
   });
 
+  test('item output element keeps fixed padding across line counts', () {
+    double materializedHeight(String text) {
+      final workbook = FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 400},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ELEMENT',
+                textWrap: '2',
+                fontSize: 10,
+              ),
+            },
+          ),
+        ],
+      );
+      return debugMaterializeItemImagesForTesting(
+        workbook,
+        {'#ELEMENT': text},
+        elementCell: FortuneCell(value: text),
+      ).sheets.single.rowHeights[0]!;
+    }
+
+    final oneLineHeight = materializedHeight('한 줄');
+    final threeLineHeight = materializedHeight('첫째 줄\n둘째 줄\n셋째 줄');
+    final singleTextPainter = TextPainter(
+      text: const TextSpan(
+        text: '한 줄',
+        style: TextStyle(fontSize: 10),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 400);
+    final multilineTextPainter = TextPainter(
+      text: const TextSpan(
+        text: '첫째 줄\n둘째 줄\n셋째 줄',
+        style: TextStyle(fontSize: 10),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 400);
+
+    expect(oneLineHeight - singleTextPainter.height, closeTo(6, 0.001));
+    expect(threeLineHeight - multilineTextPainter.height, closeTo(6, 0.001));
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [

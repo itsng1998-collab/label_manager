@@ -9455,7 +9455,7 @@ TextStyle _itemPreviewTextStyle({
     fontStyle: italic ? FontStyle.italic : FontStyle.normal,
     height: lineHeight != null && lineHeight.isFinite && lineHeight > 0
         ? lineHeight
-        : 1.2,
+        : null,
     letterSpacing: _itemPreviewDoubleExtra(extraFields, 'letterSpacing'),
   );
 }

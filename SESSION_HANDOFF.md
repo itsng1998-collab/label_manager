@@ -13,6 +13,13 @@
 - Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 최신 앱을 다시 실행했다.
 
 ## 완료: `#ELEMENT` 병합 셀 세로 여백 통일
+- 최신 두 화면 비교: 주원료 줄 수가 늘수록 병합 셀의 위/아래 여백도 증가한다.
+- 확정 원인: FortuneSheet 일반 셀 렌더러는 `lineHeight` 미지정 시 `TextStyle.height=null`을 사용하지만 `_itemPreviewTextStyle()`만 기본 `height=1.2`를 강제해 각 줄의 leading을 누적했다.
+- 수정 예정: 대상 라벨 셀에 명시된 `lineHeight`만 사용하고 기본은 null로 맞춘다. 내용 줄 수와 무관하게 실제 text height 외 세로 여백은 합계 6px로 고정한다.
+- 편집 완료: `_itemPreviewTextStyle()`의 기본 `height`를 null로 변경해 FortuneSheet 화면·캡처 renderer와 동일한 font metrics를 사용한다.
+- 집중 검증 완료: 1줄과 3줄 각각 `계산 행 높이 - 실제 TextPainter 높이 = 6px`임을 확인했다. 변경 파일 diagnostics 0건.
+- 전체 검증 완료: 출력 미리보기·바코드 resolver·출력 pipeline 관련 테스트 180개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
+- 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
 - 추가 제출 화면 확인: 병합 폭 수정 후에도 주원료 내용이 길수록 위/아래 여백이 증가한다.
 - 추가 원인: `fontScale`/첨자 inline run은 FortuneSheet가 저장된 개행 단위로 렌더링하지만 `_itemPreviewRequiredRowHeight()`는 폭 기준 자동 줄바꿈으로 높이를 측정해 실제로 그리지 않는 줄 높이를 누적한다.
 - 추가 수정 예정: FortuneSheet와 동일하게 해당 rich run은 저장된 줄 단위 높이만 합산하고, 일반 셀과 같은 고정 세로 여백 6px만 더한다.
