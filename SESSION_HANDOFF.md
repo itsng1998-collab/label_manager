@@ -1,6 +1,6 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
-## 진행 중: `#ELEMENT` 대상 셀 설정 여백 복원 v1.0.7
+## 완료: `#ELEMENT` 대상 셀 설정 여백 복원 v1.0.7
 - v1.0.6 이미지/v8 로그: 모든 결과가 하단 1px로 계산됐지만 대상 셀은 `verticalAlign=0(가운데)`, 원본 행 12.214px, compact template text 8px이므로 실제 대상 설정은 상·하 각각 2.107px이다. `cellTextOffsetY=0`이 대상 셀의 가운데 정렬을 우회했다.
 - 수정: 대상 원본 셀의 전체 잔여 높이를 최대 6px 범위에서 보존하고, 원본 verticalAlign에 따라 top/bottom으로 분배한다. 현재 셀은 `rowHeight=resultTextHeight+4.214px`, `textOffsetY=2.107px`이다.
 - 측정 일치: app 측정기도 화면·캡처 renderer처럼 workbook font family 설정을 해석한다.
@@ -15,6 +15,10 @@
 - 실행 검증 예정: 기능 커밋 후 v1.0.7 Windows Debug를 빌드·재실행하고 실제 v9 단계별 로그를 확인한다.
 - 최종 변경 검증 완료: `git diff --check` 통과, `pubspec.yaml=1.0.7` 확인. 홈 매니저 diff는 대상 padding, workbook 글꼴 해석, v9 단계 로그에 한정됐다.
 - stage 대상: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `a898289 주원료 셀 대상 여백 설정 복원`.
+- Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 5464로 앱 실행. 새 로그 `.tmp/log/app_2026-08-01_17-00-45.log`에서 `DebugLogger version: 1.0.7` 확인.
+- 실제 품목 v9 event는 행 선택 시 생성된다. 집중 검증 로그에서 `targetLayoutResolved/resultLayoutResolved`, 대상 상·하 2.107px, 결과 2줄/행 17.214px, 요청 `굴림`→renderer 해석 `Arial`을 확인했다.
+- 사용자 재현 확인 기준: 세 품목 모두 v9 `targetTopPadding/targetBottomPadding`과 `resultLineBoxBottomPadding`이 대상 셀 설정값 2.107px으로 일치하고, `resultResolvedRunFontFamilies`가 실제 화면 renderer와 같아야 한다.
 
 ## 완료: `#ELEMENT` 하단 clip-safe 최소 여백 v1.0.6
 - 제출 이미지/실행 v7 로그 비교: 두 번째 `유자마왕파이`의 source/result 마지막 문자는 `기타소금(호수염)`이며 trailing 공백·탭·개행이 없다. result line metrics도 실내용 5줄뿐이라 trim 대상이 아니다.
