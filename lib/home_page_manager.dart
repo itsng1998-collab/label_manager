@@ -131,7 +131,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
-const double itemElementFixedBottomPadding = 1.0;
+const double itemElementMaximumTargetVerticalPadding = 6.0;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -8632,6 +8632,7 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
       _replaceSheetKeywords(
         sheet,
         replacements,
+        settings: workbook.settings,
         elementCell: elementCell,
         imageKeywords: const <String>{},
       ),
@@ -9104,6 +9105,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
       _replaceSheetKeywords(
         sheet,
         replacements,
+        settings: workbook.settings,
         codeDataResolver: codeDataResolver,
         elementCell: elementCell,
         imageKeywords: imageKeywords,
@@ -9117,6 +9119,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
 fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneSheet sheet,
   Map<String, String> replacements, {
+  required fs.FortuneSettings settings,
   ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
@@ -9199,18 +9202,89 @@ fs.FortuneSheet _replaceSheetKeywords(
       final templateMeasurement = _itemPreviewTextMeasurement(
         templateCell,
         cellRect.width,
+        settings: settings,
       );
       final templateRemainingHeight = max(
         0.0,
         previousRowHeight - (templateMeasurement?.textHeight ?? 0),
       );
-      const targetBottomPadding = itemElementFixedBottomPadding;
+      final targetVerticalPadding = min(
+        itemElementMaximumTargetVerticalPadding,
+        templateRemainingHeight,
+      );
+      final (targetTopPadding, targetBottomPadding) = switch (
+        entry.value.normalizedVerticalAlign
+      ) {
+        '1' => (0.0, targetVerticalPadding),
+        '2' => (targetVerticalPadding, 0.0),
+        _ => (
+          targetVerticalPadding / 2,
+          targetVerticalPadding / 2,
+        ),
+      };
       final measurement = _itemPreviewRowHeightMeasurement(
         nextCell,
         cellRect.width,
-        verticalPadding: targetBottomPadding,
+        settings: settings,
+        verticalPadding: targetVerticalPadding,
       );
-      final textOffsetY = measurement == null ? null : 0.0;
+      final textOffsetY = measurement == null ? null : targetTopPadding;
+      _itemElementLayoutLog(
+        'targetLayoutResolved',
+        trace: elementLayoutTrace,
+        fields: {
+          'sheet': sheet.name,
+          'cell': '${entry.key.row},${entry.key.column}',
+          'mergeRectLeft': cellRect.left,
+          'mergeRectTop': cellRect.top,
+          'mergeRectWidth': cellRect.width,
+          'mergeRectHeight': cellRect.height,
+          'sheetZoomRatio': sheet.zoomRatio,
+          'targetVerticalAlign': entry.value.normalizedVerticalAlign,
+          'targetOriginalRowHeight': previousRowHeight,
+          'targetTemplateTextHeight': templateMeasurement?.textHeight,
+          'targetTemplateLineCount': templateMeasurement?.lineCount,
+          'targetRemainingHeight': templateRemainingHeight,
+          'targetVerticalPadding': targetVerticalPadding,
+          'targetTopPadding': targetTopPadding,
+          'targetBottomPadding': targetBottomPadding,
+          'targetExtraFields': entry.value.extraFields,
+        },
+      );
+      _itemElementLayoutLog(
+        'resultLayoutResolved',
+        trace: elementLayoutTrace,
+        fields: {
+          'sheet': sheet.name,
+          'cell': '${entry.key.row},${entry.key.column}',
+          'resultTextHeight': measurement?.textHeight,
+          'resultLineCount': measurement?.lineCount,
+          'resultRowHeight': measurement?.rowHeight,
+          'resultTextOffsetY': textOffsetY,
+          'resultLineBoxTop': textOffsetY,
+          'resultLineBoxBottom': measurement == null || textOffsetY == null
+              ? null
+              : textOffsetY + measurement.textHeight,
+          'resultCellBottom': measurement?.rowHeight,
+          'resultLineBoxBottomPadding':
+              measurement == null || textOffsetY == null
+              ? null
+              : measurement.rowHeight -
+                    (textOffsetY + measurement.textHeight),
+          'resultSelectionTop': measurement == null || textOffsetY == null
+              ? null
+              : textOffsetY + measurement.tightTop,
+          'resultSelectionBottom': measurement == null || textOffsetY == null
+              ? null
+              : textOffsetY + measurement.tightBottom,
+          'resultResolvedCellFontFamily': fs.fortuneResolveFontFamily(
+            nextCell.fontFamily,
+            settings.fontFamilies,
+          ),
+          'resultResolvedRunFontFamilies':
+              _itemElementResolvedRunFontFamilies(nextCell, settings),
+        },
+      );
       final positionedCell = textOffsetY == null
           ? nextCell
           : nextCell.copyWith(
@@ -9238,24 +9312,48 @@ fs.FortuneSheet _replaceSheetKeywords(
           'fontSize': nextCell.fontSize,
           'fontFamily': nextCell.fontFamily,
           'cellExtraFields': nextCell.extraFields,
-            'verticalAlign': nextCell.normalizedVerticalAlign,
+            'targetVerticalAlign': entry.value.normalizedVerticalAlign,
+            'resultVerticalAlign': nextCell.normalizedVerticalAlign,
+            'targetOriginalRowHeight': previousRowHeight,
             'templateTextHeight': templateMeasurement?.textHeight,
+              'templateLineCount': templateMeasurement?.lineCount,
             'templateTightTop': templateMeasurement?.tightTop,
             'templateTightBottom': templateMeasurement?.tightBottom,
             'templateTightHeight': templateMeasurement?.tightHeight,
             'templateLineMetrics': templateMeasurement?.lineMetrics,
             'templateRemainingHeight': templateRemainingHeight,
-            'configuredBottomPadding': itemElementFixedBottomPadding,
-            'targetTopPadding': 0.0,
+            'maximumTargetVerticalPadding':
+                itemElementMaximumTargetVerticalPadding,
+            'targetVerticalPadding': targetVerticalPadding,
+            'targetTopPadding': targetTopPadding,
             'targetBottomPadding': targetBottomPadding,
+            'sourceBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
+              elementCell.renderedText,
+            ),
+            'resultBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
+              nextCell.renderedText,
+            ),
+            'resolvedCellFontFamily': fs.fortuneResolveFontFamily(
+              nextCell.fontFamily,
+              settings.fontFamilies,
+            ),
+            'resolvedRunFontFamilies': _itemElementResolvedRunFontFamilies(
+              nextCell,
+              settings,
+            ),
           'textHeight': measurement?.textHeight,
+          'resultLineCount': measurement?.lineCount,
           'resultTightTop': measurement?.tightTop,
           'resultTightBottom': measurement?.tightBottom,
           'resultTightHeight': measurement?.tightHeight,
             'resultLineMetrics': measurement?.lineMetrics,
-              'fixedPadding': measurement == null ? null : targetBottomPadding,
-              'fixedTopPadding': measurement == null ? null : 0.0,
-              'fixedBottomPadding': measurement == null
+              'appliedVerticalPadding': measurement == null
+                ? null
+                : targetVerticalPadding,
+              'appliedTopPadding': measurement == null
+                ? null
+                : targetTopPadding,
+              'appliedBottomPadding': measurement == null
                 ? null
                 : targetBottomPadding,
           'measuredRowHeight': measurement?.rowHeight,
@@ -9446,27 +9544,33 @@ Rect _itemCellRect(
   double tightTop,
   double tightBottom,
   double tightHeight,
+  int lineCount,
   String mode,
   String lineMetrics,
 })?
-_itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
+_itemPreviewTextMeasurement(
+  fs.FortuneCell cell,
+  double columnWidth, {
+  required fs.FortuneSettings settings,
+}) {
   if (cell.renderedText.isEmpty || columnWidth <= 0) {
     return null;
   }
   if (_itemPreviewUsesExplicitInlineLines(cell)) {
-    final textHeight = _itemPreviewExplicitInlineLinesHeight(cell);
+    final textHeight = _itemPreviewExplicitInlineLinesHeight(cell, settings);
     return (
       textHeight: textHeight,
       tightTop: 0,
       tightBottom: textHeight,
       tightHeight: textHeight,
+      lineCount: 1,
       mode: 'explicitInlineLines',
       lineMetrics: 'explicitTotal=$textHeight',
     );
   }
   final painter =
       TextPainter(
-        text: _itemPreviewTextSpan(cell),
+        text: _itemPreviewTextSpan(cell, settings),
         maxLines: cell.normalizedTextWrap == '2' ? null : 1,
         textDirection: TextDirection.ltr,
         ellipsis: cell.normalizedTextWrap == '2' ? null : '',
@@ -9492,6 +9596,7 @@ _itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
     tightTop: tightTop,
     tightBottom: tightBottom,
     tightHeight: tightBottom - tightTop,
+    lineCount: metrics.length,
     mode: 'textPainterWrap',
     lineMetrics: [
       for (final line in metrics)
@@ -9506,15 +9611,21 @@ _itemPreviewTextMeasurement(fs.FortuneCell cell, double columnWidth) {
   double tightBottom,
   double tightHeight,
   double rowHeight,
+  int lineCount,
   String mode,
   String lineMetrics,
 })?
 _itemPreviewRowHeightMeasurement(
   fs.FortuneCell cell,
   double columnWidth, {
+  required fs.FortuneSettings settings,
   required double verticalPadding,
 }) {
-  final measurement = _itemPreviewTextMeasurement(cell, columnWidth);
+  final measurement = _itemPreviewTextMeasurement(
+    cell,
+    columnWidth,
+    settings: settings,
+  );
   if (measurement == null) return null;
   return (
     textHeight: measurement.textHeight,
@@ -9522,6 +9633,7 @@ _itemPreviewRowHeightMeasurement(
     tightBottom: measurement.tightBottom,
     tightHeight: measurement.tightHeight,
     rowHeight: max(4.0, measurement.textHeight + verticalPadding),
+    lineCount: measurement.lineCount,
     mode: measurement.mode,
     lineMetrics: measurement.lineMetrics,
   );
@@ -9549,6 +9661,42 @@ String _itemElementLayoutRuns(fs.FortuneCell cell) => [
     '{text:${_itemElementLayoutLogText(run.text)},fontSize:${run.fontSize},fontFamily:${run.fontFamily},bold:${run.bold},italic:${run.italic},extra:${run.extraFields}}',
 ].join('|');
 
+String _itemElementBoundaryWhitespaceLog(String text) {
+  var leading = 0;
+  while (leading < text.length &&
+      _isItemElementBoundaryWhitespace(text.codeUnitAt(leading))) {
+    leading += 1;
+  }
+  var trailing = 0;
+  while (trailing < text.length - leading &&
+      _isItemElementBoundaryWhitespace(
+        text.codeUnitAt(text.length - trailing - 1),
+      )) {
+    trailing += 1;
+  }
+  final firstCodeUnit = text.isEmpty ? null : text.codeUnitAt(0);
+  final lastCodeUnit = text.isEmpty ? null : text.codeUnitAt(text.length - 1);
+  return 'length=${text.length},leading=$leading,trailing=$trailing,first=$firstCodeUnit,last=$lastCodeUnit';
+}
+
+String _itemElementResolvedRunFontFamilies(
+  fs.FortuneCell cell,
+  fs.FortuneSettings settings,
+) {
+  final fallback = fs.fortuneResolveFontFamily(
+    cell.fontFamily,
+    settings.fontFamilies,
+  );
+  return [
+    for (final run in cell.inlineRuns ?? const <fs.FortuneInlineTextRun>[])
+      fs.fortuneResolveFontFamily(
+        run.fontFamily,
+        settings.fontFamilies,
+        fallback: fallback,
+      ),
+  ].join('|');
+}
+
 bool _itemPreviewUsesExplicitInlineLines(fs.FortuneCell cell) {
   final runs = cell.inlineRuns;
   if (runs == null || runs.isEmpty) return false;
@@ -9559,7 +9707,10 @@ bool _itemPreviewUsesExplicitInlineLines(fs.FortuneCell cell) {
   });
 }
 
-double _itemPreviewExplicitInlineLinesHeight(fs.FortuneCell cell) {
+double _itemPreviewExplicitInlineLinesHeight(
+  fs.FortuneCell cell,
+  fs.FortuneSettings settings,
+) {
   final lines = <List<fs.FortuneInlineTextRun>>[
     <fs.FortuneInlineTextRun>[],
   ];
@@ -9576,7 +9727,10 @@ double _itemPreviewExplicitInlineLinesHeight(fs.FortuneCell cell) {
   }
   final baseStyle = _itemPreviewTextStyle(
     fontSize: cell.fontSize ?? 10,
-    fontFamily: cell.fontFamily,
+    fontFamily: fs.fortuneResolveFontFamily(
+      cell.fontFamily,
+      settings.fontFamilies,
+    ),
     bold: cell.bold,
     italic: cell.italic,
     foreground: cell.foreground,
@@ -9594,7 +9748,11 @@ double _itemPreviewExplicitInlineLinesHeight(fs.FortuneCell cell) {
               text: run.text,
               style: _itemPreviewTextStyle(
                 fontSize: run.fontSize ?? cell.fontSize ?? 10,
-                fontFamily: run.fontFamily ?? cell.fontFamily,
+                fontFamily: fs.fortuneResolveFontFamily(
+                  run.fontFamily,
+                  settings.fontFamilies,
+                  fallback: baseStyle.fontFamily ?? 'Arial',
+                ),
                 bold: run.bold ?? cell.bold,
                 italic: run.italic ?? cell.italic,
                 foreground: run.foreground ?? cell.foreground,
@@ -9611,10 +9769,17 @@ double _itemPreviewExplicitInlineLinesHeight(fs.FortuneCell cell) {
   return height;
 }
 
-TextSpan _itemPreviewTextSpan(fs.FortuneCell cell) {
+TextSpan _itemPreviewTextSpan(
+  fs.FortuneCell cell,
+  fs.FortuneSettings settings,
+) {
+  final resolvedCellFontFamily = fs.fortuneResolveFontFamily(
+    cell.fontFamily,
+    settings.fontFamilies,
+  );
   final baseStyle = _itemPreviewTextStyle(
     fontSize: cell.fontSize ?? 10,
-    fontFamily: cell.fontFamily,
+    fontFamily: resolvedCellFontFamily,
     bold: cell.bold,
     italic: cell.italic,
     foreground: cell.foreground,
@@ -9632,7 +9797,11 @@ TextSpan _itemPreviewTextSpan(fs.FortuneCell cell) {
           text: run.text,
           style: _itemPreviewTextStyle(
             fontSize: run.fontSize ?? cell.fontSize ?? 10,
-            fontFamily: run.fontFamily ?? cell.fontFamily,
+            fontFamily: fs.fortuneResolveFontFamily(
+              run.fontFamily,
+              settings.fontFamilies,
+              fallback: resolvedCellFontFamily,
+            ),
             bold: run.bold ?? cell.bold,
             italic: run.italic ?? cell.italic,
             foreground: run.foreground ?? cell.foreground,

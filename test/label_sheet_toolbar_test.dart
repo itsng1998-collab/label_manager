@@ -1028,12 +1028,55 @@ void main() {
 
     expect(
       oneLineHeight - singleTextPainter.height,
-      closeTo(itemElementFixedBottomPadding, 0.001),
+      closeTo(6, 0.001),
     );
     expect(
       threeLineHeight - multilineTextPainter.height,
-      closeTo(itemElementFixedBottomPadding, 0.001),
+      closeTo(6, 0.001),
     );
+  });
+
+  test('item output element preserves target vertical alignment padding', () {
+    FortuneSheet materialize(String verticalAlign) {
+      return debugMaterializeItemImagesForTesting(
+        FortuneWorkbook(
+          sheets: [
+            FortuneSheet(
+              id: 'label',
+              name: '라벨',
+              columnWidths: const {0: 400},
+              rowHeights: const {0: 16},
+              cells: {
+                const FortuneCellCoord(0, 0): FortuneCell(
+                  value: '#ELEMENT',
+                  textWrap: '2',
+                  fontSize: 10,
+                  verticalAlign: verticalAlign,
+                ),
+              },
+            ),
+          ],
+        ),
+        const {'#ELEMENT': '한 줄'},
+        elementCell: const FortuneCell(value: '한 줄'),
+      ).sheets.single;
+    }
+
+    final top = materialize('1');
+    final middle = materialize('0');
+    final bottom = materialize('2');
+    double offset(FortuneSheet sheet) =>
+        sheet
+                .cells[const FortuneCellCoord(0, 0)]!
+                .extraFields[fortuneCellTextOffsetYExtraKey]
+            as double;
+
+    expect(top.rowHeights[0], closeTo(16, 0.001));
+    expect(middle.rowHeights[0], closeTo(16, 0.001));
+    expect(bottom.rowHeights[0], closeTo(16, 0.001));
+    expect(offset(top), closeTo(0, 0.001));
+    expect(offset(middle), closeTo(3, 0.001));
+    expect(offset(bottom), closeTo(6, 0.001));
   });
 
   test('item output element uses compact line boxes for mixed font sizes', () {
@@ -1097,14 +1140,16 @@ void main() {
       cell.inlineRuns!.every((run) => run.extraFields['lineHeight'] == 1.0),
       isTrue,
     );
-    const targetBottomPadding = itemElementFixedBottomPadding;
+    const targetPadding = 12.214285714285715 - 8;
+    const targetTopPadding = targetPadding / 2;
+    const targetBottomPadding = targetPadding / 2;
     expect(
       sheet.rowHeights[0],
-      closeTo(painter.height + targetBottomPadding, 0.001),
+      closeTo(painter.height + targetPadding, 0.001),
     );
     final textOffsetY =
         cell.extraFields[fortuneCellTextOffsetYExtraKey] as double;
-    expect(textOffsetY, closeTo(0, 0.001));
+    expect(textOffsetY, closeTo(targetTopPadding, 0.001));
     expect(
       sheet.rowHeights[0]! - (textOffsetY + painter.height),
       closeTo(targetBottomPadding, 0.001),
