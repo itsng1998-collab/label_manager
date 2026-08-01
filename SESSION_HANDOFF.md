@@ -1,6 +1,6 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
-## 진행 중: 공용라벨 필수등록 수동 변경 반영
+## 완료: 공용라벨 필수등록 수동 변경 반영
 - 재현 화면: 특별 항목의 `저울중량`, `최종가격` 필수등록을 언체크해도 저장 시 누락 경고가 계속 표시된다. 사용 항목도 같은 구조다.
 - 원인: `requiredKeywords`는 `CommonLabelManage.build()`에서 snapshot으로 생성되지만 `_CommonLabelTable` 체크박스는 내부 `setState()`로 모델만 바꾸고 부모를 rebuild하지 않는다.
 - 수정 예정: 특별/사용 항목 체크 변경을 부모까지 전달해 현재 `useMissingKeywordCheck` 상태로 저장 검증 목록을 즉시 재계산한다. 실제 언체크 이벤트 회귀 테스트를 추가한다.
@@ -9,6 +9,8 @@
 - formatter 완료: `dart format lib/features/label_sheet/presentation/common_label_manage.dart test/common_label_manage_test.dart`.
 - 전체 검증 완료: `test/common_label_manage_test.dart`, `test/label_sheet_toolbar_test.dart` 총 178개 통과. 변경 파일 `flutter analyze` issue 없음.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
+- 기능 커밋: `bbfc665 공용라벨 필수등록 변경 즉시 반영`.
+- Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, 최신 앱을 다시 실행했다.
 
 ## 완료: `#ELEMENT` 병합 셀 세로 여백 통일
 - 추가 제출 화면 확인: 병합 폭 수정 후에도 주원료 내용이 길수록 위/아래 여백이 증가한다.
