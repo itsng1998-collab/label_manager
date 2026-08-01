@@ -14,6 +14,9 @@
 - 경계 집중 검증 완료: 과대 병합 행 축소, 1줄/3줄 고정 padding, 혼합 8pt/5pt 최소 여백 테스트 3개 통과. diagnostics 0건.
 - 최종 전체 검증 완료: 출력 미리보기·resolver·출력 pipeline 관련 테스트 181개 통과. 변경 파일 `flutter analyze` issue 없음.
 - 최종 변경 검증: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.2` 확인. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 다섯 파일만 stage/commit한다.
+- 기능 커밋: `507d9a9 주원료 대상 라벨 최소 여백 고정`.
+- Debug 검증 완료: `flutter build windows --debug` 성공 후 앱 재실행. 새 로그 `.tmp/log/app_2026-08-01_12-52-26.log`에 `DebugLogger version: 1.0.2`, 새 `kernel_blob.bin` 시각 2026-08-01 12:52:11을 확인해 앱과 로그 버전이 일치한다.
+- 재현 로그 확인 기준: `item-manager-debug-v4`, `appVersion=1.0.2`, `templateRemainingHeight`, `maximumVerticalPadding`, `fixedTopPadding`, `fixedBottomPadding`, `templateLineMetrics`, `resultLineMetrics`.
 
 ## 진행 중: `#ELEMENT` 병합 셀 여백 진단 로그
 - 사용자 확인: 기본 줄 높이 누적 제거 후에도 주원료 내용이 많을수록 병합 셀 위/아래 여백이 증가한다.
