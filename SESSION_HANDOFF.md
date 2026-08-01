@@ -18,6 +18,9 @@
 - 집중 검증 완료: 고정 외부 여백 테스트와 혼합 8pt/5pt compact line box 테스트 2개 통과. 변경 파일 diagnostics 0건.
 - 전체 검증 완료: 출력 미리보기·resolver·출력 pipeline 관련 테스트 181개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전 `1.0.1` 유지. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외하고 대상 세 파일만 stage/commit한다.
+- 기능 커밋: `fce17ff 주원료 다중 줄 내부 여백 제거`.
+- Debug 확인 완료: 실행 중 앱 종료 후 `flutter build windows --debug` 성공, compact line-height가 반영된 최신 앱을 다시 실행했다.
+- 진단 로그는 사용자 화면 확인 전까지 `itemElementLayoutDebugEnabled=true`로 유지한다. 새 로그의 result run `lineHeight=1.0`과 감소한 `textHeight`를 확인할 수 있다.
 
 ## 완료: 공용라벨 필수등록 수동 변경 반영
 - 재현 화면: 특별 항목의 `저울중량`, `최종가격` 필수등록을 언체크해도 저장 시 누락 경고가 계속 표시된다. 사용 항목도 같은 구조다.
