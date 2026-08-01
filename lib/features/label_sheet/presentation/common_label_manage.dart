@@ -114,6 +114,15 @@ List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
   return result;
 }
 
+@visibleForTesting
+Widget commonLabelRequiredTableForTesting({
+  required List<TColumnBase> columns,
+  required VoidCallback onRequiredChanged,
+}) => _CommonLabelTable(
+  columns: columns,
+  onRequiredChanged: onRequiredChanged,
+);
+
 class CommonLabelManage extends StatefulWidget {
   final String title;
   final LabelSize? labelSize;
@@ -249,6 +258,9 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 title: '${widget.title} - 우측',
                 columns: specialColumns,
                 onColumnEditRequested: widget.onColumnEditRequested,
+                onRequiredChanged: () {
+                  setState(() {});
+                },
               ),
             ),
           ],
@@ -262,9 +274,11 @@ class _RightPane extends StatefulWidget {
   final String title;
   final List<TColumnBase> columns;
   final VoidCallback? onColumnEditRequested;
+  final VoidCallback onRequiredChanged;
   const _RightPane({
     required this.title,
     required this.columns,
+    required this.onRequiredChanged,
     this.onColumnEditRequested,
   });
 
@@ -300,6 +314,7 @@ class _RightPaneState extends State<_RightPane> {
               height: topHeight,
               child: _CommonLabelTable(
                 columns: widget.columns,
+                onRequiredChanged: widget.onRequiredChanged,
               ),
             ),
             _HSplitter(
@@ -334,6 +349,7 @@ class _RightPaneState extends State<_RightPane> {
               ),
               child: _CommonLabelTable(
                 columns: columns,
+                onRequiredChanged: widget.onRequiredChanged,
               ),
             ),
           ],
@@ -345,7 +361,11 @@ class _RightPaneState extends State<_RightPane> {
 
 class _CommonLabelTable extends StatefulWidget {
   final List<TColumnBase> columns;
-  const _CommonLabelTable({required this.columns});
+  final VoidCallback onRequiredChanged;
+  const _CommonLabelTable({
+    required this.columns,
+    required this.onRequiredChanged,
+  });
 
   static const List<String> _baseHeaders = ['키워드', '이름', '필수등록'];
 
@@ -417,6 +437,7 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                           widget.columns[rowIndex].useMissingKeywordCheck =
                               value;
                         });
+                        widget.onRequiredChanged();
                       }
                     : null,
               ),

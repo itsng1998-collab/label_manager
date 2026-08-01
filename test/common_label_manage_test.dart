@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/label_sheet/application/common_label_connections.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
@@ -187,5 +189,43 @@ void main() {
 
     expect(required.map((item) => item.keyword), ['ITEMNAME', '#BARCODE_ID']);
     expect(required.map((item) => item.itemName), ['품명', '바코드']);
+  });
+
+  testWidgets('required checkbox notifies current unchecked state', (
+    tester,
+  ) async {
+    final columns = [
+      _column(
+        'SWEIGHT',
+        columnName: '저울중량',
+        useMissingKeywordCheck: true,
+      ),
+    ];
+    var changedCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 350,
+            height: 120,
+            child: commonLabelRequiredTableForTesting(
+              columns: columns,
+              onRequiredChanged: () => changedCount += 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<TColumnBase>),
+    );
+    await tester.tapAt(tableTopLeft + const Offset(40 + 120 + 120 + 35, 50));
+    await tester.pump();
+
+    expect(columns.single.useMissingKeywordCheck, isFalse);
+    expect(changedCount, 1);
+    expect(commonLabelRequiredKeywordsFromColumns(columns), isEmpty);
   });
 }
