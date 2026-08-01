@@ -155,6 +155,27 @@
 - 구현 커밋: `e8f764b 병합 셀 자동개행 행 높이 동기화`.
 - 다음 사용자 재현 예상: `유자마왕파이`는 기존 raw 폭 측정 5줄/34px에서 renderer content 폭 측정 4줄/29px로 바뀌며, 대상 셀 가운데 정렬은 유지된다.
 
+## 진행 중: 모든 텍스트 키워드 자동개행 높이 적용 v1.0.17
+- 현재 제한: renderer content 폭 행 높이 측정이 `#ELEMENT` 블록에만 연결되어 `#ITEMNAME`, `#CONTENTAMT` 등 일반 키워드는 긴 치환 후 자동개행 행 높이가 갱신되지 않는다.
+- 공용 경로 확인: 품목관리·라벨출력·저울출력 미리보기와 실제 PNG/PDF/RAW bitmap fallback은 `_replaceItemPreviewKeywords → _replaceSheetKeywords`에서 만든 동일 materialized workbook을 사용한다.
+- `lib/home_page_manager.dart` 편집 완료: 실제 치환된 모든 `textWrap=2` 텍스트 셀에 공용 FortuneSheet renderer content 폭 측정을 적용했다. 이미지 키워드와 비자동개행 셀은 제외한다.
+- 같은 행 다중 키워드 처리 완료: 첫 측정은 기존 shrink/expand 동작을 유지하고 이후 셀은 필요한 행 높이 최댓값을 적용한다. 일반 키워드는 대상 셀 스타일을 유지하고 `#ELEMENT`만 기존 rich run compact 처리를 유지한다.
+- 일반 키워드 clipping 보정 완료: template 키워드 자체가 여러 줄이어도 renderer 상하 inset 합계 4px을 최소 vertical padding으로 보장한다.
+- v18 로그 보강 완료: 각 측정 이벤트에 치환 `keywords`, `containsElementKeyword`, `measuredRowHeight`, `appliedRowHeight`, 최소 renderer padding을 기록한다.
+- `test/label_sheet_toolbar_test.dart` 테스트 추가: 같은 행 `#ITEMNAME` 2줄과 `#CONTENTAMT` 4줄 중 최대 높이 적용, 공용 `_itemOutputPreview`의 일반 키워드 행 확장을 검증한다. 두 테스트 통과.
+- 일반 키워드 스타일 계약 확인: 비병합 키워드는 `_replaceCellKeywords`에서 inline run이면 `run.copyWith(text: ...)`, plain 셀이면 `_itemTextCell(..., base: target)`로 텍스트만 바꾸고 대상 셀/run 속성을 유지한다.
+- 스타일 회귀 테스트 추가: 비병합 `#ITEMNAME` 치환 후 셀의 색·글꼴·수평/수직 정렬·wrap·회전·extraFields와 키워드 run의 색·bold·italic·underline·글꼴·크기·wrap 및 raw/hasRaw metadata 보존을 검증한다.
+- 스타일 집중 검증 완료: 일반 키워드 스타일 테스트 단독 1건 및 관련 높이/정렬 6건 통과.
+- 출력 경로 확인: 품목관리 출력 미리보기, 라벨출력 `_labelPrintCaptureController`, 저울출력 `_scaleOutputCaptureController`가 모두 `_ItemOutputPreviewTab`에서 동일 materialized workbook을 받고, 실제 PNG/PDF/RAW 및 hybrid EZPL capture에 사용한다.
+- 버전 편집 완료: `pubspec.yaml` 1.0.17, item debug schema v18.
+- 전체 테스트 완료: 앱 `label_sheet_toolbar_test.dart` 177건, FortuneSheet capture 8건 통과. 변경 파일 diagnostics 0건.
+- 정적 검증 완료: 앱/`third_party/fortune_sheet` `flutter analyze`는 기존 `fortune_sheet_canvas.dart` warning 10건만 유지하며 새 오류가 없다. `git diff --check` 통과.
+- Debug 검증 예정: v1.0.16 PID 15520을 종료하고 `flutter build windows --debug` 후 프로젝트 루트에서 v1.0.17을 실행해 시작 로그를 확인한다.
+- Debug 검증 완료: PID 15520 종료 후 `flutter build windows --debug` 성공. v1.0.17 PID 14540 실행, `.tmp/log/app_2026-08-01_22-28-06.log`에서 `DebugLogger version: 1.0.17` 확인.
+- 품목 이벤트가 아직 없어 v18 이벤트 행은 다음 사용자 재현에서 확인한다.
+- stage/commit 대상: `lib/home_page_manager.dart`의 모든 자동개행 키워드 높이/최대 행 높이/최소 inset 및 v18 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8

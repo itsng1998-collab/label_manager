@@ -131,6 +131,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
 const bool itemElementLayoutDebugEnabled = true;
+const double itemKeywordMinimumRendererVerticalPadding = 4.0;
 const double itemElementMaximumTargetVerticalPadding = 6.0;
 
 @visibleForTesting
@@ -9135,6 +9136,7 @@ fs.FortuneSheet _replaceSheetKeywords(
   final insertedImages = <fs.FortuneImage>[];
   final nextRowHeights = <int, double>{...sheet.rowHeights};
   final nextCustomHeight = <int, double>{...sheet.customHeight};
+  final measuredKeywordRows = <int>{};
   for (final entry in sheet.cells.entries) {
     final sourceText = entry.value.renderedText;
     final hasKeyword = sourceText.contains('#');
@@ -9179,6 +9181,10 @@ fs.FortuneSheet _replaceSheetKeywords(
     final containsElementKeyword = entry.value.renderedText.contains(
       '#ELEMENT',
     );
+    final replacedKeywords = [
+      for (final keyword in replacements.keys)
+        if (sourceText.contains(keyword)) keyword,
+    ];
     final nextCell = _replaceCellKeywords(
       entry.value,
       replacements,
@@ -9197,8 +9203,16 @@ fs.FortuneSheet _replaceSheetKeywords(
         },
       );
     }
-    if (elementCell != null && containsElementKeyword) {
+    final shouldMeasureKeywordLayout =
+        replacedKeywords.isNotEmpty &&
+        sourceText != nextCell.renderedText &&
+        nextCell.renderedText.isNotEmpty &&
+        nextCell.normalizedTextWrap == '2';
+    if (shouldMeasureKeywordLayout) {
       final layoutCell = nextCell;
+      final layoutSourceCell = containsElementKeyword && elementCell != null
+          ? elementCell
+          : nextCell;
       final cellRect = _itemCellRect(sheet, entry.key, cell: entry.value);
       final renderedTextLayout = _itemRenderedCellTextLayout(
         sheet,
@@ -9211,7 +9225,9 @@ fs.FortuneSheet _replaceSheetKeywords(
           sheet.rowHeights[entry.key.row] ??
           sheet.defaultRowHeight ??
           19;
-      final templateCell = _itemElementCompactCellForOutput(entry.value);
+        final templateCell = containsElementKeyword && elementCell != null
+          ? _itemElementCompactCellForOutput(entry.value)
+          : entry.value;
       final templateMeasurement = _itemPreviewTextMeasurement(
         templateCell,
         textContentWidth,
@@ -9221,9 +9237,12 @@ fs.FortuneSheet _replaceSheetKeywords(
         0.0,
         previousRowHeight - (templateMeasurement?.textHeight ?? 0),
       );
-      final targetVerticalPadding = min(
-        itemElementMaximumTargetVerticalPadding,
-        templateRemainingHeight,
+      final targetVerticalPadding = max(
+        itemKeywordMinimumRendererVerticalPadding,
+        min(
+          itemElementMaximumTargetVerticalPadding,
+          templateRemainingHeight,
+        ),
       );
       final (targetTopPadding, targetBottomPadding) = switch (
         entry.value.normalizedVerticalAlign
@@ -9322,6 +9341,8 @@ fs.FortuneSheet _replaceSheetKeywords(
         fields: {
           'sheet': sheet.name,
           'cell': '${entry.key.row},${entry.key.column}',
+          'keywords': replacedKeywords.join(','),
+          'containsElementKeyword': containsElementKeyword,
           'mergeRectLeft': cellRect.left,
           'mergeRectTop': cellRect.top,
           'mergeRectWidth': cellRect.width,
@@ -9355,6 +9376,8 @@ fs.FortuneSheet _replaceSheetKeywords(
         fields: {
           'sheet': sheet.name,
           'cell': '${entry.key.row},${entry.key.column}',
+          'keywords': replacedKeywords.join(','),
+          'containsElementKeyword': containsElementKeyword,
           'resultTextHeight': measurement?.textHeight,
           'resultLineCount': measurement?.lineCount,
           'resultLastLineDescent': measurement?.lastLineDescent,
@@ -9446,8 +9469,12 @@ fs.FortuneSheet _replaceSheetKeywords(
         fields: {
           'sheet': sheet.name,
           'cell': '${entry.key.row},${entry.key.column}',
-          'sourceText': _itemElementLayoutLogText(elementCell.renderedText),
-          'sourceRuns': _itemElementLayoutRuns(elementCell),
+          'keywords': replacedKeywords.join(','),
+          'containsElementKeyword': containsElementKeyword,
+          'sourceText': _itemElementLayoutLogText(
+            layoutSourceCell.renderedText,
+          ),
+          'sourceRuns': _itemElementLayoutRuns(layoutSourceCell),
           'targetCellStyle': _itemElementCellStyleLog(entry.value),
           'templateText': _itemElementLayoutLogText(sourceText),
           'resultText': _itemElementLayoutLogText(nextCell.renderedText),
@@ -9483,14 +9510,16 @@ fs.FortuneSheet _replaceSheetKeywords(
           'templateRemainingHeight': templateRemainingHeight,
           'maximumTargetVerticalPadding':
               itemElementMaximumTargetVerticalPadding,
+            'minimumRendererVerticalPadding':
+              itemKeywordMinimumRendererVerticalPadding,
           'targetVerticalPadding': targetVerticalPadding,
           'targetTopPadding': targetTopPadding,
           'targetBottomPadding': targetBottomPadding,
           'sourceBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
-            elementCell.renderedText,
+            layoutSourceCell.renderedText,
           ),
           'sourceControlCharacters': _itemElementControlCharactersLog(
-            elementCell.renderedText,
+            layoutSourceCell.renderedText,
           ),
           'resultBoundaryWhitespace': _itemElementBoundaryWhitespaceLog(
             nextCell.renderedText,
@@ -9580,7 +9609,13 @@ fs.FortuneSheet _replaceSheetKeywords(
         },
       );
       if (measurement != null) {
-        nextRowHeights[entry.key.row] = measurement.rowHeight;
+        final rowHeight = measuredKeywordRows.add(entry.key.row)
+            ? measurement.rowHeight
+            : max(
+                nextRowHeights[entry.key.row] ?? measurement.rowHeight,
+                measurement.rowHeight,
+              );
+        nextRowHeights[entry.key.row] = rowHeight;
         nextCustomHeight[entry.key.row] = 1;
         _itemElementLayoutLog(
           'rowHeightApplied',
@@ -9589,7 +9624,8 @@ fs.FortuneSheet _replaceSheetKeywords(
             'sheet': sheet.name,
             'cell': '${entry.key.row},${entry.key.column}',
             'row': entry.key.row,
-            'rowHeight': measurement.rowHeight,
+            'measuredRowHeight': measurement.rowHeight,
+            'appliedRowHeight': rowHeight,
           },
         );
       }

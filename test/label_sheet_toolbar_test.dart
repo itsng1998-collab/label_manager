@@ -1357,6 +1357,220 @@ void main() {
     );
   });
 
+  test('all wrapped text keywords use the tallest row height', () {
+    const originalRowHeight = 16.0;
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 100, 1: 100},
+            rowHeights: const {0: originalRowHeight},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ITEMNAME',
+                textWrap: '2',
+                fontSize: 10,
+              ),
+              const FortuneCellCoord(0, 1): const FortuneCell(
+                value: '#CONTENTAMT',
+                textWrap: '2',
+                fontSize: 10,
+              ),
+            },
+          ),
+        ],
+      ),
+      const {
+        '#ITEMNAME': '첫째 줄\n둘째 줄',
+        '#CONTENTAMT': '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄',
+      },
+    ).sheets.single;
+
+    TextPainter painter(String text) => TextPainter(
+      text: TextSpan(text: text, style: const TextStyle(fontSize: 10)),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 97);
+    final templateHeight = painter('#CONTENTAMT').height;
+    final remainingHeight = originalRowHeight - templateHeight;
+    final templatePadding = remainingHeight < 6.0 ? remainingHeight : 6.0;
+    final targetPadding = templatePadding < 4.0 ? 4.0 : templatePadding;
+    final tallestTextHeight = painter('첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄').height;
+
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
+      '첫째 줄\n둘째 줄',
+    );
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 1)]!.renderedText,
+      '첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄',
+    );
+    expect(
+      sheet.rowHeights[0],
+      closeTo(tallestTextHeight + targetPadding, 0.001),
+    );
+    expect(sheet.customHeight[0], 1);
+  });
+
+  test('shared output preview expands wrapped generic keyword rows', () {
+    final encoded = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'common_01',
+            name: '출력 시트',
+            columnWidths: const {0: 100},
+            rowHeights: const {0: 16},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ITEMNAME',
+                textWrap: '2',
+                fontSize: 10,
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+    final preview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(encoded),
+      item: _testItemOfMarket(itemName: '첫째 줄\n둘째 줄\n셋째 줄'),
+      elementText: '',
+    );
+
+    expect(preview.workbook, isNotNull);
+    final sheet = preview.workbook!.sheets.single;
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
+      '첫째 줄\n둘째 줄\n셋째 줄',
+    );
+    expect(sheet.rowHeights[0], greaterThan(16));
+    expect(sheet.customHeight[0], 1);
+  });
+
+  test('generic keyword replacement preserves target cell and run styles', () {
+    const keywordRun = FortuneInlineTextRun(
+      text: '#ITEMNAME',
+      foreground: Color(0xff123456),
+      rawForeground: '#123456',
+      hasRawForeground: true,
+      bold: true,
+      rawBold: 1,
+      hasRawBold: true,
+      italic: true,
+      rawItalic: 1,
+      hasRawItalic: true,
+      underline: true,
+      rawUnderline: 1,
+      hasRawUnderline: true,
+      fontSize: 11,
+      rawFontSize: 11,
+      hasRawFontSize: true,
+      fontFamily: 'Batang',
+      rawFontFamily: 'Batang',
+      hasRawFontFamily: true,
+      wrap: true,
+      rawWrap: 1,
+      hasRawWrap: true,
+      extraFields: {'letterSpacing': 0.5, 'runKey': 'keyword'},
+    );
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 180},
+            rowHeights: const {0: 20},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '제품: #ITEMNAME',
+                foreground: Color(0xff654321),
+                rawForeground: '#654321',
+                hasRawForeground: true,
+                fontSize: 9,
+                rawFontSize: 9,
+                hasRawFontSize: true,
+                fontFamily: 'Arial',
+                rawFontFamily: 'Arial',
+                hasRawFontFamily: true,
+                horizontalAlign: '2',
+                rawHorizontalAlign: '2',
+                hasRawHorizontalAlign: true,
+                verticalAlign: '1',
+                rawVerticalAlign: '1',
+                hasRawVerticalAlign: true,
+                textWrap: '2',
+                rawTextWrap: '2',
+                hasRawTextWrap: true,
+                textRotation: '15',
+                rawTextRotation: 15,
+                hasRawTextRotation: true,
+                inlineRuns: [
+                  FortuneInlineTextRun(text: '제품: ', fontSize: 9),
+                  keywordRun,
+                ],
+                extraFields: {'lineHeight': 1.1, 'cellKey': 'target'},
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#ITEMNAME': '스타일 유지 제품'},
+    ).sheets.single;
+
+    final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
+    final resultRun = cell.inlineRuns!.singleWhere(
+      (run) => run.text == '스타일 유지 제품',
+    );
+    expect(cell.merge, isNull);
+    expect(cell.foreground, const Color(0xff654321));
+    expect(cell.rawForeground, '#654321');
+    expect(cell.hasRawForeground, isTrue);
+    expect(cell.fontSize, 9);
+    expect(cell.rawFontSize, 9);
+    expect(cell.hasRawFontSize, isTrue);
+    expect(cell.fontFamily, 'Arial');
+    expect(cell.rawFontFamily, 'Arial');
+    expect(cell.hasRawFontFamily, isTrue);
+    expect(cell.horizontalAlign, '2');
+    expect(cell.rawHorizontalAlign, '2');
+    expect(cell.hasRawHorizontalAlign, isTrue);
+    expect(cell.verticalAlign, '1');
+    expect(cell.rawVerticalAlign, '1');
+    expect(cell.hasRawVerticalAlign, isTrue);
+    expect(cell.textWrap, '2');
+    expect(cell.rawTextWrap, '2');
+    expect(cell.hasRawTextWrap, isTrue);
+    expect(cell.textRotation, '15');
+    expect(cell.rawTextRotation, 15);
+    expect(cell.hasRawTextRotation, isTrue);
+    expect(cell.extraFields, {'lineHeight': 1.1, 'cellKey': 'target'});
+    expect(resultRun.foreground, keywordRun.foreground);
+    expect(resultRun.rawForeground, keywordRun.rawForeground);
+    expect(resultRun.hasRawForeground, keywordRun.hasRawForeground);
+    expect(resultRun.bold, keywordRun.bold);
+    expect(resultRun.rawBold, keywordRun.rawBold);
+    expect(resultRun.hasRawBold, keywordRun.hasRawBold);
+    expect(resultRun.italic, keywordRun.italic);
+    expect(resultRun.rawItalic, keywordRun.rawItalic);
+    expect(resultRun.hasRawItalic, keywordRun.hasRawItalic);
+    expect(resultRun.underline, keywordRun.underline);
+    expect(resultRun.rawUnderline, keywordRun.rawUnderline);
+    expect(resultRun.hasRawUnderline, keywordRun.hasRawUnderline);
+    expect(resultRun.fontSize, keywordRun.fontSize);
+    expect(resultRun.rawFontSize, keywordRun.rawFontSize);
+    expect(resultRun.hasRawFontSize, keywordRun.hasRawFontSize);
+    expect(resultRun.fontFamily, keywordRun.fontFamily);
+    expect(resultRun.rawFontFamily, keywordRun.rawFontFamily);
+    expect(resultRun.hasRawFontFamily, keywordRun.hasRawFontFamily);
+    expect(resultRun.wrap, keywordRun.wrap);
+    expect(resultRun.rawWrap, keywordRun.rawWrap);
+    expect(resultRun.hasRawWrap, keywordRun.hasRawWrap);
+    expect(resultRun.extraFields, keywordRun.extraFields);
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [
