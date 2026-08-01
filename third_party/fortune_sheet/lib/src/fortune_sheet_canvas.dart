@@ -17398,7 +17398,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
     final dy = textOffsetY == null || !textOffsetY.isFinite
         ? _screenshotTextTop(cell, rect, textPainter.height)
-        : rect.top + textOffsetY;
+        : rect.top +
+              fortuneClampedCellTextOffsetY(
+                textOffsetY,
+                rect.height,
+                textPainter.height,
+              );
     final rotation = cell.normalizedTextRotation;
     canvas.save();
     canvas.clipRect(rect, doAntiAlias: false);

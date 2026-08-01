@@ -43,6 +43,22 @@
 - Debug 실행 검증 완료: `flutter build windows --debug` 성공 후 PID 18352로 실행했다. 최신 `.tmp/log/app_2026-08-01_18-53-16.log`에서 `DebugLogger version: 1.0.10`을 확인했다.
 - 사용자 재현 확인 기준: 세 품목 선택 후 최신 로그의 `item-manager-debug-v11`, `sourceBoundaryWhitespace/resultBoundaryWhitespace`, `templateLineTexts/resultLineTexts`, `targetSelectionBottomPadding`, `selectionBottomBeforeCorrection`, `selectionBottomCorrection`, `selectionBottomPadding`을 비교한다. 보정 후 `selectionBottomPadding`은 대상 값과 같아야 한다.
 
+## 진행 중: `#ELEMENT` line-box 하단 최소 여백 고정 v1.0.11
+- v1.0.10 재현 확인: 세 품목 모두 공백·개행이 없고 마지막 문자는 `)`이다. 대상 selection 하단은 `1.761659px`, 결과는 보정 전 `2.338759px`, 저장 offset은 약 `2.684244px`로 계산됐지만 `유자마왕파이`의 시각적 하단 여백은 그대로다.
+- 원인 확정: `TextPainter.getBoxesForSelection(BoxHeightStyle.tight)`는 실제 glyph bitmap 잉크 경계가 아니라 글꼴 selection box다. 동기 workbook materialization에서 실제 검은 픽셀 하단을 판단할 수 없으며 v11의 rendered padding 로그도 저장 offset이 아닌 verticalAlign 경로를 계산해 실제 배치와 달랐다.
+- 수정 예정: 결과 line-box 하단 여백을 최소값으로 고정해 `cellTextOffsetY=rowHeight-textHeight-minimumBottomPadding`으로 저장한다. 같은 materialized workbook을 사용하는 품목관리·라벨출력·저울출력 미리보기와 PNG/PDF/RAW/EZPL 출력에 함께 적용한다.
+- 로그 예정: item debug schema v12에 저장 offset 적용 후 논리/화면 line-box top/bottom/padding, 마지막 줄 text/range/code unit, 기존 selection 값은 진단용으로 분리 기록한다.
+- 버전 예정: `1.0.10` → `1.0.11` PATCH 증가.
+- 품목 출력 편집 완료: 결과 `cellTextOffsetY`를 `rowHeight-textHeight`로 저장해 materialized line-box 하단 여백을 0px로 고정한다.
+- FortuneSheet 편집 완료: 화면 painter와 PNG/PDF/EZPL capture renderer 모두 저장 offset을 실제 `textRect.height-textHeight` 범위로 clamp한다. text rect 내부 하단은 0px, 셀 경계에는 공용 deflate inset 2px만 남고 과대 offset에 의한 clip은 방지한다.
+- v12 로그 편집 완료: capture/화면별 text rect 높이, 요청·clamp 후 offset, text rect 내부 하단, 셀 경계 하단, 마지막 줄 range/text/첫·끝 code unit을 기록한다.
+- 집중 검증 완료: 정렬별 동일 하단 offset, 200% zoom clamp, 혼합 8pt/5pt line-box 하단 0px, 실제 PNG 강제 offset 테스트 4개 통과. 변경 파일 diagnostics 0건.
+- 버전 적용 완료: 앱 `1.0.11`, item debug schema `item-manager-debug-v12`.
+- 전체 적용 경로 재확인: 품목관리·라벨출력·저울출력은 같은 materialized workbook을 사용한다. RAW/EZPL hybrid의 native descriptor는 바코드만 분리하고 셀 텍스트는 `captureHybridPlanAsPng()` raster를 사용하므로 capture clamp가 실제 출력에도 적용된다.
+- 전체 관련 회귀 완료: `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart` 총 181개 통과.
+- 최종 정적 검증 완료: 변경 파일 diagnostics 0건, analyzer 새 오류 없음. FortuneSheet canvas 기존 미사용 코드 warning 10건만 유지하며 `--no-fatal-warnings` 통과, `git diff --check` 통과.
+- stage 대상: `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일/hunk는 제외한다.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
