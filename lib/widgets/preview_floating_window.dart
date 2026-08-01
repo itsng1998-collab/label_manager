@@ -122,14 +122,12 @@ class PreviewFloatingWindow {
                   onClose: _handleCloseRequested,
                   headerAction: headerAction,
                 );
-                if (hideTarget != null && hideProgress > 0) {
-                  card = _buildHideTransition(
-                    source: rect,
-                    target: hideTarget,
-                    progress: hideProgress,
-                    child: card,
-                  );
-                }
+                card = _buildHideTransition(
+                  source: rect,
+                  target: hideTarget ?? rect,
+                  progress: hideTarget == null ? 0 : hideProgress,
+                  child: card,
+                );
                 return Positioned(
                   left: rect.left,
                   top: rect.top,

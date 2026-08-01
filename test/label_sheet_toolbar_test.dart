@@ -2407,7 +2407,7 @@ void main() {
     expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsOneWidget);
   });
 
-  testWidgets('portal floating preview keeps child tab state while hidden', (
+  testWidgets('portal floating preview restores tab and rect after close', (
     tester,
   ) async {
     final window = PreviewFloatingWindow(usePortalHost: true);
@@ -2442,18 +2442,29 @@ void main() {
     );
     window.show(hostContext, child: preview());
     await tester.pumpAndSettle();
+    window.setSize(hostContext, const Size(520, 360));
+    window.alignBottomRightTo(hostContext, const Offset(760, 560));
+    await tester.pump();
+    final savedRect = window.rect;
 
     await tester.tap(find.text('둘째 미리보기'));
     await tester.pumpAndSettle();
     expect(find.text('둘째 내용'), findsOneWidget);
 
-    window.hide();
-    await tester.pump();
+    final hideFuture = window.hideToRect(
+      const ui.Rect.fromLTWH(20, 20, 2, 2),
+    );
+    for (var step = 0; step < 12; step += 1) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await hideFuture;
     expect(find.text('둘째 내용'), findsNothing);
+    expect(window.rect, savedRect);
 
     window.show(hostContext, child: preview());
     await tester.pumpAndSettle();
     expect(find.text('둘째 내용'), findsOneWidget);
+    expect(window.rect, savedRect);
   });
 
   testWidgets('item preview blocks output tab while draft context is locked', (
@@ -7215,7 +7226,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 90));
 
-    expect(layoutSizes, isNotEmpty);
+    final childSize = tester.getSize(
+      find.byKey(const ValueKey('floating-child')),
+    );
+    expect(childSize.width, greaterThanOrEqualTo(80));
+    expect(childSize.height, greaterThanOrEqualTo(60));
     expect(
       layoutSizes.every((size) => size.width >= 80 && size.height >= 60),
       isTrue,
