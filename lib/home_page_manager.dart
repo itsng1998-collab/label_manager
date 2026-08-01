@@ -9200,6 +9200,13 @@ fs.FortuneSheet _replaceSheetKeywords(
     if (elementCell != null && containsElementKeyword) {
       final layoutCell = nextCell;
       final cellRect = _itemCellRect(sheet, entry.key, cell: entry.value);
+      final renderedTextLayout = _itemRenderedCellTextLayout(
+        sheet,
+        entry.key,
+        entry.value,
+        settings,
+      );
+      final textContentWidth = renderedTextLayout.contentWidth;
       final previousRowHeight =
           sheet.rowHeights[entry.key.row] ??
           sheet.defaultRowHeight ??
@@ -9207,7 +9214,7 @@ fs.FortuneSheet _replaceSheetKeywords(
       final templateCell = _itemElementCompactCellForOutput(entry.value);
       final templateMeasurement = _itemPreviewTextMeasurement(
         templateCell,
-        cellRect.width,
+        textContentWidth,
         settings: settings,
       );
       final templateRemainingHeight = max(
@@ -9230,7 +9237,7 @@ fs.FortuneSheet _replaceSheetKeywords(
       };
       final measurement = _itemPreviewRowHeightMeasurement(
         layoutCell,
-        cellRect.width,
+        textContentWidth,
         settings: settings,
         verticalPadding: targetVerticalPadding,
       );
@@ -9318,6 +9325,11 @@ fs.FortuneSheet _replaceSheetKeywords(
           'mergeRectLeft': cellRect.left,
           'mergeRectTop': cellRect.top,
           'mergeRectWidth': cellRect.width,
+            'renderedMergeWidth': renderedTextLayout.renderedWidth,
+            'renderedMergeLogicalWidth':
+              renderedTextLayout.renderedLogicalWidth,
+          'renderedTextContentWidth': textContentWidth,
+          'textContentWidthCorrection': textContentWidth - cellRect.width,
           'mergeRectHeight': cellRect.height,
           'sheetZoomRatio': sheet.zoomRatio,
           'targetVerticalAlign': entry.value.normalizedVerticalAlign,
@@ -9448,6 +9460,11 @@ fs.FortuneSheet _replaceSheetKeywords(
           'mergeRows': entry.value.merge?.rowSpan ?? 1,
           'mergeColumns': entry.value.merge?.columnSpan ?? 1,
           'columnWidth': cellRect.width,
+            'renderedMergeWidth': renderedTextLayout.renderedWidth,
+            'renderedMergeLogicalWidth':
+              renderedTextLayout.renderedLogicalWidth,
+          'renderedTextContentWidth': textContentWidth,
+          'textContentWidthCorrection': textContentWidth - cellRect.width,
           'textWrap': nextCell.normalizedTextWrap,
           'fontSize': nextCell.fontSize,
           'fontFamily': nextCell.fontFamily,
@@ -9719,6 +9736,44 @@ Rect _itemCellRect(
     ),
     width,
     height,
+  );
+}
+
+({
+  double renderedWidth,
+  double renderedLogicalWidth,
+  double contentWidth,
+})
+_itemRenderedCellTextLayout(
+  fs.FortuneSheet sheet,
+  fs.FortuneCellCoord coord,
+  fs.FortuneCell cell,
+  fs.FortuneSettings settings,
+) {
+  final zoomRatio = sheet.zoomRatio.isFinite && sheet.zoomRatio > 0
+      ? sheet.zoomRatio
+      : 1.0;
+  final metrics = sheet.metrics(settings);
+  final columnSpan = max(1, cell.merge?.columnSpan ?? 1);
+  final endColumn = min(
+    metrics.visibleDataColumns.length - 1,
+    coord.column + columnSpan - 1,
+  );
+  final renderedLeft = coord.column <= 0
+      ? 0.0
+      : metrics.visibleDataColumns[coord.column - 1];
+  final renderedWidth = endColumn < coord.column
+      ? 0.0
+      : metrics.visibleDataColumns[endColumn] - renderedLeft;
+  final renderedLogicalWidth = renderedWidth / zoomRatio;
+  const rendererHorizontalInset = 4.0;
+  return (
+    renderedWidth: renderedWidth,
+    renderedLogicalWidth: renderedLogicalWidth,
+    contentWidth: max(
+      1.0,
+      (renderedWidth - rendererHorizontalInset) / zoomRatio,
+    ),
   );
 }
 

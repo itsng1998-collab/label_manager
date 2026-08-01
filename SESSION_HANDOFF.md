@@ -136,6 +136,23 @@
 - 구현 커밋: `ead58cd 주원료 셀 원본 정렬 복원`.
 - 다음 사용자 재현 확인 기준: v16 `verticalAlignPreserved=true`, `targetCellStyle`과 `resultCellStyle`, `cellStyleDifferences`, source/result run raw 스타일, 화면/capture 여백을 함께 확인한다.
 
+## 진행 중: 병합 셀 자동개행 행 높이 동기화 v1.0.16
+- v16 사용자 재현: 짧은 품목은 측정/화면 모두 2줄이지만 긴 `유자마왕파이`는 로그 측정 5줄, 첨부 화면 실제 4줄이다. 행 높이는 5줄 기준 `28+6=34`로 계산되어 한 줄 높이 5px만큼 과대하다.
+- 원인 확정: `_itemCellRect`는 12열 병합 폭을 순수 열 너비 합계로 계산하지만 FortuneSheet renderer는 각 열마다 `((width + 1) * zoom).round()`한 경계를 사용한 뒤 text rect를 2px deflate한다. 병합 열 수만큼 누적된 폭 차이가 자동개행 줄 수를 바꾼다.
+- `lib/home_page_manager.dart` 편집 완료: FortuneSheet 공용 `sheet.metrics(settings).visibleDataColumns` 경계로 병합 셀의 실제 rendered/content 폭을 구하고 template/result TextPainter 행 높이 측정에 사용한다.
+- v17 로그 보강 완료: `mergeRectWidth`, `renderedMergeWidth`, `renderedMergeLogicalWidth`, `renderedTextContentWidth`, `textContentWidthCorrection`, 측정 줄 수를 함께 기록한다.
+- `test/label_sheet_toolbar_test.dart` 테스트 추가: 설치 글꼴과 무관하게 raw 폭과 renderer 폭의 자동개행 경계 문자열을 찾고 최종 행 높이가 renderer 줄 수 기준인지 검증한다.
+- 버전 편집 완료: `pubspec.yaml` 1.0.16, item debug schema v17.
+- 집중 검증 완료: 병합 renderer content 폭 테스트 통과. fixture에서 raw 폭 2줄, renderer 폭 1줄, 최종 행 높이 1줄 기준 적용 확인.
+- 전체 테스트 완료: 정렬/혼합 글꼴/병합 폭 집중 3건, 앱 전체 174건, FortuneSheet capture 8건 통과. 변경 파일 diagnostics 0건.
+- 정적 검증 완료: 앱/`third_party/fortune_sheet` `flutter analyze`는 기존 `fortune_sheet_canvas.dart` warning 10건만 유지하며 새 오류가 없다. `git diff --check` 통과.
+- Debug 검증 예정: v1.0.16을 빌드/실행하고 실제 `유자마왕파이` v17 로그에서 `resultLineCount=4`, `resultRowHeight=29` 및 폭 보정값을 확인한다.
+- Debug 첫 빌드 실패: 실행 중인 v1.0.15 PID 11752가 `label_manager.exe`를 잠가 linker `LNK1168` 발생. PID 종료 후 동일 명령을 재실행한다.
+- Debug 재검증 완료: PID 11752 종료 후 `flutter build windows --debug` 성공. v1.0.16 PID 15520 실행, `.tmp/log/app_2026-08-01_22-15-53.log`에서 `DebugLogger version: 1.0.16` 확인.
+- 품목 미리보기 이벤트는 아직 발생하지 않아 실제 v17 품목 행은 미확인이다. 다음 사용자 재현에서 `renderedTextContentWidth`, `resultLineCount`, `resultRowHeight`를 확인한다.
+- stage/commit 대상: `lib/home_page_manager.dart`의 공용 metrics 폭 측정 및 v17 로그 hunk, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8

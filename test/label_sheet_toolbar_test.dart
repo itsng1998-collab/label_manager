@@ -1235,6 +1235,128 @@ void main() {
     expect(cell.hasRawVerticalAlign, isFalse);
   });
 
+  test('item output element measures merged renderer content width', () {
+    const columnWidth = 23.0595238095238;
+    const rawMergeWidth = columnWidth * 12;
+    const rendererContentWidth = (48 * 12 - 4) / 2;
+    TextPainter candidatePainter(String text, double width) => TextPainter(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 8, height: 1.0),
+        children: [
+          const TextSpan(text: '원부재료 | ', style: TextStyle(fontSize: 8)),
+          TextSpan(
+            text: text,
+            style: const TextStyle(fontSize: 5, fontFamily: 'Arial'),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: width);
+
+    String? elementText;
+    for (var length = 1; length <= 2000; length += 1) {
+      final candidate = List.filled(length, 'a').join();
+      if (candidatePainter(
+            candidate,
+            rawMergeWidth,
+          ).computeLineMetrics().length >
+          candidatePainter(
+            candidate,
+            rendererContentWidth,
+          ).computeLineMetrics().length) {
+        elementText = candidate;
+        break;
+      }
+    }
+    expect(elementText, isNotNull);
+    final boundaryText = elementText!;
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            zoomRatio: 2,
+            columnWidths: const {
+              0: columnWidth,
+              1: columnWidth,
+              2: columnWidth,
+              3: columnWidth,
+              4: columnWidth,
+              5: columnWidth,
+              6: columnWidth,
+              7: columnWidth,
+              8: columnWidth,
+              9: columnWidth,
+              10: columnWidth,
+              11: columnWidth,
+            },
+            rowHeights: const {0: 17.214285714285715},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '원부재료 | #ELEMENT',
+                textWrap: '2',
+                fontSize: 8,
+                verticalAlign: '0',
+                inlineRuns: [
+                  FortuneInlineTextRun(text: '원부재료 | ', fontSize: 8),
+                  FortuneInlineTextRun(text: '#ELEMENT', fontSize: 8),
+                ],
+                merge: FortuneCellMerge(
+                  row: 0,
+                  column: 0,
+                  rowSpan: 1,
+                  columnSpan: 12,
+                ),
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#ELEMENT': ''},
+      elementCell: FortuneCell(
+        value: boundaryText,
+        inlineRuns: [
+          FortuneInlineTextRun(
+            text: boundaryText,
+            fontSize: 5,
+            fontFamily: 'Arial',
+          ),
+        ],
+      ),
+    ).sheets.single;
+
+    final cell = sheet.cells[const FortuneCellCoord(0, 0)]!;
+    TextPainter painter(double width) => TextPainter(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 8, height: 1.0),
+        children: [
+          for (final run in cell.inlineRuns!)
+            TextSpan(
+              text: run.text,
+              style: TextStyle(
+                fontSize: run.fontSize ?? 8,
+                fontFamily: run.fontFamily,
+                height: 1.0,
+              ),
+            ),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: width);
+
+    final rawWidthPainter = painter(rawMergeWidth);
+    final rendererWidthPainter = painter(rendererContentWidth);
+    expect(
+      rawWidthPainter.computeLineMetrics().length,
+      greaterThan(rendererWidthPainter.computeLineMetrics().length),
+    );
+    expect(
+      sheet.rowHeights[0],
+      closeTo(rendererWidthPainter.height + 6, 0.001),
+    );
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [
