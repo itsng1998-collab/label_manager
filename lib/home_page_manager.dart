@@ -10389,24 +10389,28 @@ fs.FortuneCell _trimOverflowingWhitespaceBeforeTrailingKeywordGroup(
   if (matchingKeywords.isEmpty) return resultCell;
 
   final keywordPattern = matchingKeywords.map(RegExp.escape).join('|');
-  final trailingGroup = RegExp(
-    '(?:$keywordPattern)(?:[ \t]*(?:$keywordPattern))*[ \t]*\$',
-  ).firstMatch(text);
-  if (trailingGroup == null || trailingGroup.start == 0) return resultCell;
-
-  var whitespaceStart = trailingGroup.start;
-  while (whitespaceStart > 0) {
-    final codeUnit = text.codeUnitAt(whitespaceStart - 1);
-    if (codeUnit != 0x20 && codeUnit != 0x09) break;
-    whitespaceStart -= 1;
+  final keywordMatches = RegExp(keywordPattern).allMatches(text).toList();
+  final trimmedEnd = text.replaceFirst(RegExp(r'[ \t]+$'), '').length;
+  if (keywordMatches.isEmpty || keywordMatches.last.end != trimmedEnd) {
+    return resultCell;
   }
-  if (whitespaceStart == trailingGroup.start ||
+
+  final alignmentWhitespace = RegExp(r'[ \t]+')
+      .allMatches(text.substring(0, keywordMatches.first.start))
+      .fold<RegExpMatch?>(null, (longest, match) {
+        if (longest == null || match.end - match.start >= longest.end - longest.start) {
+          return match;
+        }
+        return longest;
+      });
+  if (alignmentWhitespace == null ||
       _itemPreviewTextWidth(resultCell, settings) <= contentWidth) {
     return resultCell;
   }
 
+  final whitespaceStart = alignmentWhitespace.start;
   var removeEnd = whitespaceStart;
-  while (removeEnd < trailingGroup.start) {
+  while (removeEnd < alignmentWhitespace.end) {
     removeEnd += 1;
     final candidate = _removeItemCellTextRange(
       resultCell,
@@ -10420,7 +10424,7 @@ fs.FortuneCell _trimOverflowingWhitespaceBeforeTrailingKeywordGroup(
   return _removeItemCellTextRange(
     resultCell,
     whitespaceStart,
-    trailingGroup.start,
+    alignmentWhitespace.end,
   );
 }
 

@@ -1691,6 +1691,49 @@ void main() {
     expect(resultKeepingRun.hasRawItalic, keepingRun.hasRawItalic);
   });
 
+  test('trailing keyword group allows fixed text between dynamic columns', () {
+    const leadingSpaces =
+        '                                                       ';
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            columnWidths: const {0: 430},
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value:
+                    '영양정보$leadingSpaces총내용량#N16 #N17#N18당 #N19',
+                textWrap: '2',
+                fontSize: 8,
+              ),
+            },
+          ),
+        ],
+      ),
+      const {
+        '#N16': '9900g',
+        '#N17': '55x180',
+        '#N18': '55g',
+        '#N19': '168.83kcal',
+      },
+    ).sheets.single;
+
+    final resultText =
+        sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText;
+    expect(resultText, contains('총내용량9900g 55x18055g당 168.83kcal'));
+    expect(resultText, startsWith('영양정보 '));
+    expect(resultText, isNot(contains('#N')));
+    final contentWidth =
+        sheet.metrics(const FortuneSettings()).visibleDataColumns.first - 4;
+    final painter = TextPainter(
+      text: TextSpan(text: resultText, style: const TextStyle(fontSize: 8)),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: double.infinity);
+    expect(painter.width, lessThanOrEqualTo(contentWidth));
+  });
+
   test('output preview uses the same saved item element workbook', () {
     final savedElementWorkbook = FortuneWorkbook(
       sheets: [

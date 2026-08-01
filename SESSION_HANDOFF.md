@@ -221,6 +221,23 @@
 - 교정 커밋: `7672ac6 끝부분 키워드 공백 최소 조정`.
 - 최종 계약: 끝부분 단일/복수 키워드 치환 후 전체 rich text 폭이 renderer content 폭을 넘는 경우에만 첫 키워드 앞 공백을 최소 개수만 제거한다. 들어맞는 범위의 공백은 유지해 원래 끝 배치를 최대한 보존한다.
 
+## 진행 중: 고정 문자가 섞인 끝부분 복수 키워드 clip 방지 v1.0.20
+- 사용자 재현: 라벨 영양정보 셀 `총내용량#N16 #N17#N18당 #N19`에서 테이블의 단위 열량 값이 미리보기에 보이지 않는다.
+- v20 로그 원인 확정: replacement에는 `#N19: 168.83kcal`가 있고 `cellAfter`에도 값이 존재한다. 기존 최소 공백 helper가 키워드 사이 공백만 허용해 `당`이 섞인 그룹을 인식하지 못했고 오른쪽 clip으로 값이 보이지 않았다.
+- 일반화 수정 완료: 마지막 치환 키워드가 셀 끝에 있으면 앞선 치환 키워드 사이의 고정 문자열을 허용해 첫 공백 경계부터 끝까지를 trailing 동적 구간으로 판단한다. `#N19` 또는 영양 컬럼에 종속된 예외 처리는 없다.
+- 값 치환 후 전체 rich text 폭을 renderer content 폭과 비교해 초과분만큼 앞 공백을 최소 삭제한다. 남길 수 있는 공백, 키워드 사이 고정 문자열, 셀/run 속성은 유지한다.
+- 버전 적용 완료: 앱 `1.0.20`, item debug schema `item-manager-debug-v21`.
+- 1차 테스트에서 발견/수정: 큰 정렬 공백은 `#N16` 바로 앞이 아니라 `총내용량` 앞에 있어 다음 키워드 앞 한 칸을 고르면 source/result 길이 차이로 `9900g`까지 훼손될 수 있었다. 첫 치환 키워드 이전의 가장 긴 space/tab run을 정렬 공백으로 선택하도록 수정했다.
+- 테스트 완료: 영양정보형 `총내용량#N16 #N17#N18당 #N19`가 `총내용량9900g 55x18055g당 168.83kcal` 전체를 보존하고 renderer 폭 안에 들어오는지 검증한다.
+- 포맷/집중 검증 완료: 변경 Dart 3개 diagnostics 0건. 알레르기 단일/복수, 고정 문자열 포함 복수 동적 컬럼, 일반 keyword style, 공용 preview 테스트 5건 통과.
+- 전체 검증 예정: 앱 `test/label_sheet_toolbar_test.dart`와 FortuneSheet `fortune_print_capture_test.dart` 전체를 실행한다.
+- 전체 검증 완료: 앱 라벨 시트 180건, FortuneSheet 실제 capture 8건 통과. 변경 Dart 3개 직접 analyzer `No issues found`.
+- 적용 범위 재확인: 품목관리·라벨출력·저울출력 미리보기와 실제 PNG/PDF/RAW/EZPL 출력이 같은 materialized workbook 결과를 사용한다.
+- Debug 검증 예정: v1.0.19 PID 3028을 종료하고 `flutter build windows --debug` 후 v1.0.20을 실행한다.
+- Debug 검증 완료: 기존 PID 3028은 이미 종료된 상태였고 Windows Debug 빌드 성공. v1.0.20 PID 368 실행, `.tmp/log/app_2026-08-01_23-01-14.log`에서 `DebugLogger version: 1.0.20` 확인.
+- stage/commit 대상: `lib/home_page_manager.dart`의 고정 문자열 포함 trailing 동적 구간 일반화 hunk, `test/label_sheet_toolbar_test.dart`, `lib/features/item/item_manager_debug_log.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- stage 제외: 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`, `lib/home_page_manager.dart`의 `itemOutputPreviewMappingDebugEnabled=true` hunk.
+
 # 완료: 라벨 workbench 업무 정책 분리
 
 ## 완료: 라벨출력 PDF 하나의 파일 출력 v1.0.8
