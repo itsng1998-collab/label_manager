@@ -10,6 +10,8 @@
 - 검증 완료: `runTests(test/label_sheet_toolbar_test.dart, test/item_code_data_resolver_test.dart, test/label_print_pipeline_test.dart)` 결과 176개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` 결과 issue 없음.
 - Debug 번들 완료: 실행 중이던 이전 Debug 앱을 종료하고 `flutter build windows --debug` 성공. 최신 `kernel_blob.bin`에 이번 Dart 수정이 반영됐다.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전은 `1.0.1`이다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 남기고 대상 파일만 stage/commit한다.
+- 기능 커밋: `dcabec8 출력 미리보기 특수 품명 키 보호`.
+- 확인 방법: 최신 Debug 번들에서 품목관리의 문제 행을 선택하면 `#ITEMNAME`이 선택 품명으로 표시된다. 진단 로그는 현재 `itemOutputPreviewMappingDebugEnabled = true`이며, 확인 완료 후 `false`로 되돌린다.
 
 ## 완료: 품목 출력 미리보기 제품명 매핑 수정
 - 재현 로그 확인: `itemOutputPreviewMapping-3`에서 선택 행 `itemName=황치즈쿠키`는 정상이나, 템플릿 셀 `#ITEMNAME`은 빈 문자열로 치환됐다. `TColumn`의 `ITEMNAME` 일반 컬럼 entry가 앞서 넣은 예약 품명 값을 빈 컬럼값으로 덮어쓰는 것이 원인이다.
