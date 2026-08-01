@@ -1,4 +1,4 @@
-# 진행 중: `#ELEMENT` 200% 하단 여백 zoom 보정
+# 완료: `#ELEMENT` 200% 하단 여백 zoom 보정 v1.0.9
 - 최신 v1.0.8 로그/이미지: `유자마왕파이` 결과는 논리 좌표 기준 5줄 28px, 행 32.214px, 상·하 2.107px로 계산됐지만 200% 화면에서 하단 여백이 더 크게 보인다.
 - 원인 확정: 행 높이·글꼴은 zoom 배율을 적용하지만 저장된 `cellTextOffsetY`는 화면 px에 직접 더해졌다. 또한 화면 painter는 2px inset과 border/zoom 반올림을 적용하므로 논리 offset 강제값만으로 대상 셀의 최종 화면 여백을 정확히 재현할 수 없다.
 - FortuneSheet 편집 완료: 공용 cell text Y offset helper가 현재 text scale을 적용한다.
@@ -12,6 +12,15 @@
 - 최종 검증 완료: 변경 Dart 4개 analyzer issue 없음, `git diff --check` 통과, 집중 테스트 3개 재통과. 범위 밖 `lib/core/app_menu_controller.dart` LF→CRLF 경고만 유지한다.
 - stage 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
 - stage 검증 완료: 대상 6개 파일만 cached diff에 포함했다. `home_page_manager.dart`의 기존 사용자 토글 `itemOutputPreviewMappingDebugEnabled=true`는 worktree에 유지하고 index에서 제외했다.
+- 기능 커밋: `73bdf38 주원료 병합 셀 화면 여백 정렬 수정`.
+- 실행 검증 예정: `flutter build windows --debug` 후 v1.0.9 앱을 재실행하고 `DebugLogger version: 1.0.9`, `item-manager-debug-v10`, `resultTextOffsetMode=targetVerticalAlign`, 화면 top/bottom 값을 확인한다.
+- Debug 실행 1차 확인: 빌드 성공, PID 15332 실행, 최신 `.tmp/log/app_2026-08-01_18-14-26.log`에서 `DebugLogger version: 1.0.9` 확인. 품목 선택 전이라 v10 layout event는 아직 없다.
+- 전체 출력 적용 추가 검증 진행 중: 품목관리·라벨출력·저울출력이 같은 `_ItemOutputPreviewTab` workbook builder를 사용하고 라벨/저울 PDF 및 RAW/EZPL이 각각 같은 capture controller의 `capture()`/`captureHybridEzpl()`을 사용하는 것을 확인했다.
+- capture 테스트 추가 완료: 실제 발행 PNG renderer에서 가운데 정렬 셀의 검은 텍스트 픽셀 상·하 여백 차이가 1px 이하인지 검증한다. PDF와 EZPL bitmap fallback이 공유하는 capture 경로다.
+- capture 집중 검증: 테스트 어댑터가 신규 package test를 0건 반환해 CLI로 전환했다. 첫 CLI는 fixture의 잘못된 const 목록 컴파일 오류만 보고했고 교정 후 신규 픽셀 테스트 1개 통과.
+- 최종 추가 검증 완료: 앱 공용 출력 workbook과 FortuneSheet capture 전체 회귀 180개 통과. 추가 테스트 analyzer issue 없음, `git diff --check` 통과.
+- 적용 범위 확정: 품목관리·라벨출력·저울출력 미리보기와 라벨/저울 PDF, RAW/EZPL native+bitmap fallback 모두 같은 materialized workbook 및 capture renderer 계약을 사용한다.
+- 후속 stage 대상: `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 3개 파일은 제외한다.
 
 # 완료: 라벨 workbench 업무 정책 분리
 

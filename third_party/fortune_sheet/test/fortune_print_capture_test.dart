@@ -47,6 +47,27 @@ bool _hasDarkPixelNear(ByteData pixels, int width, int height, int x, int y) {
   return false;
 }
 
+(int, int)? _darkPixelVerticalBounds(
+  ByteData pixels,
+  int width,
+  int height,
+) {
+  int? top;
+  int? bottom;
+  for (var y = 0; y < height; y += 1) {
+    for (var x = 0; x < width; x += 1) {
+      final offset = (y * width + x) * 4;
+      if (pixels.getUint8(offset) < 200 ||
+          pixels.getUint8(offset + 1) < 200 ||
+          pixels.getUint8(offset + 2) < 200) {
+        top ??= y;
+        bottom = y;
+      }
+    }
+  }
+  return top == null || bottom == null ? null : (top, bottom);
+}
+
 void main() {
   test('output line height preserves stored value unless overridden', () {
     expect(fortuneOutputLineHeight(1.5, null), 1.5);
@@ -177,6 +198,84 @@ void main() {
     expect(_isWhite(pixels, width, width ~/ 4, centerY), isTrue);
     expect(_isWhite(pixels, width, 0, centerY), isTrue);
     expect(_isWhite(pixels, width, centerX, 0), isTrue);
+  });
+
+  testWidgets('print capture preserves centered cell text bottom padding', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        defaultRowHeight: 40,
+        defaultColWidth: 120,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 1,
+          columnCount: 1,
+          rowHeights: {0: 40},
+          columnWidths: {0: 120},
+          cells: {
+            FortuneCellCoord(0, 0): FortuneCell(
+              value: 'MMMM',
+              fontSize: 12,
+              verticalAlign: '0',
+            ),
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 240,
+          height: 180,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 0,
+          columnStart: 0,
+          columnEnd: 0,
+        ),
+        pixelRatio: 1,
+        includeGridLines: false,
+        includeCellBorders: false,
+        includeRulerGuides: false,
+        includeLabelAreaBoundary: false,
+      ),
+    );
+
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    final width = capture!.pixelSize.width.toInt();
+    final height = capture.pixelSize.height.toInt();
+    final bounds = _darkPixelVerticalBounds(pixels!, width, height);
+
+    expect(bounds, isNotNull);
+    final topPadding = bounds!.$1;
+    final bottomPadding = height - 1 - bounds.$2;
+    expect((topPadding - bottomPadding).abs(), lessThanOrEqualTo(1));
   });
 
   testWidgets('print capture includes cell borders when requested', (
