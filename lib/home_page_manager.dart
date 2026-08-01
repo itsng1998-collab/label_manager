@@ -8992,6 +8992,7 @@ Map<String, String> _itemOutputPreviewReplacements({
 }) {
   return <String, String>{
     '#ITEMNAME': item.item.itemName,
+    '#품목': item.item.itemName,
     '#ELEMENT': elementText,
     for (final column in TColumn.datas ?? const <TColumn>[])
       '#${column.keyword}':

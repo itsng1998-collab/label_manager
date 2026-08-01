@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: 품목 출력 미리보기 제품명 매핑 수정
+- 제출 화면 확인: 품목관리 선택 3번 행의 출력내용 미리보기에서 제품명 값이 비어 있다.
+- 원인: `_itemOutputPreviewReplacements()`가 `#ITEMNAME`만 품명으로 치환한다. 바코드/QR 출력 resolver가 이미 지원하는 레거시 품명 별칭 `#품목`은 일반 출력 시트 replacement map에 없다.
+- 편집 완료: 출력 미리보기 replacement map에 `#품목`을 선택 행 `item.item.itemName`으로 추가했다.
+- 테스트 완료: `#ITEMNAME`과 `#품목`이 같은 선택 행 품명으로 치환되는 회귀를 기존 private active sheet 테스트에 추가했다.
+- 검증 완료: 집중 테스트 1개와 출력 미리보기·바코드 resolver·출력 pipeline focused 테스트 166개 통과. 변경 Dart 2개 파일 `flutter analyze` 성공, 변경 파일과 `pubspec.yaml` diagnostics 0건, `git diff --check` 성공.
+- 커밋 예정: 관련 변경만 stage 및 기능 커밋한다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+- 버전: 사용자 지정에 따라 `1.0.1` 유지.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Excel 가져오기 신규 코드 13차 검토
 - 앞선 12차까지 확정한 정책은 재검토하지 않고 첫 행 헤더의 sparse cell, leading blank, 병합·수식·shared string 경계를 확인했다.
 - 검토 결론: 첫 빈 셀은 sparse/leading 여부와 관계없이 헤더 종료점이고, leading blank는 필수 `품목` 헤더 없음으로 실패하며, 빈 헤더 뒤 unknown 컬럼은 원래 매핑 대상이 아니므로 경고하지 않는 기존 계약과 일치한다.

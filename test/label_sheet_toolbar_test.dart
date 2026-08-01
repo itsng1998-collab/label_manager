@@ -704,6 +704,7 @@ void main() {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '#ITEMNAME',
               ),
+              const FortuneCellCoord(0, 2): const FortuneCell(value: '#품목'),
               const FortuneCellCoord(0, 1): const FortuneCell(
                 value: '#ELEMENT',
               ),
@@ -728,6 +729,7 @@ void main() {
     expect(sheet.showGridLines, isFalse);
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText, '딸기잼');
     expect(sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText, '딸기, 설탕');
+    expect(sheet.cells[const FortuneCellCoord(0, 2)]?.renderedText, '딸기잼');
   });
 
   test('item output preview preserves rich element replacement runs', () {
