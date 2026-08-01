@@ -1,6 +1,6 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
-## 진행 중: 품목 출력 미리보기 제품명 매핑 수정
+## 완료: 품목 출력 미리보기 제품명 매핑 수정
 - 재현 로그 확인: `itemOutputPreviewMapping-3`에서 선택 행 `itemName=황치즈쿠키`는 정상이나, 템플릿 셀 `#ITEMNAME`은 빈 문자열로 치환됐다. `TColumn`의 `ITEMNAME` 일반 컬럼 entry가 앞서 넣은 예약 품명 값을 빈 컬럼값으로 덮어쓰는 것이 원인이다.
 - 수정 예정: 일반 컬럼 replacement 생성에서 `ITEMNAME`과 `품목` 예약 키를 제외하고, 동일 이름의 빈 컬럼이 품명을 덮어쓰지 않도록 한다. 진단 로그는 확인 완료 후 기본 비활성화한다.
 - 편집 완료: 일반 컬럼 loop에서 두 예약 키를 제외하고, `ITEMNAME` 일반 컬럼이 존재하는 기존 출력 미리보기 테스트에 회귀 조건을 추가했다. 전용 진단 로그는 기본 비활성화했다.
@@ -8,6 +8,7 @@
 - formatter 완료: `dart format lib/home_page_manager.dart`.
 - 검증 완료: `runTests(test/label_sheet_toolbar_test.dart, test/item_code_data_resolver_test.dart, test/label_print_pipeline_test.dart)` 결과 176개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` 결과 issue 없음.
 - 최종 검증 완료: `git diff --check` 통과, `pubspec.yaml` 버전은 `1.0.1`이다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 worktree에 남기고 대상 파일만 stage/commit한다.
+- 기능 커밋: `73369d9 출력 미리보기 품명 예약 키 보호`.
 - 제출 화면 확인: 품목관리 선택 3번 행의 출력내용 미리보기에서 제품명 값이 비어 있다.
 - 원인: `_itemOutputPreviewReplacements()`가 `#ITEMNAME`만 품명으로 치환한다. 바코드/QR 출력 resolver가 이미 지원하는 레거시 품명 별칭 `#품목`은 일반 출력 시트 replacement map에 없다.
 - 편집 완료: 출력 미리보기 replacement map에 `#품목`을 선택 행 `item.item.itemName`으로 추가했다.
