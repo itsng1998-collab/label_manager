@@ -129,6 +129,7 @@ bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'scale_output';
 
 const bool itemOutputPreviewMappingDebugEnabled = false;
+const bool itemElementLayoutDebugEnabled = true;
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -8646,6 +8647,19 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
   final mappingTrace = itemOutputPreviewMappingDebugEnabled
       ? ItemManagerDebugLog.nextTrace('itemOutputPreviewMapping')
       : null;
+  final elementLayoutTrace = itemElementLayoutDebugEnabled
+      ? ItemManagerDebugLog.nextTrace('itemElementLayout')
+      : null;
+  _itemElementLayoutLog(
+    'started',
+    trace: elementLayoutTrace,
+    fields: {
+      'itemId': item.item.itemId,
+      'itemName': item.item.itemName,
+      'labelSizeId': labelSize?.labelSizeId,
+      'elementText': _itemElementLayoutLogText(elementText),
+    },
+  );
   _itemOutputPreviewMappingLog(
     'started',
     trace: mappingTrace,
@@ -8713,6 +8727,7 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
       ),
       imageKeywords: _itemOutputPreviewImageKeywords(),
       mappingTrace: mappingTrace,
+      elementLayoutTrace: elementLayoutTrace,
     );
     _itemOutputPreviewMappingLog(
       'completed',
@@ -9079,6 +9094,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
   String? mappingTrace,
+  String? elementLayoutTrace,
 }) {
   final nextSheets = [
     for (final sheet in workbook.sheets)
@@ -9089,6 +9105,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
         elementCell: elementCell,
         imageKeywords: imageKeywords,
         mappingTrace: mappingTrace,
+        elementLayoutTrace: elementLayoutTrace,
       ),
   ];
   return workbook.copyWith(sheets: nextSheets);
@@ -9101,6 +9118,7 @@ fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
   String? mappingTrace,
+  String? elementLayoutTrace,
 }) {
   final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
   final insertedImages = <fs.FortuneImage>[];
@@ -9169,13 +9187,52 @@ fs.FortuneSheet _replaceSheetKeywords(
       );
     }
     if (elementCell != null && containsElementKeyword) {
-      final rowHeight = _itemPreviewRequiredRowHeight(
+      final cellRect = _itemCellRect(sheet, entry.key, cell: entry.value);
+      final measurement = _itemPreviewRowHeightMeasurement(
         nextCell,
-        _itemCellRect(sheet, entry.key, cell: entry.value).width,
+        cellRect.width,
       );
-      if (rowHeight != null) {
-        nextRowHeights[entry.key.row] = rowHeight;
+      _itemElementLayoutLog(
+        'rowHeightMeasured',
+        trace: elementLayoutTrace,
+        fields: {
+          'sheet': sheet.name,
+          'cell': '${entry.key.row},${entry.key.column}',
+          'sourceText': _itemElementLayoutLogText(elementCell.renderedText),
+          'sourceRuns': _itemElementLayoutRuns(elementCell),
+          'templateText': _itemElementLayoutLogText(sourceText),
+          'resultText': _itemElementLayoutLogText(nextCell.renderedText),
+          'resultRuns': _itemElementLayoutRuns(nextCell),
+          'mergeRows': entry.value.merge?.rowSpan ?? 1,
+          'mergeColumns': entry.value.merge?.columnSpan ?? 1,
+          'columnWidth': cellRect.width,
+          'textWrap': nextCell.normalizedTextWrap,
+          'fontSize': nextCell.fontSize,
+          'fontFamily': nextCell.fontFamily,
+          'cellExtraFields': nextCell.extraFields,
+          'textHeight': measurement?.textHeight,
+          'fixedPadding': measurement == null ? null : 6.0,
+          'measuredRowHeight': measurement?.rowHeight,
+          'measurementMode': measurement?.mode,
+          'previousRowHeight':
+              sheet.rowHeights[entry.key.row] ??
+              sheet.defaultRowHeight ??
+              19,
+        },
+      );
+      if (measurement != null) {
+        nextRowHeights[entry.key.row] = measurement.rowHeight;
         nextCustomHeight[entry.key.row] = 1;
+        _itemElementLayoutLog(
+          'rowHeightApplied',
+          trace: elementLayoutTrace,
+          fields: {
+            'sheet': sheet.name,
+            'cell': '${entry.key.row},${entry.key.column}',
+            'row': entry.key.row,
+            'rowHeight': measurement.rowHeight,
+          },
+        );
       }
     }
   }
@@ -9323,12 +9380,18 @@ Rect _itemCellRect(
   );
 }
 
-double? _itemPreviewRequiredRowHeight(fs.FortuneCell cell, double columnWidth) {
+({double textHeight, double rowHeight, String mode})?
+_itemPreviewRowHeightMeasurement(fs.FortuneCell cell, double columnWidth) {
   if (cell.renderedText.isEmpty || columnWidth <= 0) {
     return null;
   }
   if (_itemPreviewUsesExplicitInlineLines(cell)) {
-    return max(4.0, _itemPreviewExplicitInlineLinesHeight(cell) + 6.0);
+    final textHeight = _itemPreviewExplicitInlineLinesHeight(cell);
+    return (
+      textHeight: textHeight,
+      rowHeight: max(4.0, textHeight + 6.0),
+      mode: 'explicitInlineLines',
+    );
   }
   final painter =
       TextPainter(
@@ -9341,8 +9404,34 @@ double? _itemPreviewRequiredRowHeight(fs.FortuneCell cell, double columnWidth) {
             ? max(1.0, columnWidth)
             : double.infinity,
       );
-  return max(4.0, painter.height + 6.0);
+  return (
+    textHeight: painter.height,
+    rowHeight: max(4.0, painter.height + 6.0),
+    mode: 'textPainterWrap',
+  );
 }
+
+void _itemElementLayoutLog(
+  String event, {
+  String? trace,
+  Map<String, Object?> fields = const {},
+}) {
+  if (!itemElementLayoutDebugEnabled) return;
+  ItemManagerDebugLog.event(
+    'itemElementLayout',
+    event,
+    trace: trace,
+    fields: fields,
+  );
+}
+
+String _itemElementLayoutLogText(String text) =>
+    text.replaceAll('\r', r'\r').replaceAll('\n', r'\n');
+
+String _itemElementLayoutRuns(fs.FortuneCell cell) => [
+  for (final run in cell.inlineRuns ?? const <fs.FortuneInlineTextRun>[])
+    '{text:${_itemElementLayoutLogText(run.text)},fontSize:${run.fontSize},fontFamily:${run.fontFamily},bold:${run.bold},italic:${run.italic},extra:${run.extraFields}}',
+].join('|');
 
 bool _itemPreviewUsesExplicitInlineLines(fs.FortuneCell cell) {
   final runs = cell.inlineRuns;

@@ -1,5 +1,15 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: `#ELEMENT` 병합 셀 여백 진단 로그
+- 사용자 확인: 기본 줄 높이 누적 제거 후에도 주원료 내용이 많을수록 병합 셀 위/아래 여백이 증가한다.
+- 진단 가설: workbook materialization에서 계산한 행 높이와 FortuneSheet 실제 렌더링 높이 중 어느 쪽이 증가하는지 런타임 값으로 구분해야 한다.
+- 편집 완료: `itemElementLayoutDebugEnabled=true` 전용 로그를 추가했다. 선택 품목 ID·품명·라벨 규격과 각 `#ELEMENT` 셀의 source/result run, 병합 폭, text wrap, cell extraFields, 실제 측정 text 높이, 고정 6px, 기존·적용 행 높이를 `itemElementLayout-*` trace로 기록한다.
+- 집중 검증 완료: 1줄은 `textHeight=10 + fixedPadding=6 → rowHeight=16`, 3줄은 `30 + 6 → 36`으로 측정·적용 로그가 출력되고 고정 여백 테스트가 통과했다. 변경 파일 diagnostics 0건.
+- 전체 검증 완료: 출력 미리보기·resolver·출력 pipeline 관련 테스트 180개 통과. `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
+- 범위 정리: 전체 파일 formatter가 만든 기존 미포맷 구간 변경은 원복하고 진단 로그 코드만 재적용했다. 재적용 후 고정 여백 집중 테스트 통과, diagnostics 0건, 대상 파일 `git diff --check` 통과.
+- 최종 전체 검증 완료: 재적용 상태에서 관련 테스트 180개 통과, `flutter analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` issue 없음.
+- stage 예정: `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 제외한다.
+
 ## 완료: 공용라벨 필수등록 수동 변경 반영
 - 재현 화면: 특별 항목의 `저울중량`, `최종가격` 필수등록을 언체크해도 저장 시 누락 경고가 계속 표시된다. 사용 항목도 같은 구조다.
 - 원인: `requiredKeywords`는 `CommonLabelManage.build()`에서 snapshot으로 생성되지만 `_CommonLabelTable` 체크박스는 내부 `setState()`로 모델만 바꾸고 부모를 rebuild하지 않는다.
