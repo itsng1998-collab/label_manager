@@ -48,6 +48,67 @@ void main() {
     );
     expect(groups.map((group) => group.units.length), [1, 1, 1]);
   });
+
+  test('PDF single file combines all units into one ordered group', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 1), _row(20, 1), _row(30, 1)],
+      referenceAt: _referenceAt,
+    );
+    const first = LabelPhysicalPageSpec(
+      widthMm: 60,
+      heightMm: 40,
+      sourceWidthMm: 50,
+      sourceHeightMm: 30,
+      dpi: 203,
+      backend: LabelPrintBackend.pdf,
+    );
+    const second = LabelPhysicalPageSpec(
+      widthMm: 80,
+      heightMm: 40,
+      sourceWidthMm: 50,
+      sourceHeightMm: 30,
+      dpi: 203,
+      backend: LabelPrintBackend.pdf,
+    );
+    LabelPhysicalPageSpec specFor(LabelPrintUnit unit) =>
+        unit.row.itemId == 20 ? second : first;
+
+    final combined = groupLabelPrintUnitsForDispatch(
+      units,
+      specFor,
+      pdfSingleFile: true,
+    );
+    final separate = groupLabelPrintUnitsForDispatch(
+      units,
+      specFor,
+      pdfSingleFile: false,
+    );
+
+    expect(combined, hasLength(1));
+    expect(combined.single.units.map((unit) => unit.row.itemId), [10, 20, 30]);
+    expect(separate.map((group) => group.units.length), [1, 1, 1]);
+  });
+
+  test('single file option does not combine raw printer groups', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 1), _row(20, 1)],
+      referenceAt: _referenceAt,
+    );
+    final groups = groupLabelPrintUnitsForDispatch(
+      units,
+      (unit) => LabelPhysicalPageSpec(
+        widthMm: unit.row.itemId == 10 ? 60 : 80,
+        heightMm: 40,
+        sourceWidthMm: 50,
+        sourceHeightMm: 30,
+        dpi: 203,
+        backend: LabelPrintBackend.ezplRaw,
+      ),
+      pdfSingleFile: true,
+    );
+
+    expect(groups.map((group) => group.units.length), [1, 1]);
+  });
 }
 
 LabelPrintRowDraft _row(int itemId, int copies) {

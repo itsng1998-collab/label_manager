@@ -16,6 +16,7 @@ LabelPrintSettingsSnapshot? parseLabelPrintSettingsSnapshot({
   required String lineSpacing,
   required String extraArea,
   required String orientation,
+  bool pdfSingleFile = true,
 }) {
   double? nonNegative(String value) {
     final parsed = double.tryParse(value.trim());
@@ -59,6 +60,7 @@ LabelPrintSettingsSnapshot? parseLabelPrintSettingsSnapshot({
     orientation: orientation == 'vertical'
         ? LabelPrintOrientation.vertical
         : LabelPrintOrientation.horizontal,
+    pdfSingleFile: pdfSingleFile,
   );
 }
 
@@ -92,6 +94,7 @@ Future<LabelPrintSettingsSnapshot> loadLabelPrintSettingsSnapshot() async {
     orientation: settings.orientation == 'vertical'
         ? LabelPrintOrientation.vertical
         : LabelPrintOrientation.horizontal,
+    pdfSingleFile: settings.pdfSingleFile,
   );
 }
 
@@ -112,5 +115,6 @@ Future<void> saveLabelPrintSettingsSnapshot(
     orientation: settings.orientation == LabelPrintOrientation.vertical
         ? 'vertical'
         : 'horizontal',
+    pdfSingleFile: settings.pdfSingleFile,
   ),
 );

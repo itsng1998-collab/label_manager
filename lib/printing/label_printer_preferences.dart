@@ -19,6 +19,8 @@ const String labelSheetPreferredPrintExtraAreaPrefsKey =
   'label_sheet_preferred_print_extra_area';
 const String labelSheetPreferredPrintOrientationPrefsKey =
   'label_sheet_preferred_print_orientation';
+const String labelSheetPreferredPrintPdfSingleFilePrefsKey =
+  'label_sheet_preferred_print_pdf_single_file';
 
 typedef LabelPrinterListProvider = Future<List<Printer>> Function();
 
@@ -33,6 +35,7 @@ class LabelSheetPreferredPrintSettings {
   required this.autoSpacing,
   required this.extraArea,
   required this.orientation,
+  this.pdfSingleFile = true,
   });
 
   final String printerName;
@@ -44,6 +47,7 @@ class LabelSheetPreferredPrintSettings {
   final String autoSpacing;
   final String extraArea;
   final String orientation;
+  final bool pdfSingleFile;
 }
 
 class LabelPrinterPreferences {
@@ -97,6 +101,8 @@ class LabelPrinterPreferences {
       orientation:
           prefs.getString(labelSheetPreferredPrintOrientationPrefsKey) ??
           'horizontal',
+        pdfSingleFile:
+          prefs.getBool(labelSheetPreferredPrintPdfSingleFilePrefsKey) ?? true,
     );
   }
 
@@ -151,6 +157,10 @@ class LabelPrinterPreferences {
     await prefs.setString(
       labelSheetPreferredPrintOrientationPrefsKey,
       settings.orientation,
+    );
+    await prefs.setBool(
+      labelSheetPreferredPrintPdfSingleFilePrefsKey,
+      settings.pdfSingleFile,
     );
   }
 
@@ -235,5 +245,6 @@ class LabelPrinterPreferences {
     await prefs.remove(labelSheetPreferredPrintAutoSpacingPrefsKey);
     await prefs.remove(labelSheetPreferredPrintExtraAreaPrefsKey);
     await prefs.remove(labelSheetPreferredPrintOrientationPrefsKey);
+    await prefs.remove(labelSheetPreferredPrintPdfSingleFilePrefsKey);
   }
 }

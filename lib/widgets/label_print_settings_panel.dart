@@ -15,6 +15,9 @@ class LabelPrintSettingsPanel extends StatelessWidget {
     required this.onSelectPrinter,
     required this.onApply,
     required this.onClose,
+    this.showPdfSingleFileOption = false,
+    this.pdfSingleFile = true,
+    this.onPdfSingleFileChanged,
     this.copiesController,
     this.rightMarginController,
     this.leftPushController,
@@ -41,6 +44,9 @@ class LabelPrintSettingsPanel extends StatelessWidget {
   final VoidCallback? onIssue;
   final VoidCallback? onApply;
   final VoidCallback onClose;
+  final bool showPdfSingleFileOption;
+  final bool pdfSingleFile;
+  final ValueChanged<bool?>? onPdfSingleFileChanged;
   final List<DropdownMenuItem<String>>? autoSpacingItems;
 
   bool get _hasLabelPrintAdjustments =>
@@ -216,6 +222,25 @@ class LabelPrintSettingsPanel extends StatelessWidget {
                       onPressed: onSelectPrinter,
                     ),
                   ),
+                ],
+              ),
+            ),
+          if (_hasLabelPrintAdjustments && showPdfSingleFileOption)
+            Positioned(
+              key: const ValueKey('label-print-pdf-single-file-option'),
+              left: 99,
+              top: 282,
+              height: 28,
+              child: Row(
+                children: [
+                  Checkbox(
+                    key: const ValueKey('label-print-pdf-single-file-checkbox'),
+                    value: pdfSingleFile,
+                    onChanged: onPdfSingleFileChanged,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  const Text('하나의 파일로 출력', style: labelStyle),
                 ],
               ),
             ),
@@ -419,7 +444,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
           if (_hasLabelPrintAdjustments && errorText != null)
             Positioned(
               left: 24,
-              top: 284,
+              top: 238,
               child: Text(
                 errorText!,
                 style: TextStyle(

@@ -1,5 +1,17 @@
 # 완료: 라벨 workbench 업무 정책 분리
 
+## 진행 중: 라벨출력 PDF 하나의 파일 출력 v1.0.8
+- UI: 라벨출력 프린터 설정에서 기존 backend 판별 결과가 PDF일 때만 프린터 이름 바로 아래 `하나의 파일로 출력` 체크박스를 표시한다. 기본 체크이며 패널 354/다이얼로그 390 높이는 유지한다. 스케일 출력과 라벨시트 출력 설정에는 표시하지 않는다.
+- 설정: `LabelPrintSettingsSnapshot.pdfSingleFile`과 preferences bool을 추가했다. 신규/기존 저장 데이터 기본값은 `true`, 사용자 해제값 `false`도 저장·복원하며 설정 삭제 시 함께 제거한다. 앱 버전 `1.0.8`.
+- 출력: 체크 시 모든 PDF 발행 unit을 기존 순서대로 하나의 group으로 결합해 `buildLabelSheetPdfGroupBytes`로 다중 페이지 PDF payload 1개를 만들고 1회 전송한다. 해제 또는 RAW/EZPL은 기존 인접 물리 규격별 group 전송을 유지한다.
+- 테스트: 서로 다른 규격 PDF의 체크/해제 grouping, RAW 비결합, 설정 기본/저장/삭제, PDF 체크박스 기본 체크·토글·프린터 이름 아래 위치·고정 높이를 추가했다.
+- 검증: 집중 테스트 15개 통과, 변경 production diagnostics 0건, `git diff --check` 통과.
+- 정리: 전체 formatter가 만든 무관한 공백 diff를 제거하고 semantic 변경만 원문 형식으로 재적용했다. 사용자 변경 `lib/core/app.dart`, `lib/core/app_menu_controller.dart`는 건드리지 않았다.
+- 전체 관련 검증 완료: 라벨 출력 8개 suite와 scale output 총 50개 통과. 변경 production/test 파일 `flutter analyze` issue 없음.
+- 최종 변경 검증 예정: `git diff --check`, 버전 및 stage 범위를 확인하고 사용자 dirty 두 파일을 제외해 커밋한다.
+- 최종 변경 검증 완료: `git diff --check` 통과, `pubspec.yaml=1.0.8`, 체크박스 한글 소스 및 diagnostics 정상 확인. formatter churn 제거 후 핵심 diff는 PDF UI·설정·grouping에 한정됐다.
+- stage 대상: `lib/features/label_print/{domain/label_print.dart,application/label_print_settings.dart,application/label_print_pipeline.dart,presentation/label_print_settings_dialog.dart}`, `lib/printing/label_printer_preferences.dart`, `lib/widgets/label_print_settings_panel.dart`, `lib/home_page_manager.dart`, 관련 테스트 4개, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료: `#ELEMENT` 대상 셀 설정 여백 복원 v1.0.7
 - v1.0.6 이미지/v8 로그: 모든 결과가 하단 1px로 계산됐지만 대상 셀은 `verticalAlign=0(가운데)`, 원본 행 12.214px, compact template text 8px이므로 실제 대상 설정은 상·하 각각 2.107px이다. `cellTextOffsetY=0`이 대상 셀의 가운데 정렬을 우회했다.
 - 수정: 대상 원본 셀의 전체 잔여 높이를 최대 6px 범위에서 보존하고, 원본 verticalAlign에 따라 top/bottom으로 분배한다. 현재 셀은 `rowHeight=resultTextHeight+4.214px`, `textOffsetY=2.107px`이다.

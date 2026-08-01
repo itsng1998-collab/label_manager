@@ -56,6 +56,7 @@ class LabelPrintSettingsSnapshot {
     required this.lineSpacingPercent,
     required this.extraAreaMm,
     required this.orientation,
+    this.pdfSingleFile = true,
   });
 
   const LabelPrintSettingsSnapshot.empty()
@@ -67,7 +68,8 @@ class LabelPrintSettingsSnapshot {
         topPushMm = 0,
         lineSpacingPercent = 100,
         extraAreaMm = 0,
-        orientation = LabelPrintOrientation.horizontal;
+        orientation = LabelPrintOrientation.horizontal,
+        pdfSingleFile = true;
 
   final String? printerName;
   final double leftMarginMm;
@@ -78,6 +80,7 @@ class LabelPrintSettingsSnapshot {
   final int? lineSpacingPercent;
   final double extraAreaMm;
   final LabelPrintOrientation orientation;
+  final bool pdfSingleFile;
 }
 
 @immutable

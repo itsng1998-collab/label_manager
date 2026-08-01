@@ -5664,6 +5664,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final settings = await showLabelPrintSettingsDialog(
       context: context,
       initial: _scaleOutputSessionController.settings,
+      showPdfSingleFileOption: false,
     );
     if (!mounted || settings == null) return;
     await ScaleOutputPrintSettingsStore.save(labelSizeId, settings);
@@ -6129,17 +6130,21 @@ class _HomePageManagerState extends State<HomePageManager> {
         resolvedMetrics[unit] = metrics;
       }
 
-      final groups = groupAdjacentLabelPrintUnits(units, (unit) {
-        final metrics = resolvedMetrics[unit]!;
-        return LabelPhysicalPageSpec(
-          widthMm: unit.row.widthMm,
-          heightMm: unit.row.heightMm,
-          sourceWidthMm: metrics.effectiveSourceWidthMm,
-          sourceHeightMm: metrics.effectiveSourceHeightMm,
-          dpi: dpi,
-          backend: backend,
-        );
-      });
+      final groups = groupLabelPrintUnitsForDispatch(
+        units,
+        (unit) {
+          final metrics = resolvedMetrics[unit]!;
+          return LabelPhysicalPageSpec(
+            widthMm: unit.row.widthMm,
+            heightMm: unit.row.heightMm,
+            sourceWidthMm: metrics.effectiveSourceWidthMm,
+            sourceHeightMm: metrics.effectiveSourceHeightMm,
+            dpi: dpi,
+            backend: backend,
+          );
+        },
+        pdfSingleFile: settings.pdfSingleFile,
+      );
       final payloads = <LabelPrintJobGroup, List<int>>{};
       for (final group in groups) {
         if (backend == LabelPrintBackend.pdf) {

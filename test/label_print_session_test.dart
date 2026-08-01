@@ -776,6 +776,24 @@ void main() {
       tester.getCenter(printerSelect).dy,
       closeTo(tester.getCenter(printerValue).dy, 0.1),
     );
+    final singleFileOption = find.byKey(
+      const ValueKey('label-print-pdf-single-file-option'),
+    );
+    final singleFileCheckbox = find.byKey(
+      const ValueKey('label-print-pdf-single-file-checkbox'),
+    );
+    expect(singleFileOption, findsOneWidget);
+    expect(singleFileCheckbox, findsOneWidget);
+    expect(find.text('하나의 파일로 출력'), findsOneWidget);
+    expect(
+      tester.getTopLeft(singleFileOption).dy,
+      greaterThan(tester.getBottomLeft(printerValue).dy),
+    );
+    expect(tester.widget<Checkbox>(singleFileCheckbox).value, isTrue);
+    expect(tester.getSize(dialog).height, 354);
+    await tester.tap(singleFileCheckbox);
+    await tester.pump();
+    expect(tester.widget<Checkbox>(singleFileCheckbox).value, isFalse);
 
     await tester.tap(find.text('100 %'));
     await tester.pumpAndSettle();

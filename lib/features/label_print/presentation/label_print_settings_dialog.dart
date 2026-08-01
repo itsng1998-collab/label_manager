@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:label_manager/features/label_print/application/label_print_settings.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
+import 'package:label_manager/printing/label_print_dispatcher.dart';
+import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
@@ -12,6 +15,7 @@ import 'package:printing/printing.dart';
 Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
   required BuildContext context,
   required LabelPrintSettingsSnapshot initial,
+  bool showPdfSingleFileOption = true,
 }) async {
   final leftMargin = TextEditingController(text: '${initial.leftMarginMm}');
   final rightMargin = TextEditingController(text: '${initial.rightMarginMm}');
@@ -28,6 +32,13 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
   var orientation = initial.orientation == LabelPrintOrientation.vertical
       ? 'vertical'
       : 'horizontal';
+  var pdfSingleFile = initial.pdfSingleFile;
+  var isPdfPrinter = showPdfSingleFileOption &&
+      detectPrinterProfile(
+            Printer(url: printerName, name: printerName),
+          ).language ==
+          PrinterLanguage.rasterOnly;
+  var initialBackendResolveStarted = false;
   String? errorText;
 
   try {
@@ -37,7 +48,18 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
       barrierColor: const Color(0x8A000000),
       transitionDuration: Duration.zero,
       pageBuilder: (dialogContext, _, _) => StatefulBuilder(
-        builder: (context, setDialogState) => BlockingModelessDialogFrame(
+        builder: (context, setDialogState) {
+          if (showPdfSingleFileOption && !initialBackendResolveStarted) {
+            initialBackendResolveStarted = true;
+            unawaited(() async {
+              final resolved = await _isPdfPrinterName(printerName);
+              if (!context.mounted || resolved == isPdfPrinter) return;
+              setDialogState(() {
+                isPdfPrinter = resolved;
+              });
+            }());
+          }
+          return BlockingModelessDialogFrame(
           title: '프린터 설정',
           width: 526,
           height: 390,
@@ -55,6 +77,16 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                 : lineSpacing.text,
             orientation: orientation,
             selectedPrinterName: printerName,
+            showPdfSingleFileOption:
+                showPdfSingleFileOption && isPdfPrinter,
+            pdfSingleFile: pdfSingleFile,
+            onPdfSingleFileChanged: (value) {
+              if (value == null) return;
+              setDialogState(() {
+                pdfSingleFile = value;
+                errorText = null;
+              });
+            },
             autoSpacingItems: LabelPrintSettingsPanel.buildAutoSpacingItems(
                   minimum: 80,
                   step: 5,
@@ -82,8 +114,14 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                       title: '프린터 선택',
                     ))?.name;
               if (selected == null || selected.trim().isEmpty) return;
+              final normalizedName = selected.trim();
+              final selectedIsPdf = showPdfSingleFileOption
+                  ? await _isPdfPrinterName(normalizedName)
+                  : false;
+              if (!context.mounted) return;
               setDialogState(() {
-                printerName = selected.trim();
+                printerName = normalizedName;
+                isPdfPrinter = selectedIsPdf;
                 errorText = null;
               });
             },
@@ -102,6 +140,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                       lineSpacing: lineSpacing.text,
                       extraArea: extraArea.text,
                       orientation: orientation,
+                      pdfSingleFile: pdfSingleFile,
                     );
                     if (settings == null) {
                       setDialogState(() {
@@ -111,8 +150,9 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                     }
                     Navigator.of(dialogContext).pop(settings);
                   },
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   } finally {
@@ -124,4 +164,32 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
     lineSpacing.dispose();
     extraArea.dispose();
   }
+}
+
+Future<bool> _isPdfPrinterName(String printerName) async {
+  final normalizedName = printerName.trim();
+  if (normalizedName.isEmpty) return false;
+  Printer? printer;
+  try {
+    final printers = await Printing.listPrinters();
+    for (final candidate in printers) {
+      if (candidate.name.trim().toLowerCase() ==
+          normalizedName.toLowerCase()) {
+        printer = candidate;
+        break;
+      }
+    }
+  } catch (_) {
+    // The selected name still provides enough information for raster printers.
+  }
+  printer ??= Printer(url: normalizedName, name: normalizedName);
+  final profile = detectPrinterProfile(printer);
+  final portName = Platform.isWindows
+      ? await RawPrinterWin32.queryPrinterPortName(printer)
+      : null;
+  return resolveLabelPrintBackend(
+        language: profile.language,
+        portName: portName,
+      ) ==
+      LabelPrintBackend.pdf;
 }

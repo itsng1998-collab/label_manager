@@ -155,3 +155,22 @@ List<LabelPrintJobGroup> groupAdjacentLabelPrintUnits(
   }
   return List.unmodifiable(groups);
 }
+
+List<LabelPrintJobGroup> groupLabelPrintUnitsForDispatch(
+  List<LabelPrintUnit> units,
+  LabelPhysicalPageSpec Function(LabelPrintUnit unit) specFor, {
+  required bool pdfSingleFile,
+}) {
+  final groups = groupAdjacentLabelPrintUnits(units, specFor);
+  if (!pdfSingleFile ||
+      groups.isEmpty ||
+      groups.any((group) => group.pageSpec.backend != LabelPrintBackend.pdf)) {
+    return groups;
+  }
+  return [
+    LabelPrintJobGroup(
+      pageSpec: groups.first.pageSpec,
+      units: List.unmodifiable(units),
+    ),
+  ];
+}

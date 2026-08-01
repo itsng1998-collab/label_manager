@@ -34,6 +34,7 @@ void main() {
         autoSpacing: '120',
         extraArea: '3.5',
         orientation: 'vertical',
+        pdfSingleFile: false,
       ),
     );
 
@@ -53,6 +54,7 @@ void main() {
     expect(loaded.autoSpacing, '120');
     expect(loaded.extraArea, '3.5');
     expect(loaded.orientation, 'vertical');
+    expect(loaded.pdfSingleFile, isFalse);
   });
 
   test('missing preferred printer is removed while loading', () async {
@@ -66,6 +68,7 @@ void main() {
       labelSheetPreferredPrintAutoSpacingPrefsKey: '120',
       labelSheetPreferredPrintExtraAreaPrefsKey: '3.5',
       labelSheetPreferredPrintOrientationPrefsKey: 'vertical',
+      labelSheetPreferredPrintPdfSingleFilePrefsKey: false,
     });
 
     final loaded = await LabelPrinterPreferences.loadPreferredPrintSettings(
@@ -85,6 +88,10 @@ void main() {
     expect(prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintExtraAreaPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintOrientationPrefsKey), isNull);
+    expect(
+      prefs.getBool(labelSheetPreferredPrintPdfSingleFilePrefsKey),
+      isNull,
+    );
   });
 
   test('startup cleanup removes missing preferred printer', () async {

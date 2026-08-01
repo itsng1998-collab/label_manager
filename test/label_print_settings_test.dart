@@ -35,6 +35,7 @@ void main() {
     expect(loaded.lineSpacingPercent, 125);
     expect(loaded.extraAreaMm, 4.5);
     expect(loaded.orientation, LabelPrintOrientation.vertical);
+    expect(loaded.pdfSingleFile, isTrue);
   });
 
   test('label print settings normalizes non-legacy auto spacing', () async {
@@ -59,6 +60,7 @@ void main() {
       lineSpacing: '0',
       extraArea: '4.5',
       orientation: 'vertical',
+      pdfSingleFile: false,
     );
 
     expect(settings, isNotNull);
@@ -71,6 +73,7 @@ void main() {
     expect(settings.lineSpacingPercent, isNull);
     expect(settings.extraAreaMm, 4.5);
     expect(settings.orientation, LabelPrintOrientation.vertical);
+    expect(settings.pdfSingleFile, isFalse);
   });
 
   test('label print settings input rejects invalid physical values', () {
