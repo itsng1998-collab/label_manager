@@ -491,6 +491,180 @@ class LabelSheetRenderedPage {
   final LabelSheetPrintOptions options;
 }
 
+class LabelSheetWindowsTextDescriptor {
+  const LabelSheetWindowsTextDescriptor({
+    required this.candidateToken,
+    required this.text,
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+    required this.fontFamily,
+    required this.fontPixelHeight,
+    required this.bold,
+    required this.italic,
+    required this.underline,
+    required this.strikeThrough,
+    required this.colorArgb,
+    required this.horizontalAlign,
+    required this.verticalAlign,
+    required this.wrap,
+    required this.predictedPaintedFootprint,
+  });
+
+  final String candidateToken;
+  final String text;
+  final int left;
+  final int top;
+  final int right;
+  final int bottom;
+  final String fontFamily;
+  final int fontPixelHeight;
+  final bool bold;
+  final bool italic;
+  final bool underline;
+  final bool strikeThrough;
+  final int colorArgb;
+  final String horizontalAlign;
+  final String verticalAlign;
+  final bool wrap;
+  final ui.Rect predictedPaintedFootprint;
+
+  FortuneNativeCandidateApproval get approval =>
+      FortuneNativeCandidateApproval(
+        candidateToken: candidateToken,
+        predictedPaintedFootprint: predictedPaintedFootprint,
+      );
+
+  Map<String, Object?> toChannelMap() => <String, Object?>{
+    'text': text,
+    'left': left,
+    'top': top,
+    'right': right,
+    'bottom': bottom,
+    'fontFamily': fontFamily,
+    'fontPixelHeight': fontPixelHeight,
+    'bold': bold,
+    'italic': italic,
+    'underline': underline,
+    'strikeThrough': strikeThrough,
+    'colorArgb': colorArgb,
+    'horizontalAlign': horizontalAlign,
+    'verticalAlign': verticalAlign,
+    'wrap': wrap,
+  };
+}
+
+class LabelSheetWindowsHybridPreparation {
+  const LabelSheetWindowsHybridPreparation({
+    required this.geometry,
+    required this.descriptors,
+    required this.plan,
+  });
+
+  final LabelSheetHybridPrintGeometry geometry;
+  final List<LabelSheetWindowsTextDescriptor> descriptors;
+  final FortuneHybridRenderPlan plan;
+}
+
+LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  required int? lineSpacingPercent,
+}) {
+  final geometry = resolveLabelSheetHybridPrintGeometry(
+    sheet: sheet,
+    settings: settings,
+    physicalSize: physicalSize,
+    metrics: metrics,
+    options: options,
+  );
+  final candidates = fortuneBuildNativeCandidates(
+    settings: settings,
+    sheet: sheet,
+    range: geometry.range,
+    transform: geometry.transform,
+  );
+  final descriptors = <LabelSheetWindowsTextDescriptor>[];
+  if (lineSpacingPercent == null &&
+      options.orientation == LabelSheetPrintOrientation.horizontal) {
+    for (final candidate in candidates) {
+      if (candidate.kind != FortuneNativeCandidateKind.cellText ||
+          candidate.cellCoord == null) {
+        continue;
+      }
+      final cell = sheet.cells[candidate.cellCoord!];
+      if (cell == null ||
+          cell.renderedText.isEmpty ||
+          cell.inlineRuns?.isNotEmpty == true ||
+          cell.isVerticalText ||
+          cell.normalizedTextRotation != 0 ||
+          cell.normalizedTextWrap == '1' ||
+          cell.normalizedHorizontalAlign == '3' ||
+          cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
+        continue;
+      }
+      final target = candidate.printerPaintedFootprint;
+      final left = target.left.round();
+      final top = target.top.round();
+      final right = target.right.round();
+      final bottom = target.bottom.round();
+      if (right <= left || bottom <= top) continue;
+      final predicted = ui.Rect.fromLTRB(
+        left.toDouble(),
+        top.toDouble(),
+        right.toDouble(),
+        bottom.toDouble(),
+      );
+      descriptors.add(
+        LabelSheetWindowsTextDescriptor(
+          candidateToken: candidate.token,
+          text: cell.renderedText,
+          left: left,
+          top: top,
+          right: right,
+          bottom: bottom,
+          fontFamily: fortuneResolveFontFamily(
+            cell.fontFamily,
+            settings.fontFamilies,
+          ),
+          fontPixelHeight: math.max(
+            1,
+            ((cell.fontSize ?? settings.defaultFontSize) *
+                    geometry.transform.dotsPerLogicalPixel)
+                .round(),
+          ),
+          bold: cell.bold,
+          italic: cell.italic,
+          underline: cell.underline,
+          strikeThrough: cell.strikeThrough,
+          colorArgb: cell.foreground.toARGB32(),
+          horizontalAlign: cell.normalizedHorizontalAlign,
+          verticalAlign: cell.normalizedVerticalAlign,
+          wrap: cell.normalizedTextWrap == '2',
+          predictedPaintedFootprint: predicted,
+        ),
+      );
+    }
+  }
+  final plan = fortuneFinalizeHybridRenderPlan(
+    settings: settings,
+    sheet: sheet,
+    range: geometry.range,
+    transform: geometry.transform,
+    candidates: candidates,
+    approvals: descriptors.map((descriptor) => descriptor.approval),
+  );
+  return LabelSheetWindowsHybridPreparation(
+    geometry: geometry,
+    descriptors: List.unmodifiable(descriptors),
+    plan: plan,
+  );
+}
+
 class LabelSheetEzplNativeDescriptor {
   const LabelSheetEzplNativeDescriptor({
     required this.candidateToken,
@@ -525,6 +699,7 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
       if (descriptor != null) descriptors.add(descriptor);
       continue;
     }
+    if (candidate.kind == FortuneNativeCandidateKind.cellText) continue;
     final strokeWidthMm = switch (candidate.kind) {
       FortuneNativeCandidateKind.line => sheet.lines
           .where((line) => line.id == candidate.objectKey!.id)
@@ -544,6 +719,7 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
               candidate.printerPaintedFootprint.height,
             ) /
             transform.dotsPerMillimeter,
+          FortuneNativeCandidateKind.cellText => null,
     };
     if (strokeWidthMm == null) continue;
     final strokeDots = math.max(

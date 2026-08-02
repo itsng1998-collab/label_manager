@@ -16041,6 +16041,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSettings? settingsOverride,
     Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
     Set<FortuneCellBorderEdgeKey> omittedCellBorderEdgeKeys = const {},
+    Set<FortuneCellCoord> omittedCellTextCoords = const {},
     Size? logicalClipSize,
   }) async {
     final sheet = sheetOverride ?? _workbook.activeSheet;
@@ -16246,7 +16247,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             cell,
           );
           final text = renderCell?.renderedText ?? '';
-          if (text.isEmpty) {
+          if (text.isEmpty || omittedCellTextCoords.contains(anchor)) {
             continue;
           }
           final conditionStyle = conditionStyles[anchor];
@@ -16459,6 +16460,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       settingsOverride: plan.settings,
       omittedObjectKeys: plan.approvedObjectKeys,
       omittedCellBorderEdgeKeys: plan.approvedCellBorderEdgeKeys,
+      omittedCellTextCoords: plan.approvedCellTextCoords,
       logicalClipSize: plan.transform.sourceLogicalBounds.size,
     );
     if (capture == null) return null;

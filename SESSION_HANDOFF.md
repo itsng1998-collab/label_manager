@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 native-grid grayscale 출력 v1.0.37
+## 진행 중: Godex G500 라벨 시트 native GDI 텍스트 출력 v1.0.38
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -125,6 +125,29 @@
 - 다음 실물 로그 정상 조건: `toneMode=driverMonochrome`, `gray>0`, `sourceBpp=32`, `compression=BI_RGB`, `rasterOp=SRCCOPY`, source/target `640x480`.
 - stage/commit 대상: 출력 Dart 3개, Windows channel, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `4def9f6 Godex native-grid 회색 출력 적용`.
+- v1.0.37 실물과 `.tmp/log/app_2026-08-02_22-41-42.log` 분석: grayscale 7,987픽셀과 32-bit SRCCOPY 640×480 전달은 정상이나 Godex 드라이버가 회색을 거친 halftone으로 변환했다.
+- 레거시 고품질의 핵심은 RTF 데이터가 아니라 RichEdit `FormatRange/DisplayBand`가 printer DC에 텍스트를 직접 그리는 구조다.
+- FortuneSheet 공용 hybrid plan에 `cellText` 후보, 승인 텍스트 좌표, fallback PNG 텍스트 제외 hook을 추가 중이다. 단순 셀 텍스트는 GDI `DrawTextW`, unsupported 텍스트/이미지는 bitmap fallback으로 출력할 예정이다.
+- `fortune_print_plan.dart`, `fortune_sheet_canvas.dart`: 승인된 일반 셀 텍스트 좌표만 fallback PNG에서 제외하고 나머지 drawable은 기존 raster fallback에 남긴다.
+- `label_sheet_print_job.dart`: 일반 셀 텍스트를 printer-dot RECT, 폰트/스타일/색상/정렬 정보가 포함된 Windows descriptor로 변환한다. inline run, 세로/회전, overflow, 강제 줄간격은 승인하지 않는다.
+- `label_sheet_workbench.dart`, `home_page_manager.dart`: 시트 직접/품목/저울 Windows 출력을 filtered fallback PNG와 native descriptor 조합으로 연결했다. 로그에 텍스트 후보/승인/fallback 수를 추가했다.
+- `windows_bitmap_printer.dart`, `label_bitmap_print_channel.cpp`: MethodChannel descriptor 전달과 fallback bitmap 이후 `CreateFontW`/`DrawTextW` printer-DC 렌더링을 추가했다. native 요청/성공/실패/문자 수를 진단한다.
+- 첫 native 편집 직후 `$env:CL='/WX'; flutter build windows --debug` 성공. 세 출력 경로 연결 후 Dart diagnostics 0건.
+- `label_sheet_print_job_test.dart`: 일반 텍스트만 native 승인하고 inline/회전/세로/overflow 및 강제 줄간격은 fallback으로 유지하는 테스트를 추가했다. focused 2건 통과.
+- 출력 관련 테스트 58건 통과: FortuneSheet hybrid plan, print job, dispatcher, pipeline, session.
+- analyzer 결과 변경 코드 경고 0건. 기존 FortuneSheet canvas 미사용 코드 경고 10건만 남았다.
+- justify 및 사용자 지정 Y-offset은 DrawTextW와 FortuneSheet 렌더 결과가 달라 native 승인에서 제외했다. focused Windows hybrid 테스트 2건 재통과.
+- native 진단에 요청 문자 수, 폰트 높이 min/max, 실제 font family 목록을 추가했다. `$env:CL='/WX'; flutter build windows --debug` 성공.
+- 버전을 `1.0.38`로 증가했다.
+- 버전 및 최종 fallback 조건 반영 후 출력 관련 테스트 58건 재통과.
+- v1.0.38 `$env:CL='/WX'; flutter build windows --debug` 최종 성공.
+- Debug EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_23-06-58.log` logger 헤더가 모두 `1.0.38`임을 확인했다. 검증용 PID 20256은 종료했다.
+- 세로 용지 방향은 RECT만 회전되고 GDI 글꼴은 회전되지 않으므로 native 승인에서 제외해 bitmap fallback으로 유지한다. Windows hybrid focused 테스트 3건 통과.
+- native 폰트 생성/DrawText 실패가 한 건이라도 있으면 누락된 라벨을 성공 처리하지 않고 method channel 오류로 전달한다. 변경 후 `/WX` Windows Debug 빌드 성공.
+- stage/commit 대상: FortuneSheet plan/canvas/test, 출력 Dart 4개, Windows channel, print job 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
+- 최종 출력 관련 테스트 59건 통과. `/WX` Windows Debug 빌드 성공, 실행 버전 `1.0.38` 확인 완료.
+- `git diff --check` 통과. 관련 11개 파일과 `SESSION_HANDOFF.md`만 stage하며 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 진행 중: 기능 commit. 실제 G500 실물 출력은 미검증.
 
 # 최근 완료 요약
 

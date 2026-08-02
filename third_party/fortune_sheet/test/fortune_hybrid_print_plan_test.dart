@@ -102,6 +102,46 @@ void main() {
     expect(plan.approvedObjectKeys, isEmpty);
   });
 
+  test('approved cell text is tracked separately from raster fallback', () {
+    final textSheet = FortuneSheet(
+      id: 'text',
+      name: 'Text',
+      rowCount: 1,
+      columnCount: 1,
+      cells: {
+        const FortuneCellCoord(0, 0): const FortuneCell(value: '원재료'),
+      },
+    );
+    final candidate = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: textSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 0,
+      ),
+      transform: transform,
+    ).singleWhere((value) => value.kind == FortuneNativeCandidateKind.cellText);
+    final plan = fortuneFinalizeHybridRenderPlan(
+      settings: settings,
+      sheet: textSheet,
+      range: range,
+      transform: transform,
+      candidates: [candidate],
+      approvals: [
+        FortuneNativeCandidateApproval(
+          candidateToken: candidate.token,
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+        ),
+      ],
+    );
+
+    expect(plan.approvedCellTextCoords, {const FortuneCellCoord(0, 0)});
+    expect(plan.approvedObjectKeys, isEmpty);
+    expect(plan.approvedCellBorderEdgeKeys, isEmpty);
+  });
+
   test('native line footprint preserves butt endpoints', () {
     final lineSheet = FortuneSheet(
       id: 'line',

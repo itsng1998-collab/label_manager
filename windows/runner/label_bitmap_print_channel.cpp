@@ -14,7 +14,10 @@
 namespace {
 
 using EncodableMap = flutter::EncodableMap;
+using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
+
+std::wstring Utf8ToWide(const std::string& value);
 
 const std::string* StringArg(const EncodableMap& args, const char* key) {
   const auto iter = args.find(EncodableValue(key));
@@ -37,6 +40,90 @@ double DoubleArg(const EncodableMap& args, const char* key, double fallback) {
   if (iter == args.end()) return fallback;
   if (const auto* value = std::get_if<double>(&iter->second)) return *value;
   return fallback;
+}
+
+bool BoolArg(const EncodableMap& args, const char* key, bool fallback) {
+  const auto iter = args.find(EncodableValue(key));
+  if (iter == args.end()) return fallback;
+  if (const auto* value = std::get_if<bool>(&iter->second)) return *value;
+  return fallback;
+}
+
+int64_t Int64Arg(const EncodableMap& args, const char* key, int64_t fallback) {
+  const auto iter = args.find(EncodableValue(key));
+  if (iter == args.end()) return fallback;
+  if (const auto* value = std::get_if<int32_t>(&iter->second)) return *value;
+  if (const auto* value = std::get_if<int64_t>(&iter->second)) return *value;
+  return fallback;
+}
+
+struct NativeTextDescriptor {
+  std::wstring text;
+  RECT rect{};
+  std::wstring font_family;
+  std::string font_family_utf8;
+  int font_pixel_height = 0;
+  bool bold = false;
+  bool italic = false;
+  bool underline = false;
+  bool strike_through = false;
+  COLORREF color = RGB(0, 0, 0);
+  std::string horizontal_align;
+  std::string vertical_align;
+  bool wrap = false;
+};
+
+std::vector<NativeTextDescriptor> TextDescriptorsArg(
+    const EncodableMap& args) {
+  const auto iter = args.find(EncodableValue("textDescriptors"));
+  const auto* values = iter == args.end()
+                           ? nullptr
+                           : std::get_if<EncodableList>(&iter->second);
+  if (values == nullptr) return {};
+  std::vector<NativeTextDescriptor> descriptors;
+  descriptors.reserve(values->size());
+  for (const auto& value : *values) {
+    const auto* map = std::get_if<EncodableMap>(&value);
+    if (map == nullptr) continue;
+    const auto* text = StringArg(*map, "text");
+    const auto* font_family = StringArg(*map, "fontFamily");
+    const auto* horizontal_align = StringArg(*map, "horizontalAlign");
+    const auto* vertical_align = StringArg(*map, "verticalAlign");
+    NativeTextDescriptor descriptor;
+    descriptor.text = text == nullptr ? std::wstring() : Utf8ToWide(*text);
+    descriptor.rect.left = IntArg(*map, "left", 0);
+    descriptor.rect.top = IntArg(*map, "top", 0);
+    descriptor.rect.right = IntArg(*map, "right", 0);
+    descriptor.rect.bottom = IntArg(*map, "bottom", 0);
+    descriptor.font_family = font_family == nullptr
+                                 ? L"Malgun Gothic"
+                                 : Utf8ToWide(*font_family);
+    descriptor.font_family_utf8 = font_family == nullptr
+                      ? "Malgun Gothic"
+                      : *font_family;
+    descriptor.font_pixel_height = IntArg(*map, "fontPixelHeight", 0);
+    descriptor.bold = BoolArg(*map, "bold", false);
+    descriptor.italic = BoolArg(*map, "italic", false);
+    descriptor.underline = BoolArg(*map, "underline", false);
+    descriptor.strike_through = BoolArg(*map, "strikeThrough", false);
+    const uint32_t argb = static_cast<uint32_t>(
+        Int64Arg(*map, "colorArgb", 0xff000000));
+    descriptor.color = RGB((argb >> 16) & 0xff, (argb >> 8) & 0xff,
+                           argb & 0xff);
+    descriptor.horizontal_align = horizontal_align == nullptr
+                                      ? std::string()
+                                      : *horizontal_align;
+    descriptor.vertical_align = vertical_align == nullptr
+                                    ? std::string()
+                                    : *vertical_align;
+    descriptor.wrap = BoolArg(*map, "wrap", false);
+    if (!descriptor.text.empty() && descriptor.font_pixel_height > 0 &&
+        descriptor.rect.right > descriptor.rect.left &&
+        descriptor.rect.bottom > descriptor.rect.top) {
+      descriptors.push_back(std::move(descriptor));
+    }
+  }
+  return descriptors;
 }
 
 std::wstring Utf8ToWide(const std::string& value) {
@@ -70,6 +157,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const double page_width_mm = DoubleArg(args, "pageWidthMm", 0);
   const double page_height_mm = DoubleArg(args, "pageHeightMm", 0);
   const auto pixels_iter = args.find(EncodableValue("bgra"));
+  const auto text_descriptors = TextDescriptorsArg(args);
   const auto* bgra = pixels_iter == args.end()
                          ? nullptr
                          : std::get_if<std::vector<uint8_t>>(&pixels_iter->second);
@@ -136,6 +224,23 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const int target_height = physical_height > 0 ? physical_height : source_height;
   const int destination_x = -physical_offset_x;
   const int destination_y = -physical_offset_y;
+  size_t native_text_requested_characters = 0;
+  int native_text_min_height = 0;
+  int native_text_max_height = 0;
+  std::vector<std::string> native_text_fonts;
+  for (const auto& descriptor : text_descriptors) {
+    native_text_requested_characters += descriptor.text.size();
+    native_text_min_height = native_text_min_height == 0
+                                 ? descriptor.font_pixel_height
+                                 : std::min(native_text_min_height,
+                                            descriptor.font_pixel_height);
+    native_text_max_height = std::max(native_text_max_height,
+                                      descriptor.font_pixel_height);
+    if (std::find(native_text_fonts.begin(), native_text_fonts.end(),
+                  descriptor.font_family_utf8) == native_text_fonts.end()) {
+      native_text_fonts.push_back(descriptor.font_family_utf8);
+    }
+  }
   std::ostringstream diagnostics;
   diagnostics << "printerDpi=" << dpi_x << "x" << dpi_y
               << " source=" << source_width << "x" << source_height
@@ -146,7 +251,16 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " offset=" << physical_offset_x << "," << physical_offset_y
               << " destination=" << destination_x << "," << destination_y
               << " paperTenthMm=" << devmode->dmPaperWidth << "x"
-              << devmode->dmPaperLength;
+              << devmode->dmPaperLength
+              << " nativeTextRequested=" << text_descriptors.size()
+              << " nativeTextRequestedCharacters="
+              << native_text_requested_characters
+              << " nativeTextHeight=" << native_text_min_height << ".."
+              << native_text_max_height << " nativeTextFonts=";
+  for (size_t index = 0; index < native_text_fonts.size(); ++index) {
+    if (index > 0) diagnostics << "|";
+    diagnostics << native_text_fonts[index];
+  }
 
   DOCINFOW document_info{};
   document_info.cbSize = sizeof(DOCINFOW);
@@ -181,9 +295,72 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                 << " stretchLines=" << scan_lines;
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
-    } else if (EndPage(printer_dc) <= 0) {
-      error = "EndPage failed: " + std::to_string(GetLastError());
     } else {
+      const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
+      int native_text_drawn = 0;
+      int native_text_failed = 0;
+      size_t native_text_characters = 0;
+      for (const auto& descriptor : text_descriptors) {
+        HFONT font = CreateFontW(
+            -descriptor.font_pixel_height, 0, 0, 0,
+            descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+            descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
+            OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
+        if (font == nullptr) {
+          ++native_text_failed;
+          continue;
+        }
+        HGDIOBJ previous_font = SelectObject(printer_dc, font);
+        const COLORREF previous_color = SetTextColor(printer_dc, descriptor.color);
+        RECT text_rect = descriptor.rect;
+        OffsetRect(&text_rect, destination_x, destination_y);
+        UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
+        if (descriptor.horizontal_align == "0") {
+          flags |= DT_CENTER;
+        } else if (descriptor.horizontal_align == "2") {
+          flags |= DT_RIGHT;
+        } else {
+          flags |= DT_LEFT;
+        }
+        flags |= descriptor.wrap ? DT_WORDBREAK : DT_SINGLELINE;
+        RECT measured = text_rect;
+        DrawTextW(printer_dc, descriptor.text.c_str(),
+                  static_cast<int>(descriptor.text.size()), &measured,
+                  flags | DT_CALCRECT);
+        const LONG text_height = measured.bottom - measured.top;
+        if (descriptor.vertical_align == "2") {
+          text_rect.top = std::max(text_rect.top,
+                                   text_rect.bottom - text_height);
+        } else if (descriptor.vertical_align != "1") {
+          text_rect.top += std::max<LONG>(
+              0, (text_rect.bottom - text_rect.top - text_height) / 2);
+        }
+        const int draw_result = DrawTextW(
+            printer_dc, descriptor.text.c_str(),
+            static_cast<int>(descriptor.text.size()), &text_rect, flags);
+        if (draw_result > 0) {
+          ++native_text_drawn;
+          native_text_characters += descriptor.text.size();
+        } else {
+          ++native_text_failed;
+        }
+        SetTextColor(printer_dc, previous_color);
+        SelectObject(printer_dc, previous_font);
+        DeleteObject(font);
+      }
+      SetBkMode(printer_dc, previous_background_mode);
+      diagnostics << " nativeTextDrawn=" << native_text_drawn
+                  << " nativeTextFailed=" << native_text_failed
+                  << " nativeTextCharacters=" << native_text_characters;
+      if (native_text_failed > 0) {
+        error = "Native text rendering failed: " +
+                std::to_string(native_text_failed);
+      }
+    }
+    if (error.empty() && EndPage(printer_dc) <= 0) {
+      error = "EndPage failed: " + std::to_string(GetLastError());
+    } else if (error.empty()) {
       ok = true;
     }
   }

@@ -874,6 +874,28 @@ class LabelSheetHybridEzplCapture {
   final FortuneHybridRenderPlan plan;
 }
 
+class LabelSheetWindowsDriverCapture {
+  const LabelSheetWindowsDriverCapture({
+    required this.pngBytes,
+    required this.sheet,
+    required this.range,
+    required this.metrics,
+    required this.plan,
+    required this.textDescriptors,
+    required this.pixelWidth,
+    required this.pixelHeight,
+  });
+
+  final Uint8List pngBytes;
+  final FortuneSheet sheet;
+  final FortuneRange range;
+  final LabelSheetPrintPageMetrics metrics;
+  final FortuneHybridRenderPlan plan;
+  final List<LabelSheetWindowsTextDescriptor> textDescriptors;
+  final int pixelWidth;
+  final int pixelHeight;
+}
+
 class LabelSheetOutputCaptureController {
   _LabelSheetWorkbenchState? _state;
   Object? _ownerToken;
@@ -906,6 +928,18 @@ class LabelSheetOutputCaptureController {
         lineSpacingPercent: lineSpacingPercent,
       ) ??
       Future<LabelSheetHybridEzplCapture?>.value();
+
+  Future<LabelSheetWindowsDriverCapture?> captureWindowsDriver({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+    required int? lineSpacingPercent,
+  }) =>
+      _state?._captureWindowsDriver(
+        metrics: metrics,
+        options: options,
+        lineSpacingPercent: lineSpacingPercent,
+      ) ??
+      Future<LabelSheetWindowsDriverCapture?>.value();
 
   void replaceAttachedOwner({
     required Object expectedOwnerToken,
@@ -2075,22 +2109,31 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       await RawPrinterWin32.sendRaw(printer, hybrid.bytes);
       return;
     }
-    final capture = await _controller.captureRangeAsPng(
-      labelSheetPrintRange(sheet, physicalSize),
-      pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
-      includeGridLines: false,
-      includeCellBorders: true,
-      includeRulerGuides: false,
-      includeLabelAreaBoundary: false,
-      outputLineHeightMultiplier: options.autoSpacingPercent == null
-          ? null
-          : options.autoSpacingPercent! / 100,
-        logicalClipSize: physicalSize.logicalSize,
-    );
+    final windowsCapture = backend == LabelPrintBackend.windowsDriver
+        ? await _captureWindowsDriver(
+            metrics: metrics,
+            options: options,
+            lineSpacingPercent: options.autoSpacingPercent,
+          )
+        : null;
+    final capture = backend != LabelPrintBackend.windowsDriver
+        ? await _controller.captureRangeAsPng(
+            labelSheetPrintRange(sheet, physicalSize),
+            pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
+            includeGridLines: false,
+            includeCellBorders: true,
+            includeRulerGuides: false,
+            includeLabelAreaBoundary: false,
+            outputLineHeightMultiplier: options.autoSpacingPercent == null
+                ? null
+                : options.autoSpacingPercent! / 100,
+              logicalClipSize: physicalSize.logicalSize,
+          )
+        : null;
     if (!mounted) {
       return;
     }
-    if (capture == null) {
+    if (capture == null && windowsCapture == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')));
@@ -2099,15 +2142,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
     debugLog(
       'labelSheetPrint capture backend=${backend.name} '
-      'logical=${capture.logicalSize.width}x${capture.logicalSize.height} '
-      'pixel=${capture.pixelSize.width}x${capture.pixelSize.height} '
-      'pngBytes=${capture.pngBytes.length}',
+      'pixel=${windowsCapture == null ? '${capture!.pixelSize.width}x${capture.pixelSize.height}' : '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}'} '
+      'pngBytes=${windowsCapture?.pngBytes.length ?? capture!.pngBytes.length} '
+      'nativeText=${windowsCapture?.textDescriptors.length ?? 0} '
+      'fallbackText=${windowsCapture == null ? 0 : windowsCapture.plan.candidates.where((candidate) => candidate.kind == FortuneNativeCandidateKind.cellText).length - windowsCapture.textDescriptors.length}',
     );
 
     final driverPage = backend == LabelPrintBackend.windowsDriver
         ? prepareLabelSheetWindowsDriverPage(
-            pngBytes: capture.pngBytes,
-            metrics: metrics,
+        pngBytes: windowsCapture!.pngBytes,
+        metrics: windowsCapture.metrics,
             options: options,
           )
         : null;
@@ -2136,12 +2180,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         sourceHeight: driverPage.height,
         pageWidthMm: metrics.pageWidthMm,
         pageHeightMm: metrics.pageHeightMm(options),
+        textDescriptors: windowsCapture!.textDescriptors,
       );
       debugLog('labelSheetPrint gdiDispatch ${result.diagnostics}');
       return;
     }
     final pdfBytes = await buildLabelSheetPdfBytes(
-      pngBytes: capture.pngBytes,
+      pngBytes: capture!.pngBytes,
       metrics: metrics,
       options: options,
     );
@@ -2249,6 +2294,49 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       range: capture.range,
       metrics: preparation.geometry.metrics,
       plan: preparation.plan,
+    );
+  }
+
+  Future<LabelSheetWindowsDriverCapture?> _captureWindowsDriver({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+    required int? lineSpacingPercent,
+  }) async {
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
+    final sheet = _controller.getSheet();
+    final settings = _controller.settingsSnapshot;
+    final physicalSize = sheet == null
+        ? null
+        : fortuneSheetGridClientPhysicalSize(sheet);
+    if (sheet == null || settings == null || physicalSize == null) return null;
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: sheet,
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
+      options: options,
+      lineSpacingPercent: lineSpacingPercent,
+    );
+    final capture = await _controller.captureHybridPlanAsPng(
+      preparation.plan,
+      pixelRatio:
+          preparation.geometry.metrics.dpi /
+          fortuneSheetLogicalPixelsPerInch,
+      includeCellBorders: true,
+      outputLineHeightMultiplier: lineSpacingPercent == null
+          ? null
+          : lineSpacingPercent / 100,
+    );
+    if (capture == null) return null;
+    return LabelSheetWindowsDriverCapture(
+      pngBytes: capture.pngBytes,
+      sheet: capture.sheet,
+      range: capture.range,
+      metrics: preparation.geometry.metrics,
+      plan: preparation.plan,
+      textDescriptors: preparation.descriptors,
+      pixelWidth: capture.pixelSize.width.round(),
+      pixelHeight: capture.pixelSize.height.round(),
     );
   }
 

@@ -111,6 +111,158 @@ void main() {
     expect(geometry.transform.nativeAllowed, isTrue);
   });
 
+  test('Windows hybrid approves only plain cell text', () {
+    final sheet = fs.FortuneSheet(
+      id: 'sheet',
+      name: 'Sheet',
+      cells: {
+        const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
+          value: '원재료',
+          fontFamily: 'Arial',
+          fontSize: 10,
+          bold: true,
+          foreground: Color(0xff123456),
+          horizontalAlign: '2',
+          verticalAlign: '2',
+          textWrap: '2',
+        ),
+        const fs.FortuneCellCoord(0, 1): const fs.FortuneCell(
+          inlineRuns: [fs.FortuneInlineTextRun(text: '서식')],
+        ),
+        const fs.FortuneCellCoord(0, 2): const fs.FortuneCell(
+          value: '회전',
+          textRotation: '45',
+        ),
+        const fs.FortuneCellCoord(0, 3): const fs.FortuneCell(
+          value: '세로',
+          textRotationMode: '3',
+        ),
+        const fs.FortuneCellCoord(0, 4): const fs.FortuneCell(
+          value: '넘침',
+          textWrap: '1',
+        ),
+        const fs.FortuneCellCoord(0, 5): const fs.FortuneCell(
+          value: '균등',
+          horizontalAlign: '3',
+        ),
+        const fs.FortuneCellCoord(0, 6): const fs.FortuneCell(
+          value: '위치',
+          extraFields: {fs.fortuneCellTextOffsetYExtraKey: 2},
+        ),
+      },
+      defaultRowHeight: 24,
+      defaultColWidth: 40,
+    );
+
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: sheet,
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 80,
+        heightMm: 20,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 80,
+        labelHeightMm: 20,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+      lineSpacingPercent: null,
+    );
+
+    expect(preparation.descriptors, hasLength(1));
+    final descriptor = preparation.descriptors.single;
+    expect(descriptor.text, '원재료');
+    expect(descriptor.fontFamily, 'Arial');
+    expect(descriptor.fontPixelHeight, greaterThan(0));
+    expect(descriptor.bold, isTrue);
+    expect(descriptor.colorArgb, 0xff123456);
+    expect(descriptor.horizontalAlign, '2');
+    expect(descriptor.verticalAlign, '2');
+    expect(descriptor.wrap, isTrue);
+    expect(
+      preparation.plan.approvedCellTextCoords,
+      {const fs.FortuneCellCoord(0, 0)},
+    );
+    expect(descriptor.toChannelMap()['text'], '원재료');
+    expect(descriptor.toChannelMap()['colorArgb'], 0xff123456);
+  });
+
+  test('Windows hybrid keeps all text in raster when line spacing is forced', () {
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'sheet',
+        name: 'Sheet',
+        cells: {
+          const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(value: '원재료'),
+        },
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 20,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 20,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+      lineSpacingPercent: 120,
+    );
+
+    expect(preparation.descriptors, isEmpty);
+    expect(preparation.plan.approvedCellTextCoords, isEmpty);
+  });
+
+  test('Windows hybrid keeps text in raster for vertical page output', () {
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'sheet',
+        name: 'Sheet',
+        cells: {
+          const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(value: '원재료'),
+        },
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 20,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 20,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.vertical,
+      ),
+      lineSpacingPercent: null,
+    );
+
+    expect(preparation.descriptors, isEmpty);
+    expect(preparation.plan.approvedCellTextCoords, isEmpty);
+  });
+
   test('physical layout keeps source size and applies margin push and clip', () {
     final layout = LabelSheetPrintLayout.resolve(
       metrics: const LabelSheetPrintPageMetrics(

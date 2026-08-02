@@ -6055,6 +6055,8 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final renderedPages = <LabelPrintUnit, LabelSheetRenderedPage>{};
       final driverPages = <LabelPrintUnit, LabelSheetWindowsDriverPage>{};
+        final driverTextDescriptors =
+          <LabelPrintUnit, List<LabelSheetWindowsTextDescriptor>>{};
       final hybridCaptures = <LabelPrintUnit, LabelSheetHybridEzplCapture>{};
       final resolvedMetrics = <LabelPrintUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
@@ -6082,42 +6084,70 @@ class _HomePageManagerState extends State<HomePageManager> {
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
         if (backend.usesCanvasCapture) {
-          final capture = await _labelPrintCaptureController.capture(
-            dpi: renderDpi,
-            lineSpacingPercent: unit.row.lineSpacingPercent,
-          );
-          if (capture == null) {
+          final windowsCapture = backend == LabelPrintBackend.windowsDriver
+              ? await _labelPrintCaptureController.captureWindowsDriver(
+                  metrics: LabelSheetPrintPageMetrics(
+                    labelWidthMm: unit.row.widthMm,
+                    labelHeightMm: unit.row.heightMm,
+                    dpi: dpi,
+                  ),
+                  options: options,
+                  lineSpacingPercent: unit.row.lineSpacingPercent,
+                )
+              : null;
+            final capture = backend != LabelPrintBackend.windowsDriver
+              ? await _labelPrintCaptureController.capture(
+                  dpi: renderDpi,
+                  lineSpacingPercent: unit.row.lineSpacingPercent,
+                )
+              : null;
+          if (capture == null && windowsCapture == null) {
             throw StateError(
               '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
             );
           }
-          capturedSheet = capture.sheet;
-          metrics = LabelSheetPrintPageMetrics(
-            labelWidthMm: unit.row.widthMm,
-            labelHeightMm: unit.row.heightMm,
-            sourceWidthMm: capture.sourceWidthMm,
-            sourceHeightMm: capture.sourceHeightMm,
-            dpi: dpi,
-          );
+          capturedSheet = windowsCapture?.sheet ?? capture!.sheet;
+          metrics = windowsCapture?.metrics ??
+              LabelSheetPrintPageMetrics(
+                labelWidthMm: unit.row.widthMm,
+                labelHeightMm: unit.row.heightMm,
+                sourceWidthMm: capture!.sourceWidthMm,
+                sourceHeightMm: capture.sourceHeightMm,
+                dpi: dpi,
+              );
           final driverPage = backend == LabelPrintBackend.windowsDriver
               ? prepareLabelSheetWindowsDriverPage(
-                  pngBytes: capture.pngBytes,
+                  pngBytes: windowsCapture!.pngBytes,
                   metrics: metrics,
                   options: options,
                 )
               : null;
-          if (driverPage != null) driverPages[unit] = driverPage;
+          if (driverPage != null) {
+            driverPages[unit] = driverPage;
+            driverTextDescriptors[unit] = windowsCapture!.textDescriptors;
+          }
           renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: capture.pngBytes,
+            pngBytes: windowsCapture?.pngBytes ?? capture!.pngBytes,
             metrics: metrics,
             options: options,
           );
+          final nativeTextCandidates = windowsCapture?.plan.candidates
+                  .where(
+                    (candidate) =>
+                        candidate.kind ==
+                        fs.FortuneNativeCandidateKind.cellText,
+                  )
+                  .length ??
+              0;
           debugLog(
             'labelPrintQuality capture unit=${unitIndex + 1}/${units.length} '
             'itemId=${unit.row.itemId} labelMm=${unit.row.widthMm}x${unit.row.heightMm} '
-            'sourceMm=${capture.sourceWidthMm}x${capture.sourceHeightMm} '
-            'pixel=${capture.pixelWidth}x${capture.pixelHeight} '
-            'pngBytes=${capture.pngBytes.length} margins='
+            'sourceMm=${metrics.effectiveSourceWidthMm}x${metrics.effectiveSourceHeightMm} '
+            'pixel=${windowsCapture == null ? '${capture!.pixelWidth}x${capture.pixelHeight}' : '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}'} '
+            'pngBytes=${windowsCapture?.pngBytes.length ?? capture!.pngBytes.length} '
+            'nativeTextCandidates=$nativeTextCandidates '
+            'nativeTextApproved=${windowsCapture?.textDescriptors.length ?? 0} '
+            'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.length ?? 0)} margins='
             '${unit.row.leftMarginMm},${unit.row.rightMarginMm},${unit.row.topMarginMm} '
             'push=${unit.row.leftPushMm},${unit.row.topPushMm} '
             'orientation=${options.orientation.name}',
@@ -6252,6 +6282,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   pageWidthMm: group.pageSpec.widthMm.toDouble(),
                   pageHeightMm:
                       group.pageSpec.heightMm + settings.extraAreaMm,
+                    textDescriptors:
+                      driverTextDescriptors[unit] ?? const [],
                 );
                 debugLog(
                   'labelPrintQuality gdiDispatch ${result.diagnostics}',
@@ -6499,6 +6531,8 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final renderedPages = <ScaleOutputUnit, LabelSheetRenderedPage>{};
       final driverPages = <ScaleOutputUnit, LabelSheetWindowsDriverPage>{};
+        final driverTextDescriptors =
+          <ScaleOutputUnit, List<LabelSheetWindowsTextDescriptor>>{};
       final hybridCaptures = <ScaleOutputUnit, LabelSheetHybridEzplCapture>{};
       final resolvedMetrics = <ScaleOutputUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
@@ -6526,42 +6560,70 @@ class _HomePageManagerState extends State<HomePageManager> {
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
         if (backend.usesCanvasCapture) {
-          final capture = await _scaleOutputCaptureController.capture(
-            dpi: renderDpi,
-            lineSpacingPercent: unit.row.lineSpacingPercent,
-          );
-          if (capture == null) {
+          final windowsCapture = backend == LabelPrintBackend.windowsDriver
+              ? await _scaleOutputCaptureController.captureWindowsDriver(
+                  metrics: LabelSheetPrintPageMetrics(
+                    labelWidthMm: unit.row.widthMm,
+                    labelHeightMm: unit.row.heightMm,
+                    dpi: dpi,
+                  ),
+                  options: options,
+                  lineSpacingPercent: unit.row.lineSpacingPercent,
+                )
+              : null;
+            final capture = backend != LabelPrintBackend.windowsDriver
+              ? await _scaleOutputCaptureController.capture(
+                  dpi: renderDpi,
+                  lineSpacingPercent: unit.row.lineSpacingPercent,
+                )
+              : null;
+          if (capture == null && windowsCapture == null) {
             throw StateError(
               '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
             );
           }
-          capturedSheet = capture.sheet;
-          metrics = LabelSheetPrintPageMetrics(
-            labelWidthMm: unit.row.widthMm,
-            labelHeightMm: unit.row.heightMm,
-            sourceWidthMm: capture.sourceWidthMm,
-            sourceHeightMm: capture.sourceHeightMm,
-            dpi: dpi,
-          );
+          capturedSheet = windowsCapture?.sheet ?? capture!.sheet;
+          metrics = windowsCapture?.metrics ??
+              LabelSheetPrintPageMetrics(
+                labelWidthMm: unit.row.widthMm,
+                labelHeightMm: unit.row.heightMm,
+                sourceWidthMm: capture!.sourceWidthMm,
+                sourceHeightMm: capture.sourceHeightMm,
+                dpi: dpi,
+              );
           final driverPage = backend == LabelPrintBackend.windowsDriver
               ? prepareLabelSheetWindowsDriverPage(
-                  pngBytes: capture.pngBytes,
+                  pngBytes: windowsCapture!.pngBytes,
                   metrics: metrics,
                   options: options,
                 )
               : null;
-          if (driverPage != null) driverPages[unit] = driverPage;
+          if (driverPage != null) {
+            driverPages[unit] = driverPage;
+            driverTextDescriptors[unit] = windowsCapture!.textDescriptors;
+          }
           renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: capture.pngBytes,
+            pngBytes: windowsCapture?.pngBytes ?? capture!.pngBytes,
             metrics: metrics,
             options: options,
           );
+          final nativeTextCandidates = windowsCapture?.plan.candidates
+                  .where(
+                    (candidate) =>
+                        candidate.kind ==
+                        fs.FortuneNativeCandidateKind.cellText,
+                  )
+                  .length ??
+              0;
           debugLog(
             'scalePrintQuality capture unit=${unitIndex + 1}/${units.length} '
             'itemId=${unit.row.itemId} labelMm=${unit.row.widthMm}x${unit.row.heightMm} '
-            'sourceMm=${capture.sourceWidthMm}x${capture.sourceHeightMm} '
-            'pixel=${capture.pixelWidth}x${capture.pixelHeight} '
-            'pngBytes=${capture.pngBytes.length}',
+            'sourceMm=${metrics.effectiveSourceWidthMm}x${metrics.effectiveSourceHeightMm} '
+            'pixel=${windowsCapture == null ? '${capture!.pixelWidth}x${capture.pixelHeight}' : '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}'} '
+            'pngBytes=${windowsCapture?.pngBytes.length ?? capture!.pngBytes.length} '
+            'nativeTextCandidates=$nativeTextCandidates '
+            'nativeTextApproved=${windowsCapture?.textDescriptors.length ?? 0} '
+            'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.length ?? 0)}',
           );
           if (driverPage != null) {
             debugLog(
@@ -6699,6 +6761,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   pageWidthMm: group.pageSpec.widthMm.toDouble(),
                   pageHeightMm:
                       group.pageSpec.heightMm + settings.extraAreaMm,
+                    textDescriptors:
+                      driverTextDescriptors[unit] ?? const [],
                 );
                 debugLog(
                   'scalePrintQuality gdiDispatch ${result.diagnostics}',

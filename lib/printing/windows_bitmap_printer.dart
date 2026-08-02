@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:printing/printing.dart';
 
 class WindowsBitmapPrintResult {
@@ -28,6 +29,7 @@ class WindowsBitmapPrinter {
     required int sourceHeight,
     required double pageWidthMm,
     required double pageHeightMm,
+    List<LabelSheetWindowsTextDescriptor> textDescriptors = const [],
   }) async {
     if (!Platform.isWindows) {
       throw UnsupportedError('Windows bitmap printing is only supported on Windows.');
@@ -42,6 +44,9 @@ class WindowsBitmapPrinter {
         'sourceHeight': sourceHeight,
         'pageWidthMm': pageWidthMm,
         'pageHeightMm': pageHeightMm,
+        'textDescriptors': [
+          for (final descriptor in textDescriptors) descriptor.toChannelMap(),
+        ],
       },
     );
     if (result == null) {
