@@ -10,8 +10,6 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
-const double labelSheetWindowsDriverLuminanceThreshold = 127.5;
-
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
     required this.bgraBytes,
@@ -21,10 +19,10 @@ class LabelSheetWindowsDriverPage {
     required this.inputHeight,
     required this.rasterMapping,
     required this.inkPixels,
+    required this.nonWhitePixels,
     required this.antialiasPixels,
     required this.luminanceHistogram,
     required this.coverageInkEquivalent,
-    required this.discardedCoverageEquivalent,
     required this.isolatedInkPixels,
   });
 
@@ -35,19 +33,16 @@ class LabelSheetWindowsDriverPage {
   final int inputHeight;
   final String rasterMapping;
   final int inkPixels;
+  final int nonWhitePixels;
   final int antialiasPixels;
   final List<int> luminanceHistogram;
   final double coverageInkEquivalent;
-  final double discardedCoverageEquivalent;
   final int isolatedInkPixels;
 
   int get totalPixels => width * height;
   double get inkPercent => totalPixels == 0 ? 0 : inkPixels * 100 / totalPixels;
   double get antialiasPercent =>
       totalPixels == 0 ? 0 : antialiasPixels * 100 / totalPixels;
-  double get coveragePreservationPercent => coverageInkEquivalent == 0
-      ? 100
-      : inkPixels * 100 / coverageInkEquivalent;
 }
 
 LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
@@ -129,23 +124,20 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   final pixelCount = page.width * page.height;
   final bgraBytes = Uint8List(pixelCount * 4);
   var antialiasPixels = 0;
+  var nonWhitePixels = 0;
   final luminanceHistogram = List<int>.filled(8, 0);
   var coverageInkEquivalent = 0.0;
   var inkPixels = 0;
-  var discardedCoverageEquivalent = 0.0;
   var pixelIndex = 0;
   for (final pixel in page) {
     final luminance = img.getLuminance(pixel);
     if (luminance > 0 && luminance < 255) antialiasPixels += 1;
+    if (luminance < 255) nonWhitePixels += 1;
     luminanceHistogram[math.min(7, luminance.toInt() ~/ 32)] += 1;
     coverageInkEquivalent += (255 - luminance) / 255;
-    final value = luminance <= labelSheetWindowsDriverLuminanceThreshold
-        ? 0
-        : 255;
+    final value = luminance.round().clamp(0, 255);
     if (value == 0) {
       inkPixels += 1;
-    } else if (luminance < 255) {
-      discardedCoverageEquivalent += (255 - luminance) / 255;
     }
     final offset = pixelIndex * 4;
     bgraBytes[offset] = value;
@@ -184,10 +176,10 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     inputHeight: oriented.height,
     rasterMapping: rasterMapping,
     inkPixels: inkPixels,
+    nonWhitePixels: nonWhitePixels,
     antialiasPixels: antialiasPixels,
     luminanceHistogram: List<int>.unmodifiable(luminanceHistogram),
     coverageInkEquivalent: coverageInkEquivalent,
-    discardedCoverageEquivalent: discardedCoverageEquivalent,
     isolatedInkPixels: isolatedInkPixels,
   );
 }

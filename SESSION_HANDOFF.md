@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 native-grid 글자 출력 v1.0.36
+## 완료·실물 검증 대기: Godex G500 native-grid grayscale 출력 v1.0.37
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -114,6 +114,16 @@
 - 다음 실물 로그 정상 조건: `renderDpi=203.2`, `rasterInput=641x481` 또는 `640x480`, `rasterMapping=cropCeilOverflow` 또는 `direct`, `gdiPage=640x480`.
 - stage/commit 대상: 출력 Dart 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `bae6848 Godex native-grid 글자 출력 적용`.
+- v1.0.36 실물과 `.tmp/log/app_2026-08-02_22-29-20.log` 분석: native-grid/crop/GDI 1:1은 정상이나 작은 원재료 글자가 심하게 끊겼다. 앱 threshold가 `antialias=7987` 회색 edge 중 coverage `1705.13`을 흰색으로 버린 것이 원인이다.
+- 과거 grayscale 실패는 1280×960→639×480 `HALFTONE` 축소와 결합된 결과였다. 이번에는 640×480 native-grid grayscale을 크기 변환 없이 `COLORONCOLOR` 1:1로 드라이버에 전달한다.
+- 로그 예정: `toneMode=driverMonochrome`, exact black, gray, non-white, coverage 상당량, raster mapping, native GDI 1:1 진단.
+- native 진단에 `sourceBpp=32`, `compression=BI_RGB`, `rasterOp=SRCCOPY`를 추가했다. Dart 로그는 exact black/gray/non-white/white를 분리한다.
+- grayscale fixture에서 luminance 63/225가 BGRA에 그대로 보존되는 집중 테스트 통과.
+- 출력 관련 테스트 44건 통과, 편집 Dart 파일 진단 오류 0건. Windows 경로의 threshold 참조는 0건이며 남은 threshold는 EZPL raw 전용이다.
+- 변경 파일 analyzer 오류/경고 0건 및 `git diff --check` 통과.
+- `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.37`임을 확인했고 검증 프로세스를 종료했다.
+- 다음 실물 로그 정상 조건: `toneMode=driverMonochrome`, `gray>0`, `sourceBpp=32`, `compression=BI_RGB`, `rasterOp=SRCCOPY`, source/target `640x480`.
+- stage/commit 대상: 출력 Dart 3개, Windows channel, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

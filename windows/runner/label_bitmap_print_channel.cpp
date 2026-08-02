@@ -175,6 +175,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         0, 0, source_width, source_height, bgra->data(), &bitmap_info,
         DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
+                << " sourceBpp=" << bitmap_info.bmiHeader.biBitCount
+                << " compression=BI_RGB"
+                << " rasterOp=SRCCOPY"
                 << " stretchLines=" << scan_lines;
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
