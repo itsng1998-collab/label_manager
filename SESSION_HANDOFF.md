@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료: Godex G500 Windows 드라이버 고품질 출력 v1.0.29
+## 완료·실물 검증 대기: Godex G500 printer-dot 흑백 출력 v1.0.30
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -38,6 +38,17 @@
 - 실물 출력 시 로그에서 `backend=windowsDriver`, `renderDpi=406.4`, capture pixel/bytes, PDF bytes, dispatch 결과를 확인할 수 있다.
 - stage/commit 대상: 출력 production 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `627942e Godex 드라이버 고품질 출력 적용`.
+- v1.0.29 실물에서 검은 영역은 정상이나 작은 한글과 가는 선이 점 단위로 탈락했다. 로그상 G500 `windowsDriver`, 406.4dpi, 80×60mm=1281×961px 경로는 정상 실행됐다.
+- 원인은 406.4dpi PNG의 회색 antialias 획을 203.2dpi 드라이버가 다시 halftone 처리하면서 작은 획을 버리는 것이다.
+- `label_sheet_print_job.dart`: 2배 capture를 203.2dpi printer dots로 average 축소한 뒤 luminance 224 기준 완전한 흑/백 PNG로 고정하는 `prepareLabelSheetWindowsDriverRaster`를 추가했다.
+- 품목/저울/라벨 시트의 `windowsDriver`에만 정규화를 적용한다. PDF 가상 프린터와 raw EZPL 경로는 변경하지 않는다.
+- 로그에 capture source, 최종 printer dots, threshold, ink pixels/percent, 정규화 PNG bytes를 기록한다.
+- focused test와 출력 관련 테스트 42건 통과.
+- 변경 파일 analyzer 오류/경고 0건, `git diff --check` 통과.
+- 최초 Windows Debug 빌드는 실행 중이던 v1.0.29 PID 3828의 EXE 잠금으로 `LNK1168` 실패했다. 사용자 정상 종료 확인 후 재실행했다.
+- Windows Debug 빌드 성공. EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_18-15-33.log` logger 헤더가 모두 `1.0.30`임을 확인했다. 검증용 PID 2220은 종료했다.
+- 다음 실물 출력 로그에서 `normalize source=1281x961 printerDots=640x480 threshold=224`, ink 비율, PDF bytes, accepted 결과를 확인한다.
+- stage/commit 대상: 출력 production 3개, 관련 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

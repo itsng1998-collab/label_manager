@@ -6097,8 +6097,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             sourceHeightMm: capture.sourceHeightMm,
             dpi: dpi,
           );
+          final driverRaster = backend == LabelPrintBackend.windowsDriver
+              ? prepareLabelSheetWindowsDriverRaster(
+                  pngBytes: capture.pngBytes,
+                  metrics: metrics,
+                )
+              : null;
           renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: capture.pngBytes,
+            pngBytes: driverRaster?.pngBytes ?? capture.pngBytes,
             metrics: metrics,
             options: options,
           );
@@ -6112,6 +6118,17 @@ class _HomePageManagerState extends State<HomePageManager> {
             'push=${unit.row.leftPushMm},${unit.row.topPushMm} '
             'orientation=${options.orientation.name}',
           );
+          if (driverRaster != null) {
+            debugLog(
+              'labelPrintQuality normalize source=${driverRaster.sourceWidth}x'
+              '${driverRaster.sourceHeight} printerDots='
+              '${driverRaster.outputWidth}x${driverRaster.outputHeight} '
+              'threshold=$labelSheetWindowsDriverInkLuminanceThreshold '
+              'ink=${driverRaster.inkPixels}/${driverRaster.totalPixels} '
+              'inkPercent=${driverRaster.inkPercent.toStringAsFixed(2)} '
+              'pngBytes=${driverRaster.pngBytes.length}',
+            );
+          }
         } else {
           final hybrid = await _labelPrintCaptureController.captureHybridEzpl(
             metrics: LabelSheetPrintPageMetrics(
@@ -6504,8 +6521,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             sourceHeightMm: capture.sourceHeightMm,
             dpi: dpi,
           );
+          final driverRaster = backend == LabelPrintBackend.windowsDriver
+              ? prepareLabelSheetWindowsDriverRaster(
+                  pngBytes: capture.pngBytes,
+                  metrics: metrics,
+                )
+              : null;
           renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: capture.pngBytes,
+            pngBytes: driverRaster?.pngBytes ?? capture.pngBytes,
             metrics: metrics,
             options: options,
           );
@@ -6516,6 +6539,17 @@ class _HomePageManagerState extends State<HomePageManager> {
             'pixel=${capture.pixelWidth}x${capture.pixelHeight} '
             'pngBytes=${capture.pngBytes.length}',
           );
+          if (driverRaster != null) {
+            debugLog(
+              'scalePrintQuality normalize source=${driverRaster.sourceWidth}x'
+              '${driverRaster.sourceHeight} printerDots='
+              '${driverRaster.outputWidth}x${driverRaster.outputHeight} '
+              'threshold=$labelSheetWindowsDriverInkLuminanceThreshold '
+              'ink=${driverRaster.inkPixels}/${driverRaster.totalPixels} '
+              'inkPercent=${driverRaster.inkPercent.toStringAsFixed(2)} '
+              'pngBytes=${driverRaster.pngBytes.length}',
+            );
+          }
         } else {
           final hybrid = await _scaleOutputCaptureController.captureHybridEzpl(
             metrics: LabelSheetPrintPageMetrics(

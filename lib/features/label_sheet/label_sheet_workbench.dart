@@ -2103,8 +2103,25 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       'pngBytes=${capture.pngBytes.length}',
     );
 
+    final driverRaster = backend == LabelPrintBackend.windowsDriver
+        ? prepareLabelSheetWindowsDriverRaster(
+            pngBytes: capture.pngBytes,
+            metrics: metrics,
+          )
+        : null;
+    if (driverRaster != null) {
+      debugLog(
+        'labelSheetPrint normalize source=${driverRaster.sourceWidth}x'
+        '${driverRaster.sourceHeight} printerDots='
+        '${driverRaster.outputWidth}x${driverRaster.outputHeight} '
+        'threshold=$labelSheetWindowsDriverInkLuminanceThreshold '
+        'ink=${driverRaster.inkPixels}/${driverRaster.totalPixels} '
+        'inkPercent=${driverRaster.inkPercent.toStringAsFixed(2)} '
+        'pngBytes=${driverRaster.pngBytes.length}',
+      );
+    }
     final pdfBytes = await buildLabelSheetPdfBytes(
-      pngBytes: capture.pngBytes,
+      pngBytes: driverRaster?.pngBytes ?? capture.pngBytes,
       metrics: metrics,
       options: options,
     );

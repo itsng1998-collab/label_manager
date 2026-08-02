@@ -240,6 +240,35 @@ void main() {
     expect(bytes[graphicMarker + 6], 0xaa);
   });
 
+  test('Windows driver raster preserves supersampled ink as printer dots', () {
+    final image = img.Image(width: 4, height: 2);
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+    image.setPixelRgb(0, 0, 0, 0, 0);
+    for (var y = 0; y < 2; y += 1) {
+      for (var x = 2; x < 4; x += 1) {
+        image.setPixelRgb(x, y, 225, 225, 225);
+      }
+    }
+
+    final raster = prepareLabelSheetWindowsDriverRaster(
+      pngBytes: Uint8List.fromList(img.encodePng(image)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 2,
+        labelHeightMm: 1,
+        sourceWidthMm: 2,
+        sourceHeightMm: 1,
+        dpi: 25.4,
+      ),
+    );
+    final output = img.decodePng(raster.pngBytes)!;
+
+    expect((raster.sourceWidth, raster.sourceHeight), (4, 2));
+    expect((raster.outputWidth, raster.outputHeight), (2, 1));
+    expect(raster.inkPixels, 1);
+    expect(img.getLuminance(output.getPixel(0, 0)), 0);
+    expect(img.getLuminance(output.getPixel(1, 0)), 255);
+  });
+
   test('planned Hybrid output encodes only package-approved descriptors', () async {
     final sheet = fs.FortuneSheet(
       id: 's1',

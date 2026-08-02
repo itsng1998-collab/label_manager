@@ -10,6 +10,66 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
+const num labelSheetWindowsDriverInkLuminanceThreshold = 224;
+
+class LabelSheetWindowsDriverRaster {
+  const LabelSheetWindowsDriverRaster({
+    required this.pngBytes,
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.outputWidth,
+    required this.outputHeight,
+    required this.inkPixels,
+  });
+
+  final Uint8List pngBytes;
+  final int sourceWidth;
+  final int sourceHeight;
+  final int outputWidth;
+  final int outputHeight;
+  final int inkPixels;
+
+  int get totalPixels => outputWidth * outputHeight;
+  double get inkPercent => totalPixels == 0 ? 0 : inkPixels * 100 / totalPixels;
+}
+
+LabelSheetWindowsDriverRaster prepareLabelSheetWindowsDriverRaster({
+  required Uint8List pngBytes,
+  required LabelSheetPrintPageMetrics metrics,
+}) {
+  final source = img.decodePng(pngBytes);
+  if (source == null) {
+    throw StateError('라벨 이미지를 Windows 프린터 출력 이미지로 변환할 수 없습니다.');
+  }
+  final outputWidth = metrics.dotsFromMm(metrics.effectiveSourceWidthMm);
+  final outputHeight = metrics.dotsFromMm(metrics.effectiveSourceHeightMm);
+  final output = img.copyResize(
+    source,
+    width: outputWidth,
+    height: outputHeight,
+    interpolation: img.Interpolation.average,
+  );
+  var inkPixels = 0;
+  for (final pixel in output) {
+    final ink = img.getLuminance(pixel) <=
+        labelSheetWindowsDriverInkLuminanceThreshold;
+    final value = ink ? 0 : 255;
+    pixel
+      ..r = value
+      ..g = value
+      ..b = value
+      ..a = 255;
+    if (ink) inkPixels += 1;
+  }
+  return LabelSheetWindowsDriverRaster(
+    pngBytes: Uint8List.fromList(img.encodePng(output)),
+    sourceWidth: source.width,
+    sourceHeight: source.height,
+    outputWidth: output.width,
+    outputHeight: output.height,
+    inkPixels: inkPixels,
+  );
+}
 
 class LabelSheetPrintOptions {
   const LabelSheetPrintOptions({
