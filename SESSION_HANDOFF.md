@@ -18,6 +18,7 @@
 - 버전은 호환 가능한 출력 버그 수정으로 `1.0.27`에서 `1.0.28`로 PATCH 증가했다.
 - `git diff --check` 통과, 버전 생성 결과 `1.0.28`.
 - stage 대상: 출력 production 5개, 관련 테스트 3개, FortuneSheet canvas/test, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `3fc231e Godex 출력 크기와 래스터 품질 개선`.
 - 남은 검증: 동일 80×60 라벨을 Godex G500으로 재출력해 편집 위치/크기와 작은 한글 획을 실물 비교한다.
 
 # 최근 완료 요약
