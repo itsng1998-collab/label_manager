@@ -281,7 +281,10 @@ void main() {
     expect(page.luminanceHistogram.reduce((left, right) => left + right), 2);
     expect(page.coverageInkEquivalent, closeTo(0.8706, 0.001));
     expect(page.coveragePreservationPercent, closeTo(114.86, 0.1));
-    expect(page.partialCoverageInkPixels, 1);
+    expect(page.targetInkPixels, 1);
+    expect(page.coreInkPixels, 1);
+    expect(page.partialCoverageInkPixels, 0);
+    expect(page.rejectedEdgePixels, 1);
     expect(page.discardedCoverageEquivalent, closeTo(0.1176, 0.001));
     expect(page.isolatedInkPixels, 1);
   });
@@ -317,7 +320,11 @@ void main() {
 
     expect(page.inkPixels, 2);
     expect(page.bgraBytes, [0, 0, 0, 255, 0, 0, 0, 255]);
+    expect(page.targetInkPixels, 2);
+    expect(page.coreInkPixels, 1);
     expect(page.partialCoverageInkPixels, 1);
+    expect(page.rejectedEdgePixels, 0);
+    expect(page.targetInkShortfall, 0);
     expect(page.isolatedInkPixels, 0);
   });
 

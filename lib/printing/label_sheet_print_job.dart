@@ -10,9 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
-const double labelSheetWindowsDriverMinimumInkCoverage = 0.25;
-const double labelSheetWindowsDriverCoverageThreshold =
-  255 * (1 - labelSheetWindowsDriverMinimumInkCoverage);
+const double labelSheetWindowsDriverCoreLuminanceThreshold = 127.5;
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -23,7 +21,10 @@ class LabelSheetWindowsDriverPage {
     required this.antialiasPixels,
     required this.luminanceHistogram,
     required this.coverageInkEquivalent,
+    required this.targetInkPixels,
+    required this.coreInkPixels,
     required this.partialCoverageInkPixels,
+    required this.rejectedEdgePixels,
     required this.discardedCoverageEquivalent,
     required this.isolatedInkPixels,
   });
@@ -35,7 +36,10 @@ class LabelSheetWindowsDriverPage {
   final int antialiasPixels;
   final List<int> luminanceHistogram;
   final double coverageInkEquivalent;
+  final int targetInkPixels;
+  final int coreInkPixels;
   final int partialCoverageInkPixels;
+  final int rejectedEdgePixels;
   final double discardedCoverageEquivalent;
   final int isolatedInkPixels;
 
@@ -46,6 +50,7 @@ class LabelSheetWindowsDriverPage {
   double get coveragePreservationPercent => coverageInkEquivalent == 0
       ? 100
       : inkPixels * 100 / coverageInkEquivalent;
+  int get targetInkShortfall => math.max(0, targetInkPixels - inkPixels);
 }
 
 LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
@@ -102,38 +107,82 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
       color: img.ColorRgb8(255, 255, 255),
     );
   }
-  final bgraBytes = Uint8List(page.width * page.height * 4);
-  var inkPixels = 0;
+  final pixelCount = page.width * page.height;
+  final bgraBytes = Uint8List(pixelCount * 4);
+  final luminances = Float64List(pixelCount);
+  final selectedInk = Uint8List(pixelCount);
   var antialiasPixels = 0;
   final luminanceHistogram = List<int>.filled(8, 0);
   var coverageInkEquivalent = 0.0;
+  var pixelIndex = 0;
+  var coreInkPixels = 0;
+  final edgeCandidates = <int>[];
   for (final pixel in page) {
     final luminance = img.getLuminance(pixel);
+    luminances[pixelIndex] = luminance.toDouble();
     if (luminance > 0 && luminance < 255) antialiasPixels += 1;
     luminanceHistogram[math.min(7, luminance.toInt() ~/ 32)] += 1;
     coverageInkEquivalent += (255 - luminance) / 255;
+    if (luminance <= labelSheetWindowsDriverCoreLuminanceThreshold) {
+      selectedInk[pixelIndex] = 1;
+      coreInkPixels += 1;
+    } else if (luminance < 255) {
+      edgeCandidates.add(pixelIndex);
+    }
+    pixelIndex += 1;
   }
+  final targetInkPixels = math.min(
+    pixelCount,
+    math.max(coreInkPixels, coverageInkEquivalent.ceil()),
+  );
+  edgeCandidates.sort(
+    (left, right) => luminances[left].compareTo(luminances[right]),
+  );
   var partialCoverageInkPixels = 0;
-  var discardedCoverageEquivalent = 0.0;
-  for (var y = 0; y < page.height; y += 1) {
-    for (var x = 0; x < page.width; x += 1) {
-      final luminance = img.getLuminance(page.getPixel(x, y));
-      final value = luminance <= labelSheetWindowsDriverCoverageThreshold
-          ? 0
-          : 255;
-      if (value == 0) {
-        inkPixels += 1;
-        if (luminance > 0) partialCoverageInkPixels += 1;
-      } else if (luminance < 255) {
-        discardedCoverageEquivalent += (255 - luminance) / 255;
+  bool hasSelectedNeighbor(int index) {
+    final x = index % page.width;
+    final y = index ~/ page.width;
+    for (var neighborY = math.max(0, y - 1);
+        neighborY <= math.min(page.height - 1, y + 1);
+        neighborY += 1) {
+      for (var neighborX = math.max(0, x - 1);
+          neighborX <= math.min(page.width - 1, x + 1);
+          neighborX += 1) {
+        final neighborIndex = neighborY * page.width + neighborX;
+        if (neighborIndex != index && selectedInk[neighborIndex] != 0) {
+          return true;
+        }
       }
-      final offset = (y * page.width + x) * 4;
-      bgraBytes[offset] = value;
-      bgraBytes[offset + 1] = value;
-      bgraBytes[offset + 2] = value;
-      bgraBytes[offset + 3] = 255;
+    }
+    return false;
+  }
+  var grew = true;
+  while (coreInkPixels + partialCoverageInkPixels < targetInkPixels && grew) {
+    grew = false;
+    for (final candidate in edgeCandidates) {
+      if (selectedInk[candidate] != 0 || !hasSelectedNeighbor(candidate)) {
+        continue;
+      }
+      selectedInk[candidate] = 1;
+      partialCoverageInkPixels += 1;
+      grew = true;
+      if (coreInkPixels + partialCoverageInkPixels >= targetInkPixels) break;
     }
   }
+  var discardedCoverageEquivalent = 0.0;
+  for (var index = 0; index < pixelCount; index += 1) {
+    final value = selectedInk[index] == 0 ? 255 : 0;
+    if (value != 0 && luminances[index] < 255) {
+      discardedCoverageEquivalent += (255 - luminances[index]) / 255;
+    }
+    final offset = index * 4;
+    bgraBytes[offset] = value;
+    bgraBytes[offset + 1] = value;
+    bgraBytes[offset + 2] = value;
+    bgraBytes[offset + 3] = 255;
+  }
+  final inkPixels = coreInkPixels + partialCoverageInkPixels;
+  final rejectedEdgePixels = edgeCandidates.length - partialCoverageInkPixels;
   var isolatedInkPixels = 0;
   bool isInk(int x, int y) =>
       bgraBytes[(y * page.width + x) * 4] == 0;
@@ -164,7 +213,10 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     antialiasPixels: antialiasPixels,
     luminanceHistogram: List<int>.unmodifiable(luminanceHistogram),
     coverageInkEquivalent: coverageInkEquivalent,
+    targetInkPixels: targetInkPixels,
+    coreInkPixels: coreInkPixels,
     partialCoverageInkPixels: partialCoverageInkPixels,
+    rejectedEdgePixels: rejectedEdgePixels,
     discardedCoverageEquivalent: discardedCoverageEquivalent,
     isolatedInkPixels: isolatedInkPixels,
   );

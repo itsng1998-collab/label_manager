@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 획 연결성 보존 출력 v1.0.34
+## 완료·실물 검증 대기: Godex G500 연결 coverage 성장 출력 v1.0.35
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -94,6 +94,14 @@
 - 최종 focused diff 기준 `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.34`임을 확인했다.
 - stage/commit 대상: 출력 Dart 3개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `258f64d Godex 작은 글자 획 연결성 개선`.
+- v1.0.34 실물과 `.tmp/log/app_2026-08-02_21-19-09.log` 분석: source coverage 상당량 `48406.46` 대비 `54404` black dots로 `112.39%` 과팽창했다. `partialCoverageInk=14513`의 25% edge 일괄 채택이 글자와 선을 굵고 각지게 만든 원인이다.
+- 50% 이상 coverage의 core 획을 고정하고 밝은 edge 후보를 어두운 순서로 core에 8방향 연결하면서 source coverage 목표 개수까지만 성장시키는 방식으로 교체 중이다.
+- GDI 640×480 1:1 경로는 유지한다. 로그에 target/core/connected edge/rejected edge/discarded coverage/isolated ink를 기록할 예정이다.
+- `connectedCoverageGrowth` 구현 완료. 로그에 core luminance 기준과 `targetShortfall`까지 추가했다.
+- 출력 관련 테스트 44건 통과, 편집 파일 진단 오류 0건, 이전 25% 구조 threshold 참조 0건.
+- 변경 파일 analyzer 오류/경고 0건 및 `git diff --check` 통과.
+- `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.35`임을 확인했고 검증 프로세스를 종료했다.
+- stage/commit 대상: 출력 Dart 3개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 
