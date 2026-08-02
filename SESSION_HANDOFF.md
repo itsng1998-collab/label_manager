@@ -1,15 +1,17 @@
 # 현재 작업 상태
 
-## 완료: PDF 프린터 전용 단일 파일 옵션 v1.0.26
-- 라벨 출력 프린터 설정의 `하나의 파일로 출력`을 PDF 가상 프린터에서만 표시하도록 수정했다.
-- 비-PDF 프린터 적용 시 기존 체크 기억값이 출력 그룹에 영향을 주지 않도록 `pdfSingleFile`을 무효화했다.
-- `label_print_settings_dialog.dart`: PDF backend 판별을 제거하고 프린터 identity의 `PDF` 여부로 UI를 제한했으며, 비-PDF 적용값을 `false`로 반환한다.
-- `label_print_session_test.dart`: `Godex G500`에서 옵션 숨김과 적용 결과 `pdfSingleFile == false`를 검증하는 widget test를 추가했다.
-- 검증 완료: 루트 focused widget test 2건 통과, 변경 파일 analyzer 및 diagnostics 통과.
-- 버전은 호환 가능한 국소 버그 수정으로 `1.0.25`에서 `1.0.26`으로 PATCH 증가했다.
-- `git diff --check` 통과, 버전 생성 결과 `1.0.26`.
-- stage 대상: `SESSION_HANDOFF.md`, `label_print_settings_dialog.dart`, `label_print_session_test.dart`, `pubspec.yaml`; 사용자 변경 `lib/core/app.dart` 제외.
-- 기능 커밋: `39cd615 PDF 프린터에서만 단일 파일 옵션 표시`.
+## 완료: 네이티브 프린터 다이얼로그 선택 유지 v1.0.27
+- 원인: `PrintDlgW` 호출 시 현재 프린터의 `hDevNames`를 전달하지 않아 Windows 기본 프린터로 매번 초기화된다.
+- `raw_printer_win32.dart`: `showPrinterSetupDialog(initialPrinterName:)`가 현재 프린터의 장치명과 포트를 조회해 `DEVNAMES` 초기값을 구성한다.
+- `label_print_settings_dialog.dart`: 현재 `printerName`을 네이티브 다이얼로그 초기값으로 전달한다.
+- `label_sheet_workbench.dart`: 현재 `_printSelectedPrinterName`을 네이티브 다이얼로그 초기값으로 전달한다.
+- 검증 완료: `raw_printer_win32_test.dart` 1건, 프린터 설정 widget test 2건 통과.
+- 변경한 production 파일 3개 analyzer 및 diagnostics 통과.
+- 버전은 호환 가능한 국소 버그 수정으로 `1.0.26`에서 `1.0.27`로 PATCH 증가했다.
+- Windows Debug 빌드는 실행 중인 `label_manager.exe`(PID 13484)가 출력 EXE를 잠가 `LNK1168`로 실패했다. 코드 컴파일 오류는 확인되지 않았다.
+- Microsoft `PRINTDLGW`/`DEVNAMES` 계약과 movable global memory, 문자 단위 offset, `wDeviceOffset` 초기화 방식을 대조했다.
+- `git diff --check` 통과, 버전 생성 결과 `1.0.27`.
+- stage 대상: `SESSION_HANDOFF.md`, `raw_printer_win32.dart`, 두 UI 호출부, `pubspec.yaml`; 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

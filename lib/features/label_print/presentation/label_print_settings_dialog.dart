@@ -103,7 +103,9 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
             },
             onSelectPrinter: () async {
               final selected = Platform.isWindows
-                  ? await RawPrinterWin32.showPrinterSetupDialog()
+                  ? await RawPrinterWin32.showPrinterSetupDialog(
+                      initialPrinterName: printerName,
+                    )
                   : (await Printing.pickPrinter(
                       context: dialogContext,
                       title: '프린터 선택',

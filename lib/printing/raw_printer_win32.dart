@@ -12,6 +12,8 @@ final DynamicLibrary _winspool = DynamicLibrary.open('winspool.drv');
 
 final _PrintDlgW _printDlgW = _comdlg32
     .lookupFunction<_PrintDlgWNative, _PrintDlgW>('PrintDlgW');
+final _GlobalAlloc _globalAlloc = _kernel32
+  .lookupFunction<_GlobalAllocNative, _GlobalAlloc>('GlobalAlloc');
 final _GlobalLock _globalLock = _kernel32
     .lookupFunction<_GlobalLockNative, _GlobalLock>('GlobalLock');
 final _GlobalUnlock _globalUnlock = _kernel32
@@ -27,9 +29,13 @@ const int _pdReturnDc = 0x00000100;
 const int _pdUseDevModeCopiesAndCollate = 0x00040000;
 const int _pdDisablePrintToFile = 0x00080000;
 const int _pdHidePrintToFile = 0x00100000;
+const int _gmemMoveable = 0x0002;
+const int _gmemZeroInit = 0x0040;
 
 typedef _PrintDlgWNative = Int32 Function(Pointer<_PrintDlgWStruct>);
 typedef _PrintDlgW = int Function(Pointer<_PrintDlgWStruct>);
+typedef _GlobalAllocNative = IntPtr Function(Uint32, IntPtr);
+typedef _GlobalAlloc = int Function(int, int);
 typedef _GlobalLockNative = Pointer<Void> Function(IntPtr);
 typedef _GlobalLock = Pointer<Void> Function(int);
 typedef _GlobalUnlockNative = Int32 Function(IntPtr);
@@ -144,7 +150,7 @@ class RawPrinterWin32 {
     return normalized == 'FILE:' || normalized == 'PORTPROMPT:';
   }
 
-  static Future<String?> showPrinterSetupDialog() async {
+  static Future<String?> showPrinterSetupDialog({String? initialPrinterName}) async {
     if (!Platform.isWindows) {
       throw UnsupportedError(
         'System printer dialog is only supported on Windows.',
@@ -153,8 +159,10 @@ class RawPrinterWin32 {
 
     final printDlg = calloc<_PrintDlgWStruct>();
     try {
+      final initialDevNames = _createDevNames(initialPrinterName);
       printDlg.ref
         ..lStructSize = sizeOf<_PrintDlgWStruct>()
+        ..hDevNames = initialDevNames
         ..flags =
             _pdReturnDc |
             _pdNoSelection |
@@ -199,6 +207,105 @@ class RawPrinterWin32 {
     } finally {
       _globalUnlock(hDevNames);
     }
+  }
+
+  static int _createDevNames(String? printerName) {
+    final normalizedName = printerName?.trim() ?? '';
+    if (normalizedName.isEmpty) return 0;
+
+    final printerHandle = calloc<HANDLE>();
+    final printerNamePointer = normalizedName.toNativeUtf16();
+    try {
+      if (OpenPrinter(printerNamePointer, printerHandle, nullptr) == 0) {
+        return 0;
+      }
+      final bytesNeeded = calloc<Uint32>();
+      try {
+        _getPrinterW(printerHandle.value, 2, nullptr, 0, bytesNeeded);
+        if (bytesNeeded.value == 0) return 0;
+        final printerInfoBuffer = calloc<Uint8>(bytesNeeded.value);
+        try {
+          if (_getPrinterW(
+                printerHandle.value,
+                2,
+                printerInfoBuffer,
+                bytesNeeded.value,
+                bytesNeeded,
+              ) ==
+              0) {
+            return 0;
+          }
+          final printerInfo = printerInfoBuffer.cast<_PrinterInfo2Struct>().ref;
+          if (printerInfo.pPrinterName == nullptr ||
+              printerInfo.pPortName == nullptr) {
+            return 0;
+          }
+          return _allocateDevNames(
+            driverName: 'WINSPOOL',
+            deviceName: printerInfo.pPrinterName.toDartString(),
+            outputName: printerInfo.pPortName.toDartString(),
+          );
+        } finally {
+          calloc.free(printerInfoBuffer);
+        }
+      } finally {
+        calloc.free(bytesNeeded);
+      }
+    } finally {
+      if (printerHandle.value != 0) {
+        ClosePrinter(printerHandle.value);
+      }
+      calloc.free(printerHandle);
+      calloc.free(printerNamePointer);
+    }
+  }
+
+  static int _allocateDevNames({
+    required String driverName,
+    required String deviceName,
+    required String outputName,
+  }) {
+    final headerUnits = sizeOf<_DevNamesStruct>() ~/ sizeOf<Uint16>();
+    final driverOffset = headerUnits;
+    final deviceOffset = driverOffset + driverName.codeUnits.length + 1;
+    final outputOffset = deviceOffset + deviceName.codeUnits.length + 1;
+    final totalUnits = outputOffset + outputName.codeUnits.length + 1;
+    final handle = _globalAlloc(
+      _gmemMoveable | _gmemZeroInit,
+      totalUnits * sizeOf<Uint16>(),
+    );
+    if (handle == 0) return 0;
+
+    final memory = _globalLock(handle);
+    if (memory == nullptr) {
+      _globalFree(handle);
+      return 0;
+    }
+    try {
+      memory.cast<_DevNamesStruct>().ref
+        ..wDriverOffset = driverOffset
+        ..wDeviceOffset = deviceOffset
+        ..wOutputOffset = outputOffset
+        ..wDefault = 0;
+      final units = memory.cast<Uint16>();
+      _writeNullTerminatedUtf16(units + driverOffset, driverName);
+      _writeNullTerminatedUtf16(units + deviceOffset, deviceName);
+      _writeNullTerminatedUtf16(units + outputOffset, outputName);
+    } finally {
+      _globalUnlock(handle);
+    }
+    return handle;
+  }
+
+  static void _writeNullTerminatedUtf16(
+    Pointer<Uint16> destination,
+    String value,
+  ) {
+    final codeUnits = value.codeUnits;
+    for (var index = 0; index < codeUnits.length; index += 1) {
+      (destination + index).value = codeUnits[index];
+    }
+    (destination + codeUnits.length).value = 0;
   }
 
   static String _readNullTerminatedUtf16(Pointer<Uint16> pointer) {

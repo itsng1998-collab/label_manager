@@ -2249,7 +2249,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _handleSelectPrinter() async {
     final printerName = Platform.isWindows
-        ? await RawPrinterWin32.showPrinterSetupDialog()
+        ? await RawPrinterWin32.showPrinterSetupDialog(
+            initialPrinterName: _printSelectedPrinterName,
+          )
         : (await Printing.pickPrinter(context: context, title: '프린터 선택'))?.name;
     if (!mounted || printerName == null || printerName.isEmpty) {
       return;
