@@ -93,6 +93,7 @@
 - 변경 파일 analyzer 오류/경고 0건, 출력 관련 테스트 44건 및 `git diff --check` 통과.
 - 최종 focused diff 기준 `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.34`임을 확인했다.
 - stage/commit 대상: 출력 Dart 3개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `258f64d Godex 작은 글자 획 연결성 개선`.
 
 # 최근 완료 요약
 
