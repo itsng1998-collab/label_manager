@@ -26,6 +26,7 @@ import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
+import 'package:label_manager/printing/windows_bitmap_printer.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -2103,25 +2104,36 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       'pngBytes=${capture.pngBytes.length}',
     );
 
-    final driverRaster = backend == LabelPrintBackend.windowsDriver
-        ? prepareLabelSheetWindowsDriverRaster(
+    final driverPage = backend == LabelPrintBackend.windowsDriver
+        ? prepareLabelSheetWindowsDriverPage(
             pngBytes: capture.pngBytes,
             metrics: metrics,
+            options: options,
           )
         : null;
-    if (driverRaster != null) {
+    if (driverPage != null) {
       debugLog(
-        'labelSheetPrint normalize source=${driverRaster.sourceWidth}x'
-        '${driverRaster.sourceHeight} printerDots='
-        '${driverRaster.outputWidth}x${driverRaster.outputHeight} '
-        'threshold=$labelSheetWindowsDriverInkLuminanceThreshold '
-        'ink=${driverRaster.inkPixels}/${driverRaster.totalPixels} '
-        'inkPercent=${driverRaster.inkPercent.toStringAsFixed(2)} '
-        'pngBytes=${driverRaster.pngBytes.length}',
+        'labelSheetPrint gdiPage=${driverPage.width}x${driverPage.height} '
+        'bgraBytes=${driverPage.bgraBytes.length} '
+        'ink=${driverPage.inkPixels}/${driverPage.totalPixels} '
+        'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
+        'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
+        'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)}',
       );
+      final result = await WindowsBitmapPrinter.print(
+        printer: printer,
+        documentName: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
+        bgraBytes: driverPage.bgraBytes,
+        sourceWidth: driverPage.width,
+        sourceHeight: driverPage.height,
+        pageWidthMm: metrics.pageWidthMm,
+        pageHeightMm: metrics.pageHeightMm(options),
+      );
+      debugLog('labelSheetPrint gdiDispatch ${result.diagnostics}');
+      return;
     }
     final pdfBytes = await buildLabelSheetPdfBytes(
-      pngBytes: driverRaster?.pngBytes ?? capture.pngBytes,
+      pngBytes: capture.pngBytes,
       metrics: metrics,
       options: options,
     );

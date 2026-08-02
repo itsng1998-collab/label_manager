@@ -4,8 +4,8 @@ import 'package:label_manager/printing/printer_profiles.dart';
 
 enum LabelPrintBackend { pdf, windowsDriver, ezplRaw }
 
-extension LabelPrintBackendPayload on LabelPrintBackend {
-  bool get usesPdfPayload =>
+extension LabelPrintBackendCapture on LabelPrintBackend {
+  bool get usesCanvasCapture =>
       this == LabelPrintBackend.pdf || this == LabelPrintBackend.windowsDriver;
 }
 
@@ -29,10 +29,12 @@ typedef LabelPrintBytesSender = Future<bool> Function(Uint8List bytes);
 class LabelPrintDispatcher {
   const LabelPrintDispatcher({
     required this.sendPdf,
+    required this.sendWindowsDriver,
     required this.sendRaw,
   });
 
   final LabelPrintBytesSender sendPdf;
+  final LabelPrintBytesSender sendWindowsDriver;
   final LabelPrintBytesSender sendRaw;
 
   Future<bool> dispatch({
@@ -42,7 +44,7 @@ class LabelPrintDispatcher {
   }) {
     return switch (backend) {
       LabelPrintBackend.pdf => sendPdf(pdfBytes),
-      LabelPrintBackend.windowsDriver => sendPdf(pdfBytes),
+      LabelPrintBackend.windowsDriver => sendWindowsDriver(pdfBytes),
       LabelPrintBackend.ezplRaw => sendRaw(rawBytes),
     };
   }

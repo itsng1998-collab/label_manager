@@ -10,64 +10,103 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
-const num labelSheetWindowsDriverInkLuminanceThreshold = 224;
-
-class LabelSheetWindowsDriverRaster {
-  const LabelSheetWindowsDriverRaster({
-    required this.pngBytes,
-    required this.sourceWidth,
-    required this.sourceHeight,
-    required this.outputWidth,
-    required this.outputHeight,
+class LabelSheetWindowsDriverPage {
+  const LabelSheetWindowsDriverPage({
+    required this.bgraBytes,
+    required this.width,
+    required this.height,
     required this.inkPixels,
+    required this.antialiasPixels,
   });
 
-  final Uint8List pngBytes;
-  final int sourceWidth;
-  final int sourceHeight;
-  final int outputWidth;
-  final int outputHeight;
+  final Uint8List bgraBytes;
+  final int width;
+  final int height;
   final int inkPixels;
+  final int antialiasPixels;
 
-  int get totalPixels => outputWidth * outputHeight;
+  int get totalPixels => width * height;
   double get inkPercent => totalPixels == 0 ? 0 : inkPixels * 100 / totalPixels;
+  double get antialiasPercent =>
+      totalPixels == 0 ? 0 : antialiasPixels * 100 / totalPixels;
 }
 
-LabelSheetWindowsDriverRaster prepareLabelSheetWindowsDriverRaster({
+LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   required Uint8List pngBytes,
   required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
 }) {
   final source = img.decodePng(pngBytes);
   if (source == null) {
     throw StateError('라벨 이미지를 Windows 프린터 출력 이미지로 변환할 수 없습니다.');
   }
-  final outputWidth = metrics.dotsFromMm(metrics.effectiveSourceWidthMm);
-  final outputHeight = metrics.dotsFromMm(metrics.effectiveSourceHeightMm);
-  final output = img.copyResize(
-    source,
-    width: outputWidth,
-    height: outputHeight,
+  final layout = LabelSheetPrintLayout.resolve(metrics: metrics, options: options);
+  const renderScale = labelSheetEzplRasterCaptureScale;
+  int renderDots(num millimeters) =>
+      math.max(0, (millimeters * metrics.dpi * renderScale / 25.4).round());
+  final page = img.Image(
+    width: renderDots(layout.pageWidthMm),
+    height: renderDots(layout.pageHeightMm),
+  );
+  img.fill(page, color: img.ColorRgb8(255, 255, 255));
+  final oriented = options.rotateQuarterTurns
+      ? img.copyRotate(source, angle: 90)
+      : source;
+  final content = img.copyResize(
+    oriented,
+    width: renderDots(layout.contentWidthMm),
+    height: renderDots(layout.contentHeightMm),
     interpolation: img.Interpolation.average,
   );
-  var inkPixels = 0;
-  for (final pixel in output) {
-    final ink = img.getLuminance(pixel) <=
-        labelSheetWindowsDriverInkLuminanceThreshold;
-    final value = ink ? 0 : 255;
-    pixel
-      ..r = value
-      ..g = value
-      ..b = value
-      ..a = 255;
-    if (ink) inkPixels += 1;
+  img.compositeImage(
+    page,
+    content,
+    dstX: (layout.contentLeftMm * metrics.dpi * renderScale / 25.4).round(),
+    dstY: (layout.contentTopMm * metrics.dpi * renderScale / 25.4).round(),
+  );
+  final clipRight = renderDots(layout.clipRightMm);
+  if (clipRight < page.width) {
+    img.fillRect(
+      page,
+      x1: math.max(0, clipRight),
+      y1: 0,
+      x2: page.width - 1,
+      y2: page.height - 1,
+      color: img.ColorRgb8(255, 255, 255),
+    );
   }
-  return LabelSheetWindowsDriverRaster(
-    pngBytes: Uint8List.fromList(img.encodePng(output)),
-    sourceWidth: source.width,
-    sourceHeight: source.height,
-    outputWidth: output.width,
-    outputHeight: output.height,
+  final clipBottom = renderDots(layout.clipBottomMm);
+  if (clipBottom < page.height) {
+    img.fillRect(
+      page,
+      x1: 0,
+      y1: math.max(0, clipBottom),
+      x2: page.width - 1,
+      y2: page.height - 1,
+      color: img.ColorRgb8(255, 255, 255),
+    );
+  }
+  final bgraBytes = Uint8List(page.width * page.height * 4);
+  var inkPixels = 0;
+  var antialiasPixels = 0;
+  var offset = 0;
+  for (final pixel in page) {
+    final luminance = img.getLuminance(pixel);
+    if (luminance < 245) inkPixels += 1;
+    if (luminance > 0 && luminance < 255) antialiasPixels += 1;
+    bgraBytes[offset++] = pixel.b.toInt();
+    bgraBytes[offset++] = pixel.g.toInt();
+    bgraBytes[offset++] = pixel.r.toInt();
+    bgraBytes[offset++] = 255;
+  }
+  // Do not reintroduce the v1.0.30 printer-dot threshold conversion here.
+  // It destroyed small Hangul strokes before the Godex driver could render them.
+  return LabelSheetWindowsDriverPage(
+    bgraBytes: bgraBytes,
+    width: page.width,
+    height: page.height,
     inkPixels: inkPixels,
+    antialiasPixels: antialiasPixels,
   );
 }
 

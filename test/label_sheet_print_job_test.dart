@@ -240,7 +240,7 @@ void main() {
     expect(bytes[graphicMarker + 6], 0xaa);
   });
 
-  test('Windows driver raster preserves supersampled ink as printer dots', () {
+  test('Windows driver page preserves supersampled antialias pixels', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     image.setPixelRgb(0, 0, 0, 0, 0);
@@ -250,7 +250,7 @@ void main() {
       }
     }
 
-    final raster = prepareLabelSheetWindowsDriverRaster(
+    final page = prepareLabelSheetWindowsDriverPage(
       pngBytes: Uint8List.fromList(img.encodePng(image)),
       metrics: const LabelSheetPrintPageMetrics(
         labelWidthMm: 2,
@@ -259,14 +259,22 @@ void main() {
         sourceHeightMm: 1,
         dpi: 25.4,
       ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
     );
-    final output = img.decodePng(raster.pngBytes)!;
 
-    expect((raster.sourceWidth, raster.sourceHeight), (4, 2));
-    expect((raster.outputWidth, raster.outputHeight), (2, 1));
-    expect(raster.inkPixels, 1);
-    expect(img.getLuminance(output.getPixel(0, 0)), 0);
-    expect(img.getLuminance(output.getPixel(1, 0)), 255);
+    expect((page.width, page.height), (4, 2));
+    expect(page.bgraBytes, hasLength(4 * 2 * 4));
+    expect(page.inkPixels, 5);
+    expect(page.antialiasPixels, 4);
+    expect(page.bgraBytes.sublist(0, 4), [0, 0, 0, 255]);
+    expect(page.bgraBytes.sublist(8, 12), [225, 225, 225, 255]);
   });
 
   test('planned Hybrid output encodes only package-approved descriptors', () async {

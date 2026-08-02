@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 printer-dot 흑백 출력 v1.0.30
+## 완료·실물 검증 대기: Godex G500 GDI 직접 출력 v1.0.31
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -50,6 +50,17 @@
 - 다음 실물 출력 로그에서 `normalize source=1281x961 printerDots=640x480 threshold=224`, ink 비율, PDF bytes, accepted 결과를 확인한다.
 - stage/commit 대상: 출력 production 3개, 관련 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `9b5ed58 Godex 작은 글자 출력 품질 개선`.
+- v1.0.30 실물은 203.2dpi 강제 1-bit 변환 때문에 모든 글자와 선이 dot 격자로 깨지는 명확한 회귀였다. 로그는 `1281x961 -> 640x480`, threshold 224, ink 18.53% 변환이 실행됐음을 확인했다.
+- EZPL 문서의 `~G`는 1-bit graphic stream이므로 복합 한글 FortuneSheet의 레거시 품질을 재현할 수 없다. 초기 `.tmp/label_printer`도 unsupported drawable에 raster fallback을 사용한다.
+- 레거시 `PrintManager.cpp`는 G500 DEVMODE의 용지를 0.1mm 단위로 설정하고 `CreateDC("WINSPOOL")`, `StartDoc/StartPage`, `EM_FORMATRANGE/DisplayBand`로 printer DC에 직접 렌더링한다.
+- 새 `label_bitmap_print_channel.cpp`: printer DEVMODE에 실제 라벨 폭/높이를 설정하고 32-bit top-down BGRA를 `HALFTONE StretchDIBits`로 printer DC에 직접 출력한다. PDF 재샘플링과 앱 1-bit 양자화를 모두 제거했다.
+- `prepareLabelSheetWindowsDriverPage`: 406.4dpi 전체 페이지 BGRA에서 antialias를 보존하며 margin/push/orientation/clip을 적용한다. v1.0.30 threshold 재도입 금지 주석을 남겼다.
+- 품목/저울/라벨 시트 G500 출력은 `WindowsBitmapPrinter` method channel을 사용한다. PDF virtual printer와 raw EZPL은 기존 경로를 유지한다.
+- 로그에 BGRA page 크기/bytes, ink/antialias 비율과 native printer DPI, target/HORZRES/VERTRES, physical size/offset, DEVMODE paper, StretchDIBits 결과를 기록한다.
+- 출력 관련 테스트 최종 43건 통과. 변경 파일 analyzer 오류/경고 0건, `git diff --check` 통과.
+- Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_18-36-17.log` logger 헤더가 모두 `1.0.31`임을 확인했다. 검증용 PID 9912는 종료했다.
+- 실제 G500 출력은 용지를 소모하므로 자동 실행하지 않았다. 다음 실물 로그에서 `gdiPage=1280x960`, `gdiDispatch printerDpi=203x203`, `target=640x480`, `stretchLines`를 확인한다.
+- stage/commit 대상: 출력 Dart 5개, Windows runner 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

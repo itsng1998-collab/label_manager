@@ -63,9 +63,9 @@ void main() {
       ),
       LabelPrintBackend.windowsDriver,
     );
-    expect(LabelPrintBackend.windowsDriver.usesPdfPayload, isTrue);
-    expect(LabelPrintBackend.pdf.usesPdfPayload, isTrue);
-    expect(LabelPrintBackend.ezplRaw.usesPdfPayload, isFalse);
+    expect(LabelPrintBackend.windowsDriver.usesCanvasCapture, isTrue);
+    expect(LabelPrintBackend.pdf.usesCanvasCapture, isTrue);
+    expect(LabelPrintBackend.ezplRaw.usesCanvasCapture, isFalse);
     expect(
       labelPrintRenderDpi(
         backend: LabelPrintBackend.windowsDriver,
@@ -90,6 +90,7 @@ void main() {
         pdfCalls += 1;
         return true;
       },
+      sendWindowsDriver: (_) async => true,
       sendRaw: (_) async {
         rawCalls += 1;
         throw StateError('raw failed');
@@ -105,6 +106,32 @@ void main() {
       throwsStateError,
     );
     expect(rawCalls, 1);
+    expect(pdfCalls, 0);
+  });
+
+  test('Windows driver dispatch does not call PDF sender', () async {
+    var pdfCalls = 0;
+    var windowsCalls = 0;
+    final dispatcher = LabelPrintDispatcher(
+      sendPdf: (_) async {
+        pdfCalls += 1;
+        return true;
+      },
+      sendWindowsDriver: (_) async {
+        windowsCalls += 1;
+        return true;
+      },
+      sendRaw: (_) async => true,
+    );
+
+    final accepted = await dispatcher.dispatch(
+      backend: LabelPrintBackend.windowsDriver,
+      pdfBytes: Uint8List(1),
+      rawBytes: Uint8List(1),
+    );
+
+    expect(accepted, isTrue);
+    expect(windowsCalls, 1);
     expect(pdfCalls, 0);
   });
 }

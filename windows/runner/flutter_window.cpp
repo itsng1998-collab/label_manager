@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "label_bitmap_print_channel.h"
 #include "label_rtf_open_xml_channel.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -27,6 +28,7 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  RegisterLabelBitmapPrintChannel(flutter_controller_->engine());
   RegisterLabelRtfOpenXmlChannel(flutter_controller_->engine());
   HWND flutter_view_window = flutter_controller_->view()->GetNativeWindow();
   SetChildContent(flutter_view_window);

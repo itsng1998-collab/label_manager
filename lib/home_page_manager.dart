@@ -73,6 +73,7 @@ import 'package:label_manager/features/label_print/data/label_print_persistence.
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
+import 'package:label_manager/printing/windows_bitmap_printer.dart';
 import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_column/application/label_column_save_service.dart';
@@ -6053,6 +6054,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _openLabelPrintProgressDialog();
 
       final renderedPages = <LabelPrintUnit, LabelSheetRenderedPage>{};
+      final driverPages = <LabelPrintUnit, LabelSheetWindowsDriverPage>{};
       final hybridCaptures = <LabelPrintUnit, LabelSheetHybridEzplCapture>{};
       final resolvedMetrics = <LabelPrintUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
@@ -6079,7 +6081,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         final options = _labelPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
-        if (backend.usesPdfPayload) {
+        if (backend.usesCanvasCapture) {
           final capture = await _labelPrintCaptureController.capture(
             dpi: renderDpi,
             lineSpacingPercent: unit.row.lineSpacingPercent,
@@ -6097,14 +6099,16 @@ class _HomePageManagerState extends State<HomePageManager> {
             sourceHeightMm: capture.sourceHeightMm,
             dpi: dpi,
           );
-          final driverRaster = backend == LabelPrintBackend.windowsDriver
-              ? prepareLabelSheetWindowsDriverRaster(
+          final driverPage = backend == LabelPrintBackend.windowsDriver
+              ? prepareLabelSheetWindowsDriverPage(
                   pngBytes: capture.pngBytes,
                   metrics: metrics,
+                  options: options,
                 )
               : null;
+          if (driverPage != null) driverPages[unit] = driverPage;
           renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: driverRaster?.pngBytes ?? capture.pngBytes,
+            pngBytes: capture.pngBytes,
             metrics: metrics,
             options: options,
           );
@@ -6118,15 +6122,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             'push=${unit.row.leftPushMm},${unit.row.topPushMm} '
             'orientation=${options.orientation.name}',
           );
-          if (driverRaster != null) {
+          if (driverPage != null) {
             debugLog(
-              'labelPrintQuality normalize source=${driverRaster.sourceWidth}x'
-              '${driverRaster.sourceHeight} printerDots='
-              '${driverRaster.outputWidth}x${driverRaster.outputHeight} '
-              'threshold=$labelSheetWindowsDriverInkLuminanceThreshold '
-              'ink=${driverRaster.inkPixels}/${driverRaster.totalPixels} '
-              'inkPercent=${driverRaster.inkPercent.toStringAsFixed(2)} '
-              'pngBytes=${driverRaster.pngBytes.length}',
+              'labelPrintQuality gdiPage=${driverPage.width}x${driverPage.height} '
+              'bgraBytes=${driverPage.bgraBytes.length} '
+              'ink=${driverPage.inkPixels}/${driverPage.totalPixels} '
+              'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
+              'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
+              'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)}',
             );
           }
         } else {
@@ -6188,7 +6191,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       final payloads = <LabelPrintJobGroup, List<int>>{};
       for (final group in groups) {
-        if (backend.usesPdfPayload) {
+        if (backend == LabelPrintBackend.pdf) {
           payloads[group] = await buildLabelSheetPdfGroupBytes([
             for (final unit in group.units) renderedPages[unit]!,
           ]);
@@ -6197,12 +6200,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
-        } else {
+        } else if (backend == LabelPrintBackend.ezplRaw) {
           final bytes = BytesBuilder(copy: false);
           for (final unit in group.units) {
             bytes.add(hybridCaptures[unit]!.bytes);
           }
           payloads[group] = bytes.takeBytes();
+        } else {
+          payloads[group] = const <int>[];
         }
       }
 
@@ -6226,18 +6231,26 @@ class _HomePageManagerState extends State<HomePageManager> {
               dynamicLayout: false,
               onLayout: (_) async => payload,
             ),
-            LabelPrintBackend.windowsDriver => await Printing.directPrintPdf(
-              printer: printer,
-              name: 'ITSnG_Label_${requestedAt.millisecondsSinceEpoch}',
-              format: PdfPageFormat(
-                group.pageSpec.widthMm * PdfPageFormat.mm,
-                (group.pageSpec.heightMm + settings.extraAreaMm) *
-                    PdfPageFormat.mm,
-                marginAll: 0,
-              ),
-              dynamicLayout: false,
-              onLayout: (_) async => payload,
-            ),
+            LabelPrintBackend.windowsDriver => await (() async {
+              for (final unit in group.units) {
+                final page = driverPages[unit]!;
+                final result = await WindowsBitmapPrinter.print(
+                  printer: printer,
+                  documentName:
+                      'ITSnG_Label_${requestedAt.millisecondsSinceEpoch}',
+                  bgraBytes: page.bgraBytes,
+                  sourceWidth: page.width,
+                  sourceHeight: page.height,
+                  pageWidthMm: group.pageSpec.widthMm.toDouble(),
+                  pageHeightMm:
+                      group.pageSpec.heightMm + settings.extraAreaMm,
+                );
+                debugLog(
+                  'labelPrintQuality gdiDispatch ${result.diagnostics}',
+                );
+              }
+              return true;
+            })(),
             LabelPrintBackend.ezplRaw => await (() async {
               await RawPrinterWin32.sendRaw(printer, payload);
               return true;
@@ -6477,6 +6490,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _openScaleOutputProgressDialog();
 
       final renderedPages = <ScaleOutputUnit, LabelSheetRenderedPage>{};
+      final driverPages = <ScaleOutputUnit, LabelSheetWindowsDriverPage>{};
       final hybridCaptures = <ScaleOutputUnit, LabelSheetHybridEzplCapture>{};
       final resolvedMetrics = <ScaleOutputUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
@@ -6503,7 +6517,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         final options = _scaleOutputPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
-        if (backend.usesPdfPayload) {
+        if (backend.usesCanvasCapture) {
           final capture = await _scaleOutputCaptureController.capture(
             dpi: renderDpi,
             lineSpacingPercent: unit.row.lineSpacingPercent,
@@ -6521,14 +6535,16 @@ class _HomePageManagerState extends State<HomePageManager> {
             sourceHeightMm: capture.sourceHeightMm,
             dpi: dpi,
           );
-          final driverRaster = backend == LabelPrintBackend.windowsDriver
-              ? prepareLabelSheetWindowsDriverRaster(
+          final driverPage = backend == LabelPrintBackend.windowsDriver
+              ? prepareLabelSheetWindowsDriverPage(
                   pngBytes: capture.pngBytes,
                   metrics: metrics,
+                  options: options,
                 )
               : null;
+          if (driverPage != null) driverPages[unit] = driverPage;
           renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: driverRaster?.pngBytes ?? capture.pngBytes,
+            pngBytes: capture.pngBytes,
             metrics: metrics,
             options: options,
           );
@@ -6539,15 +6555,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             'pixel=${capture.pixelWidth}x${capture.pixelHeight} '
             'pngBytes=${capture.pngBytes.length}',
           );
-          if (driverRaster != null) {
+          if (driverPage != null) {
             debugLog(
-              'scalePrintQuality normalize source=${driverRaster.sourceWidth}x'
-              '${driverRaster.sourceHeight} printerDots='
-              '${driverRaster.outputWidth}x${driverRaster.outputHeight} '
-              'threshold=$labelSheetWindowsDriverInkLuminanceThreshold '
-              'ink=${driverRaster.inkPixels}/${driverRaster.totalPixels} '
-              'inkPercent=${driverRaster.inkPercent.toStringAsFixed(2)} '
-              'pngBytes=${driverRaster.pngBytes.length}',
+              'scalePrintQuality gdiPage=${driverPage.width}x${driverPage.height} '
+              'bgraBytes=${driverPage.bgraBytes.length} '
+              'ink=${driverPage.inkPixels}/${driverPage.totalPixels} '
+              'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
+              'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
+              'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)}',
             );
           }
         } else {
@@ -6613,7 +6628,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         final sourceUnits = units.sublist(unitCursor, unitCursor + group.units.length);
         unitCursor += group.units.length;
         groupSourceUnits[group] = sourceUnits;
-        if (backend.usesPdfPayload) {
+        if (backend == LabelPrintBackend.pdf) {
           payloads[group] = await buildLabelSheetPdfGroupBytes([
             for (final unit in sourceUnits) renderedPages[unit]!,
           ]);
@@ -6622,12 +6637,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
-        } else {
+        } else if (backend == LabelPrintBackend.ezplRaw) {
           final bytes = BytesBuilder(copy: false);
           for (final unit in sourceUnits) {
             bytes.add(hybridCaptures[unit]!.bytes);
           }
           payloads[group] = bytes.takeBytes();
+        } else {
+          payloads[group] = const <int>[];
         }
       }
 
@@ -6653,18 +6670,26 @@ class _HomePageManagerState extends State<HomePageManager> {
               dynamicLayout: false,
               onLayout: (_) async => payload,
             ),
-            LabelPrintBackend.windowsDriver => await Printing.directPrintPdf(
-              printer: printer,
-              name: 'ITSnG_Scale_${requestedAt.millisecondsSinceEpoch}',
-              format: PdfPageFormat(
-                group.pageSpec.widthMm * PdfPageFormat.mm,
-                (group.pageSpec.heightMm + settings.extraAreaMm) *
-                    PdfPageFormat.mm,
-                marginAll: 0,
-              ),
-              dynamicLayout: false,
-              onLayout: (_) async => payload,
-            ),
+            LabelPrintBackend.windowsDriver => await (() async {
+              for (final unit in sourceUnits) {
+                final page = driverPages[unit]!;
+                final result = await WindowsBitmapPrinter.print(
+                  printer: printer,
+                  documentName:
+                      'ITSnG_Scale_${requestedAt.millisecondsSinceEpoch}',
+                  bgraBytes: page.bgraBytes,
+                  sourceWidth: page.width,
+                  sourceHeight: page.height,
+                  pageWidthMm: group.pageSpec.widthMm.toDouble(),
+                  pageHeightMm:
+                      group.pageSpec.heightMm + settings.extraAreaMm,
+                );
+                debugLog(
+                  'scalePrintQuality gdiDispatch ${result.diagnostics}',
+                );
+              }
+              return true;
+            })(),
             LabelPrintBackend.ezplRaw => await (() async {
               await RawPrinterWin32.sendRaw(printer, payload);
               return true;
