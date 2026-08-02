@@ -37,6 +37,7 @@
 - 생성 EXE의 FileVersion/ProductVersion과 새 실행 로그 `.tmp/log/app_2026-08-02_17-58-51.log`의 `DebugLogger version`이 모두 `1.0.29`임을 확인했다. 검증용 프로세스는 종료했다.
 - 실물 출력 시 로그에서 `backend=windowsDriver`, `renderDpi=406.4`, capture pixel/bytes, PDF bytes, dispatch 결과를 확인할 수 있다.
 - stage/commit 대상: 출력 production 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `627942e Godex 드라이버 고품질 출력 적용`.
 
 # 최근 완료 요약
 
