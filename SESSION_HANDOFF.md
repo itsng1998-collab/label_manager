@@ -113,6 +113,7 @@
 - `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.36`임을 확인했고 검증 프로세스를 종료했다.
 - 다음 실물 로그 정상 조건: `renderDpi=203.2`, `rasterInput=641x481` 또는 `640x480`, `rasterMapping=cropCeilOverflow` 또는 `direct`, `gdiPage=640x480`.
 - stage/commit 대상: 출력 Dart 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `bae6848 Godex native-grid 글자 출력 적용`.
 
 # 최근 완료 요약
 
