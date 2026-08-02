@@ -54,6 +54,34 @@ void main() {
     }
   });
 
+  test('Godex driver output stays separate from PDF virtual printers', () {
+    expect(
+      resolveLabelPrintBackend(
+        language: PrinterLanguage.ezpl,
+        portName: 'USB001',
+        preferWindowsDriver: true,
+      ),
+      LabelPrintBackend.windowsDriver,
+    );
+    expect(LabelPrintBackend.windowsDriver.usesPdfPayload, isTrue);
+    expect(LabelPrintBackend.pdf.usesPdfPayload, isTrue);
+    expect(LabelPrintBackend.ezplRaw.usesPdfPayload, isFalse);
+    expect(
+      labelPrintRenderDpi(
+        backend: LabelPrintBackend.windowsDriver,
+        printerDpi: 203.2,
+      ),
+      406.4,
+    );
+    expect(
+      labelPrintRenderDpi(
+        backend: LabelPrintBackend.pdf,
+        printerDpi: 300,
+      ),
+      300,
+    );
+  });
+
   test('raw failure is propagated without PDF fallback', () async {
     var rawCalls = 0;
     var pdfCalls = 0;

@@ -34,6 +34,7 @@ import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
 import 'package:label_manager/widgets/label_print_settings_panel.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
+import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -843,6 +844,8 @@ class LabelSheetOutputCapture {
     required this.range,
     required this.sourceWidthMm,
     required this.sourceHeightMm,
+    required this.pixelWidth,
+    required this.pixelHeight,
   });
 
   final Uint8List pngBytes;
@@ -850,6 +853,8 @@ class LabelSheetOutputCapture {
   final FortuneRange range;
   final double sourceWidthMm;
   final double sourceHeightMm;
+  final int pixelWidth;
+  final int pixelHeight;
 }
 
 class LabelSheetHybridEzplCapture {
@@ -2034,6 +2039,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final backend = resolveLabelPrintBackend(
       language: profile.language,
       portName: rawPortName,
+      preferWindowsDriver: profile.prefersWindowsDriverOutput,
+    );
+    final renderDpi = labelPrintRenderDpi(
+      backend: backend,
+      printerDpi: dpi,
+    );
+    debugLog(
+      'labelSheetPrint start printer=${printer.name} profile=$profile '
+      'port=$rawPortName backend=${backend.name} printerDpi=$dpi '
+      'renderDpi=$renderDpi labelMm=${metrics.labelWidthMm}x${metrics.labelHeightMm} '
+      'orientation=${options.orientation.name}',
     );
     if (filePort && mounted) {
       ScaffoldMessenger.of(
@@ -2060,7 +2076,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     final capture = await _controller.captureRangeAsPng(
       labelSheetPrintRange(sheet, physicalSize),
-      pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
+      pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
       includeGridLines: false,
       includeCellBorders: true,
       includeRulerGuides: false,
@@ -2080,19 +2096,34 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
 
+    debugLog(
+      'labelSheetPrint capture backend=${backend.name} '
+      'logical=${capture.logicalSize.width}x${capture.logicalSize.height} '
+      'pixel=${capture.pixelSize.width}x${capture.pixelSize.height} '
+      'pngBytes=${capture.pngBytes.length}',
+    );
+
     final pdfBytes = await buildLabelSheetPdfBytes(
       pngBytes: capture.pngBytes,
       metrics: metrics,
       options: options,
     );
+    debugLog('labelSheetPrint pdf bytes=${pdfBytes.length}');
     if (!mounted) {
       return;
     }
     final accepted = await Printing.directPrintPdf(
       printer: printer,
       name: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
+      format: PdfPageFormat(
+        metrics.pageWidthMm * PdfPageFormat.mm,
+        metrics.pageHeightMm(options) * PdfPageFormat.mm,
+        marginAll: 0,
+      ),
+      dynamicLayout: false,
       onLayout: (_) async => pdfBytes,
     );
+    debugLog('labelSheetPrint dispatch accepted=$accepted backend=${backend.name}');
     if (!accepted) {
       throw StateError('프린터가 인쇄 요청을 접수하지 않았습니다.');
     }
@@ -2132,6 +2163,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       sourceHeightMm: fortuneLogicalPixelsToMillimeters(
         capture.logicalSize.height,
       ),
+      pixelWidth: capture.pixelSize.width.round(),
+      pixelHeight: capture.pixelSize.height.round(),
     );
   }
 

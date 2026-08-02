@@ -28,6 +28,8 @@ class PrinterProfile {
   });
 
   bool get canSendRaw => Platform.isWindows && language != PrinterLanguage.rasterOnly;
+  bool get prefersWindowsDriverOutput =>
+      Platform.isWindows && vendor == 'GoDEX' && model == 'G500';
 
   @override
   String toString() =>

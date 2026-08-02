@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 구현 완료·실물 검증 대기: Godex G500 편집 크기·출력 품질 일치 v1.0.28
+## 완료: Godex G500 Windows 드라이버 고품질 출력 v1.0.29
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -19,7 +19,24 @@
 - `git diff --check` 통과, 버전 생성 결과 `1.0.28`.
 - stage 대상: 출력 production 5개, 관련 테스트 3개, FortuneSheet canvas/test, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `3fc231e Godex 출력 크기와 래스터 품질 개선`.
-- 남은 검증: 동일 80×60 라벨을 Godex G500으로 재출력해 편집 위치/크기와 작은 한글 획을 실물 비교한다.
+- v1.0.28 실물 출력에서 위치/크기는 개선됐지만 작은 글자 획 손실, 계단, 굵은 선 번짐이 남았다.
+- 원인: 최종 FortuneSheet를 앱에서 203dpi 1-bit EZPL `~G`로 직접 양자화해 Windows/Godex 드라이버의 폰트 rasterization과 보정을 우회한다.
+- RTF는 사용하지 않는다. 최종 FortuneSheet를 406.4dpi로 캡처해 물리 크기 PDF로 만든 뒤 Godex Windows 드라이버에 전달한다.
+- PDF 가상 프린터와 구분되는 `windowsDriver` backend를 추가하고 PDF 단일 파일 옵션에는 영향을 주지 않는다.
+- 출력 로그에 앱 버전, backend, device/resolved/render DPI, 라벨/source mm, capture pixel/PNG/PDF bytes, 접수 결과를 기록한다.
+- `label_print_dispatcher.dart`: PDF 가상 프린터와 분리된 `windowsDriver` backend 및 2배 render DPI 계산을 추가했다.
+- `printer_profiles.dart`: Windows의 G500 profile이 드라이버 출력을 우선하도록 명시했다.
+- `home_page_manager.dart`: 품목/저울 G500 출력을 406.4dpi PNG → 물리 크기 PDF → `Printing.directPrintPdf` 경로로 전환했다. 단계별 품질 진단 로그를 추가했다.
+- `label_sheet_workbench.dart`: 라벨 시트 직접 출력도 같은 드라이버 경로를 사용하고 capture logical/pixel/bytes와 PDF/접수 결과를 기록한다.
+- `label_sheet_workbench.dart`: `directPrintPdf`에 실제 라벨 폭·추가영역 포함 높이와 0 margin을 명시해 드라이버 기본 용지 크기 개입을 막았다.
+- PDF 단일 파일 병합은 기존처럼 `LabelPrintBackend.pdf`에만 적용하며 `windowsDriver`에는 적용하지 않는다.
+- 정적 검사 완료: `flutter analyze lib/printing/label_print_dispatcher.dart lib/printing/printer_profiles.dart lib/features/label_sheet/label_sheet_workbench.dart lib/home_page_manager.dart` 결과 오류/경고 0건.
+- 관련 테스트 완료: `flutter test test/label_print_dispatcher_test.dart test/label_print_pipeline_test.dart test/label_sheet_print_job_test.dart test/label_print_session_test.dart` 41건 통과.
+- Windows Debug 빌드 완료: `flutter build windows --debug` 성공.
+- 마지막 물리 page format 보정 후 analyzer 0건, Windows Debug 재빌드, `git diff --check`를 다시 통과했다.
+- 생성 EXE의 FileVersion/ProductVersion과 새 실행 로그 `.tmp/log/app_2026-08-02_17-58-51.log`의 `DebugLogger version`이 모두 `1.0.29`임을 확인했다. 검증용 프로세스는 종료했다.
+- 실물 출력 시 로그에서 `backend=windowsDriver`, `renderDpi=406.4`, capture pixel/bytes, PDF bytes, dispatch 결과를 확인할 수 있다.
+- stage/commit 대상: 출력 production 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

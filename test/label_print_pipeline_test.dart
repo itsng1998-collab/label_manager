@@ -109,6 +109,27 @@ void main() {
 
     expect(groups.map((group) => group.units.length), [1, 1]);
   });
+
+  test('single file option does not combine Windows driver groups', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 1), _row(20, 1)],
+      referenceAt: _referenceAt,
+    );
+    final groups = groupLabelPrintUnitsForDispatch(
+      units,
+      (unit) => LabelPhysicalPageSpec(
+        widthMm: unit.row.itemId == 10 ? 60 : 80,
+        heightMm: 40,
+        sourceWidthMm: 50,
+        sourceHeightMm: 30,
+        dpi: 203.2,
+        backend: LabelPrintBackend.windowsDriver,
+      ),
+      pdfSingleFile: true,
+    );
+
+    expect(groups.map((group) => group.units.length), [1, 1]);
+  });
 }
 
 LabelPrintRowDraft _row(int itemId, int copies) {

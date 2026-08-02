@@ -6007,6 +6007,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       final backend = resolveLabelPrintBackend(
         language: profile.language,
         portName: portName,
+        preferWindowsDriver: profile.prefersWindowsDriverOutput,
       );
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
@@ -6014,6 +6015,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       final dpi = resolveLabelPrinterDpi(
         profile: profile,
         deviceDpi: printerDpi,
+      );
+      final renderDpi = labelPrintRenderDpi(
+        backend: backend,
+        printerDpi: dpi,
+      );
+      debugLog(
+        'labelPrintQuality start version=$appVersion printer=${printer.name} '
+        'profile=$profile port=$portName backend=${backend.name} '
+        'deviceDpi=$printerDpi printerDpi=$dpi renderDpi=$renderDpi',
       );
       final rows = _labelPrintSessionController.rows;
       final columns = List<TColumn>.unmodifiable(
@@ -6069,9 +6079,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         final options = _labelPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
-        if (backend == LabelPrintBackend.pdf) {
+        if (backend.usesPdfPayload) {
           final capture = await _labelPrintCaptureController.capture(
-            dpi: dpi,
+            dpi: renderDpi,
             lineSpacingPercent: unit.row.lineSpacingPercent,
           );
           if (capture == null) {
@@ -6091,6 +6101,16 @@ class _HomePageManagerState extends State<HomePageManager> {
             pngBytes: capture.pngBytes,
             metrics: metrics,
             options: options,
+          );
+          debugLog(
+            'labelPrintQuality capture unit=${unitIndex + 1}/${units.length} '
+            'itemId=${unit.row.itemId} labelMm=${unit.row.widthMm}x${unit.row.heightMm} '
+            'sourceMm=${capture.sourceWidthMm}x${capture.sourceHeightMm} '
+            'pixel=${capture.pixelWidth}x${capture.pixelHeight} '
+            'pngBytes=${capture.pngBytes.length} margins='
+            '${unit.row.leftMarginMm},${unit.row.rightMarginMm},${unit.row.topMarginMm} '
+            'push=${unit.row.leftPushMm},${unit.row.topPushMm} '
+            'orientation=${options.orientation.name}',
           );
         } else {
           final hybrid = await _labelPrintCaptureController.captureHybridEzpl(
@@ -6151,10 +6171,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       final payloads = <LabelPrintJobGroup, List<int>>{};
       for (final group in groups) {
-        if (backend == LabelPrintBackend.pdf) {
+        if (backend.usesPdfPayload) {
           payloads[group] = await buildLabelSheetPdfGroupBytes([
             for (final unit in group.units) renderedPages[unit]!,
           ]);
+          debugLog(
+            'labelPrintQuality payload backend=${backend.name} '
+            'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
+            'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
+          );
         } else {
           final bytes = BytesBuilder(copy: false);
           for (final unit in group.units) {
@@ -6184,11 +6209,28 @@ class _HomePageManagerState extends State<HomePageManager> {
               dynamicLayout: false,
               onLayout: (_) async => payload,
             ),
+            LabelPrintBackend.windowsDriver => await Printing.directPrintPdf(
+              printer: printer,
+              name: 'ITSnG_Label_${requestedAt.millisecondsSinceEpoch}',
+              format: PdfPageFormat(
+                group.pageSpec.widthMm * PdfPageFormat.mm,
+                (group.pageSpec.heightMm + settings.extraAreaMm) *
+                    PdfPageFormat.mm,
+                marginAll: 0,
+              ),
+              dynamicLayout: false,
+              onLayout: (_) async => payload,
+            ),
             LabelPrintBackend.ezplRaw => await (() async {
               await RawPrinterWin32.sendRaw(printer, payload);
               return true;
             })(),
           };
+          debugLog(
+            'labelPrintQuality dispatch backend=${backend.name} '
+            'accepted=$accepted payloadBytes=${payload.length} '
+            'units=${group.units.length}',
+          );
           if (!accepted) dispatchError = StateError('프린터가 인쇄 요청을 접수하지 않았습니다.');
         } catch (error) {
           dispatchError = error;
@@ -6373,6 +6415,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       final backend = resolveLabelPrintBackend(
         language: profile.language,
         portName: portName,
+        preferWindowsDriver: profile.prefersWindowsDriverOutput,
       );
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
@@ -6380,6 +6423,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       final dpi = resolveLabelPrinterDpi(
         profile: profile,
         deviceDpi: printerDpi,
+      );
+      final renderDpi = labelPrintRenderDpi(
+        backend: backend,
+        printerDpi: dpi,
+      );
+      debugLog(
+        'scalePrintQuality start version=$appVersion printer=${printer.name} '
+        'profile=$profile port=$portName backend=${backend.name} '
+        'deviceDpi=$printerDpi printerDpi=$dpi renderDpi=$renderDpi',
       );
       final columns = List<TColumn>.unmodifiable(
         [...TColumn.datas ?? const <TColumn>[]]..sort((left, right) {
@@ -6434,9 +6486,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         final options = _scaleOutputPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
-        if (backend == LabelPrintBackend.pdf) {
+        if (backend.usesPdfPayload) {
           final capture = await _scaleOutputCaptureController.capture(
-            dpi: dpi,
+            dpi: renderDpi,
             lineSpacingPercent: unit.row.lineSpacingPercent,
           );
           if (capture == null) {
@@ -6456,6 +6508,13 @@ class _HomePageManagerState extends State<HomePageManager> {
             pngBytes: capture.pngBytes,
             metrics: metrics,
             options: options,
+          );
+          debugLog(
+            'scalePrintQuality capture unit=${unitIndex + 1}/${units.length} '
+            'itemId=${unit.row.itemId} labelMm=${unit.row.widthMm}x${unit.row.heightMm} '
+            'sourceMm=${capture.sourceWidthMm}x${capture.sourceHeightMm} '
+            'pixel=${capture.pixelWidth}x${capture.pixelHeight} '
+            'pngBytes=${capture.pngBytes.length}',
           );
         } else {
           final hybrid = await _scaleOutputCaptureController.captureHybridEzpl(
@@ -6520,10 +6579,15 @@ class _HomePageManagerState extends State<HomePageManager> {
         final sourceUnits = units.sublist(unitCursor, unitCursor + group.units.length);
         unitCursor += group.units.length;
         groupSourceUnits[group] = sourceUnits;
-        if (backend == LabelPrintBackend.pdf) {
+        if (backend.usesPdfPayload) {
           payloads[group] = await buildLabelSheetPdfGroupBytes([
             for (final unit in sourceUnits) renderedPages[unit]!,
           ]);
+          debugLog(
+            'scalePrintQuality payload backend=${backend.name} '
+            'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
+            'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
+          );
         } else {
           final bytes = BytesBuilder(copy: false);
           for (final unit in sourceUnits) {
@@ -6555,11 +6619,28 @@ class _HomePageManagerState extends State<HomePageManager> {
               dynamicLayout: false,
               onLayout: (_) async => payload,
             ),
+            LabelPrintBackend.windowsDriver => await Printing.directPrintPdf(
+              printer: printer,
+              name: 'ITSnG_Scale_${requestedAt.millisecondsSinceEpoch}',
+              format: PdfPageFormat(
+                group.pageSpec.widthMm * PdfPageFormat.mm,
+                (group.pageSpec.heightMm + settings.extraAreaMm) *
+                    PdfPageFormat.mm,
+                marginAll: 0,
+              ),
+              dynamicLayout: false,
+              onLayout: (_) async => payload,
+            ),
             LabelPrintBackend.ezplRaw => await (() async {
               await RawPrinterWin32.sendRaw(printer, payload);
               return true;
             })(),
           };
+          debugLog(
+            'scalePrintQuality dispatch backend=${backend.name} '
+            'accepted=$accepted payloadBytes=${payload.length} '
+            'units=${sourceUnits.length}',
+          );
           if (!accepted) {
             dispatchError = StateError('프린터가 인쇄 요청을 접수하지 않았습니다.');
           }
