@@ -49,6 +49,7 @@
 - Windows Debug 빌드 성공. EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_18-15-33.log` logger 헤더가 모두 `1.0.30`임을 확인했다. 검증용 PID 2220은 종료했다.
 - 다음 실물 출력 로그에서 `normalize source=1281x961 printerDots=640x480 threshold=224`, ink 비율, PDF bytes, accepted 결과를 확인한다.
 - stage/commit 대상: 출력 production 3개, 관련 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `9b5ed58 Godex 작은 글자 출력 품질 개선`.
 
 # 최근 완료 요약
 
