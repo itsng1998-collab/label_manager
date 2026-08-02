@@ -142,6 +142,165 @@ void main() {
     expect(plan.approvedCellBorderEdgeKeys, isEmpty);
   });
 
+  test('dynamic computed text is materialized for native print candidates', () {
+    final dynamicSheet = FortuneSheet(
+      id: 'dynamic-text',
+      name: 'Dynamic Text',
+      rowCount: 2,
+      columnCount: 2,
+      cells: {
+        const FortuneCellCoord(0, 0): const FortuneCell(value: '제품명'),
+        const FortuneCellCoord(0, 1): const FortuneCell(bold: true),
+      },
+      dynamicArrayCompute: const {
+        '0_1': {'r': 0, 'c': 1, 'v': '황치즈쿠키'},
+        '1_0': {'r': 1, 'c': 0, 'v': '120g'},
+      },
+      hasRawDynamicArrayCompute: true,
+    );
+
+    final materialized = fortuneSheetMaterializeDynamicComputedText(
+      dynamicSheet,
+    );
+    expect(
+      materialized.cells[const FortuneCellCoord(0, 1)]?.renderedText,
+      '황치즈쿠키',
+    );
+    expect(
+      materialized.cells[const FortuneCellCoord(0, 1)]?.bold,
+      isTrue,
+    );
+    expect(
+      materialized.cells[const FortuneCellCoord(1, 0)]?.renderedText,
+      '120g',
+    );
+    final diagnostics = FortuneNativeCandidateDiagnostics();
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: materialized,
+      range: range,
+      transform: transform,
+      diagnostics: diagnostics,
+    );
+    expect(
+      candidates.where(
+        (candidate) => candidate.kind == FortuneNativeCandidateKind.cellText,
+      ),
+      hasLength(3),
+    );
+    expect(diagnostics.cellTextExcluded, isEmpty);
+  });
+
+  testWidgets('approved dynamic text is omitted from filtered capture', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(180, 100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    const dynamicSettings = FortuneSettings(
+      defaultRowHeight: 40,
+      defaultColWidth: 100,
+      defaultFontSize: 12,
+    );
+    final sourceSheet = FortuneSheet(
+      id: 'dynamic-capture',
+      name: 'Dynamic Capture',
+      rowCount: 1,
+      columnCount: 1,
+      showGridLines: false,
+      cells: {const FortuneCellCoord(0, 0): const FortuneCell()},
+      dynamicArrayCompute: const {
+        '0_0': {'r': 0, 'c': 0, 'v': '황치즈쿠키'},
+      },
+      hasRawDynamicArrayCompute: true,
+    );
+    final materialized = fortuneSheetMaterializeDynamicComputedText(
+      sourceSheet,
+    );
+    const captureRange = FortuneRange(
+      rowStart: 0,
+      rowEnd: 0,
+      columnStart: 0,
+      columnEnd: 0,
+    );
+    const captureTransform = FortunePrintTransform(
+      sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 100, 40),
+      dpi: 203,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 100,
+      clipBottomMm: 100,
+      nativeAllowed: true,
+    );
+    final candidate = fortuneBuildNativeCandidates(
+      settings: dynamicSettings,
+      sheet: materialized,
+      range: captureRange,
+      transform: captureTransform,
+    ).singleWhere(
+      (value) => value.kind == FortuneNativeCandidateKind.cellText,
+    );
+    final approvedPlan = fortuneFinalizeHybridRenderPlan(
+      settings: dynamicSettings,
+      sheet: materialized,
+      range: captureRange,
+      transform: captureTransform,
+      candidates: [candidate],
+      approvals: [
+        FortuneNativeCandidateApproval(
+          candidateToken: candidate.token,
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+        ),
+      ],
+    );
+    final fallbackPlan = fortuneFinalizeHybridRenderPlan(
+      settings: dynamicSettings,
+      sheet: materialized,
+      range: captureRange,
+      transform: captureTransform,
+      candidates: [candidate],
+      approvals: const [],
+    );
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: FortuneSheetCanvas(
+          workbook: FortuneWorkbook(
+            settings: dynamicSettings,
+            sheets: [sourceSheet],
+          ),
+          controller: controller,
+        ),
+      ),
+    );
+
+    final approvedCapture = await tester.runAsync(
+      () => controller.captureHybridPlanAsPng(approvedPlan, pixelRatio: 1),
+    );
+    final fallbackCapture = await tester.runAsync(
+      () => controller.captureHybridPlanAsPng(fallbackPlan, pixelRatio: 1),
+    );
+    final approvedPixels = await tester.runAsync(
+      () => _decodeRawRgba(approvedCapture!.pngBytes),
+    );
+    final fallbackPixels = await tester.runAsync(
+      () => _decodeRawRgba(fallbackCapture!.pngBytes),
+    );
+    const cellRect = ui.Rect.fromLTWH(0, 0, 100, 40);
+    expect(
+      _countNonWhitePixels(approvedPixels!, 100, cellRect),
+      0,
+    );
+    expect(
+      _countNonWhitePixels(fallbackPixels!, 100, cellRect),
+      greaterThan(0),
+    );
+  });
+
   test('native line footprint preserves butt endpoints', () {
     final lineSheet = FortuneSheet(
       id: 'line',

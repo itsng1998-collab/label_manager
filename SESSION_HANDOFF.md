@@ -1,6 +1,22 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 최대 EZPL 직접 출력 v1.0.39
+## 완료·실물 검증 대기: Godex G500 동적 셀 전체 EZPL 직접 출력 v1.0.40
+- v1.0.39 실물 `.tmp/KakaoTalk_20260802_234102362.jpg`와 `.tmp/log/app_2026-08-02_23-39-00.log` 분석: `backend=ezplRaw`, `WritePrinter=42230/42230`, 내장 UTF-8 한글 출력은 성공했다.
+- 원인은 화면/PNG만 `dynamicArrayCompute` 값을 렌더 셀로 변환하고 print plan은 원본 `sheet.cells`만 읽어 정적 텍스트 9개/35자만 직접 승인한 것이다. 품목명·중량·날짜·제조원 등 동적 값은 raster에 남아 직접 텍스트와 배치가 달라졌다.
+- 수정 예정: FortuneSheet 공용 동적 텍스트 materialize helper를 추가하고, EZPL 후보 생성과 fallback 캡처가 동일한 snapshot을 사용하도록 한다. 후보/승인 누락 사유 로그도 확장한다.
+- `fortuneSheetMaterializeDynamicComputedText`: `dynamicArrayCompute` map/list의 `v`를 기존 셀 스타일을 보존한 출력 셀로 변환한다. EZPL plan과 filtered PNG가 동일 snapshot을 사용한다.
+- raw 로그에 전체 렌더 텍스트 수, 동적 materialize 수, 후보 전 제외 수, preflight 거절 사유, 각 직접 텍스트의 셀 token/영역/font dot/줄 수를 추가했다.
+- FortuneSheet 후보 생성 전 제외 사유도 `nativeDisabled/outsideRange/nonMergeAnchor/emptyFootprint/objectOverlap/rawOverlayOverlap/printerClip`별로 기록한다.
+- 강제 줄간격은 더 이상 전체 fallback 사유가 아니며, EZPL 줄별 Y advance에 비율을 직접 반영한다.
+- 테스트: 동적 map/list 물질화 후 후보 증가, 동적 값 3건의 UTF-8 `AT` payload 승인, 승인된 동적 텍스트의 filtered PNG 완전 제거를 고정했다.
+- 버전은 `1.0.40`으로 증가했다. 검증 예정: 출력 관련 테스트, 변경 파일 analyzer, Windows `/WX` Debug build, `git diff --check`.
+- 검증 실행 예정: `flutter test test/label_print_dispatcher_test.dart test/label_print_pipeline_test.dart test/label_sheet_print_job_test.dart test/label_print_session_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`.
+- 관련 focused 테스트 32건 통과. 변경 production/test 8개 파일 analyzer 오류·경고 0건.
+- 최종 출력 관련 테스트 65건 통과.
+- Windows 검증 실행 예정: `$env:CL='/WX'; flutter build windows --debug` 후 `git diff --check`, EXE 버전 확인.
+- Windows `/WX` Debug 빌드와 `git diff --check` 통과. EXE FileVersion/ProductVersion 모두 `1.0.40` 확인.
+- 후보 제외 진단 반영 후 최종 analyzer 재실행 결과 오류·경고 0건, `git diff --check` 재통과.
+- stage/commit 대상: EZPL production 2개, FortuneSheet print plan, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - v1.0.38 실물과 `.tmp/log/app_2026-08-02_23-12-13.log` 분석: native text 9/9, DrawTextW 9/9 성공이지만 Godex driver가 Arial 17-dot antialias를 점무늬로 변환해 품질이 낮다.
 - G500의 Windows driver 우선을 제거해 `ezplRaw` backend로 전환했다.
 - `label_sheet_print_job.dart`: 일반 가로 검정 셀 텍스트를 EZPL `AT` UTF-8 명령으로 생성하고, 셀 내부 줄 분할·정렬·bold/italic/underline을 적용한다. 승인된 텍스트는 fallback PNG에서 제외한다.

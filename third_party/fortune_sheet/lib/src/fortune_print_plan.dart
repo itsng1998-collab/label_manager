@@ -9,6 +9,69 @@ enum FortuneNativeCandidateKind { barcode, line, rectangle, cellBorder, cellText
 
 enum FortuneCellBorderEdgeAxis { vertical, horizontal }
 
+FortuneSheet fortuneSheetMaterializeDynamicComputedText(FortuneSheet sheet) {
+  final computedText = <FortuneCellCoord, String>{};
+  final raw = sheet.dynamicArrayCompute;
+
+  void addEntry(Object? rowValue, Object? columnValue, Object? entry) {
+    if (entry is! Map || !entry.containsKey('v')) return;
+    final row = rowValue is num
+        ? rowValue.toInt()
+        : int.tryParse('$rowValue');
+    final column = columnValue is num
+        ? columnValue.toInt()
+        : int.tryParse('$columnValue');
+    final rowCount = sheet.rowCount ?? 0;
+    final columnCount = sheet.columnCount ?? 0;
+    if (row == null ||
+        column == null ||
+        row < 0 ||
+        column < 0 ||
+      row >= rowCount ||
+      column >= columnCount) {
+      return;
+    }
+    final value = entry['v'];
+    computedText[FortuneCellCoord(row, column)] = value == null ? '' : '$value';
+  }
+
+  if (raw is Map) {
+    for (final rawEntry in raw.entries) {
+      final keyParts = '${rawEntry.key}'.split('_');
+      final value = rawEntry.value;
+      addEntry(
+        value is Map && value.containsKey('r')
+            ? value['r']
+            : keyParts.firstOrNull,
+        value is Map && value.containsKey('c')
+            ? value['c']
+            : keyParts.length > 1
+            ? keyParts[1]
+            : null,
+        value,
+      );
+    }
+  } else if (raw is Iterable) {
+    for (final entry in raw) {
+      if (entry is Map) addEntry(entry['r'], entry['c'], entry);
+    }
+  }
+  if (computedText.isEmpty) return sheet;
+
+  final cells = Map<FortuneCellCoord, FortuneCell>.from(sheet.cells);
+  for (final entry in computedText.entries) {
+    final source = cells[entry.key] ?? const FortuneCell();
+    cells[entry.key] = source.copyWith(
+      value: entry.value,
+      displayValue: entry.value,
+      rawDisplayValue: entry.value,
+      hasRawDisplayValue: true,
+      inlineRuns: null,
+    );
+  }
+  return sheet.copyWith(cells: cells);
+}
+
 class FortuneCellBorderEdgeKey {
   const FortuneCellBorderEdgeKey({
     required this.axis,
@@ -105,6 +168,20 @@ class FortuneNativeCandidateApproval {
   final Rect predictedPaintedFootprint;
 }
 
+class FortuneNativeCandidateDiagnostics {
+  final Map<String, int> _cellTextExcluded = <String, int>{};
+
+  Map<String, int> get cellTextExcluded => Map.unmodifiable(_cellTextExcluded);
+
+  void recordCellTextExcluded(String reason) {
+    _cellTextExcluded.update(
+      reason,
+      (count) => count + 1,
+      ifAbsent: () => 1,
+    );
+  }
+}
+
 class FortuneHybridRenderPlan {
   FortuneHybridRenderPlan({
     required this.settings,
@@ -140,8 +217,14 @@ List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
   required FortuneSheet sheet,
   required FortuneRange range,
   required FortunePrintTransform transform,
+  FortuneNativeCandidateDiagnostics? diagnostics,
 }) {
   if (!transform.nativeAllowed || !transform.dpi.isFinite || transform.dpi <= 0) {
+    for (final cell in sheet.cells.values) {
+      if (cell.renderedText.isNotEmpty) {
+        diagnostics?.recordCellTextExcluded('nativeDisabled');
+      }
+    }
     return const [];
   }
   final objects = fortuneSheetObjectsInPaintOrder(sheet);
@@ -198,6 +281,7 @@ List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
       transform: transform,
       objectFootprints: footprints,
       rawOverlayFootprints: rawFootprints,
+      diagnostics: diagnostics,
     ),
   );
   return List.unmodifiable(candidates);
@@ -270,6 +354,7 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
   required FortunePrintTransform transform,
   required List<Rect> objectFootprints,
   required List<Rect> rawOverlayFootprints,
+  required FortuneNativeCandidateDiagnostics? diagnostics,
 }) {
   final metrics = sheet.metrics(settings);
   final candidates = <FortuneNativeCandidate>[];
@@ -279,9 +364,19 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
     if (coord.row < range.rowStart ||
         coord.row > range.rowEnd ||
         coord.column < range.columnStart ||
-        coord.column > range.columnEnd ||
-        sheet.mergeAnchorFor(coord) != coord ||
-        cell.renderedText.isEmpty) {
+        coord.column > range.columnEnd) {
+      if (cell.renderedText.isNotEmpty) {
+        diagnostics?.recordCellTextExcluded('outsideRange');
+      }
+      continue;
+    }
+    if (sheet.mergeAnchorFor(coord) != coord) {
+      if (cell.renderedText.isNotEmpty) {
+        diagnostics?.recordCellTextExcluded('nonMergeAnchor');
+      }
+      continue;
+    }
+    if (cell.renderedText.isEmpty) {
       continue;
     }
     final merge = cell.merge;
@@ -297,9 +392,16 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
       metrics.columnEnd(columnEnd) - 2,
       metrics.rowEnd(rowEnd) - 2,
     );
-    if (footprint.isEmpty ||
-        objectFootprints.any((object) => object.overlaps(footprint)) ||
-        rawOverlayFootprints.any((raw) => raw.overlaps(footprint))) {
+    if (footprint.isEmpty) {
+      diagnostics?.recordCellTextExcluded('emptyFootprint');
+      continue;
+    }
+    if (objectFootprints.any((object) => object.overlaps(footprint))) {
+      diagnostics?.recordCellTextExcluded('objectOverlap');
+      continue;
+    }
+    if (rawOverlayFootprints.any((raw) => raw.overlaps(footprint))) {
+      diagnostics?.recordCellTextExcluded('rawOverlayOverlap');
       continue;
     }
     final printerFootprint = transform.logicalRectToPrinterDots(footprint);
@@ -307,6 +409,7 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
       printerFootprint.intersect(transform.printerClipDots),
       printerFootprint,
     )) {
+      diagnostics?.recordCellTextExcluded('printerClip');
       continue;
     }
     candidates.add(

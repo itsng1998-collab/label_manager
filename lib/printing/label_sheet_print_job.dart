@@ -374,11 +374,19 @@ class LabelSheetHybridPrintPreparation {
     required this.geometry,
     required this.descriptors,
     required this.plan,
+    required this.renderedTextCells,
+    required this.dynamicTextMaterialized,
+    required this.textCandidateExclusionCounts,
+    required this.textRejectionCounts,
   });
 
   final LabelSheetHybridPrintGeometry geometry;
   final List<LabelSheetEzplNativeDescriptor> descriptors;
   final FortuneHybridRenderPlan plan;
+  final int renderedTextCells;
+  final int dynamicTextMaterialized;
+  final Map<String, int> textCandidateExclusionCounts;
+  final Map<String, int> textRejectionCounts;
 }
 
 LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
@@ -389,29 +397,37 @@ LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
   required LabelSheetPrintOptions options,
   int? lineSpacingPercent,
 }) {
+  final printSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
+  final dynamicTextMaterialized = printSheet.cells.entries.where((entry) {
+    return sheet.cells[entry.key]?.renderedText != entry.value.renderedText;
+  }).length;
   final geometry = resolveLabelSheetHybridPrintGeometry(
-    sheet: sheet,
+    sheet: printSheet,
     settings: settings,
     physicalSize: physicalSize,
     metrics: metrics,
     options: options,
   );
+  final candidateDiagnostics = FortuneNativeCandidateDiagnostics();
   final candidates = fortuneBuildNativeCandidates(
     settings: settings,
-    sheet: sheet,
+    sheet: printSheet,
     range: geometry.range,
     transform: geometry.transform,
+    diagnostics: candidateDiagnostics,
   );
+  final textRejectionCounts = <String, int>{};
   final descriptors = preflightLabelSheetEzplCandidates(
-    sheet: sheet,
+    sheet: printSheet,
     settings: settings,
     transform: geometry.transform,
     candidates: candidates,
     lineSpacingPercent: lineSpacingPercent,
+    textRejectionCounts: textRejectionCounts,
   );
   final plan = fortuneFinalizeHybridRenderPlan(
     settings: settings,
-    sheet: sheet,
+    sheet: printSheet,
     range: geometry.range,
     transform: geometry.transform,
     candidates: candidates,
@@ -421,6 +437,12 @@ LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
     geometry: geometry,
     descriptors: descriptors,
     plan: plan,
+    renderedTextCells: printSheet.cells.values
+        .where((cell) => cell.renderedText.isNotEmpty)
+        .length,
+    dynamicTextMaterialized: dynamicTextMaterialized,
+    textCandidateExclusionCounts: candidateDiagnostics.cellTextExcluded,
+    textRejectionCounts: Map.unmodifiable(textRejectionCounts),
   );
 }
 
@@ -700,6 +722,7 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
   required FortunePrintTransform transform,
   required Iterable<FortuneNativeCandidate> candidates,
   int? lineSpacingPercent,
+  Map<String, int>? textRejectionCounts,
 }) {
   final descriptors = <LabelSheetEzplNativeDescriptor>[];
   for (final candidate in candidates) {
@@ -719,6 +742,13 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
         transform: transform,
         candidate: candidate,
         lineSpacingPercent: lineSpacingPercent,
+        onRejected: (reason) {
+          textRejectionCounts?.update(
+            reason,
+            (count) => count + 1,
+            ifAbsent: () => 1,
+          );
+        },
       );
       if (descriptor != null) descriptors.add(descriptor);
       continue;
@@ -780,58 +810,81 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
   required FortunePrintTransform transform,
   required FortuneNativeCandidate candidate,
   required int? lineSpacingPercent,
+  required void Function(String reason) onRejected,
 }) {
   final coord = candidate.cellCoord;
   final cell = coord == null ? null : sheet.cells[coord];
-  if (cell == null ||
-      lineSpacingPercent != null ||
-      cell.renderedText.isEmpty ||
-      cell.inlineRuns?.isNotEmpty == true ||
-      cell.isVerticalText ||
-      cell.normalizedTextRotation != 0 ||
-      cell.normalizedTextWrap == '1' ||
-      cell.normalizedHorizontalAlign == '3' ||
-      cell.strikeThrough ||
-      cell.foreground.toARGB32() != 0xff000000 ||
-      cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
+  final rejectionReason = cell == null
+      ? 'missingCell'
+      : cell.renderedText.isEmpty
+      ? 'emptyText'
+      : cell.inlineRuns?.isNotEmpty == true
+      ? 'inlineRuns'
+      : cell.isVerticalText
+      ? 'verticalText'
+      : cell.normalizedTextRotation != 0
+      ? 'rotatedText'
+      : cell.normalizedTextWrap == '1'
+      ? 'overflowText'
+      : cell.normalizedHorizontalAlign == '3'
+      ? 'justifyText'
+      : cell.strikeThrough
+      ? 'strikeThrough'
+      : cell.foreground.toARGB32() != 0xff000000
+      ? 'nonBlackText'
+      : cell.extraFields[fortuneCellTextOffsetYExtraKey] != null
+      ? 'customOffsetY'
+      : null;
+  if (rejectionReason != null) {
+    onRejected(rejectionReason);
     return null;
   }
+  final resolvedCell = cell!;
   final target = candidate.printerPaintedFootprint;
   final fontHeight = math.max(
     8,
-    ((cell.fontSize ?? settings.defaultFontSize) *
+    ((resolvedCell.fontSize ?? settings.defaultFontSize) *
             transform.dotsPerLogicalPixel)
         .round(),
   );
   final lines = _ezplTextLines(
-    cell.renderedText,
+    resolvedCell.renderedText,
     maxWidthDots: target.width.floor(),
     fontHeightDots: fontHeight,
-    wrap: cell.normalizedTextWrap == '2',
+    wrap: resolvedCell.normalizedTextWrap == '2',
   );
-  if (lines == null || lines.isEmpty) return null;
-  final lineAdvance = math.max(fontHeight, (fontHeight * 1.12).round());
+  if (lines == null || lines.isEmpty) {
+    onRejected('widthOverflow');
+    return null;
+  }
+  final lineAdvance = math.max(
+    1,
+    (fontHeight * ((lineSpacingPercent ?? 112) / 100)).round(),
+  );
   final textHeight = fontHeight + (lines.length - 1) * lineAdvance;
-  if (textHeight > target.height) return null;
+  if (textHeight > target.height) {
+    onRejected('heightOverflow');
+    return null;
+  }
   var top = target.top.round();
-  if (cell.normalizedVerticalAlign == '2') {
+  if (resolvedCell.normalizedVerticalAlign == '2') {
     top = target.bottom.round() - textHeight;
-  } else if (cell.normalizedVerticalAlign != '1') {
+  } else if (resolvedCell.normalizedVerticalAlign != '1') {
     top += math.max(0, (target.height.round() - textHeight) ~/ 2);
   }
   final style = StringBuffer('0');
-  if (cell.bold) style.write('B');
-  if (cell.italic) style.write('T');
-  if (cell.underline) style.write('U');
+  if (resolvedCell.bold) style.write('B');
+  if (resolvedCell.italic) style.write('T');
+  if (resolvedCell.underline) style.write('U');
   style.write('E');
   final command = StringBuffer();
   for (var index = 0; index < lines.length; index += 1) {
     final line = lines[index];
     final lineWidth = _ezplEstimatedTextWidth(line, fontHeight);
     var left = target.left.round();
-    if (cell.normalizedHorizontalAlign == '2') {
+    if (resolvedCell.normalizedHorizontalAlign == '2') {
       left = target.right.round() - lineWidth.ceil();
-    } else if (cell.normalizedHorizontalAlign == '0') {
+    } else if (resolvedCell.normalizedHorizontalAlign == '0') {
       left += math.max(0, (target.width.round() - lineWidth.ceil()) ~/ 2);
     }
     command.write(
@@ -844,7 +897,7 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
     command: command.toString(),
     predictedPaintedFootprint: target,
     utf8: true,
-    textCharacters: cell.renderedText.runes.length,
+    textCharacters: resolvedCell.renderedText.runes.length,
     fontHeightDots: fontHeight,
     lineCount: lines.length,
   );

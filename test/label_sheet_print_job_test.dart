@@ -614,6 +614,76 @@ void main() {
     expect(payload, contains('밀 함유'));
   });
 
+  test('planned Hybrid emits dynamic computed values as native AT text', () async {
+    final sheet = fs.FortuneSheet(
+      id: 'dynamic-text',
+      name: 'Dynamic Text',
+      rowCount: 3,
+      columnCount: 3,
+      cells: {
+        const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(value: '제품명'),
+        const fs.FortuneCellCoord(0, 1): const fs.FortuneCell(),
+      },
+      dynamicArrayCompute: const {
+        '0_1': {'r': 0, 'c': 1, 'v': '황치즈쿠키'},
+        '1_0': {'r': 1, 'c': 0, 'v': '120g'},
+      },
+      hasRawDynamicArrayCompute: true,
+      defaultRowHeight: 24,
+      defaultColWidth: 80,
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetHybridPrint(
+      sheet: sheet,
+      settings: const fs.FortuneSettings(defaultFontSize: 8),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 43,
+        heightMm: 13,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 43,
+        labelHeightMm: 13,
+        dpi: 203.2,
+      ),
+      options: options,
+    );
+
+    expect(preparation.renderedTextCells, 3);
+    expect(preparation.dynamicTextMaterialized, 2);
+    expect(preparation.textCandidateExclusionCounts, isEmpty);
+    expect(preparation.textRejectionCounts, isEmpty);
+    expect(
+      preparation.plan.candidates
+          .where(
+            (candidate) =>
+                candidate.kind == fs.FortuneNativeCandidateKind.cellText,
+          )
+          .map((candidate) => candidate.token),
+      containsAll(['text:0:0', 'text:0:1', 'text:1:0']),
+    );
+    expect(preparation.plan.approvedCellTextCoords, hasLength(3));
+    final blank = img.Image(width: 344, height: 104);
+    img.fill(blank, color: img.ColorRgb8(255, 255, 255));
+    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(blank)),
+      metrics: preparation.geometry.metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
+    );
+    final payload = utf8.decode(bytes, allowMalformed: false);
+    expect(payload, contains('제품명'));
+    expect(payload, contains('황치즈쿠키'));
+    expect(payload, contains('120g'));
+  });
+
   test('EZPL AT keeps unsupported cell text in raster fallback', () {
     const coord = fs.FortuneCellCoord(0, 0);
     const settings = fs.FortuneSettings();
@@ -672,7 +742,7 @@ void main() {
         const fs.FortuneCell(value: '강제 줄간격'),
         lineSpacingPercent: 120,
       ),
-      isEmpty,
+      hasLength(1),
     );
     expect(
       preflight(

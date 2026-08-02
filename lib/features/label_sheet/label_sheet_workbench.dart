@@ -870,6 +870,10 @@ class LabelSheetHybridEzplCapture {
     required this.filteredPngBytes,
     required this.pixelWidth,
     required this.pixelHeight,
+    required this.renderedTextCells,
+    required this.dynamicTextMaterialized,
+    required this.textCandidateExclusionCounts,
+    required this.textRejectionCounts,
   });
 
   final Uint8List bytes;
@@ -881,6 +885,10 @@ class LabelSheetHybridEzplCapture {
   final int filteredPngBytes;
   final int pixelWidth;
   final int pixelHeight;
+  final int renderedTextCells;
+  final int dynamicTextMaterialized;
+  final Map<String, int> textCandidateExclusionCounts;
+  final Map<String, int> textRejectionCounts;
 
   String get diagnostics {
     final candidateCounts = <FortuneNativeCandidateKind, int>{};
@@ -918,14 +926,33 @@ class LabelSheetHybridEzplCapture {
     );
     final textCandidates = candidateCounts[FortuneNativeCandidateKind.cellText] ?? 0;
     final textApproved = approvedCounts[FortuneNativeCandidateKind.cellText] ?? 0;
+    final textLayouts = textDescriptors.map((descriptor) {
+      final bounds = descriptor.predictedPaintedFootprint;
+      return '${descriptor.candidateToken}@'
+        '${bounds.left.round()},${bounds.top.round()},'
+        '${bounds.width.round()}x${bounds.height.round()}/'
+        '${descriptor.fontHeightDots ?? 0}/${descriptor.lineCount}';
+    }).join(';');
+    final rejectionSummary = textRejectionCounts.entries
+      .map((entry) => '${entry.key}:${entry.value}')
+      .join(',');
+    final candidateExclusionSummary = textCandidateExclusionCounts.entries
+      .map((entry) => '${entry.key}:${entry.value}')
+      .join(',');
     return 'candidates=$candidateSummary approved=$approvedSummary '
+      'renderedTextCells=$renderedTextCells '
+      'dynamicTextMaterialized=$dynamicTextMaterialized '
+      'textCandidateExcluded=${math.max(0, renderedTextCells - textCandidates)} '
+      'textCandidateExcludedReasons=${candidateExclusionSummary.isEmpty ? "none" : candidateExclusionSummary} '
         'nativeTextCandidates=$textCandidates nativeTextApproved=$textApproved '
         'nativeTextFallback=${textCandidates - textApproved} '
+      'textRejected=${rejectionSummary.isEmpty ? "none" : rejectionSummary} '
         'textCharacters=$textCharacters textLines=$textLines '
         'textUtf8Bytes=$textUtf8Bytes '
         'fontHeight=${fontHeights.isEmpty ? "none" : "${fontHeights.reduce(math.min)}..${fontHeights.reduce(math.max)}"} '
         'fallbackPixel=${pixelWidth}x$pixelHeight '
-        'fallbackPngBytes=$filteredPngBytes payloadBytes=${bytes.length}';
+        'fallbackPngBytes=$filteredPngBytes payloadBytes=${bytes.length} '
+        'textLayouts=[$textLayouts]';
   }
 }
 
@@ -2356,6 +2383,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       filteredPngBytes: capture.pngBytes.length,
       pixelWidth: capture.pixelSize.width.round(),
       pixelHeight: capture.pixelSize.height.round(),
+      renderedTextCells: preparation.renderedTextCells,
+      dynamicTextMaterialized: preparation.dynamicTextMaterialized,
+      textCandidateExclusionCounts: preparation.textCandidateExclusionCounts,
+      textRejectionCounts: preparation.textRejectionCounts,
     );
   }
 
