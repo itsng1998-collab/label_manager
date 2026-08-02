@@ -83,6 +83,7 @@
 - 최종 로그 필드 반영 후 출력 관련 테스트 43건 재통과, 편집 파일 진단 오류 0건.
 - 최종 `CL=/WX flutter build windows --debug` 및 `git diff --check` 성공.
 - stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, 출력 로그 call site 2개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `e144d44 Godex 작은 글자 coverage 보존 개선`.
 
 # 최근 완료 요약
 
