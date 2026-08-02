@@ -61,6 +61,7 @@
 - Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_18-36-17.log` logger 헤더가 모두 `1.0.31`임을 확인했다. 검증용 PID 9912는 종료했다.
 - 실제 G500 출력은 용지를 소모하므로 자동 실행하지 않았다. 다음 실물 로그에서 `gdiPage=1280x960`, `gdiDispatch printerDpi=203x203`, `target=640x480`, `stretchLines`를 확인한다.
 - stage/commit 대상: 출력 Dart 5개, Windows runner 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `e29ad21 Godex GDI 직접 출력 적용`.
 
 # 최근 완료 요약
 
