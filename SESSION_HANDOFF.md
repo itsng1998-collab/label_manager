@@ -6,7 +6,8 @@
 - 문서 정리는 호환 가능한 문서 변경이므로 `1.0.24`에서 `1.0.25`로 PATCH 증가한다.
 - 문서를 1,292줄에서 39줄로 축약했고 현재 상태에 필요한 4개 섹션만 남겼다.
 - 검증 완료: 종료된 진행 항목 없음, `git diff --check` 통과, 버전 생성 결과 `1.0.25`.
-- stage 대상: `SESSION_HANDOFF.md`, `pubspec.yaml`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- stage 검증 완료: `SESSION_HANDOFF.md`, `pubspec.yaml`만 포함하고 사용자 변경 `lib/core/app.dart`는 제외했다.
+- 문서 정리 커밋: `e958bb0 인수인계 문서를 현재 상태로 정리`.
 
 # 최근 완료 요약
 
