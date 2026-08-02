@@ -12,6 +12,7 @@
 - Microsoft `PRINTDLGW`/`DEVNAMES` 계약과 movable global memory, 문자 단위 offset, `wDeviceOffset` 초기화 방식을 대조했다.
 - `git diff --check` 통과, 버전 생성 결과 `1.0.27`.
 - stage 대상: `SESSION_HANDOFF.md`, `raw_printer_win32.dart`, 두 UI 호출부, `pubspec.yaml`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `5649b96 프린터 선택 다이얼로그 현재 선택 유지`.
 
 # 최근 완료 요약
 
