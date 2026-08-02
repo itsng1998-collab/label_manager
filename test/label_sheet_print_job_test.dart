@@ -240,7 +240,7 @@ void main() {
     expect(bytes[graphicMarker + 6], 0xaa);
   });
 
-  test('Windows driver page preserves structural supersampled coverage', () {
+  test('Windows driver page thresholds final printer grid', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     image
@@ -281,23 +281,18 @@ void main() {
     expect(page.luminanceHistogram.reduce((left, right) => left + right), 2);
     expect(page.coverageInkEquivalent, closeTo(0.8706, 0.001));
     expect(page.coveragePreservationPercent, closeTo(114.86, 0.1));
-    expect(page.targetInkPixels, 1);
-    expect(page.coreInkPixels, 1);
-    expect(page.partialCoverageInkPixels, 0);
-    expect(page.rejectedEdgePixels, 1);
+    expect(page.rasterMapping, 'averageResize');
     expect(page.discardedCoverageEquivalent, closeTo(0.1176, 0.001));
     expect(page.isolatedInkPixels, 1);
   });
 
-  test('Windows driver page keeps one of four supersample ink pixels', () {
-    final image = img.Image(width: 4, height: 2);
+  test('Windows driver page crops one-pixel capture overflow', () {
+    final image = img.Image(width: 3, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     for (var y = 0; y < 2; y += 1) {
-      for (var x = 0; x < 2; x += 1) {
-        image.setPixelRgb(x, y, 0, 0, 0);
-      }
+      image.setPixelRgb(0, y, 0, 0, 0);
+      image.setPixelRgb(2, y, 0, 0, 0);
     }
-    image.setPixelRgb(2, 0, 0, 0, 0);
 
     final page = prepareLabelSheetWindowsDriverPage(
       pngBytes: Uint8List.fromList(img.encodePng(image)),
@@ -318,14 +313,11 @@ void main() {
       ),
     );
 
-    expect(page.inkPixels, 2);
-    expect(page.bgraBytes, [0, 0, 0, 255, 0, 0, 0, 255]);
-    expect(page.targetInkPixels, 2);
-    expect(page.coreInkPixels, 1);
-    expect(page.partialCoverageInkPixels, 1);
-    expect(page.rejectedEdgePixels, 0);
-    expect(page.targetInkShortfall, 0);
-    expect(page.isolatedInkPixels, 0);
+    expect(page.inputWidth, 3);
+    expect(page.inputHeight, 2);
+    expect(page.rasterMapping, 'cropCeilOverflow');
+    expect(page.inkPixels, 1);
+    expect(page.bgraBytes, [0, 0, 0, 255, 255, 255, 255, 255]);
   });
 
   test('planned Hybrid output encodes only package-approved descriptors', () async {

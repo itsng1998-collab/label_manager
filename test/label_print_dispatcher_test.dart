@@ -71,7 +71,7 @@ void main() {
         backend: LabelPrintBackend.windowsDriver,
         printerDpi: 203.2,
       ),
-      406.4,
+      203.2,
     );
     expect(
       labelPrintRenderDpi(

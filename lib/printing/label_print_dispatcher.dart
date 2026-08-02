@@ -53,6 +53,4 @@ class LabelPrintDispatcher {
 double labelPrintRenderDpi({
   required LabelPrintBackend backend,
   required double printerDpi,
-}) => backend == LabelPrintBackend.windowsDriver
-    ? printerDpi * 2
-    : printerDpi;
+}) => printerDpi;

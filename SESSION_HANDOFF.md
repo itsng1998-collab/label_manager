@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 연결 coverage 성장 출력 v1.0.35
+## 완료·실물 검증 대기: Godex G500 native-grid 글자 출력 v1.0.36
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -103,6 +103,16 @@
 - `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.35`임을 확인했고 검증 프로세스를 종료했다.
 - stage/commit 대상: 출력 Dart 3개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `7f965b0 Godex 글자 coverage 과팽창 개선`.
+- v1.0.35 실물과 `.tmp/log/app_2026-08-02_21-35-33.log` 분석: `coreInk=52005`가 source coverage `48406.46`보다 이미 커 `connectedEdgeInk=0`, `coveragePreserved=107.43%`였다. 406.4dpi 평균 축소 후 전역 이진화하는 접근이 작은 한글 획을 계속 훼손했다.
+- Windows backend를 최종 printer grid인 203.2dpi에서 직접 캡처하도록 변경 중이다. 캡처 `ceil`로 641×481이 되면 평균 resize 없이 오른쪽/아래 1px만 crop한다.
+- 최종 native grid에서 luminance 127.5 기준으로 1-bit화한다. PDF/EZPL raw와 GDI 640×480 1:1 전송은 변경하지 않는다.
+- 로그에 `rasterInput`, `rasterMapping`, native-grid threshold, coverage, discarded coverage, isolated ink를 기록한다. `averageResize`는 native-grid 실패 신호다.
+- dispatcher/print job 집중 테스트 18건 통과.
+- 출력 관련 테스트 44건 통과, 편집 파일 진단 오류 0건, 이전 연결 성장 참조 0건.
+- 변경 파일 analyzer 오류/경고 0건 및 `git diff --check` 통과.
+- `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.36`임을 확인했고 검증 프로세스를 종료했다.
+- 다음 실물 로그 정상 조건: `renderDpi=203.2`, `rasterInput=641x481` 또는 `640x480`, `rasterMapping=cropCeilOverflow` 또는 `direct`, `gdiPage=640x480`.
+- stage/commit 대상: 출력 Dart 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 
