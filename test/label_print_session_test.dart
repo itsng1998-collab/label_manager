@@ -807,6 +807,49 @@ void main() {
     await tester.pump();
     expect(await result, isNull);
   });
+
+  testWidgets('printer settings hides PDF option for non-PDF printer', (
+    tester,
+  ) async {
+    late BuildContext dialogContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            dialogContext = context;
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ),
+    );
+
+    final result = showLabelPrintSettingsDialog(
+      context: dialogContext,
+      initial: const LabelPrintSettingsSnapshot(
+        printerName: 'Godex G500',
+        leftMarginMm: 0,
+        rightMarginMm: 0,
+        topMarginMm: 0,
+        leftPushMm: 0,
+        topPushMm: 0,
+        lineSpacingPercent: 100,
+        extraAreaMm: 0,
+        orientation: LabelPrintOrientation.horizontal,
+        pdfSingleFile: true,
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-print-pdf-single-file-option')),
+      findsNothing,
+    );
+    expect(find.text('하나의 파일로 출력'), findsNothing);
+
+    await tester.tap(find.text('적용'));
+    await tester.pump();
+    expect((await result)!.pdfSingleFile, isFalse);
+  });
 }
 
 ItemOfMarket _item(

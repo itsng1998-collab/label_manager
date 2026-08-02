@@ -4,8 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:label_manager/features/label_print/application/label_print_settings.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
-import 'package:label_manager/printing/label_print_dispatcher.dart';
-import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
@@ -34,10 +32,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
       : 'horizontal';
   var pdfSingleFile = initial.pdfSingleFile;
   var isPdfPrinter = showPdfSingleFileOption &&
-      detectPrinterProfile(
-            Printer(url: printerName, name: printerName),
-          ).language ==
-          PrinterLanguage.rasterOnly;
+      _isPdfPrinter(Printer(url: printerName, name: printerName));
   var initialBackendResolveStarted = false;
   String? errorText;
 
@@ -140,7 +135,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                       lineSpacing: lineSpacing.text,
                       extraArea: extraArea.text,
                       orientation: orientation,
-                      pdfSingleFile: pdfSingleFile,
+                      pdfSingleFile: isPdfPrinter && pdfSingleFile,
                     );
                     if (settings == null) {
                       setDialogState(() {
@@ -180,16 +175,13 @@ Future<bool> _isPdfPrinterName(String printerName) async {
       }
     }
   } catch (_) {
-    // The selected name still provides enough information for raster printers.
+    // The selected name still identifies common PDF virtual printers.
   }
   printer ??= Printer(url: normalizedName, name: normalizedName);
-  final profile = detectPrinterProfile(printer);
-  final portName = Platform.isWindows
-      ? await RawPrinterWin32.queryPrinterPortName(printer)
-      : null;
-  return resolveLabelPrintBackend(
-        language: profile.language,
-        portName: portName,
-      ) ==
-      LabelPrintBackend.pdf;
+  return _isPdfPrinter(printer);
 }
+
+bool _isPdfPrinter(Printer printer) =>
+    '${printer.name} ${printer.location ?? ''} ${printer.url}'
+        .toUpperCase()
+        .contains('PDF');

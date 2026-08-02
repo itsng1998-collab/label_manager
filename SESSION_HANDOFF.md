@@ -1,13 +1,14 @@
 # 현재 작업 상태
 
-## 완료: 인수인계 문서 정리 v1.0.25
-- `SESSION_RULES.md`의 문서 운영 규칙에 따라 종료된 이슈와 과거 상세 완료 로그를 제거한다.
-- 다음 세션에 필요한 최신 완료 상태, 다음 액션, 범위 밖 변경만 유지한다.
-- 문서 정리는 호환 가능한 문서 변경이므로 `1.0.24`에서 `1.0.25`로 PATCH 증가한다.
-- 문서를 1,292줄에서 39줄로 축약했고 현재 상태에 필요한 4개 섹션만 남겼다.
-- 검증 완료: 종료된 진행 항목 없음, `git diff --check` 통과, 버전 생성 결과 `1.0.25`.
-- stage 검증 완료: `SESSION_HANDOFF.md`, `pubspec.yaml`만 포함하고 사용자 변경 `lib/core/app.dart`는 제외했다.
-- 문서 정리 커밋: `e958bb0 인수인계 문서를 현재 상태로 정리`.
+## 완료: PDF 프린터 전용 단일 파일 옵션 v1.0.26
+- 라벨 출력 프린터 설정의 `하나의 파일로 출력`을 PDF 가상 프린터에서만 표시하도록 수정했다.
+- 비-PDF 프린터 적용 시 기존 체크 기억값이 출력 그룹에 영향을 주지 않도록 `pdfSingleFile`을 무효화했다.
+- `label_print_settings_dialog.dart`: PDF backend 판별을 제거하고 프린터 identity의 `PDF` 여부로 UI를 제한했으며, 비-PDF 적용값을 `false`로 반환한다.
+- `label_print_session_test.dart`: `Godex G500`에서 옵션 숨김과 적용 결과 `pdfSingleFile == false`를 검증하는 widget test를 추가했다.
+- 검증 완료: 루트 focused widget test 2건 통과, 변경 파일 analyzer 및 diagnostics 통과.
+- 버전은 호환 가능한 국소 버그 수정으로 `1.0.25`에서 `1.0.26`으로 PATCH 증가했다.
+- `git diff --check` 통과, 버전 생성 결과 `1.0.26`.
+- stage 대상: `SESSION_HANDOFF.md`, `label_print_settings_dialog.dart`, `label_print_session_test.dart`, `pubspec.yaml`; 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 
