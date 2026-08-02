@@ -240,10 +240,13 @@ void main() {
     expect(bytes[graphicMarker + 6], 0xaa);
   });
 
-  test('Windows driver page preserves supersampled antialias pixels', () {
+  test('Windows driver page converts supersampled coverage to exact dots', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
-    image.setPixelRgb(0, 0, 0, 0, 0);
+    image
+      ..setPixelRgb(0, 0, 0, 0, 0)
+      ..setPixelRgb(1, 0, 0, 0, 0)
+      ..setPixelRgb(0, 1, 0, 0, 0);
     for (var y = 0; y < 2; y += 1) {
       for (var x = 2; x < 4; x += 1) {
         image.setPixelRgb(x, y, 225, 225, 225);
@@ -269,12 +272,13 @@ void main() {
       ),
     );
 
-    expect((page.width, page.height), (4, 2));
-    expect(page.bgraBytes, hasLength(4 * 2 * 4));
-    expect(page.inkPixels, 5);
-    expect(page.antialiasPixels, 4);
+    expect((page.width, page.height), (2, 1));
+    expect(page.bgraBytes, hasLength(2 * 1 * 4));
+    expect(page.inkPixels, 1);
+    expect(page.antialiasPixels, 2);
     expect(page.bgraBytes.sublist(0, 4), [0, 0, 0, 255]);
-    expect(page.bgraBytes.sublist(8, 12), [225, 225, 225, 255]);
+    expect(page.bgraBytes.sublist(4, 8), [255, 255, 255, 255]);
+    expect(page.luminanceHistogram.reduce((left, right) => left + right), 2);
   });
 
   test('planned Hybrid output encodes only package-approved descriptors', () async {

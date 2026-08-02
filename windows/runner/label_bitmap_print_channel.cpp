@@ -128,20 +128,23 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
 
   const int dpi_x = GetDeviceCaps(printer_dc, LOGPIXELSX);
   const int dpi_y = GetDeviceCaps(printer_dc, LOGPIXELSY);
-  const int target_width = std::max(
-      1, static_cast<int>(page_width_mm * dpi_x / 25.4 + 0.5));
-  const int target_height = std::max(
-      1, static_cast<int>(page_height_mm * dpi_y / 25.4 + 0.5));
+  const int physical_width = GetDeviceCaps(printer_dc, PHYSICALWIDTH);
+  const int physical_height = GetDeviceCaps(printer_dc, PHYSICALHEIGHT);
+  const int physical_offset_x = GetDeviceCaps(printer_dc, PHYSICALOFFSETX);
+  const int physical_offset_y = GetDeviceCaps(printer_dc, PHYSICALOFFSETY);
+  const int target_width = physical_width > 0 ? physical_width : source_width;
+  const int target_height = physical_height > 0 ? physical_height : source_height;
+  const int destination_x = -physical_offset_x;
+  const int destination_y = -physical_offset_y;
   std::ostringstream diagnostics;
   diagnostics << "printerDpi=" << dpi_x << "x" << dpi_y
               << " source=" << source_width << "x" << source_height
               << " target=" << target_width << "x" << target_height
               << " horzRes=" << GetDeviceCaps(printer_dc, HORZRES)
               << " vertRes=" << GetDeviceCaps(printer_dc, VERTRES)
-              << " physical=" << GetDeviceCaps(printer_dc, PHYSICALWIDTH)
-              << "x" << GetDeviceCaps(printer_dc, PHYSICALHEIGHT)
-              << " offset=" << GetDeviceCaps(printer_dc, PHYSICALOFFSETX)
-              << "," << GetDeviceCaps(printer_dc, PHYSICALOFFSETY)
+              << " physical=" << physical_width << "x" << physical_height
+              << " offset=" << physical_offset_x << "," << physical_offset_y
+              << " destination=" << destination_x << "," << destination_y
               << " paperTenthMm=" << devmode->dmPaperWidth << "x"
               << devmode->dmPaperLength;
 
@@ -166,12 +169,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = 32;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
-    SetGraphicsMode(printer_dc, GM_ADVANCED);
-    const int previous_mode = SetStretchBltMode(printer_dc, HALFTONE);
-    SetBrushOrgEx(printer_dc, 0, 0, nullptr);
+    const int previous_mode = SetStretchBltMode(printer_dc, COLORONCOLOR);
     const int scan_lines = StretchDIBits(
-        printer_dc, 0, 0, target_width, target_height, 0, 0, source_width,
-        source_height, bgra->data(), &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
+        printer_dc, destination_x, destination_y, target_width, target_height,
+        0, 0, source_width, source_height, bgra->data(), &bitmap_info,
+        DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
                 << " stretchLines=" << scan_lines;
     if (scan_lines == GDI_ERROR || scan_lines == 0) {

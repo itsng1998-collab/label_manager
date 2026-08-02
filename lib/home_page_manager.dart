@@ -6129,7 +6129,9 @@ class _HomePageManagerState extends State<HomePageManager> {
               'ink=${driverPage.inkPixels}/${driverPage.totalPixels} '
               'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
               'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
-              'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)}',
+              'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)} '
+              'threshold=$labelSheetWindowsDriverCoverageThreshold '
+              'luminanceBins=${driverPage.luminanceHistogram}',
             );
           }
         } else {
@@ -6562,7 +6564,9 @@ class _HomePageManagerState extends State<HomePageManager> {
               'ink=${driverPage.inkPixels}/${driverPage.totalPixels} '
               'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
               'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
-              'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)}',
+              'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)} '
+              'threshold=$labelSheetWindowsDriverCoverageThreshold '
+              'luminanceBins=${driverPage.luminanceHistogram}',
             );
           }
         } else {

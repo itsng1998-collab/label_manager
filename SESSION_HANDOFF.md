@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 GDI 직접 출력 v1.0.31
+## 완료·실물 검증 대기: Godex G500 exact-dot 출력 v1.0.32
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -62,6 +62,15 @@
 - 실제 G500 출력은 용지를 소모하므로 자동 실행하지 않았다. 다음 실물 로그에서 `gdiPage=1280x960`, `gdiDispatch printerDpi=203x203`, `target=640x480`, `stretchLines`를 확인한다.
 - stage/commit 대상: 출력 Dart 5개, Windows runner 4개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `e29ad21 Godex GDI 직접 출력 적용`.
+- v1.0.31 실물은 회색 antialias가 거친 점무늬로 출력됐다. 로그에서 `source=1280x960 target=639x480`, `HALFTONE`, `physical=640x480`, `offset=10,0`, `HORZRES=620`을 확인했다.
+- 원인: GDI가 2배 BGRA를 203dpi로 HALFTONE 축소하면서 열전사 드라이버가 회색을 거친 dither로 변환했고, 203 정수 DPI 계산으로 물리 폭도 639 dots가 됐다.
+- `prepareLabelSheetWindowsDriverPage`: 2배 source를 정확한 203.2dpi 640×480으로 average 축소한 뒤 coverage threshold 160으로 완전한 흑/백 printer dots를 생성한다. v1.0.30의 과도한 threshold 224는 재사용하지 않는다.
+- native GDI: `COLORONCOLOR`, physical 640×480, destination `-PHYSICALOFFSET`으로 1:1 복사해 추가 halftone/축소를 제거한다.
+- 로그에 threshold와 8단계 luminance histogram, native destination/physical offset을 추가했다.
+- 출력 관련 테스트 43건 통과. 변경 파일 analyzer 오류/경고 0건, `git diff --check` 통과.
+- Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_18-48-57.log` logger 헤더가 모두 `1.0.32`임을 확인했다. 검증용 PID 17804는 종료했다.
+- 다음 실물 로그에서 `gdiPage=640x480`, threshold 160/luminance bins, `source=640x480 target=640x480`, `destination=-10,0`, `stretchLines=480`을 확인한다.
+- stage/commit 대상: 출력 Dart 3개, Windows channel 1개, 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

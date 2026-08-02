@@ -2118,7 +2118,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         'ink=${driverPage.inkPixels}/${driverPage.totalPixels} '
         'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
         'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
-        'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)}',
+        'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)} '
+        'threshold=$labelSheetWindowsDriverCoverageThreshold '
+        'luminanceBins=${driverPage.luminanceHistogram}',
       );
       final result = await WindowsBitmapPrinter.print(
         printer: printer,

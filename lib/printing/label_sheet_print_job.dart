@@ -10,6 +10,8 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
+const num labelSheetWindowsDriverCoverageThreshold = 160;
+
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
     required this.bgraBytes,
@@ -17,6 +19,7 @@ class LabelSheetWindowsDriverPage {
     required this.height,
     required this.inkPixels,
     required this.antialiasPixels,
+    required this.luminanceHistogram,
   });
 
   final Uint8List bgraBytes;
@@ -24,6 +27,7 @@ class LabelSheetWindowsDriverPage {
   final int height;
   final int inkPixels;
   final int antialiasPixels;
+  final List<int> luminanceHistogram;
 
   int get totalPixels => width * height;
   double get inkPercent => totalPixels == 0 ? 0 : inkPixels * 100 / totalPixels;
@@ -41,9 +45,8 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     throw StateError('라벨 이미지를 Windows 프린터 출력 이미지로 변환할 수 없습니다.');
   }
   final layout = LabelSheetPrintLayout.resolve(metrics: metrics, options: options);
-  const renderScale = labelSheetEzplRasterCaptureScale;
   int renderDots(num millimeters) =>
-      math.max(0, (millimeters * metrics.dpi * renderScale / 25.4).round());
+      math.max(0, (millimeters * metrics.dpi / 25.4).round());
   final page = img.Image(
     width: renderDots(layout.pageWidthMm),
     height: renderDots(layout.pageHeightMm),
@@ -61,8 +64,8 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   img.compositeImage(
     page,
     content,
-    dstX: (layout.contentLeftMm * metrics.dpi * renderScale / 25.4).round(),
-    dstY: (layout.contentTopMm * metrics.dpi * renderScale / 25.4).round(),
+    dstX: (layout.contentLeftMm * metrics.dpi / 25.4).round(),
+    dstY: (layout.contentTopMm * metrics.dpi / 25.4).round(),
   );
   final clipRight = renderDots(layout.clipRightMm);
   if (clipRight < page.width) {
@@ -89,24 +92,30 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   final bgraBytes = Uint8List(page.width * page.height * 4);
   var inkPixels = 0;
   var antialiasPixels = 0;
+  final luminanceHistogram = List<int>.filled(8, 0);
   var offset = 0;
   for (final pixel in page) {
     final luminance = img.getLuminance(pixel);
-    if (luminance < 245) inkPixels += 1;
     if (luminance > 0 && luminance < 255) antialiasPixels += 1;
-    bgraBytes[offset++] = pixel.b.toInt();
-    bgraBytes[offset++] = pixel.g.toInt();
-    bgraBytes[offset++] = pixel.r.toInt();
+    luminanceHistogram[math.min(7, luminance.toInt() ~/ 32)] += 1;
+    final value = luminance <= labelSheetWindowsDriverCoverageThreshold
+        ? 0
+        : 255;
+    if (value == 0) inkPixels += 1;
+    bgraBytes[offset++] = value;
+    bgraBytes[offset++] = value;
+    bgraBytes[offset++] = value;
     bgraBytes[offset++] = 255;
   }
-  // Do not reintroduce the v1.0.30 printer-dot threshold conversion here.
-  // It destroyed small Hangul strokes before the Godex driver could render them.
+  // v1.0.30의 임계값 224는 낮은 coverage 경계를 블록 형태로 확장했다.
+  // 이 임계값은 2배 supersampling source 축소에만 사용한다.
   return LabelSheetWindowsDriverPage(
     bgraBytes: bgraBytes,
     width: page.width,
     height: page.height,
     inkPixels: inkPixels,
     antialiasPixels: antialiasPixels,
+    luminanceHistogram: List<int>.unmodifiable(luminanceHistogram),
   );
 }
 
