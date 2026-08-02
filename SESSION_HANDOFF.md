@@ -124,6 +124,7 @@
 - `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.37`임을 확인했고 검증 프로세스를 종료했다.
 - 다음 실물 로그 정상 조건: `toneMode=driverMonochrome`, `gray>0`, `sourceBpp=32`, `compression=BI_RGB`, `rasterOp=SRCCOPY`, source/target `640x480`.
 - stage/commit 대상: 출력 Dart 3개, Windows channel, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `4def9f6 Godex native-grid 회색 출력 적용`.
 
 # 최근 완료 요약
 
