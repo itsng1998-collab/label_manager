@@ -17,6 +17,7 @@
 - Windows `/WX` Debug 빌드와 `git diff --check` 통과. EXE FileVersion/ProductVersion 모두 `1.0.40` 확인.
 - 후보 제외 진단 반영 후 최종 analyzer 재실행 결과 오류·경고 0건, `git diff --check` 재통과.
 - stage/commit 대상: EZPL production 2개, FortuneSheet print plan, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `c767e2b Godex 동적 셀 EZPL 직접 출력 적용`.
 - v1.0.38 실물과 `.tmp/log/app_2026-08-02_23-12-13.log` 분석: native text 9/9, DrawTextW 9/9 성공이지만 Godex driver가 Arial 17-dot antialias를 점무늬로 변환해 품질이 낮다.
 - G500의 Windows driver 우선을 제거해 `ezplRaw` backend로 전환했다.
 - `label_sheet_print_job.dart`: 일반 가로 검정 셀 텍스트를 EZPL `AT` UTF-8 명령으로 생성하고, 셀 내부 줄 분할·정렬·bold/italic/underline을 적용한다. 승인된 텍스트는 fallback PNG에서 제외한다.
