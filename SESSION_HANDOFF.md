@@ -71,6 +71,7 @@
 - Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion과 `.tmp/log/app_2026-08-02_18-48-57.log` logger 헤더가 모두 `1.0.32`임을 확인했다. 검증용 PID 17804는 종료했다.
 - 다음 실물 로그에서 `gdiPage=640x480`, threshold 160/luminance bins, `source=640x480 target=640x480`, `destination=-10,0`, `stretchLines=480`을 확인한다.
 - stage/commit 대상: 출력 Dart 3개, Windows channel 1개, 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `4a24ecd Godex 도트 출력 품질 개선`.
 
 # 최근 완료 요약
 
