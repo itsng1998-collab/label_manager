@@ -9,6 +9,7 @@
 - 버전은 호환 가능한 국소 버그 수정으로 `1.0.25`에서 `1.0.26`으로 PATCH 증가했다.
 - `git diff --check` 통과, 버전 생성 결과 `1.0.26`.
 - stage 대상: `SESSION_HANDOFF.md`, `label_print_settings_dialog.dart`, `label_print_session_test.dart`, `pubspec.yaml`; 사용자 변경 `lib/core/app.dart` 제외.
+- 기능 커밋: `39cd615 PDF 프린터에서만 단일 파일 옵션 표시`.
 
 # 최근 완료 요약
 
