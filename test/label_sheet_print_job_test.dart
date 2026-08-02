@@ -240,7 +240,7 @@ void main() {
     expect(bytes[graphicMarker + 6], 0xaa);
   });
 
-  test('Windows driver page diffuses supersampled coverage to exact dots', () {
+  test('Windows driver page preserves structural supersampled coverage', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     image
@@ -281,7 +281,44 @@ void main() {
     expect(page.luminanceHistogram.reduce((left, right) => left + right), 2);
     expect(page.coverageInkEquivalent, closeTo(0.8706, 0.001));
     expect(page.coveragePreservationPercent, closeTo(114.86, 0.1));
-    expect(page.quantizationError, greaterThan(0));
+    expect(page.partialCoverageInkPixels, 1);
+    expect(page.discardedCoverageEquivalent, closeTo(0.1176, 0.001));
+    expect(page.isolatedInkPixels, 1);
+  });
+
+  test('Windows driver page keeps one of four supersample ink pixels', () {
+    final image = img.Image(width: 4, height: 2);
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+    for (var y = 0; y < 2; y += 1) {
+      for (var x = 0; x < 2; x += 1) {
+        image.setPixelRgb(x, y, 0, 0, 0);
+      }
+    }
+    image.setPixelRgb(2, 0, 0, 0, 0);
+
+    final page = prepareLabelSheetWindowsDriverPage(
+      pngBytes: Uint8List.fromList(img.encodePng(image)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 2,
+        labelHeightMm: 1,
+        sourceWidthMm: 2,
+        sourceHeightMm: 1,
+        dpi: 25.4,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(page.inkPixels, 2);
+    expect(page.bgraBytes, [0, 0, 0, 255, 0, 0, 0, 255]);
+    expect(page.partialCoverageInkPixels, 1);
+    expect(page.isolatedInkPixels, 0);
   });
 
   test('planned Hybrid output encodes only package-approved descriptors', () async {

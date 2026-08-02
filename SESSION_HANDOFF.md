@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 coverage 보존 출력 v1.0.33
+## 완료·실물 검증 대기: Godex G500 획 연결성 보존 출력 v1.0.34
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -84,6 +84,15 @@
 - 최종 `CL=/WX flutter build windows --debug` 및 `git diff --check` 성공.
 - stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, 출력 로그 call site 2개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `e144d44 Godex 작은 글자 coverage 보존 개선`.
+- v1.0.33 실물과 `.tmp/log/app_2026-08-02_21-03-19.log` 분석: 전체 coverage는 `99.82%`로 보존됐지만 Floyd-Steinberg가 작은 한글 획 내부의 black dot을 분산시켜 점선 형태로 열화했다.
+- 2×2 supersampling 중 1개 원본 pixel에 해당하는 25% coverage를 printer dot으로 보존하는 독립 구조 판정으로 교체 중이다. GDI 640×480 1:1 경로는 유지한다.
+- 로그 예정: partial coverage로 채택한 dot 수, 버린 coverage 상당량, 주변 8-dot과 연결되지 않은 고립 black dot 수.
+- `minimumStructuralCoverage` 이진화와 `partialCoverageInk`, `discardedCoverage`, `isolatedInk` 로그를 출력 진입점 3곳에 적용했다.
+- 25% edge dot이 본 획 옆에 연속 black dot으로 연결되고 `isolatedInk=0`인 fixture를 추가했다.
+- 출력 관련 테스트 44건 통과, 변경 파일 진단 오류 0건, 제거한 Floyd-Steinberg 참조 0건.
+- 변경 파일 analyzer 오류/경고 0건, 출력 관련 테스트 44건 및 `git diff --check` 통과.
+- 최종 focused diff 기준 `CL=/WX flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 및 logger가 모두 `1.0.34`임을 확인했다.
+- stage/commit 대상: 출력 Dart 3개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 

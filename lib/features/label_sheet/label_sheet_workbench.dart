@@ -2119,11 +2119,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         'inkPercent=${driverPage.inkPercent.toStringAsFixed(2)} '
         'antialias=${driverPage.antialiasPixels}/${driverPage.totalPixels} '
         'antialiasPercent=${driverPage.antialiasPercent.toStringAsFixed(2)} '
-        'quantizeMode=floydSteinbergSerpentine '
-        'quantizeThreshold=$labelSheetWindowsDriverQuantizeThreshold '
+        'quantizeMode=minimumStructuralCoverage '
+        'minimumInkCoverage=${(labelSheetWindowsDriverMinimumInkCoverage * 100).toStringAsFixed(2)}% '
+        'coverageThreshold=${labelSheetWindowsDriverCoverageThreshold.toStringAsFixed(2)} '
         'coverageInk=${driverPage.coverageInkEquivalent.toStringAsFixed(2)} '
         'coveragePreserved=${driverPage.coveragePreservationPercent.toStringAsFixed(2)}% '
-        'quantizationError=${driverPage.quantizationError.toStringAsFixed(2)} '
+        'partialCoverageInk=${driverPage.partialCoverageInkPixels} '
+        'discardedCoverage=${driverPage.discardedCoverageEquivalent.toStringAsFixed(2)} '
+        'isolatedInk=${driverPage.isolatedInkPixels} '
         'luminanceBins=${driverPage.luminanceHistogram}',
       );
       final result = await WindowsBitmapPrinter.print(

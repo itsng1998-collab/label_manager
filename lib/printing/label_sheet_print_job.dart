@@ -10,7 +10,9 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
-const double labelSheetWindowsDriverQuantizeThreshold = 127.5;
+const double labelSheetWindowsDriverMinimumInkCoverage = 0.25;
+const double labelSheetWindowsDriverCoverageThreshold =
+  255 * (1 - labelSheetWindowsDriverMinimumInkCoverage);
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -21,7 +23,9 @@ class LabelSheetWindowsDriverPage {
     required this.antialiasPixels,
     required this.luminanceHistogram,
     required this.coverageInkEquivalent,
-    required this.quantizationError,
+    required this.partialCoverageInkPixels,
+    required this.discardedCoverageEquivalent,
+    required this.isolatedInkPixels,
   });
 
   final Uint8List bgraBytes;
@@ -31,13 +35,15 @@ class LabelSheetWindowsDriverPage {
   final int antialiasPixels;
   final List<int> luminanceHistogram;
   final double coverageInkEquivalent;
-  final double quantizationError;
+  final int partialCoverageInkPixels;
+  final double discardedCoverageEquivalent;
+  final int isolatedInkPixels;
 
   int get totalPixels => width * height;
   double get inkPercent => totalPixels == 0 ? 0 : inkPixels * 100 / totalPixels;
   double get antialiasPercent =>
       totalPixels == 0 ? 0 : antialiasPixels * 100 / totalPixels;
-    double get coveragePreservationPercent => coverageInkEquivalent == 0
+  double get coveragePreservationPercent => coverageInkEquivalent == 0
       ? 100
       : inkPixels * 100 / coverageInkEquivalent;
 }
@@ -107,36 +113,48 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     luminanceHistogram[math.min(7, luminance.toInt() ~/ 32)] += 1;
     coverageInkEquivalent += (255 - luminance) / 255;
   }
-  final currentErrors = Float64List(page.width + 2);
-  final nextErrors = Float64List(page.width + 2);
-  var quantizationError = 0.0;
+  var partialCoverageInkPixels = 0;
+  var discardedCoverageEquivalent = 0.0;
   for (var y = 0; y < page.height; y += 1) {
-    final leftToRight = y.isEven;
-    final start = leftToRight ? 0 : page.width - 1;
-    final end = leftToRight ? page.width : -1;
-    final step = leftToRight ? 1 : -1;
-    for (var x = start; x != end; x += step) {
+    for (var x = 0; x < page.width; x += 1) {
       final luminance = img.getLuminance(page.getPixel(x, y));
-      final adjusted = (luminance + currentErrors[x + 1]).clamp(0, 255);
-      final value = adjusted <= labelSheetWindowsDriverQuantizeThreshold
+      final value = luminance <= labelSheetWindowsDriverCoverageThreshold
           ? 0
           : 255;
-      if (value == 0) inkPixels += 1;
+      if (value == 0) {
+        inkPixels += 1;
+        if (luminance > 0) partialCoverageInkPixels += 1;
+      } else if (luminance < 255) {
+        discardedCoverageEquivalent += (255 - luminance) / 255;
+      }
       final offset = (y * page.width + x) * 4;
       bgraBytes[offset] = value;
       bgraBytes[offset + 1] = value;
       bgraBytes[offset + 2] = value;
       bgraBytes[offset + 3] = 255;
-      final error = adjusted - value;
-      quantizationError += error.abs();
-      final direction = leftToRight ? 1 : -1;
-      currentErrors[x + 1 + direction] += error * 7 / 16;
-      nextErrors[x + 1 - direction] += error * 3 / 16;
-      nextErrors[x + 1] += error * 5 / 16;
-      nextErrors[x + 1 + direction] += error / 16;
     }
-    currentErrors.setAll(0, nextErrors);
-    nextErrors.fillRange(0, nextErrors.length, 0);
+  }
+  var isolatedInkPixels = 0;
+  bool isInk(int x, int y) =>
+      bgraBytes[(y * page.width + x) * 4] == 0;
+  for (var y = 0; y < page.height; y += 1) {
+    for (var x = 0; x < page.width; x += 1) {
+      if (!isInk(x, y)) continue;
+      var hasInkNeighbor = false;
+      for (var neighborY = math.max(0, y - 1);
+          neighborY <= math.min(page.height - 1, y + 1);
+          neighborY += 1) {
+        for (var neighborX = math.max(0, x - 1);
+            neighborX <= math.min(page.width - 1, x + 1);
+            neighborX += 1) {
+          if ((neighborX != x || neighborY != y) &&
+              isInk(neighborX, neighborY)) {
+            hasInkNeighbor = true;
+          }
+        }
+      }
+      if (!hasInkNeighbor) isolatedInkPixels += 1;
+    }
   }
   return LabelSheetWindowsDriverPage(
     bgraBytes: bgraBytes,
@@ -146,7 +164,9 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     antialiasPixels: antialiasPixels,
     luminanceHistogram: List<int>.unmodifiable(luminanceHistogram),
     coverageInkEquivalent: coverageInkEquivalent,
-    quantizationError: quantizationError,
+    partialCoverageInkPixels: partialCoverageInkPixels,
+    discardedCoverageEquivalent: discardedCoverageEquivalent,
+    isolatedInkPixels: isolatedInkPixels,
   );
 }
 
