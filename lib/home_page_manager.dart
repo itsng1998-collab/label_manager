@@ -6188,6 +6188,10 @@ class _HomePageManagerState extends State<HomePageManager> {
           capturedSheet = hybrid.sheet;
           metrics = hybrid.metrics;
           hybridCaptures[unit] = hybrid;
+          debugLog(
+            'labelPrintQuality ezpl unit=${unitIndex + 1}/${units.length} '
+            'itemId=${unit.row.itemId} ${hybrid.diagnostics}',
+          );
         }
         final errors = capturedSheet.images
             .map(
@@ -6292,7 +6296,10 @@ class _HomePageManagerState extends State<HomePageManager> {
               return true;
             })(),
             LabelPrintBackend.ezplRaw => await (() async {
-              await RawPrinterWin32.sendRaw(printer, payload);
+              final result = await RawPrinterWin32.sendRaw(printer, payload);
+              debugLog(
+                'labelPrintQuality rawDispatch ${result.diagnostics}',
+              );
               return true;
             })(),
           };
@@ -6661,6 +6668,10 @@ class _HomePageManagerState extends State<HomePageManager> {
           capturedSheet = hybrid.sheet;
           metrics = hybrid.metrics;
           hybridCaptures[unit] = hybrid;
+          debugLog(
+            'scalePrintQuality ezpl unit=${unitIndex + 1}/${units.length} '
+            'itemId=${unit.row.itemId} ${hybrid.diagnostics}',
+          );
         }
         final errors = capturedSheet.images
             .map(
@@ -6771,7 +6782,10 @@ class _HomePageManagerState extends State<HomePageManager> {
               return true;
             })(),
             LabelPrintBackend.ezplRaw => await (() async {
-              await RawPrinterWin32.sendRaw(printer, payload);
+              final result = await RawPrinterWin32.sendRaw(printer, payload);
+              debugLog(
+                'scalePrintQuality rawDispatch ${result.diagnostics}',
+              );
               return true;
             })(),
           };

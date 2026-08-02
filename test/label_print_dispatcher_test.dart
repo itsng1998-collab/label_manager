@@ -54,15 +54,20 @@ void main() {
     }
   });
 
-  test('Godex driver output stays separate from PDF virtual printers', () {
+  test('Godex G500 uses raw EZPL instead of Windows driver output', () {
     expect(
       resolveLabelPrintBackend(
         language: PrinterLanguage.ezpl,
         portName: 'USB001',
-        preferWindowsDriver: true,
+        preferWindowsDriver: detectPrinterProfile(
+          const Printer(url: 'Godex G500', name: 'Godex G500'),
+        ).prefersWindowsDriverOutput,
       ),
-      LabelPrintBackend.windowsDriver,
+      LabelPrintBackend.ezplRaw,
     );
+  });
+
+  test('Windows driver output stays separate from PDF virtual printers', () {
     expect(LabelPrintBackend.windowsDriver.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.pdf.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.ezplRaw.usesCanvasCapture, isFalse);

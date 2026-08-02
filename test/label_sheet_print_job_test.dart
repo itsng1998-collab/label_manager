@@ -547,6 +547,148 @@ void main() {
     expect(text, endsWith('E\r\n'));
   });
 
+  test('planned Hybrid emits wrapped Korean cell text as UTF-8 AT commands', () async {
+    final sheet = fs.FortuneSheet(
+      id: 'text',
+      name: 'Text',
+      rowCount: 2,
+      columnCount: 2,
+      cells: {
+        const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
+          value: '원재료명 우유 밀 함유',
+          fontSize: 8,
+          bold: true,
+          textWrap: '2',
+        ),
+      },
+      defaultRowHeight: 32,
+      defaultColWidth: 60,
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetHybridPrint(
+      sheet: sheet,
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 16,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 16,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: options,
+    );
+
+    final descriptor = preparation.descriptors.singleWhere(
+      (value) => value.textCharacters > 0,
+    );
+    expect(descriptor.utf8, isTrue);
+    expect(descriptor.lineCount, greaterThan(1));
+    expect(descriptor.fontHeightDots, 17);
+    expect(descriptor.command, contains('AT,'));
+    expect(descriptor.command, contains(',0BE,0,0,'));
+    expect(
+      preparation.plan.approvedCellTextCoords,
+      {const fs.FortuneCellCoord(0, 0)},
+    );
+
+    final image = img.Image(width: 128, height: 80);
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(image)),
+      metrics: preparation.geometry.metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
+    );
+    final payload = utf8.decode(bytes, allowMalformed: false);
+    expect(payload, contains('원재료명'));
+    expect(payload, contains('밀 함유'));
+  });
+
+  test('EZPL AT keeps unsupported cell text in raster fallback', () {
+    const coord = fs.FortuneCellCoord(0, 0);
+    const settings = fs.FortuneSettings();
+    const transform = fs.FortunePrintTransform(
+      sourceLogicalBounds: Rect.fromLTWH(0, 0, 100, 20),
+      dpi: 203.2,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 40,
+      clipBottomMm: 20,
+      nativeAllowed: true,
+    );
+    const candidate = fs.FortuneNativeCandidate(
+      token: 'text:0:0',
+      kind: fs.FortuneNativeCandidateKind.cellText,
+      cellCoord: coord,
+      logicalPaintedFootprint: Rect.fromLTWH(2, 2, 96, 16),
+      printerPaintedFootprint: Rect.fromLTWH(4, 4, 200, 34),
+    );
+
+    List<LabelSheetEzplNativeDescriptor> preflight(
+      fs.FortuneCell cell, {
+      int? lineSpacingPercent,
+    }) {
+      final sheet = fs.FortuneSheet(
+        id: 'text',
+        name: 'Text',
+        rowCount: 1,
+        columnCount: 1,
+        cells: {coord: cell},
+      );
+      return preflightLabelSheetEzplCandidates(
+        sheet: sheet,
+        settings: settings,
+        transform: transform,
+        candidates: const [candidate],
+        lineSpacingPercent: lineSpacingPercent,
+      );
+    }
+
+    expect(
+      preflight(
+        const fs.FortuneCell(
+          value: '흰 글자',
+          foreground: Color(0xffffffff),
+        ),
+      ),
+      isEmpty,
+    );
+    expect(
+      preflight(const fs.FortuneCell(value: '취소선', strikeThrough: true)),
+      isEmpty,
+    );
+    expect(
+      preflight(
+        const fs.FortuneCell(value: '강제 줄간격'),
+        lineSpacingPercent: 120,
+      ),
+      isEmpty,
+    );
+    expect(
+      preflight(
+        const fs.FortuneCell(
+          value: '셀 높이를 넘는 여러 줄 한글 텍스트',
+          textWrap: '2',
+        ),
+      ),
+      isEmpty,
+    );
+    expect(
+      preflight(const fs.FortuneCell(value: '일반 텍스트')),
+      hasLength(1),
+    );
+  });
+
   test('barcode preflight approves only an exact deterministic footprint', () {
     fs.FortuneSheet barcodeSheet(double width) => fs.FortuneSheet(
       id: 'barcode',
@@ -604,6 +746,7 @@ void main() {
       );
       final descriptors = preflightLabelSheetEzplCandidates(
         sheet: sheet,
+        settings: settings,
         transform: transform,
         candidates: candidates,
       );

@@ -1,6 +1,23 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 라벨 시트 native GDI 텍스트 출력 v1.0.38
+## 완료·실물 검증 대기: Godex G500 최대 EZPL 직접 출력 v1.0.39
+- v1.0.38 실물과 `.tmp/log/app_2026-08-02_23-12-13.log` 분석: native text 9/9, DrawTextW 9/9 성공이지만 Godex driver가 Arial 17-dot antialias를 점무늬로 변환해 품질이 낮다.
+- G500의 Windows driver 우선을 제거해 `ezplRaw` backend로 전환했다.
+- `label_sheet_print_job.dart`: 일반 가로 검정 셀 텍스트를 EZPL `AT` UTF-8 명령으로 생성하고, 셀 내부 줄 분할·정렬·bold/italic/underline을 적용한다. 승인된 텍스트는 fallback PNG에서 제외한다.
+- overflow·회전·세로쓰기·inline rich run·justify·강제 줄간격·Y offset·비검정색·취소선 텍스트는 bitmap fallback을 유지한다. `AT` 매뉴얼에 없는 inverse style은 사용하지 않는다.
+- `label_sheet_workbench.dart`, `home_page_manager.dart`: 라벨 시트·품목·저울 raw 출력에 후보/승인 종류, 텍스트 승인/fallback 수, 글자/줄/UTF-8 byte, font dot 범위, fallback PNG와 최종 payload 크기를 기록한다.
+- `raw_printer_win32.dart`: spool job ID와 `WritePrinter` 요청/실제 기록 byte를 반환해 로그에 남긴다.
+- 한글 UTF-8 payload/2줄 `AT` 분할, 미지원 속성 및 셀 높이 초과 fallback 테스트를 추가했다.
+- 배경·이미지·조건부 서식은 합성 순서와 흰색 knockout 문제 때문에 bitmap fallback을 유지한다. 검은 띠/도형과 바코드는 기존 EZPL 명령을 유지한다.
+- 버전은 `1.0.39`로 증가했다. 다음 단계는 실제 G500 내장 TTF의 한글 glyph 지원을 실물 검증하는 것이다.
+- 검증 실행 예정: `flutter test test/label_print_dispatcher_test.dart test/label_print_pipeline_test.dart test/label_sheet_print_job_test.dart test/label_print_session_test.dart`.
+- 출력 관련 테스트 29건 통과.
+- analyzer 실행 예정: `flutter analyze lib/printing/label_sheet_print_job.dart lib/printing/printer_profiles.dart lib/printing/raw_printer_win32.dart lib/features/label_sheet/label_sheet_workbench.dart lib/home_page_manager.dart test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart`.
+- 최초 analyzer는 `label_sheet_workbench.dart`의 `dart:convert` import 누락 1건으로 실패했다. import 추가 후 동일 명령 재실행 결과 오류/경고 0건.
+- Windows 검증 실행 예정: `$env:CL='/WX'; flutter build windows --debug` 후 `git diff --check`.
+- 최종 출력 관련 테스트 50건 통과, 변경 파일 analyzer 오류/경고 0건.
+- 최종 Windows `/WX` Debug 빌드와 `git diff --check` 통과. EXE FileVersion/ProductVersion 모두 `1.0.39` 확인.
+- stage/commit 대상: EZPL 출력 production 5개, 출력 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.

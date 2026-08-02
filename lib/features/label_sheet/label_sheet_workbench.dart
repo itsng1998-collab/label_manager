@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -865,6 +866,10 @@ class LabelSheetHybridEzplCapture {
     required this.range,
     required this.metrics,
     required this.plan,
+    required this.descriptors,
+    required this.filteredPngBytes,
+    required this.pixelWidth,
+    required this.pixelHeight,
   });
 
   final Uint8List bytes;
@@ -872,6 +877,56 @@ class LabelSheetHybridEzplCapture {
   final FortuneRange range;
   final LabelSheetPrintPageMetrics metrics;
   final FortuneHybridRenderPlan plan;
+  final List<LabelSheetEzplNativeDescriptor> descriptors;
+  final int filteredPngBytes;
+  final int pixelWidth;
+  final int pixelHeight;
+
+  String get diagnostics {
+    final candidateCounts = <FortuneNativeCandidateKind, int>{};
+    final approvedCounts = <FortuneNativeCandidateKind, int>{};
+    for (final candidate in plan.candidates) {
+      candidateCounts.update(candidate.kind, (count) => count + 1, ifAbsent: () => 1);
+      if (plan.approvedCandidateTokens.contains(candidate.token)) {
+        approvedCounts.update(candidate.kind, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+    final textDescriptors = descriptors.where(
+      (descriptor) => descriptor.textCharacters > 0,
+    );
+    final fontHeights = textDescriptors
+        .map((descriptor) => descriptor.fontHeightDots)
+        .whereType<int>()
+        .toList(growable: false);
+    final candidateSummary = FortuneNativeCandidateKind.values
+        .map((kind) => '${kind.name}:${candidateCounts[kind] ?? 0}')
+        .join(',');
+    final approvedSummary = FortuneNativeCandidateKind.values
+        .map((kind) => '${kind.name}:${approvedCounts[kind] ?? 0}')
+        .join(',');
+    final textCharacters = textDescriptors.fold<int>(
+      0,
+      (sum, descriptor) => sum + descriptor.textCharacters,
+    );
+    final textLines = textDescriptors.fold<int>(
+      0,
+      (sum, descriptor) => sum + descriptor.lineCount,
+    );
+    final textUtf8Bytes = textDescriptors.fold<int>(
+      0,
+      (sum, descriptor) => sum + utf8.encode(descriptor.command).length,
+    );
+    final textCandidates = candidateCounts[FortuneNativeCandidateKind.cellText] ?? 0;
+    final textApproved = approvedCounts[FortuneNativeCandidateKind.cellText] ?? 0;
+    return 'candidates=$candidateSummary approved=$approvedSummary '
+        'nativeTextCandidates=$textCandidates nativeTextApproved=$textApproved '
+        'nativeTextFallback=${textCandidates - textApproved} '
+        'textCharacters=$textCharacters textLines=$textLines '
+        'textUtf8Bytes=$textUtf8Bytes '
+        'fontHeight=${fontHeights.isEmpty ? "none" : "${fontHeights.reduce(math.min)}..${fontHeights.reduce(math.max)}"} '
+        'fallbackPixel=${pixelWidth}x$pixelHeight '
+        'fallbackPngBytes=$filteredPngBytes payloadBytes=${bytes.length}';
+  }
 }
 
 class LabelSheetWindowsDriverCapture {
@@ -2106,7 +2161,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         }
         return;
       }
-      await RawPrinterWin32.sendRaw(printer, hybrid.bytes);
+      debugLog('labelSheetPrint ezpl ${hybrid.diagnostics}');
+      final result = await RawPrinterWin32.sendRaw(printer, hybrid.bytes);
+      debugLog('labelSheetPrint rawDispatch ${result.diagnostics}');
       return;
     }
     final windowsCapture = backend == LabelPrintBackend.windowsDriver
@@ -2268,6 +2325,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       physicalSize: physicalSize,
       metrics: metrics,
       options: options,
+      lineSpacingPercent: lineSpacingPercent,
     );
     final capture = await _controller.captureHybridPlanAsPng(
       preparation.plan,
@@ -2294,6 +2352,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       range: capture.range,
       metrics: preparation.geometry.metrics,
       plan: preparation.plan,
+      descriptors: preparation.descriptors,
+      filteredPngBytes: capture.pngBytes.length,
+      pixelWidth: capture.pixelSize.width.round(),
+      pixelHeight: capture.pixelSize.height.round(),
     );
   }
 

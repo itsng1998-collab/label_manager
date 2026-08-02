@@ -32,6 +32,21 @@ const int _pdHidePrintToFile = 0x00100000;
 const int _gmemMoveable = 0x0002;
 const int _gmemZeroInit = 0x0040;
 
+class RawPrinterWriteResult {
+  const RawPrinterWriteResult({
+    required this.jobId,
+    required this.requestedBytes,
+    required this.writtenBytes,
+  });
+
+  final int jobId;
+  final int requestedBytes;
+  final int writtenBytes;
+
+  String get diagnostics =>
+      'jobId=$jobId requestedBytes=$requestedBytes writtenBytes=$writtenBytes';
+}
+
 typedef _PrintDlgWNative = Int32 Function(Pointer<_PrintDlgWStruct>);
 typedef _PrintDlgW = int Function(Pointer<_PrintDlgWStruct>);
 typedef _GlobalAllocNative = IntPtr Function(Uint32, IntPtr);
@@ -320,7 +335,10 @@ class RawPrinterWin32 {
     return String.fromCharCodes(units);
   }
 
-  static Future<void> sendRaw(Printer printer, Uint8List data) async {
+  static Future<RawPrinterWriteResult> sendRaw(
+    Printer printer,
+    Uint8List data,
+  ) async {
     if (!Platform.isWindows) {
       throw UnsupportedError('Raw printing is only supported on Windows.');
     }
@@ -349,11 +367,14 @@ class RawPrinterWin32 {
         ..pOutputFile = nullptr
         ..pDatatype = dataType;
 
+      var jobId = 0;
+      var writtenBytes = 0;
       try {
         final int startDoc = StartDocPrinter(phPrinter.value, 1, docInfo);
         if (startDoc == 0) {
           throw StateError('StartDocPrinter failed (${GetLastError()})');
         }
+        jobId = startDoc;
         try {
           if (StartPagePrinter(phPrinter.value) == 0) {
             throw StateError('StartPagePrinter failed (${GetLastError()})');
@@ -373,6 +394,7 @@ class RawPrinterWin32 {
             if (writeResult == 0 || written.value != data.length) {
               throw StateError('WritePrinter failed (${GetLastError()})');
             }
+            writtenBytes = written.value;
           } finally {
             calloc.free(written);
             calloc.free(dataPtr);
@@ -391,6 +413,11 @@ class RawPrinterWin32 {
         calloc.free(docName);
         calloc.free(dataType);
       }
+      return RawPrinterWriteResult(
+        jobId: jobId,
+        requestedBytes: data.length,
+        writtenBytes: writtenBytes,
+      );
     } finally {
       ClosePrinter(phPrinter.value);
       calloc.free(phPrinter);

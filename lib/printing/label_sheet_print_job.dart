@@ -387,6 +387,7 @@ LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
   required FortuneSheetGridClientPhysicalSize physicalSize,
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
+  int? lineSpacingPercent,
 }) {
   final geometry = resolveLabelSheetHybridPrintGeometry(
     sheet: sheet,
@@ -403,8 +404,10 @@ LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
   );
   final descriptors = preflightLabelSheetEzplCandidates(
     sheet: sheet,
+    settings: settings,
     transform: geometry.transform,
     candidates: candidates,
+    lineSpacingPercent: lineSpacingPercent,
   );
   final plan = fortuneFinalizeHybridRenderPlan(
     settings: settings,
@@ -670,11 +673,19 @@ class LabelSheetEzplNativeDescriptor {
     required this.candidateToken,
     required this.command,
     required this.predictedPaintedFootprint,
+    this.utf8 = false,
+    this.textCharacters = 0,
+    this.fontHeightDots,
+    this.lineCount = 0,
   });
 
   final String candidateToken;
   final String command;
   final ui.Rect predictedPaintedFootprint;
+  final bool utf8;
+  final int textCharacters;
+  final int? fontHeightDots;
+  final int lineCount;
 
   FortuneNativeCandidateApproval get approval =>
       FortuneNativeCandidateApproval(
@@ -685,8 +696,10 @@ class LabelSheetEzplNativeDescriptor {
 
 List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
   required FortuneSheet sheet,
+  required FortuneSettings settings,
   required FortunePrintTransform transform,
   required Iterable<FortuneNativeCandidate> candidates,
+  int? lineSpacingPercent,
 }) {
   final descriptors = <LabelSheetEzplNativeDescriptor>[];
   for (final candidate in candidates) {
@@ -699,7 +712,17 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
       if (descriptor != null) descriptors.add(descriptor);
       continue;
     }
-    if (candidate.kind == FortuneNativeCandidateKind.cellText) continue;
+    if (candidate.kind == FortuneNativeCandidateKind.cellText) {
+      final descriptor = _preflightEzplTextCandidate(
+        sheet: sheet,
+        settings: settings,
+        transform: transform,
+        candidate: candidate,
+        lineSpacingPercent: lineSpacingPercent,
+      );
+      if (descriptor != null) descriptors.add(descriptor);
+      continue;
+    }
     final strokeWidthMm = switch (candidate.kind) {
       FortuneNativeCandidateKind.line => sheet.lines
           .where((line) => line.id == candidate.objectKey!.id)
@@ -749,6 +772,132 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
     );
   }
   return List.unmodifiable(descriptors);
+}
+
+LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required FortunePrintTransform transform,
+  required FortuneNativeCandidate candidate,
+  required int? lineSpacingPercent,
+}) {
+  final coord = candidate.cellCoord;
+  final cell = coord == null ? null : sheet.cells[coord];
+  if (cell == null ||
+      lineSpacingPercent != null ||
+      cell.renderedText.isEmpty ||
+      cell.inlineRuns?.isNotEmpty == true ||
+      cell.isVerticalText ||
+      cell.normalizedTextRotation != 0 ||
+      cell.normalizedTextWrap == '1' ||
+      cell.normalizedHorizontalAlign == '3' ||
+      cell.strikeThrough ||
+      cell.foreground.toARGB32() != 0xff000000 ||
+      cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
+    return null;
+  }
+  final target = candidate.printerPaintedFootprint;
+  final fontHeight = math.max(
+    8,
+    ((cell.fontSize ?? settings.defaultFontSize) *
+            transform.dotsPerLogicalPixel)
+        .round(),
+  );
+  final lines = _ezplTextLines(
+    cell.renderedText,
+    maxWidthDots: target.width.floor(),
+    fontHeightDots: fontHeight,
+    wrap: cell.normalizedTextWrap == '2',
+  );
+  if (lines == null || lines.isEmpty) return null;
+  final lineAdvance = math.max(fontHeight, (fontHeight * 1.12).round());
+  final textHeight = fontHeight + (lines.length - 1) * lineAdvance;
+  if (textHeight > target.height) return null;
+  var top = target.top.round();
+  if (cell.normalizedVerticalAlign == '2') {
+    top = target.bottom.round() - textHeight;
+  } else if (cell.normalizedVerticalAlign != '1') {
+    top += math.max(0, (target.height.round() - textHeight) ~/ 2);
+  }
+  final style = StringBuffer('0');
+  if (cell.bold) style.write('B');
+  if (cell.italic) style.write('T');
+  if (cell.underline) style.write('U');
+  style.write('E');
+  final command = StringBuffer();
+  for (var index = 0; index < lines.length; index += 1) {
+    final line = lines[index];
+    final lineWidth = _ezplEstimatedTextWidth(line, fontHeight);
+    var left = target.left.round();
+    if (cell.normalizedHorizontalAlign == '2') {
+      left = target.right.round() - lineWidth.ceil();
+    } else if (cell.normalizedHorizontalAlign == '0') {
+      left += math.max(0, (target.width.round() - lineWidth.ceil()) ~/ 2);
+    }
+    command.write(
+      'AT,$left,${top + index * lineAdvance},$fontHeight,$fontHeight,0,'
+      '$style,0,0,${_escapeEzplText(line)}\r\n',
+    );
+  }
+  return LabelSheetEzplNativeDescriptor(
+    candidateToken: candidate.token,
+    command: command.toString(),
+    predictedPaintedFootprint: target,
+    utf8: true,
+    textCharacters: cell.renderedText.runes.length,
+    fontHeightDots: fontHeight,
+    lineCount: lines.length,
+  );
+}
+
+List<String>? _ezplTextLines(
+  String text, {
+  required int maxWidthDots,
+  required int fontHeightDots,
+  required bool wrap,
+}) {
+  if (maxWidthDots <= 0) return null;
+  final result = <String>[];
+  for (final explicitLine in text.replaceAll('\r\n', '\n').split('\n')) {
+    if (!wrap) {
+      if (_ezplEstimatedTextWidth(explicitLine, fontHeightDots) >
+          maxWidthDots) {
+        return null;
+      }
+      result.add(explicitLine);
+      continue;
+    }
+    var line = StringBuffer();
+    for (final rune in explicitLine.runes) {
+      final character = String.fromCharCode(rune);
+      final next = '${line.toString()}$character';
+      if (line.isNotEmpty &&
+          _ezplEstimatedTextWidth(next, fontHeightDots) > maxWidthDots) {
+        result.add(line.toString().trimRight());
+        line = StringBuffer(character.trimLeft());
+      } else {
+        line.write(character);
+      }
+    }
+    result.add(line.toString());
+  }
+  return result;
+}
+
+double _ezplEstimatedTextWidth(String text, int fontHeightDots) {
+  var units = 0.0;
+  for (final rune in text.runes) {
+    if (rune == 0x20) {
+      units += 0.35;
+    } else if (rune <= 0x7f) {
+      units += RegExp(r'[A-Z0-9]').hasMatch(String.fromCharCode(rune))
+          ? 0.62
+          : 0.52;
+    } else {
+      units += 1;
+    }
+  }
+  return units * fontHeightDots;
 }
 
 LabelSheetEzplNativeDescriptor? _preflightEzplBarcodeCandidate({
@@ -882,7 +1031,11 @@ Future<Uint8List> buildLabelSheetPlannedHybridEzplBytes({
   for (final candidate in plan.candidates) {
     final descriptor = descriptorByToken[candidate.token];
     if (descriptor != null) {
-      commands.add(ascii.encode(descriptor.command));
+      commands.add(
+        descriptor.utf8
+        ? utf8.encode(descriptor.command)
+        : ascii.encode(descriptor.command),
+      );
     }
   }
   commands.add(ascii.encode('E\r\n'));
