@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: Godex G500 라벨 시트 native GDI 텍스트 출력 v1.0.38
+## 완료·실물 검증 대기: Godex G500 라벨 시트 native GDI 텍스트 출력 v1.0.38
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
