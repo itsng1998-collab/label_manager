@@ -18,6 +18,7 @@
 - 최종 출력 관련 테스트 50건 통과, 변경 파일 analyzer 오류/경고 0건.
 - 최종 Windows `/WX` Debug 빌드와 `git diff --check` 통과. EXE FileVersion/ProductVersion 모두 `1.0.39` 확인.
 - stage/commit 대상: EZPL 출력 production 5개, 출력 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `e77b3d3 Godex EZPL 직접 텍스트 출력 적용`.
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
