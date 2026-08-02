@@ -10,7 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 const double labelSheetEzplRasterCaptureScale = 2;
 const num _labelSheetEzplInkLuminanceThreshold = 200;
-const num labelSheetWindowsDriverCoverageThreshold = 160;
+const double labelSheetWindowsDriverQuantizeThreshold = 127.5;
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -20,6 +20,8 @@ class LabelSheetWindowsDriverPage {
     required this.inkPixels,
     required this.antialiasPixels,
     required this.luminanceHistogram,
+    required this.coverageInkEquivalent,
+    required this.quantizationError,
   });
 
   final Uint8List bgraBytes;
@@ -28,11 +30,16 @@ class LabelSheetWindowsDriverPage {
   final int inkPixels;
   final int antialiasPixels;
   final List<int> luminanceHistogram;
+  final double coverageInkEquivalent;
+  final double quantizationError;
 
   int get totalPixels => width * height;
   double get inkPercent => totalPixels == 0 ? 0 : inkPixels * 100 / totalPixels;
   double get antialiasPercent =>
       totalPixels == 0 ? 0 : antialiasPixels * 100 / totalPixels;
+    double get coveragePreservationPercent => coverageInkEquivalent == 0
+      ? 100
+      : inkPixels * 100 / coverageInkEquivalent;
 }
 
 LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
@@ -93,22 +100,44 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   var inkPixels = 0;
   var antialiasPixels = 0;
   final luminanceHistogram = List<int>.filled(8, 0);
-  var offset = 0;
+  var coverageInkEquivalent = 0.0;
   for (final pixel in page) {
     final luminance = img.getLuminance(pixel);
     if (luminance > 0 && luminance < 255) antialiasPixels += 1;
     luminanceHistogram[math.min(7, luminance.toInt() ~/ 32)] += 1;
-    final value = luminance <= labelSheetWindowsDriverCoverageThreshold
-        ? 0
-        : 255;
-    if (value == 0) inkPixels += 1;
-    bgraBytes[offset++] = value;
-    bgraBytes[offset++] = value;
-    bgraBytes[offset++] = value;
-    bgraBytes[offset++] = 255;
+    coverageInkEquivalent += (255 - luminance) / 255;
   }
-  // v1.0.30의 임계값 224는 낮은 coverage 경계를 블록 형태로 확장했다.
-  // 이 임계값은 2배 supersampling source 축소에만 사용한다.
+  final currentErrors = Float64List(page.width + 2);
+  final nextErrors = Float64List(page.width + 2);
+  var quantizationError = 0.0;
+  for (var y = 0; y < page.height; y += 1) {
+    final leftToRight = y.isEven;
+    final start = leftToRight ? 0 : page.width - 1;
+    final end = leftToRight ? page.width : -1;
+    final step = leftToRight ? 1 : -1;
+    for (var x = start; x != end; x += step) {
+      final luminance = img.getLuminance(page.getPixel(x, y));
+      final adjusted = (luminance + currentErrors[x + 1]).clamp(0, 255);
+      final value = adjusted <= labelSheetWindowsDriverQuantizeThreshold
+          ? 0
+          : 255;
+      if (value == 0) inkPixels += 1;
+      final offset = (y * page.width + x) * 4;
+      bgraBytes[offset] = value;
+      bgraBytes[offset + 1] = value;
+      bgraBytes[offset + 2] = value;
+      bgraBytes[offset + 3] = 255;
+      final error = adjusted - value;
+      quantizationError += error.abs();
+      final direction = leftToRight ? 1 : -1;
+      currentErrors[x + 1 + direction] += error * 7 / 16;
+      nextErrors[x + 1 - direction] += error * 3 / 16;
+      nextErrors[x + 1] += error * 5 / 16;
+      nextErrors[x + 1 + direction] += error / 16;
+    }
+    currentErrors.setAll(0, nextErrors);
+    nextErrors.fillRange(0, nextErrors.length, 0);
+  }
   return LabelSheetWindowsDriverPage(
     bgraBytes: bgraBytes,
     width: page.width,
@@ -116,6 +145,8 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     inkPixels: inkPixels,
     antialiasPixels: antialiasPixels,
     luminanceHistogram: List<int>.unmodifiable(luminanceHistogram),
+    coverageInkEquivalent: coverageInkEquivalent,
+    quantizationError: quantizationError,
   );
 }
 

@@ -240,7 +240,7 @@ void main() {
     expect(bytes[graphicMarker + 6], 0xaa);
   });
 
-  test('Windows driver page converts supersampled coverage to exact dots', () {
+  test('Windows driver page diffuses supersampled coverage to exact dots', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     image
@@ -279,6 +279,9 @@ void main() {
     expect(page.bgraBytes.sublist(0, 4), [0, 0, 0, 255]);
     expect(page.bgraBytes.sublist(4, 8), [255, 255, 255, 255]);
     expect(page.luminanceHistogram.reduce((left, right) => left + right), 2);
+    expect(page.coverageInkEquivalent, closeTo(0.8706, 0.001));
+    expect(page.coveragePreservationPercent, closeTo(114.86, 0.1));
+    expect(page.quantizationError, greaterThan(0));
   });
 
   test('planned Hybrid output encodes only package-approved descriptors', () async {

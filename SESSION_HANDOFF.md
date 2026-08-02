@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 exact-dot 출력 v1.0.32
+## 완료·실물 검증 대기: Godex G500 coverage 보존 출력 v1.0.33
 - 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
 - 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
 - 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
@@ -72,6 +72,17 @@
 - 다음 실물 로그에서 `gdiPage=640x480`, threshold 160/luminance bins, `source=640x480 target=640x480`, `destination=-10,0`, `stretchLines=480`을 확인한다.
 - stage/commit 대상: 출력 Dart 3개, Windows channel 1개, 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
 - 기능 커밋: `4a24ecd Godex 도트 출력 품질 개선`.
+- v1.0.32 실물에서 일반 글자는 선명해졌지만 작은 원재료 한글 획이 끊겼다. 로그상 640×480 GDI 1:1 전송은 정확했다.
+- luminance histogram은 160~223 구간에 3,909픽셀이 있었고 threshold 160이 이를 모두 흰색으로 버린 것이 원인이다.
+- 단일 임계값 조정을 폐기하고 serpentine Floyd-Steinberg 오차 확산으로 2배 supersampling coverage를 주변 printer dot에 배분한다. 최종 payload는 여전히 완전한 흑/백 640×480이므로 드라이버 halftone은 발생하지 않는다.
+- 로그에 source coverage 상당 ink, 최종 black dot coverage 보존율, 누적 양자화 오차를 추가했다.
+- 출력 관련 테스트 43건 통과. 변경 파일 analyzer 오류/경고 0건, `git diff --check` 통과.
+- `CL=/WX flutter build windows --debug` 성공.
+- EXE FileVersion/ProductVersion 및 새 Debug 로그의 `DebugLogger version`이 모두 `1.0.33`임을 확인했다.
+- 실물 출력 로그에서 `quantizeMode=floydSteinbergSerpentine`, `coverageInk`, `coveragePreserved`, `quantizationError`를 확인한다.
+- 최종 로그 필드 반영 후 출력 관련 테스트 43건 재통과, 편집 파일 진단 오류 0건.
+- 최종 `CL=/WX flutter build windows --debug` 및 `git diff --check` 성공.
+- stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, 출력 로그 call site 2개, 관련 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 
 # 최근 완료 요약
 
