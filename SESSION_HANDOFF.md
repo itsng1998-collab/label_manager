@@ -146,8 +146,9 @@
 - native 폰트 생성/DrawText 실패가 한 건이라도 있으면 누락된 라벨을 성공 처리하지 않고 method channel 오류로 전달한다. 변경 후 `/WX` Windows Debug 빌드 성공.
 - stage/commit 대상: FortuneSheet plan/canvas/test, 출력 Dart 4개, Windows channel, print job 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart` 제외.
 - 최종 출력 관련 테스트 59건 통과. `/WX` Windows Debug 빌드 성공, 실행 버전 `1.0.38` 확인 완료.
-- `git diff --check` 통과. 관련 11개 파일과 `SESSION_HANDOFF.md`만 stage하며 사용자 변경 `lib/core/app.dart`는 제외한다.
-- 진행 중: 기능 commit. 실제 G500 실물 출력은 미검증.
+- `git diff --check` 통과. 관련 11개 파일만 stage했고 사용자 변경 `lib/core/app.dart`는 제외했다.
+- 기능 커밋: `872128e Godex GDI 텍스트 혼합 출력 적용`.
+- 완료·실물 검증 대기: 실제 G500 출력 후 로그에서 `nativeTextRequested`, `nativeTextDrawn`, `nativeTextFailed=0`, `nativeTextCharacters`, `nativeTextHeight`, `nativeTextFonts`를 확인한다.
 
 # 최근 완료 요약
 
