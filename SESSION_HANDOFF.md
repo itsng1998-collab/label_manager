@@ -1,18 +1,24 @@
 # 현재 작업 상태
 
-## 완료: 네이티브 프린터 다이얼로그 선택 유지 v1.0.27
-- 원인: `PrintDlgW` 호출 시 현재 프린터의 `hDevNames`를 전달하지 않아 Windows 기본 프린터로 매번 초기화된다.
-- `raw_printer_win32.dart`: `showPrinterSetupDialog(initialPrinterName:)`가 현재 프린터의 장치명과 포트를 조회해 `DEVNAMES` 초기값을 구성한다.
-- `label_print_settings_dialog.dart`: 현재 `printerName`을 네이티브 다이얼로그 초기값으로 전달한다.
-- `label_sheet_workbench.dart`: 현재 `_printSelectedPrinterName`을 네이티브 다이얼로그 초기값으로 전달한다.
-- 검증 완료: `raw_printer_win32_test.dart` 1건, 프린터 설정 widget test 2건 통과.
-- 변경한 production 파일 3개 analyzer 및 diagnostics 통과.
-- 버전은 호환 가능한 국소 버그 수정으로 `1.0.26`에서 `1.0.27`로 PATCH 증가했다.
-- Windows Debug 빌드는 실행 중인 `label_manager.exe`(PID 13484)가 출력 EXE를 잠가 `LNK1168`로 실패했다. 코드 컴파일 오류는 확인되지 않았다.
-- Microsoft `PRINTDLGW`/`DEVNAMES` 계약과 movable global memory, 문자 단위 offset, `wDeviceOffset` 초기화 방식을 대조했다.
-- `git diff --check` 통과, 버전 생성 결과 `1.0.27`.
-- stage 대상: `SESSION_HANDOFF.md`, `raw_printer_win32.dart`, 두 UI 호출부, `pubspec.yaml`; 사용자 변경 `lib/core/app.dart` 제외.
-- 기능 커밋: `5649b96 프린터 선택 다이얼로그 현재 선택 유지`.
+## 구현 완료·실물 검증 대기: Godex G500 편집 크기·출력 품질 일치 v1.0.28
+- 사용자 출력 사진에서 내용 위치/비율 왜곡과 작은 글자 획 손실을 확인했다. RTF 출력은 사용하지 않는다.
+- 레거시는 원본 RTF를 printer DC에 직접 그리지만, 현재 앱은 최종 FortuneSheet 편집 결과를 출력해야 하므로 EZPL 정밀 좌표 + 셀 bitmap fallback 구조를 유지한다.
+- 원인 1: 물리 라벨 경계가 마지막 포함 셀 전체로 확장되어 source 크기와 bitmap이 편집 mm보다 커졌다.
+- `label_sheet_print_job.dart`: hybrid source bounds/metrics를 정확한 `FortuneSheetGridClientPhysicalSize`로 제한했다.
+- `fortune_sheet_canvas.dart`: hybrid와 일반 PNG 캡처에 논리 clip 크기를 적용했다.
+- `label_sheet_workbench.dart`: PDF 캡처도 물리 라벨 논리 크기를 전달한다.
+- `label_sheet_workbench.dart`: EZPL bitmap fallback 캡처를 2배 supersampling한다.
+- `label_sheet_print_job.dart`: 203dpi 최종 raster로 평균 축소 후 luminance 200 이하의 antialias 획을 보존한다. EZPL 테두리/바코드 좌표는 기존 printer dot 좌표를 유지한다.
+- `label_sheet_print_job_test.dart`: 정확한 10mm source bounds와 luminance 200/201 이진화 경계를 고정했다. focused test 2건 통과.
+- `printer_profiles.dart`: G500의 실제 좌표계인 8 dots/mm(203.2dpi)를 사용하고 다른 프린터는 device DPI를 유지한다.
+- `home_page_manager.dart`, `label_sheet_workbench.dart`: 공용 G500 DPI 해석을 라벨/저울/시트 출력에 적용했다.
+- 최종 관련 테스트 43건 통과.
+- 변경 파일 diagnostics 0건. `--no-fatal-warnings` analyzer는 변경 오류 없이 기존 FortuneSheet canvas 미사용 경고 10건만 보고했다.
+- 실행 중 Windows Flutter 앱에 최종 hot restart 성공, runtime error 없음. 수정 코드로 즉시 실물 재출력 가능하다.
+- 버전은 호환 가능한 출력 버그 수정으로 `1.0.27`에서 `1.0.28`로 PATCH 증가했다.
+- `git diff --check` 통과, 버전 생성 결과 `1.0.28`.
+- stage 대상: 출력 production 5개, 관련 테스트 3개, FortuneSheet canvas/test, `pubspec.yaml`, `SESSION_HANDOFF.md`; 사용자 변경 `lib/core/app.dart` 제외.
+- 남은 검증: 동일 80×60 라벨을 Godex G500으로 재출력해 편집 위치/크기와 작은 한글 획을 실물 비교한다.
 
 # 최근 완료 요약
 

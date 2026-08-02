@@ -163,6 +163,20 @@ void main() {
     expect(capture, isNotNull);
     expect(capture!.pixelSize.width, greaterThan(20));
     expect(capture.pixelSize.height, greaterThan(20));
+    final clippedCapture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 1,
+          columnStart: 0,
+          columnEnd: 1,
+        ),
+        pixelRatio: 2,
+        logicalClipSize: const Size(15, 12),
+      ),
+    );
+    expect(clippedCapture?.logicalSize, const Size(15, 12));
+    expect(clippedCapture?.pixelSize, const Size(30, 24));
     final reversedCapture = await tester.runAsync(
       () => controller.captureRangeAsPng(
         const FortuneRange(

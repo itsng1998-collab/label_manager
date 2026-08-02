@@ -6011,7 +6011,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
           : null;
-      final dpi = printerDpi?.toDouble() ?? profile.dpi ?? 203;
+      final dpi = resolveLabelPrinterDpi(
+        profile: profile,
+        deviceDpi: printerDpi,
+      );
       final rows = _labelPrintSessionController.rows;
       final columns = List<TColumn>.unmodifiable(
         [...TColumn.datas ?? const <TColumn>[]]..sort((left, right) {
@@ -6374,7 +6377,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
           : null;
-      final dpi = printerDpi?.toDouble() ?? profile.dpi ?? 203;
+      final dpi = resolveLabelPrinterDpi(
+        profile: profile,
+        deviceDpi: printerDpi,
+      );
       final columns = List<TColumn>.unmodifiable(
         [...TColumn.datas ?? const <TColumn>[]]..sort((left, right) {
           final order = left.order.compareTo(right.order);

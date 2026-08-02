@@ -3,8 +3,27 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
+import 'package:printing/printing.dart';
 
 void main() {
+  test('Godex G500 uses exact eight dots per millimeter', () {
+    final profile = detectPrinterProfile(
+      const Printer(url: 'Godex G500', name: 'Godex G500'),
+    );
+
+    expect(profile.dpi, 203.2);
+    expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 203), 203.2);
+    expect((80 * resolveLabelPrinterDpi(profile: profile) / 25.4).round(), 640);
+  });
+
+  test('other printers keep the device-reported DPI', () {
+    final profile = detectPrinterProfile(
+      const Printer(url: 'Office Printer', name: 'Office Printer'),
+    );
+
+    expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 300), 300);
+  });
+
   test('backend resolves only EZPL non-file ports to raw', () {
     expect(
       resolveLabelPrintBackend(

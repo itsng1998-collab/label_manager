@@ -8,6 +8,9 @@ import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+const double labelSheetEzplRasterCaptureScale = 2;
+const num _labelSheetEzplInkLuminanceThreshold = 200;
+
 class LabelSheetPrintOptions {
   const LabelSheetPrintOptions({
     required this.copies,
@@ -158,15 +161,21 @@ LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
   final sourceBounds = ui.Rect.fromLTRB(
     sheetMetrics.columnStart(columnStart),
     sheetMetrics.rowStart(rowStart),
-    sheetMetrics.columnEnd(columnEnd),
-    sheetMetrics.rowEnd(rowEnd),
+    math.min(
+      sheetMetrics.columnEnd(columnEnd),
+      physicalSize.logicalSize.width,
+    ),
+    math.min(
+      sheetMetrics.rowEnd(rowEnd),
+      physicalSize.logicalSize.height,
+    ),
   );
   final resolvedMetrics = LabelSheetPrintPageMetrics(
     labelWidthMm: metrics.labelWidthMm,
     labelHeightMm: metrics.labelHeightMm,
     dpi: metrics.dpi,
-    sourceWidthMm: fortuneLogicalPixelsToMillimeters(sourceBounds.width),
-    sourceHeightMm: fortuneLogicalPixelsToMillimeters(sourceBounds.height),
+    sourceWidthMm: physicalSize.widthMm.toDouble(),
+    sourceHeightMm: physicalSize.heightMm.toDouble(),
   );
   final layout = LabelSheetPrintLayout.resolve(
     metrics: resolvedMetrics,
@@ -693,7 +702,7 @@ Future<Uint8List> buildLabelSheetEzplRasterBytes({
     for (var x = 0; x < raster.width; x += 1) {
       final pixel = raster.getPixel(x, y);
       final luminance = img.getLuminance(pixel);
-      if (luminance < 160) {
+      if (luminance <= _labelSheetEzplInkLuminanceThreshold) {
         row[x ~/ 8] |= 1 << (7 - (x % 8));
       }
     }
@@ -768,7 +777,7 @@ void _addEzplRasterGraphic(BytesBuilder commands, img.Image raster) {
     for (var x = 0; x < raster.width; x += 1) {
       final pixel = raster.getPixel(x, y);
       final luminance = img.getLuminance(pixel);
-      if (luminance < 160) {
+      if (luminance <= _labelSheetEzplInkLuminanceThreshold) {
         row[x ~/ 8] |= 1 << (7 - (x % 8));
       }
     }

@@ -34,6 +34,16 @@ class PrinterProfile {
       'PrinterProfile(vendor=$vendor, model=$model, lang=$language, dpi=$dpi, ${defaultWidthMm}x${defaultHeightMm}mm)';
 }
 
+double resolveLabelPrinterDpi({
+  required PrinterProfile profile,
+  int? deviceDpi,
+}) {
+  if (profile.vendor == 'GoDEX' && profile.model == 'G500') {
+    return 203.2;
+  }
+  return deviceDpi?.toDouble() ?? profile.dpi ?? 203;
+}
+
 /// Best-effort detection based on the available fields in [Printer].
 /// This is string-matching and can be extended in the future for new models.
 PrinterProfile detectPrinterProfile(Printer? printer) {
@@ -48,7 +58,7 @@ PrinterProfile detectPrinterProfile(Printer? printer) {
       vendor: 'GoDEX',
       model: 'G500',
       language: PrinterLanguage.ezpl,
-      dpi: 203,
+      dpi: 203.2,
       defaultWidthMm: 80.0,
       defaultHeightMm: 60.0,
     );

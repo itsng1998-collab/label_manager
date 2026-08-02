@@ -95,16 +95,15 @@ void main() {
     expect(geometry.range.columnEnd, 2);
     expect(
       geometry.transform.sourceLogicalBounds,
-      const Rect.fromLTWH(0, 0, 43, 43),
+      Rect.fromLTWH(
+        0,
+        0,
+        fs.fortuneMillimetersToLogicalPixels(10),
+        fs.fortuneMillimetersToLogicalPixels(10),
+      ),
     );
-    expect(
-      geometry.metrics.sourceWidthMm,
-      fs.fortuneLogicalPixelsToMillimeters(43),
-    );
-    expect(
-      geometry.metrics.sourceHeightMm,
-      fs.fortuneLogicalPixelsToMillimeters(43),
-    );
+    expect(geometry.metrics.sourceWidthMm, 10);
+    expect(geometry.metrics.sourceHeightMm, 10);
     expect(geometry.transform.contentLeftMm, 2);
     expect(geometry.transform.contentTopMm, 3);
     expect(geometry.transform.clipRightMm, 10);
@@ -207,6 +206,38 @@ void main() {
     expect(text, contains('~G'));
     expect(bytes.where((byte) => byte == 0x47).length, greaterThanOrEqualTo(3));
     expect(text, endsWith('E\r\n'));
+  });
+
+  test('EZPL raster preserves supersampled text edge luminance', () async {
+    final image = img.Image(width: 8, height: 1);
+    for (var x = 0; x < image.width; x += 1) {
+      final luminance = x.isEven ? 200 : 201;
+      image.setPixelRgb(x, 0, luminance, luminance, luminance);
+    }
+
+    final bytes = await buildLabelSheetEzplRasterBytes(
+      pngBytes: Uint8List.fromList(img.encodePng(image)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 8,
+        labelHeightMm: 1,
+        dpi: 25.4,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    final graphicMarker = bytes.indexOf(0x7e);
+    expect(graphicMarker, isNonNegative);
+    expect(bytes.sublist(graphicMarker, graphicMarker + 4), ascii.encode('~G\r\n'));
+    expect(bytes[graphicMarker + 4], 0x47);
+    expect(bytes[graphicMarker + 5], 1);
+    expect(bytes[graphicMarker + 6], 0xaa);
   });
 
   test('planned Hybrid output encodes only package-approved descriptors', () async {

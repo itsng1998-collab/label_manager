@@ -2974,6 +2974,7 @@ class FortuneSheetController extends ChangeNotifier {
     bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
     double? outputLineHeightMultiplier,
+    Size? logicalClipSize,
   }) {
     return _state?._captureRangeAsPng(
           range,
@@ -2983,6 +2984,7 @@ class FortuneSheetController extends ChangeNotifier {
           includeRulerGuides: includeRulerGuides,
           includeLabelAreaBoundary: includeLabelAreaBoundary,
           outputLineHeightMultiplier: outputLineHeightMultiplier,
+          logicalClipSize: logicalClipSize,
         ) ??
         Future<FortuneSheetCapture?>.value();
   }
@@ -16039,6 +16041,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSettings? settingsOverride,
     Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
     Set<FortuneCellBorderEdgeKey> omittedCellBorderEdgeKeys = const {},
+    Size? logicalClipSize,
   }) async {
     final sheet = sheetOverride ?? _workbook.activeSheet;
     final settings = settingsOverride ?? _workbook.settings;
@@ -16060,11 +16063,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
       final originX = columnLeft(range.columnStart);
       final originY = rowTop(range.rowStart);
+      final rangeWidth = columnRight(range.columnEnd) - originX;
+      final rangeHeight = rowBottom(range.rowEnd) - originY;
       final captureWidth = math.max(
         1.0,
-        columnRight(range.columnEnd) - originX,
+        math.min(rangeWidth, logicalClipSize?.width ?? rangeWidth),
       );
-      final captureHeight = math.max(1.0, rowBottom(range.rowEnd) - originY);
+      final captureHeight = math.max(
+        1.0,
+        math.min(rangeHeight, logicalClipSize?.height ?? rangeHeight),
+      );
       final devicePixelRatio =
           pixelRatio ??
           (settings.devicePixelRatio > 0
@@ -16405,6 +16413,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required bool includeRulerGuides,
     required bool includeLabelAreaBoundary,
     double? outputLineHeightMultiplier,
+    Size? logicalClipSize,
   }) async {
     if (!(widget.controller?.finalizeActiveObjectPropertyDraft() ?? true)) {
       return null;
@@ -16417,6 +16426,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       includeRulerGuides: includeRulerGuides,
       includeLabelAreaBoundary: includeLabelAreaBoundary,
       outputLineHeightMultiplier: outputLineHeightMultiplier,
+      logicalClipSize: logicalClipSize,
     );
     if (capture == null) {
       return null;
@@ -16449,6 +16459,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       settingsOverride: plan.settings,
       omittedObjectKeys: plan.approvedObjectKeys,
       omittedCellBorderEdgeKeys: plan.approvedCellBorderEdgeKeys,
+      logicalClipSize: plan.transform.sourceLogicalBounds.size,
     );
     if (capture == null) return null;
     capture.image.dispose();

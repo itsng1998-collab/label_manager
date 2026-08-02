@@ -2068,6 +2068,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       outputLineHeightMultiplier: options.autoSpacingPercent == null
           ? null
           : options.autoSpacingPercent! / 100,
+        logicalClipSize: physicalSize.logicalSize,
     );
     if (!mounted) {
       return;
@@ -2118,6 +2119,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       outputLineHeightMultiplier: lineSpacingPercent == null
           ? null
           : lineSpacingPercent / 100,
+        logicalClipSize: physicalSize.logicalSize,
     );
     if (capture == null) return null;
     return LabelSheetOutputCapture(
@@ -2156,7 +2158,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       preparation.plan,
       pixelRatio:
           preparation.geometry.metrics.dpi /
-          fortuneSheetLogicalPixelsPerInch,
+          fortuneSheetLogicalPixelsPerInch *
+          labelSheetEzplRasterCaptureScale,
       includeCellBorders: true,
       outputLineHeightMultiplier: lineSpacingPercent == null
           ? null
@@ -2196,13 +2199,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<double> _printDpiForPrinter(Printer printer) async {
+    final profile = detectPrinterProfile(printer);
     if (Platform.isWindows) {
       final dpi = await RawPrinterWin32.queryPrinterDpi(printer);
-      if (dpi != null && dpi > 0) {
-        return dpi.toDouble();
-      }
+      return resolveLabelPrinterDpi(profile: profile, deviceDpi: dpi);
     }
-    return detectPrinterProfile(printer).dpi ?? 203;
+    return resolveLabelPrinterDpi(profile: profile);
   }
 
   LabelSheetPrintOptions _currentPrintOptions() {
