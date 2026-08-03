@@ -12,6 +12,7 @@
 - 변경 Dart 4개 파일 strict analyzer 오류·경고 0건.
 - Windows `/WX` Debug 빌드 성공. `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.44` 확인.
 - stage/commit 대상: `label_sheet_print_job.dart`, `label_sheet_workbench.dart`, `home_page_manager.dart`, Windows GDI bridge, 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `f252acc 레거시 GDI 출력 좌표와 세로 용지 보완`.
 
 ## 진행 중: 레거시 Windows GDI 프린터 엔진 포팅 v1.0.43
 - 요청: 현재 raw EZPL/프린터별 직접 명령 중심 로직을 실제 고품질 레거시 `.tmp/LabelManager` 기준으로 제거하고, RTF 대신 최종 라벨시트를 출력 대상으로 포팅한다.
