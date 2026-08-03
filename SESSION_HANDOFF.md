@@ -23,6 +23,7 @@
 - Dart formatter 적용 후 최종 출력 테스트 67건, strict analyzer 오류·경고 0건, Windows `/WX` Debug build 재통과.
 - `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.41` 확인.
 - stage/commit 대상: EZPL production 2개, FortuneSheet layout/canvas 2개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `a10317b Godex 경계 셀 EZPL 직접 출력 개선`.
 - v1.0.39 실물 `.tmp/KakaoTalk_20260802_234102362.jpg`와 `.tmp/log/app_2026-08-02_23-39-00.log` 분석: `backend=ezplRaw`, `WritePrinter=42230/42230`, 내장 UTF-8 한글 출력은 성공했다.
 - 원인은 화면/PNG만 `dynamicArrayCompute` 값을 렌더 셀로 변환하고 print plan은 원본 `sheet.cells`만 읽어 정적 텍스트 9개/35자만 직접 승인한 것이다. 품목명·중량·날짜·제조원 등 동적 값은 raster에 남아 직접 텍스트와 배치가 달라졌다.
 - 수정 예정: FortuneSheet 공용 동적 텍스트 materialize helper를 추가하고, EZPL 후보 생성과 fallback 캡처가 동일한 snapshot을 사용하도록 한다. 후보/승인 누락 사유 로그도 확장한다.
