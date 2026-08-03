@@ -17,6 +17,7 @@
 - CITIZEN 폭 계산을 레거시 실제 식으로 재대조해 보정 폭과 분리했으며 Windows `/WX` Debug 재빌드 성공.
 - `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.43` 확인.
 - stage/commit 대상: 프린터 GDI 포팅 production 12개, 관련 테스트 6개, Windows bridge, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `cde3666 레거시 Windows GDI 프린터 엔진 포팅`.
 
 ## 완료·실물 검증 대기: Godex G500 출력 zoom/회전 정규화 v1.0.42
 - v1.0.41 실물 `.tmp/KakaoTalk_20260803_214958449.jpg`와 `.tmp/log/app_2026-08-03_21-41-53.log` 분석: raw 전송은 `42749/42749`로 정상이나 native `AT`가 페이지 중심 기준 180도 반전됐고 하단 내용이 누락됐다.
