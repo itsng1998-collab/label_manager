@@ -1,6 +1,5 @@
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:printing/printing.dart';
@@ -31,21 +30,6 @@ const int _pdDisablePrintToFile = 0x00080000;
 const int _pdHidePrintToFile = 0x00100000;
 const int _gmemMoveable = 0x0002;
 const int _gmemZeroInit = 0x0040;
-
-class RawPrinterWriteResult {
-  const RawPrinterWriteResult({
-    required this.jobId,
-    required this.requestedBytes,
-    required this.writtenBytes,
-  });
-
-  final int jobId;
-  final int requestedBytes;
-  final int writtenBytes;
-
-  String get diagnostics =>
-      'jobId=$jobId requestedBytes=$requestedBytes writtenBytes=$writtenBytes';
-}
 
 typedef _PrintDlgWNative = Int32 Function(Pointer<_PrintDlgWStruct>);
 typedef _PrintDlgW = int Function(Pointer<_PrintDlgWStruct>);
@@ -333,96 +317,6 @@ class RawPrinterWin32 {
       units.add(unit);
     }
     return String.fromCharCodes(units);
-  }
-
-  static Future<RawPrinterWriteResult> sendRaw(
-    Printer printer,
-    Uint8List data,
-  ) async {
-    if (!Platform.isWindows) {
-      throw UnsupportedError('Raw printing is only supported on Windows.');
-    }
-    // printing.Printer.name is non-nullable; avoid dead null-aware checks
-    final String printerName = printer.name;
-    if (printerName.isEmpty) {
-      throw ArgumentError('Printer name is not available.');
-    }
-    if (data.isEmpty) {
-      throw StateError('Empty printer command payload.');
-    }
-
-    final Pointer<HANDLE> phPrinter = calloc<HANDLE>();
-    final Pointer<Utf16> namePtr = printerName.toNativeUtf16();
-    try {
-      final int openResult = OpenPrinter(namePtr, phPrinter, nullptr);
-      if (openResult == 0) {
-        throw StateError('OpenPrinter failed with error ${GetLastError()}');
-      }
-
-      final Pointer<DOC_INFO_1> docInfo = calloc<DOC_INFO_1>();
-      final Pointer<Utf16> docName = 'Label Job'.toNativeUtf16();
-      final Pointer<Utf16> dataType = 'RAW'.toNativeUtf16();
-      docInfo.ref
-        ..pDocName = docName
-        ..pOutputFile = nullptr
-        ..pDatatype = dataType;
-
-      var jobId = 0;
-      var writtenBytes = 0;
-      try {
-        final int startDoc = StartDocPrinter(phPrinter.value, 1, docInfo);
-        if (startDoc == 0) {
-          throw StateError('StartDocPrinter failed (${GetLastError()})');
-        }
-        jobId = startDoc;
-        try {
-          if (StartPagePrinter(phPrinter.value) == 0) {
-            throw StateError('StartPagePrinter failed (${GetLastError()})');
-          }
-
-          final Pointer<Uint8> dataPtr = calloc<Uint8>(data.length);
-          final Uint8List dataList = dataPtr.asTypedList(data.length);
-          dataList.setAll(0, data);
-          final Pointer<DWORD> written = calloc<DWORD>();
-          try {
-            final int writeResult = WritePrinter(
-              phPrinter.value,
-              dataPtr.cast(),
-              data.length,
-              written,
-            );
-            if (writeResult == 0 || written.value != data.length) {
-              throw StateError('WritePrinter failed (${GetLastError()})');
-            }
-            writtenBytes = written.value;
-          } finally {
-            calloc.free(written);
-            calloc.free(dataPtr);
-          }
-
-          if (EndPagePrinter(phPrinter.value) == 0) {
-            throw StateError('EndPagePrinter failed (${GetLastError()})');
-          }
-        } finally {
-          if (EndDocPrinter(phPrinter.value) == 0) {
-            throw StateError('EndDocPrinter failed (${GetLastError()})');
-          }
-        }
-      } finally {
-        calloc.free(docInfo);
-        calloc.free(docName);
-        calloc.free(dataType);
-      }
-      return RawPrinterWriteResult(
-        jobId: jobId,
-        requestedBytes: data.length,
-        writtenBytes: writtenBytes,
-      );
-    } finally {
-      ClosePrinter(phPrinter.value);
-      calloc.free(phPrinter);
-      calloc.free(namePtr);
-    }
   }
 
   static Future<String?> queryPrinterPortName(Printer printer) async {

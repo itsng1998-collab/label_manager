@@ -21,6 +21,7 @@ void main() {
       labelSheetPreferredPrintTopPushPrefsKey: '0.75',
       labelSheetPreferredPrintAutoSpacingPrefsKey: '125',
       labelSheetPreferredPrintExtraAreaPrefsKey: '4.5',
+      labelSheetPreferredPrintWidthAppendPrefsKey: '1.25',
       labelSheetPreferredPrintOrientationPrefsKey: 'vertical',
     });
 
@@ -34,6 +35,7 @@ void main() {
     expect(loaded.topPushMm, 0.75);
     expect(loaded.lineSpacingPercent, 125);
     expect(loaded.extraAreaMm, 4.5);
+    expect(loaded.widthAppendMm, 1.25);
     expect(loaded.orientation, LabelPrintOrientation.vertical);
     expect(loaded.pdfSingleFile, isTrue);
   });
@@ -59,6 +61,7 @@ void main() {
       topPush: '0.75',
       lineSpacing: '0',
       extraArea: '4.5',
+      widthAppend: '1.25',
       orientation: 'vertical',
       pdfSingleFile: false,
     );
@@ -72,6 +75,7 @@ void main() {
     expect(settings.topPushMm, 0.75);
     expect(settings.lineSpacingPercent, isNull);
     expect(settings.extraAreaMm, 4.5);
+    expect(settings.widthAppendMm, 1.25);
     expect(settings.orientation, LabelPrintOrientation.vertical);
     expect(settings.pdfSingleFile, isFalse);
   });

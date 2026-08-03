@@ -499,8 +499,8 @@ void main() {
     expect(captureController.debugActiveSheet?.zoomRatio, 1.5);
     await tester.pump();
     await tester.pump();
-    final hybrid = await tester.runAsync(
-      () => captureController.captureHybridEzpl(
+    final driverCapture = await tester.runAsync(
+      () => captureController.captureWindowsDriver(
         metrics: const LabelSheetPrintPageMetrics(
           labelWidthMm: 60,
           labelHeightMm: 40,
@@ -517,11 +517,11 @@ void main() {
         lineSpacingPercent: null,
       ),
     );
-    expect(hybrid, isNotNull);
-    expect(hybrid!.bytes, isNotEmpty);
-    expect(hybrid.metrics.sourceWidthMm, isNotNull);
-    expect(hybrid.metrics.sourceHeightMm, isNotNull);
-    expect(hybrid.sheet.id, 'sheet-10');
+    expect(driverCapture, isNotNull);
+    expect(driverCapture!.pngBytes, isNotEmpty);
+    expect(driverCapture.metrics.sourceWidthMm, isNotNull);
+    expect(driverCapture.metrics.sourceHeightMm, isNotNull);
+    expect(driverCapture.sheet.id, 'sheet-10');
 
     final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
     expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
@@ -743,6 +743,7 @@ void main() {
     expect(find.byType(LabelPrintSettingsPanel), findsOneWidget);
     expect(find.text('여백'), findsOneWidget);
     expect(find.text('출력 조정'), findsOneWidget);
+    expect(find.text('가로 폭 보정'), findsOneWidget);
     expect(find.text('자동줄간격'), findsOneWidget);
     expect(find.text('출력 방향'), findsOneWidget);
     expect(find.text('발행 프린터'), findsOneWidget);
@@ -751,7 +752,7 @@ void main() {
       of: dialog,
       matching: find.byType(EditableText),
     );
-    expect(editableTexts, findsNWidgets(6));
+    expect(editableTexts, findsNWidgets(7));
     final shiftedInputs = find.descendant(
       of: dialog,
       matching: find.byWidgetPredicate(
@@ -760,7 +761,7 @@ void main() {
             widget.transform.getTranslation().y == 4,
       ),
     );
-    expect(shiftedInputs, findsNWidgets(6));
+    expect(shiftedInputs, findsNWidgets(7));
     final printerLabel = find.text('발행 프린터');
     final printerValue = find.byKey(
       const ValueKey('label-print-printer-value'),

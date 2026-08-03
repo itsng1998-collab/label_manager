@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -859,129 +858,6 @@ class LabelSheetOutputCapture {
   final int pixelHeight;
 }
 
-class LabelSheetHybridEzplCapture {
-  const LabelSheetHybridEzplCapture({
-    required this.bytes,
-    required this.sheet,
-    required this.range,
-    required this.metrics,
-    required this.plan,
-    required this.descriptors,
-    required this.filteredPngBytes,
-    required this.pixelWidth,
-    required this.pixelHeight,
-    required this.renderedTextCells,
-    required this.dynamicTextMaterialized,
-    required this.sourceZoomRatio,
-    required this.textCandidateExclusionCounts,
-    required this.textCandidateExclusions,
-    required this.textRejectionCounts,
-  });
-
-  final Uint8List bytes;
-  final FortuneSheet sheet;
-  final FortuneRange range;
-  final LabelSheetPrintPageMetrics metrics;
-  final FortuneHybridRenderPlan plan;
-  final List<LabelSheetEzplNativeDescriptor> descriptors;
-  final int filteredPngBytes;
-  final int pixelWidth;
-  final int pixelHeight;
-  final int renderedTextCells;
-  final int dynamicTextMaterialized;
-  final double sourceZoomRatio;
-  final Map<String, int> textCandidateExclusionCounts;
-  final List<FortuneNativeCellTextExclusion> textCandidateExclusions;
-  final Map<String, int> textRejectionCounts;
-
-  String get diagnostics {
-    final candidateCounts = <FortuneNativeCandidateKind, int>{};
-    final approvedCounts = <FortuneNativeCandidateKind, int>{};
-    for (final candidate in plan.candidates) {
-      candidateCounts.update(candidate.kind, (count) => count + 1, ifAbsent: () => 1);
-      if (plan.approvedCandidateTokens.contains(candidate.token)) {
-        approvedCounts.update(candidate.kind, (count) => count + 1, ifAbsent: () => 1);
-      }
-    }
-    final textDescriptors = descriptors.where(
-      (descriptor) => descriptor.textCharacters > 0,
-    );
-    final fontHeights = textDescriptors
-        .map((descriptor) => descriptor.fontHeightDots)
-        .whereType<int>()
-        .toList(growable: false);
-    final candidateSummary = FortuneNativeCandidateKind.values
-        .map((kind) => '${kind.name}:${candidateCounts[kind] ?? 0}')
-        .join(',');
-    final approvedSummary = FortuneNativeCandidateKind.values
-        .map((kind) => '${kind.name}:${approvedCounts[kind] ?? 0}')
-        .join(',');
-    final textCharacters = textDescriptors.fold<int>(
-      0,
-      (sum, descriptor) => sum + descriptor.textCharacters,
-    );
-    final textLines = textDescriptors.fold<int>(
-      0,
-      (sum, descriptor) => sum + descriptor.lineCount,
-    );
-    final textUtf8Bytes = textDescriptors.fold<int>(
-      0,
-      (sum, descriptor) => sum + utf8.encode(descriptor.command).length,
-    );
-    final textCandidates = candidateCounts[FortuneNativeCandidateKind.cellText] ?? 0;
-    final textApproved = approvedCounts[FortuneNativeCandidateKind.cellText] ?? 0;
-    final textLayouts = textDescriptors.map((descriptor) {
-      final bounds = descriptor.predictedPaintedFootprint;
-      final lines = descriptor.textLineFootprints.map((line) {
-        return '${line.left.round()},${line.top.round()},'
-          '${line.width.round()}x${line.height.round()}';
-      }).join('|');
-      return '${descriptor.candidateToken}@'
-        '${bounds.left.round()},${bounds.top.round()},'
-        '${bounds.width.round()}x${bounds.height.round()}/'
-        '${descriptor.fontHeightDots ?? 0}/${descriptor.lineCount}'
-        '{${lines.isEmpty ? "-" : lines}}';
-    }).join(';');
-    final rejectionSummary = textRejectionCounts.entries
-      .map((entry) => '${entry.key}:${entry.value}')
-      .join(',');
-    final candidateExclusionSummary = textCandidateExclusionCounts.entries
-      .map((entry) => '${entry.key}:${entry.value}')
-      .join(',');
-    String rectSummary(ui.Rect? rect) => rect == null
-      ? '-'
-      : '${rect.left.toStringAsFixed(1)},${rect.top.toStringAsFixed(1)},'
-        '${rect.width.toStringAsFixed(1)}x${rect.height.toStringAsFixed(1)}';
-    final excludedCells = textCandidateExclusions.map((exclusion) {
-      final coord = exclusion.coord;
-      return '${coord == null ? "-" : "${coord.row}:${coord.column}"}/'
-        '${exclusion.reason}/L:${rectSummary(exclusion.logicalFootprint)}/'
-        'P:${rectSummary(exclusion.printerFootprint)}';
-    }).join(';');
-    final sourceBounds = plan.transform.sourceLogicalBounds;
-    final printerClip = plan.transform.printerClipDots;
-    return 'candidates=$candidateSummary approved=$approvedSummary '
-      'sourceZoom=${sourceZoomRatio.toStringAsFixed(3)} '
-      'printZoom=${plan.sheet.zoomRatio.toStringAsFixed(3)} '
-      'sourceLogicalBounds=${rectSummary(sourceBounds)} '
-      'printerClipDots=${rectSummary(printerClip)} '
-      'renderedTextCells=$renderedTextCells '
-      'dynamicTextMaterialized=$dynamicTextMaterialized '
-      'textCandidateExcluded=${math.max(0, renderedTextCells - textCandidates)} '
-      'textCandidateExcludedReasons=${candidateExclusionSummary.isEmpty ? "none" : candidateExclusionSummary} '
-      'textCandidateExcludedCells=[${excludedCells.isEmpty ? "none" : excludedCells}] '
-        'nativeTextCandidates=$textCandidates nativeTextApproved=$textApproved '
-        'nativeTextFallback=${textCandidates - textApproved} '
-      'textRejected=${rejectionSummary.isEmpty ? "none" : rejectionSummary} '
-        'textCharacters=$textCharacters textLines=$textLines '
-        'textUtf8Bytes=$textUtf8Bytes '
-        'fontHeight=${fontHeights.isEmpty ? "none" : "${fontHeights.reduce(math.min)}..${fontHeights.reduce(math.max)}"} '
-        'fallbackPixel=${pixelWidth}x$pixelHeight '
-        'fallbackPngBytes=$filteredPngBytes payloadBytes=${bytes.length} '
-        'textLayouts=[$textLayouts]';
-  }
-}
-
 class LabelSheetWindowsDriverCapture {
   const LabelSheetWindowsDriverCapture({
     required this.pngBytes,
@@ -1024,18 +900,6 @@ class LabelSheetOutputCaptureController {
         lineSpacingPercent: lineSpacingPercent,
       ) ??
       Future<LabelSheetOutputCapture?>.value();
-
-  Future<LabelSheetHybridEzplCapture?> captureHybridEzpl({
-    required LabelSheetPrintPageMetrics metrics,
-    required LabelSheetPrintOptions options,
-    required int? lineSpacingPercent,
-  }) =>
-      _state?._captureHybridEzpl(
-        metrics: metrics,
-        options: options,
-        lineSpacingPercent: lineSpacingPercent,
-      ) ??
-      Future<LabelSheetHybridEzplCapture?>.value();
 
   Future<LabelSheetWindowsDriverCapture?> captureWindowsDriver({
     required LabelSheetPrintPageMetrics metrics,
@@ -1111,6 +975,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   late final TextEditingController _printTopMarginController =
       TextEditingController(text: '0.0');
   late final TextEditingController _printExtraAreaController =
+      TextEditingController(text: '0.0');
+    late final TextEditingController _printWidthAppendController =
       TextEditingController(text: '0.0');
   late final TextEditingController _printCopiesController =
       TextEditingController(text: '1');
@@ -1624,6 +1490,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _printLeftMarginController.dispose();
     _printTopMarginController.dispose();
     _printExtraAreaController.dispose();
+    _printWidthAppendController.dispose();
     _printCopiesController.dispose();
     _objectPanelFocusScopeNode.dispose();
     _objectOverlayOpenButtonFocusNode.dispose();
@@ -2116,6 +1983,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _printLeftMarginController.text = settings?.leftMargin ?? '0.0';
     _printTopMarginController.text = settings?.topMargin ?? '0.0';
     _printExtraAreaController.text = settings?.extraArea ?? '0.0';
+    _printWidthAppendController.text = settings?.widthAppend ?? '0.0';
     _printCopiesController.text = '1';
     _printAutoSpacing = settings?.autoSpacing ?? 'none';
     _printOrientation = settings?.orientation ?? 'horizontal';
@@ -2133,6 +2001,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       topMargin: _printTopMarginController.text,
       autoSpacing: _printAutoSpacing,
       extraArea: _printExtraAreaController.text,
+      widthAppend: _printWidthAppendController.text,
       orientation: _printOrientation,
     );
   }
@@ -2180,9 +2049,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         : null;
     final filePort = RawPrinterWin32.isFilePortName(rawPortName);
     final backend = resolveLabelPrintBackend(
-      language: profile.language,
       portName: rawPortName,
-      preferWindowsDriver: profile.prefersWindowsDriverOutput,
     );
     final renderDpi = labelPrintRenderDpi(
       backend: backend,
@@ -2200,25 +2067,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ).showSnackBar(const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')));
     }
     if (!mounted) return;
-    if (backend == LabelPrintBackend.ezplRaw) {
-      final hybrid = await _captureHybridEzpl(
-        metrics: metrics,
-        options: options,
-        lineSpacingPercent: options.autoSpacingPercent,
-      );
-      if (hybrid == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')));
-        }
-        return;
-      }
-      debugLog('labelSheetPrint ezpl ${hybrid.diagnostics}');
-      final result = await RawPrinterWin32.sendRaw(printer, hybrid.bytes);
-      debugLog('labelSheetPrint rawDispatch ${result.diagnostics}');
-      return;
-    }
     final windowsCapture = backend == LabelPrintBackend.windowsDriver
         ? await _captureWindowsDriver(
             metrics: metrics,
@@ -2290,6 +2138,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         sourceHeight: driverPage.height,
         pageWidthMm: metrics.pageWidthMm,
         pageHeightMm: metrics.pageHeightMm(options),
+        copies: options.copies,
+        widthAppendMm: options.widthAppendMm,
+        legacyPrinterType: profile.legacyType,
         textDescriptors: windowsCapture!.textDescriptors,
       );
       debugLog('labelSheetPrint gdiDispatch ${result.diagnostics}');
@@ -2357,64 +2208,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ),
       pixelWidth: capture.pixelSize.width.round(),
       pixelHeight: capture.pixelSize.height.round(),
-    );
-  }
-
-  Future<LabelSheetHybridEzplCapture?> _captureHybridEzpl({
-    required LabelSheetPrintPageMetrics metrics,
-    required LabelSheetPrintOptions options,
-    required int? lineSpacingPercent,
-  }) async {
-    if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
-    final sheet = _controller.getSheet();
-    final settings = _controller.settingsSnapshot;
-    final physicalSize = sheet == null
-        ? null
-        : fortuneSheetGridClientPhysicalSize(sheet);
-    if (sheet == null || settings == null || physicalSize == null) return null;
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: sheet,
-      settings: settings,
-      physicalSize: physicalSize,
-      metrics: metrics,
-      options: options,
-      lineSpacingPercent: lineSpacingPercent,
-    );
-    final capture = await _controller.captureHybridPlanAsPng(
-      preparation.plan,
-      pixelRatio:
-          preparation.geometry.metrics.dpi /
-          fortuneSheetLogicalPixelsPerInch *
-          labelSheetEzplRasterCaptureScale,
-      includeCellBorders: true,
-      outputLineHeightMultiplier: lineSpacingPercent == null
-          ? null
-          : lineSpacingPercent / 100,
-    );
-    if (capture == null) return null;
-    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
-      filteredPngBytes: capture.pngBytes,
-      metrics: preparation.geometry.metrics,
-      options: options,
-      plan: preparation.plan,
-      descriptors: preparation.descriptors,
-    );
-    return LabelSheetHybridEzplCapture(
-      bytes: bytes,
-      sheet: capture.sheet,
-      range: capture.range,
-      metrics: preparation.geometry.metrics,
-      plan: preparation.plan,
-      descriptors: preparation.descriptors,
-      filteredPngBytes: capture.pngBytes.length,
-      pixelWidth: capture.pixelSize.width.round(),
-      pixelHeight: capture.pixelSize.height.round(),
-      renderedTextCells: preparation.renderedTextCells,
-      dynamicTextMaterialized: preparation.dynamicTextMaterialized,
-      sourceZoomRatio: sheet.zoomRatio,
-      textCandidateExclusionCounts: preparation.textCandidateExclusionCounts,
-      textCandidateExclusions: preparation.textCandidateExclusions,
-      textRejectionCounts: preparation.textRejectionCounts,
     );
   }
 
@@ -2492,6 +2285,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       leftMarginMm: _printLeftMarginController.text,
       topMarginMm: _printTopMarginController.text,
       extraAreaMm: _printExtraAreaController.text,
+      widthAppendMm: _printWidthAppendController.text,
       autoSpacing: _printAutoSpacing,
       orientation: _printOrientation,
     );
@@ -3265,7 +3059,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       child: BlockingModelessDialogFrame(
         title: '프린터 설정',
         width: 526,
-        height: 236,
+        height: 278,
         closeIcon: const LabelPrintDialogCloseIcon(),
         onClose: _closePrintSettingsDialog,
         child: _ClosedLoopDialogFocus(
@@ -3273,6 +3067,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             leftMarginController: _printLeftMarginController,
             topMarginController: _printTopMarginController,
             extraAreaController: _printExtraAreaController,
+            widthAppendController: _printWidthAppendController,
             copiesController: _printCopiesController,
             autoSpacing: _printAutoSpacing,
             orientation: _printOrientation,

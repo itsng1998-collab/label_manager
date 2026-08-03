@@ -17,6 +17,8 @@ const String labelSheetPreferredPrintAutoSpacingPrefsKey =
   'label_sheet_preferred_print_auto_spacing';
 const String labelSheetPreferredPrintExtraAreaPrefsKey =
   'label_sheet_preferred_print_extra_area';
+const String labelSheetPreferredPrintWidthAppendPrefsKey =
+  'label_sheet_preferred_print_width_append';
 const String labelSheetPreferredPrintOrientationPrefsKey =
   'label_sheet_preferred_print_orientation';
 const String labelSheetPreferredPrintPdfSingleFilePrefsKey =
@@ -34,6 +36,7 @@ class LabelSheetPreferredPrintSettings {
   this.topPush = '0.0',
   required this.autoSpacing,
   required this.extraArea,
+  this.widthAppend = '0.0',
   required this.orientation,
   this.pdfSingleFile = true,
   });
@@ -46,6 +49,7 @@ class LabelSheetPreferredPrintSettings {
   final String topPush;
   final String autoSpacing;
   final String extraArea;
+  final String widthAppend;
   final String orientation;
   final bool pdfSingleFile;
 }
@@ -98,6 +102,8 @@ class LabelPrinterPreferences {
           prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey) ?? 'none',
       extraArea:
           prefs.getString(labelSheetPreferredPrintExtraAreaPrefsKey) ?? '0.0',
+        widthAppend:
+          prefs.getString(labelSheetPreferredPrintWidthAppendPrefsKey) ?? '0.0',
       orientation:
           prefs.getString(labelSheetPreferredPrintOrientationPrefsKey) ??
           'horizontal',
@@ -153,6 +159,10 @@ class LabelPrinterPreferences {
     await prefs.setString(
       labelSheetPreferredPrintExtraAreaPrefsKey,
       settings.extraArea,
+    );
+    await prefs.setString(
+      labelSheetPreferredPrintWidthAppendPrefsKey,
+      settings.widthAppend,
     );
     await prefs.setString(
       labelSheetPreferredPrintOrientationPrefsKey,
@@ -244,6 +254,7 @@ class LabelPrinterPreferences {
     await prefs.remove(labelSheetPreferredPrintTopPushPrefsKey);
     await prefs.remove(labelSheetPreferredPrintAutoSpacingPrefsKey);
     await prefs.remove(labelSheetPreferredPrintExtraAreaPrefsKey);
+    await prefs.remove(labelSheetPreferredPrintWidthAppendPrefsKey);
     await prefs.remove(labelSheetPreferredPrintOrientationPrefsKey);
     await prefs.remove(labelSheetPreferredPrintPdfSingleFilePrefsKey);
   }

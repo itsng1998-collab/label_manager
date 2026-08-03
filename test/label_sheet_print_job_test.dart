@@ -111,7 +111,7 @@ void main() {
     expect(geometry.transform.nativeAllowed, isTrue);
   });
 
-  test('Windows hybrid approves only plain cell text', () {
+  test('Windows hybrid approves plain and inline cell text', () {
     final sheet = fs.FortuneSheet(
       id: 'sheet',
       name: 'Sheet',
@@ -177,25 +177,36 @@ void main() {
       lineSpacingPercent: null,
     );
 
-    expect(preparation.descriptors, hasLength(1));
-    final descriptor = preparation.descriptors.single;
+    expect(preparation.descriptors, hasLength(2));
+    final descriptor = preparation.descriptors.firstWhere(
+      (value) => value.candidateToken == 'text:0:0',
+    );
     expect(descriptor.text, '원재료');
     expect(descriptor.fontFamily, 'Arial');
     expect(descriptor.fontPixelHeight, greaterThan(0));
     expect(descriptor.bold, isTrue);
     expect(descriptor.colorArgb, 0xff123456);
-    expect(descriptor.horizontalAlign, '2');
-    expect(descriptor.verticalAlign, '2');
-    expect(descriptor.wrap, isTrue);
+    expect(descriptor.horizontalAlign, '1');
+    expect(descriptor.verticalAlign, '1');
+    expect(descriptor.wrap, isFalse);
     expect(
       preparation.plan.approvedCellTextCoords,
-      {const fs.FortuneCellCoord(0, 0)},
+      {
+        const fs.FortuneCellCoord(0, 0),
+        const fs.FortuneCellCoord(0, 1),
+      },
+    );
+    expect(
+      preparation.descriptors.firstWhere(
+        (value) => value.candidateToken == 'text:0:1',
+      ).text,
+      '서식',
     );
     expect(descriptor.toChannelMap()['text'], '원재료');
     expect(descriptor.toChannelMap()['colorArgb'], 0xff123456);
   });
 
-  test('Windows hybrid keeps all text in raster when line spacing is forced', () {
+  test('Windows hybrid applies forced line spacing to native text layout', () {
     final preparation = prepareLabelSheetWindowsHybridPrint(
       sheet: fs.FortuneSheet(
         id: 'sheet',
@@ -225,8 +236,11 @@ void main() {
       lineSpacingPercent: 120,
     );
 
-    expect(preparation.descriptors, isEmpty);
-    expect(preparation.plan.approvedCellTextCoords, isEmpty);
+    expect(preparation.descriptors, hasLength(1));
+    expect(
+      preparation.plan.approvedCellTextCoords,
+      {const fs.FortuneCellCoord(0, 0)},
+    );
   });
 
   test('Windows hybrid keeps text in raster for vertical page output', () {
@@ -323,75 +337,6 @@ void main() {
     expect(layout.contentHeightMm, 50);
   });
 
-  test('buildLabelSheetEzplRasterBytes emits label size copies and graphics rows', () async {
-    final image = img.Image(width: 8, height: 2);
-    img.fill(image, color: img.ColorRgb8(255, 255, 255));
-    image.setPixelRgb(0, 0, 0, 0, 0);
-    image.setPixelRgb(7, 1, 0, 0, 0);
-    final pngBytes = Uint8List.fromList(img.encodePng(image));
-
-    final bytes = await buildLabelSheetEzplRasterBytes(
-      pngBytes: pngBytes,
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 8,
-        labelHeightMm: 2,
-        dpi: 25.4,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 3,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 1,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-
-    final text = ascii.decode(
-      bytes.where((byte) => byte == 0x0d || byte == 0x0a || byte >= 0x20).toList(),
-      allowInvalid: true,
-    );
-    expect(text, contains('^Q3,0,0'));
-    expect(text, contains('^W 8'));
-    expect(text, contains('^P3'));
-    expect(text, contains('^L'));
-    expect(text, contains('~G'));
-    expect(bytes.where((byte) => byte == 0x47).length, greaterThanOrEqualTo(3));
-    expect(text, endsWith('E\r\n'));
-  });
-
-  test('EZPL raster preserves supersampled text edge luminance', () async {
-    final image = img.Image(width: 8, height: 1);
-    for (var x = 0; x < image.width; x += 1) {
-      final luminance = x.isEven ? 200 : 201;
-      image.setPixelRgb(x, 0, luminance, luminance, luminance);
-    }
-
-    final bytes = await buildLabelSheetEzplRasterBytes(
-      pngBytes: Uint8List.fromList(img.encodePng(image)),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 8,
-        labelHeightMm: 1,
-        dpi: 25.4,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-
-    final graphicMarker = bytes.indexOf(0x7e);
-    expect(graphicMarker, isNonNegative);
-    expect(bytes.sublist(graphicMarker, graphicMarker + 4), ascii.encode('~G\r\n'));
-    expect(bytes[graphicMarker + 4], 0x47);
-    expect(bytes[graphicMarker + 5], 1);
-    expect(bytes[graphicMarker + 6], 0xaa);
-  });
-
   test('Windows driver page preserves final printer grid grayscale', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
@@ -469,512 +414,6 @@ void main() {
     expect(page.rasterMapping, 'cropCeilOverflow');
     expect(page.inkPixels, 1);
     expect(page.bgraBytes, [0, 0, 0, 255, 255, 255, 255, 255]);
-  });
-
-  test('planned Hybrid output encodes only package-approved descriptors', () async {
-    final sheet = fs.FortuneSheet(
-      id: 's1',
-      name: 'Sheet1',
-      rowCount: 2,
-      columnCount: 2,
-      lines: const [
-        fs.FortuneLine(
-          id: 'line_1',
-          x1: 2,
-          y1: 10,
-          x2: 18,
-          y2: 10,
-          strokeWidthMm: 1,
-        ),
-      ],
-      borderInfo: const [
-        fs.FortuneBorderInfo(
-          rangeType: 'range',
-          borderType: 'border-right',
-          color: Color(0xff000000),
-          style: 1,
-          ranges: [
-            fs.FortuneRange(
-              rowStart: 0,
-              rowEnd: 0,
-              columnStart: 0,
-              columnEnd: 0,
-            ),
-          ],
-        ),
-      ],
-    );
-    const settings = fs.FortuneSettings(
-      defaultRowHeight: 20,
-      defaultColWidth: 20,
-    );
-    const options = LabelSheetPrintOptions(
-      copies: 1,
-      leftMarginMm: 0,
-      topMarginMm: 0,
-      extraAreaMm: 0,
-      autoSpacingPercent: null,
-      orientation: LabelSheetPrintOrientation.horizontal,
-    );
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: sheet,
-      settings: settings,
-      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
-        widthMm: 10,
-        heightMm: 10,
-      ),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 20,
-        labelHeightMm: 20,
-        dpi: 96,
-      ),
-      options: options,
-    );
-    final image = img.Image(width: 40, height: 40);
-    img.fill(image, color: img.ColorRgb8(255, 255, 255));
-    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
-      filteredPngBytes: Uint8List.fromList(img.encodePng(image)),
-      metrics: preparation.geometry.metrics,
-      options: options,
-      plan: preparation.plan,
-      descriptors: preparation.descriptors,
-    );
-    final text = ascii.decode(bytes, allowInvalid: true);
-    expect(preparation.plan.approvedCandidateTokens, hasLength(2));
-    for (final descriptor in preparation.descriptors) {
-      expect(text, contains(descriptor.command));
-    }
-    expect(text, endsWith('E\r\n'));
-  });
-
-  test('planned Hybrid emits wrapped Korean cell text as UTF-8 AT commands', () async {
-    final sheet = fs.FortuneSheet(
-      id: 'text',
-      name: 'Text',
-      rowCount: 2,
-      columnCount: 2,
-      cells: {
-        const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
-          value: '원재료명 우유 밀 함유',
-          fontSize: 8,
-          bold: true,
-          textWrap: '2',
-        ),
-      },
-      defaultRowHeight: 32,
-      defaultColWidth: 60,
-    );
-    const options = LabelSheetPrintOptions(
-      copies: 1,
-      leftMarginMm: 0,
-      topMarginMm: 0,
-      extraAreaMm: 0,
-      autoSpacingPercent: null,
-      orientation: LabelSheetPrintOrientation.horizontal,
-    );
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: sheet,
-      settings: const fs.FortuneSettings(),
-      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
-        widthMm: 16,
-        heightMm: 10,
-      ),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 16,
-        labelHeightMm: 10,
-        dpi: 203.2,
-      ),
-      options: options,
-    );
-
-    final descriptor = preparation.descriptors.singleWhere(
-      (value) => value.textCharacters > 0,
-    );
-    expect(descriptor.utf8, isTrue);
-    expect(descriptor.lineCount, greaterThan(1));
-    expect(descriptor.fontHeightDots, 17);
-    expect(descriptor.command, contains('AT,'));
-    expect(descriptor.command, contains(',0BE,0,0,'));
-    expect(
-      preparation.plan.approvedCellTextCoords,
-      {const fs.FortuneCellCoord(0, 0)},
-    );
-
-    final image = img.Image(width: 128, height: 80);
-    img.fill(image, color: img.ColorRgb8(255, 255, 255));
-    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
-      filteredPngBytes: Uint8List.fromList(img.encodePng(image)),
-      metrics: preparation.geometry.metrics,
-      options: options,
-      plan: preparation.plan,
-      descriptors: preparation.descriptors,
-    );
-    final payload = utf8.decode(bytes, allowMalformed: false);
-    expect(payload, contains('^LR0\r\n'));
-    expect(payload, contains('원재료명'));
-    expect(payload, contains('밀 함유'));
-  });
-
-  test('EZPL AT emits supported inline Korean runs without raster fallback', () {
-    const coord = fs.FortuneCellCoord(0, 0);
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: fs.FortuneSheet(
-        id: 'inline-text',
-        name: 'Inline Text',
-        rowCount: 2,
-        columnCount: 1,
-        defaultRowHeight: 36,
-        defaultColWidth: 84,
-        cells: {
-          coord: const fs.FortuneCell(
-            value: '원재료명: 우유, 밀 함유',
-            fontSize: 8,
-            textWrap: '2',
-            inlineRuns: [
-              fs.FortuneInlineTextRun(text: '원재료명: ', bold: true),
-              fs.FortuneInlineTextRun(text: '우유, 밀 함유'),
-            ],
-          ),
-        },
-      ),
-      settings: const fs.FortuneSettings(),
-      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
-        widthMm: 22,
-        heightMm: 12,
-      ),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 22,
-        labelHeightMm: 12,
-        dpi: 203.2,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-
-    expect(preparation.textRejectionCounts, isEmpty);
-    expect(preparation.plan.approvedCellTextCoords, {coord});
-    final descriptor = preparation.descriptors.singleWhere(
-      (value) => value.textCharacters > 0,
-    );
-    expect(descriptor.command, contains(',0BE,0,0,원재료명: '));
-    expect(descriptor.command, contains(',0E,0,0,우유, '));
-    expect(descriptor.command, contains(',0E,0,0,밀 함유'));
-    expect(descriptor.command.split('AT,').length - 1, 3);
-  });
-
-  test('EZPL AT approves text cells crossing the physical page edge', () {
-    const coord = fs.FortuneCellCoord(0, 0);
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: fs.FortuneSheet(
-        id: 'edge-text',
-        name: 'Edge Text',
-        rowCount: 1,
-        columnCount: 1,
-        defaultRowHeight: 40,
-        defaultColWidth: 120,
-        cells: {coord: const fs.FortuneCell(value: '경계 텍스트')},
-      ),
-      settings: const fs.FortuneSettings(),
-      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
-        widthMm: 26,
-        heightMm: 10,
-      ),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 26,
-        labelHeightMm: 10,
-        dpi: 203.2,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-
-    expect(preparation.textCandidateExclusionCounts, isEmpty);
-    expect(preparation.textRejectionCounts, isEmpty);
-    expect(preparation.plan.approvedCellTextCoords, {coord});
-    expect(
-      preparation.descriptors.singleWhere(
-        (descriptor) => descriptor.textCharacters > 0,
-      ).command,
-      contains('경계 텍스트'),
-    );
-  });
-
-  test('EZPL print ignores sheet UI zoom for lower label rows', () {
-    const lowerCoord = fs.FortuneCellCoord(11, 0);
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: fs.FortuneSheet(
-        id: 'zoomed-print',
-        name: 'Zoomed Print',
-        rowCount: 13,
-        columnCount: 1,
-        zoomRatio: 1.7,
-        rawZoomRatio: 1.7,
-        hasRawZoomRatio: true,
-        defaultRowHeight: 18,
-        defaultColWidth: 303,
-        cells: {lowerCoord: const fs.FortuneCell(value: '하단 영양정보')},
-      ),
-      settings: const fs.FortuneSettings(),
-      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
-        widthMm: 80,
-        heightMm: 60,
-      ),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 80,
-        labelHeightMm: 60,
-        dpi: 203.2,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-
-    expect(preparation.plan.sheet.zoomRatio, 1);
-    expect(preparation.textCandidateExclusionCounts, isEmpty);
-    expect(preparation.plan.approvedCellTextCoords, {lowerCoord});
-    expect(
-      preparation.descriptors.singleWhere(
-        (descriptor) => descriptor.textCharacters > 0,
-      ).command,
-      contains('하단 영양정보'),
-    );
-  });
-
-  test('planned Hybrid emits dynamic computed values as native AT text', () async {
-    final sheet = fs.FortuneSheet(
-      id: 'dynamic-text',
-      name: 'Dynamic Text',
-      rowCount: 3,
-      columnCount: 3,
-      cells: {
-        const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(value: '제품명'),
-        const fs.FortuneCellCoord(0, 1): const fs.FortuneCell(),
-      },
-      dynamicArrayCompute: const {
-        '0_1': {'r': 0, 'c': 1, 'v': '황치즈쿠키'},
-        '1_0': {'r': 1, 'c': 0, 'v': '120g'},
-      },
-      hasRawDynamicArrayCompute: true,
-      defaultRowHeight: 24,
-      defaultColWidth: 80,
-    );
-    const options = LabelSheetPrintOptions(
-      copies: 1,
-      leftMarginMm: 0,
-      topMarginMm: 0,
-      extraAreaMm: 0,
-      autoSpacingPercent: null,
-      orientation: LabelSheetPrintOrientation.horizontal,
-    );
-    final preparation = prepareLabelSheetHybridPrint(
-      sheet: sheet,
-      settings: const fs.FortuneSettings(defaultFontSize: 8),
-      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
-        widthMm: 43,
-        heightMm: 13,
-      ),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 43,
-        labelHeightMm: 13,
-        dpi: 203.2,
-      ),
-      options: options,
-    );
-
-    expect(preparation.renderedTextCells, 3);
-    expect(preparation.dynamicTextMaterialized, 2);
-    expect(preparation.textCandidateExclusionCounts, isEmpty);
-    expect(preparation.textRejectionCounts, isEmpty);
-    expect(
-      preparation.plan.candidates
-          .where(
-            (candidate) =>
-                candidate.kind == fs.FortuneNativeCandidateKind.cellText,
-          )
-          .map((candidate) => candidate.token),
-      containsAll(['text:0:0', 'text:0:1', 'text:1:0']),
-    );
-    expect(preparation.plan.approvedCellTextCoords, hasLength(3));
-    final blank = img.Image(width: 344, height: 104);
-    img.fill(blank, color: img.ColorRgb8(255, 255, 255));
-    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
-      filteredPngBytes: Uint8List.fromList(img.encodePng(blank)),
-      metrics: preparation.geometry.metrics,
-      options: options,
-      plan: preparation.plan,
-      descriptors: preparation.descriptors,
-    );
-    final payload = utf8.decode(bytes, allowMalformed: false);
-    expect(payload, contains('제품명'));
-    expect(payload, contains('황치즈쿠키'));
-    expect(payload, contains('120g'));
-  });
-
-  test('EZPL AT keeps unsupported cell text in raster fallback', () {
-    const coord = fs.FortuneCellCoord(0, 0);
-    const settings = fs.FortuneSettings();
-    const transform = fs.FortunePrintTransform(
-      sourceLogicalBounds: Rect.fromLTWH(0, 0, 100, 20),
-      dpi: 203.2,
-      contentLeftMm: 0,
-      contentTopMm: 0,
-      clipRightMm: 40,
-      clipBottomMm: 20,
-      nativeAllowed: true,
-    );
-    const candidate = fs.FortuneNativeCandidate(
-      token: 'text:0:0',
-      kind: fs.FortuneNativeCandidateKind.cellText,
-      cellCoord: coord,
-      logicalPaintedFootprint: Rect.fromLTWH(2, 2, 96, 16),
-      printerPaintedFootprint: Rect.fromLTWH(4, 4, 200, 34),
-    );
-
-    List<LabelSheetEzplNativeDescriptor> preflight(
-      fs.FortuneCell cell, {
-      int? lineSpacingPercent,
-    }) {
-      final sheet = fs.FortuneSheet(
-        id: 'text',
-        name: 'Text',
-        rowCount: 1,
-        columnCount: 1,
-        cells: {coord: cell},
-      );
-      return preflightLabelSheetEzplCandidates(
-        sheet: sheet,
-        settings: settings,
-        transform: transform,
-        candidates: const [candidate],
-        lineSpacingPercent: lineSpacingPercent,
-      );
-    }
-
-    expect(
-      preflight(
-        const fs.FortuneCell(
-          value: '흰 글자',
-          foreground: Color(0xffffffff),
-        ),
-      ),
-      isEmpty,
-    );
-    expect(
-      preflight(const fs.FortuneCell(value: '취소선', strikeThrough: true)),
-      isEmpty,
-    );
-    expect(
-      preflight(
-        const fs.FortuneCell(value: '강제 줄간격'),
-        lineSpacingPercent: 120,
-      ),
-      hasLength(1),
-    );
-    expect(
-      preflight(
-        const fs.FortuneCell(
-          value: '셀 높이를 넘는 여러 줄 한글 텍스트',
-          textWrap: '2',
-        ),
-      ),
-      isEmpty,
-    );
-    expect(
-      preflight(const fs.FortuneCell(value: '일반 텍스트')),
-      hasLength(1),
-    );
-  });
-
-  test('barcode preflight approves only an exact deterministic footprint', () {
-    fs.FortuneSheet barcodeSheet(double width) => fs.FortuneSheet(
-      id: 'barcode',
-      name: 'Barcode',
-      rowCount: 1,
-      columnCount: 1,
-      images: [
-        fs.FortuneImage(
-          id: 'barcode-1',
-          src: '',
-          left: 2,
-          top: 3,
-          width: width,
-          height: 10,
-          extraFields: const {
-            'fortuneBarcode': true,
-            'barcodeText': 'A',
-            'barcodeFormatId': 'code128',
-            'barcodeModuleScale': 1,
-            'barcodeBarHeight': 10,
-            'barcodeShowText': false,
-            'barcodeBodyTop': 0,
-            'barcodeBodyHeight': 10,
-          },
-        ),
-      ],
-    );
-    const settings = fs.FortuneSettings(
-      defaultRowHeight: 20,
-      defaultColWidth: 100,
-    );
-    const range = fs.FortuneRange(
-      rowStart: 0,
-      rowEnd: 0,
-      columnStart: 0,
-      columnEnd: 0,
-    );
-    const transform = fs.FortunePrintTransform(
-      sourceLogicalBounds: Rect.fromLTWH(0, 0, 100, 20),
-      dpi: 96,
-      contentLeftMm: 0,
-      contentTopMm: 0,
-      clipRightMm: 30,
-      clipBottomMm: 10,
-      nativeAllowed: true,
-    );
-
-    fs.FortuneHybridRenderPlan buildPlan(double width) {
-      final sheet = barcodeSheet(width);
-      final candidates = fs.fortuneBuildNativeCandidates(
-        settings: settings,
-        sheet: sheet,
-        range: range,
-        transform: transform,
-      );
-      final descriptors = preflightLabelSheetEzplCandidates(
-        sheet: sheet,
-        settings: settings,
-        transform: transform,
-        candidates: candidates,
-      );
-      return fs.fortuneFinalizeHybridRenderPlan(
-        settings: settings,
-        sheet: sheet,
-        range: range,
-        transform: transform,
-        candidates: candidates,
-        approvals: descriptors.map((descriptor) => descriptor.approval),
-      );
-    }
-
-    expect(buildPlan(46).approvedCandidateTokens, hasLength(1));
-    expect(buildPlan(47).approvedCandidateTokens, isEmpty);
   });
 
   test('buildLabelSheetPdfBytes creates one page per copy', () async {

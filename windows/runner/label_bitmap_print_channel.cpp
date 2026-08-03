@@ -156,6 +156,16 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const int source_height = IntArg(args, "sourceHeight", 0);
   const double page_width_mm = DoubleArg(args, "pageWidthMm", 0);
   const double page_height_mm = DoubleArg(args, "pageHeightMm", 0);
+  const int copies = std::max(1, IntArg(args, "copies", 1));
+  const double width_append_mm =
+      std::max(0.0, DoubleArg(args, "widthAppendMm", 0));
+  const auto* legacy_printer_type_arg =
+      StringArg(args, "legacyPrinterType");
+  const std::string legacy_printer_type = legacy_printer_type_arg == nullptr
+                                              ? "other"
+                                              : *legacy_printer_type_arg;
+  const bool bixolon = legacy_printer_type == "bixolon";
+  const bool citizen = legacy_printer_type == "citizen";
   const auto pixels_iter = args.find(EncodableValue("bgra"));
   const auto text_descriptors = TextDescriptorsArg(args);
   const auto* bgra = pixels_iter == args.end()
@@ -198,11 +208,15 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   }
   devmode->dmFields |= DM_PAPERSIZE | DM_PAPERWIDTH | DM_PAPERLENGTH |
                        DM_ORIENTATION | DM_COPIES;
-  devmode->dmPaperSize = 0;
-  devmode->dmPaperWidth = static_cast<short>(page_width_mm * 10.0 + 0.5);
+  devmode->dmPaperSize = DMPAPER_USER;
+  const int legacy_citizen_tenth_mm =
+      citizen ? static_cast<int>(page_width_mm * 0.2) : 0;
+  devmode->dmPaperWidth = static_cast<short>(
+      (page_width_mm + width_append_mm) * 10.0 +
+      legacy_citizen_tenth_mm + 0.5);
   devmode->dmPaperLength = static_cast<short>(page_height_mm * 10.0 + 0.5);
   devmode->dmOrientation = DMORIENT_PORTRAIT;
-  devmode->dmCopies = 1;
+  devmode->dmCopies = static_cast<short>(bixolon ? 1 : copies);
   DocumentPropertiesW(nullptr, printer,
                       const_cast<wchar_t*>(printer_name.c_str()), devmode,
                       devmode, DM_IN_BUFFER | DM_OUT_BUFFER);
@@ -220,8 +234,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const int physical_height = GetDeviceCaps(printer_dc, PHYSICALHEIGHT);
   const int physical_offset_x = GetDeviceCaps(printer_dc, PHYSICALOFFSETX);
   const int physical_offset_y = GetDeviceCaps(printer_dc, PHYSICALOFFSETY);
-  const int target_width = physical_width > 0 ? physical_width : source_width;
-  const int target_height = physical_height > 0 ? physical_height : source_height;
+  const int target_width = dpi_x > 0
+                               ? static_cast<int>(page_width_mm * dpi_x / 25.4 + 0.5)
+                               : source_width;
+  const int target_height = dpi_y > 0
+                                ? static_cast<int>(page_height_mm * dpi_y / 25.4 + 0.5)
+                                : source_height;
   const int destination_x = -physical_offset_x;
   const int destination_y = -physical_offset_y;
   size_t native_text_requested_characters = 0;
@@ -252,6 +270,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " destination=" << destination_x << "," << destination_y
               << " paperTenthMm=" << devmode->dmPaperWidth << "x"
               << devmode->dmPaperLength
+              << " legacyType=" << legacy_printer_type
+              << " copies=" << copies
+              << " devmodeCopies=" << devmode->dmCopies
+              << " widthAppendMm=" << width_append_mm
               << " nativeTextRequested=" << text_descriptors.size()
               << " nativeTextRequestedCharacters="
               << native_text_requested_characters
@@ -273,9 +295,13 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   }
   bool ok = false;
   std::string error;
-  if (StartPage(printer_dc) <= 0) {
-    error = "StartPage failed: " + std::to_string(GetLastError());
-  } else {
+  const int page_iterations = bixolon ? copies : 1;
+  for (int page_index = 0; page_index < page_iterations && error.empty();
+       ++page_index) {
+    if (StartPage(printer_dc) <= 0) {
+      error = "StartPage failed: " + std::to_string(GetLastError());
+      break;
+    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = source_width;
@@ -305,7 +331,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
             -descriptor.font_pixel_height, 0, 0, 0,
             descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
             descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-            OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
         if (font == nullptr) {
           ++native_text_failed;
@@ -360,10 +386,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     }
     if (error.empty() && EndPage(printer_dc) <= 0) {
       error = "EndPage failed: " + std::to_string(GetLastError());
-    } else if (error.empty()) {
-      ok = true;
     }
   }
+  ok = error.empty();
   if (ok) {
     if (EndDoc(printer_dc) <= 0) {
       ok = false;

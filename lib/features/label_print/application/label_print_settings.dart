@@ -15,6 +15,7 @@ LabelPrintSettingsSnapshot? parseLabelPrintSettingsSnapshot({
   required String topPush,
   required String lineSpacing,
   required String extraArea,
+  String widthAppend = '0',
   required String orientation,
   bool pdfSingleFile = true,
 }) {
@@ -36,6 +37,7 @@ LabelPrintSettingsSnapshot? parseLabelPrintSettingsSnapshot({
   final verticalPush = signed(topPush);
   final spacing = int.tryParse(lineSpacing.trim());
   final extra = nonNegative(extraArea);
+  final append = nonNegative(widthAppend);
   if (trimmedPrinterName.isEmpty ||
       left == null ||
       right == null ||
@@ -44,6 +46,7 @@ LabelPrintSettingsSnapshot? parseLabelPrintSettingsSnapshot({
       verticalPush == null ||
       spacing == null ||
       extra == null ||
+      append == null ||
       (spacing != 0 &&
           (spacing < 80 || spacing > 300 || (spacing - 80) % 5 != 0))) {
     return null;
@@ -57,6 +60,7 @@ LabelPrintSettingsSnapshot? parseLabelPrintSettingsSnapshot({
     topPushMm: verticalPush,
     lineSpacingPercent: spacing == 0 ? null : spacing,
     extraAreaMm: extra,
+    widthAppendMm: append,
     orientation: orientation == 'vertical'
         ? LabelPrintOrientation.vertical
         : LabelPrintOrientation.horizontal,
@@ -91,6 +95,7 @@ Future<LabelPrintSettingsSnapshot> loadLabelPrintSettingsSnapshot() async {
     topPushMm: signed(settings.topPush),
     lineSpacingPercent: spacing,
     extraAreaMm: nonNegative(settings.extraArea),
+    widthAppendMm: nonNegative(settings.widthAppend),
     orientation: settings.orientation == 'vertical'
         ? LabelPrintOrientation.vertical
         : LabelPrintOrientation.horizontal,
@@ -112,6 +117,7 @@ Future<void> saveLabelPrintSettingsSnapshot(
         ? 'none'
         : '${settings.lineSpacingPercent}',
     extraArea: '${settings.extraAreaMm}',
+    widthAppend: '${settings.widthAppendMm}',
     orientation: settings.orientation == LabelPrintOrientation.vertical
         ? 'vertical'
         : 'horizontal',

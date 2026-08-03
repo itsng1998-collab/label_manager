@@ -33,6 +33,7 @@ void main() {
         topPush: '0.75',
         autoSpacing: '120',
         extraArea: '3.5',
+        widthAppend: '1.25',
         orientation: 'vertical',
         pdfSingleFile: false,
       ),
@@ -53,6 +54,7 @@ void main() {
     expect(loaded.topPush, '0.75');
     expect(loaded.autoSpacing, '120');
     expect(loaded.extraArea, '3.5');
+    expect(loaded.widthAppend, '1.25');
     expect(loaded.orientation, 'vertical');
     expect(loaded.pdfSingleFile, isFalse);
   });
@@ -67,6 +69,7 @@ void main() {
       labelSheetPreferredPrintTopPushPrefsKey: '0.75',
       labelSheetPreferredPrintAutoSpacingPrefsKey: '120',
       labelSheetPreferredPrintExtraAreaPrefsKey: '3.5',
+      labelSheetPreferredPrintWidthAppendPrefsKey: '1.25',
       labelSheetPreferredPrintOrientationPrefsKey: 'vertical',
       labelSheetPreferredPrintPdfSingleFilePrefsKey: false,
     });
@@ -87,6 +90,10 @@ void main() {
     expect(prefs.getString(labelSheetPreferredPrintTopPushPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintExtraAreaPrefsKey), isNull);
+    expect(
+      prefs.getString(labelSheetPreferredPrintWidthAppendPrefsKey),
+      isNull,
+    );
     expect(prefs.getString(labelSheetPreferredPrintOrientationPrefsKey), isNull);
     expect(
       prefs.getBool(labelSheetPreferredPrintPdfSingleFilePrefsKey),

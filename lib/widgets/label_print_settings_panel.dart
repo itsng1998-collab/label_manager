@@ -7,6 +7,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
     required this.leftMarginController,
     required this.topMarginController,
     required this.extraAreaController,
+    required this.widthAppendController,
     required this.autoSpacing,
     required this.orientation,
     required this.selectedPrinterName,
@@ -30,6 +31,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
   final TextEditingController leftMarginController;
   final TextEditingController topMarginController;
   final TextEditingController extraAreaController;
+  final TextEditingController widthAppendController;
   final TextEditingController? copiesController;
   final TextEditingController? rightMarginController;
   final TextEditingController? leftPushController;
@@ -63,7 +65,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
             : 'label-sheet-print-settings-dialog',
       ),
       width: 526,
-      height: _hasLabelPrintAdjustments ? 354 : 200,
+      height: _hasLabelPrintAdjustments ? 354 : 242,
       child: Stack(
         children: [
           Positioned(
@@ -271,12 +273,12 @@ class LabelPrintSettingsPanel extends StatelessWidget {
             ),
           if (!_hasLabelPrintAdjustments)
             Positioned(
-              left: 104,
+              left: 62,
               top: 116,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const _PrintDialogCenteredLabel('추가 영역'),
+                  const _PrintDialogCenteredLabel('세로 추가'),
                   const SizedBox(width: 8),
                   _PrintDialogShiftedDown(
                     child: _PrintDialogInput(controller: extraAreaController),
@@ -288,8 +290,27 @@ class LabelPrintSettingsPanel extends StatelessWidget {
             ),
           if (!_hasLabelPrintAdjustments)
             Positioned(
+              left: 252,
+              top: 116,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const _PrintDialogCenteredLabel('가로 보정'),
+                  const SizedBox(width: 8),
+                  _PrintDialogShiftedDown(
+                    child: _PrintDialogInput(
+                      controller: widthAppendController,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const _PrintDialogCenteredLabel('mm'),
+                ],
+              ),
+            ),
+          if (!_hasLabelPrintAdjustments)
+            Positioned(
               left: 322,
-              top: 118,
+              top: 154,
               child: Row(
                 children: [
                   _PrintDialogRadio(
@@ -355,6 +376,17 @@ class LabelPrintSettingsPanel extends StatelessWidget {
                           offset: 4,
                           child: _PrintDialogInput(
                             controller: extraAreaController,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const _PrintDialogCenteredLabel('mm'),
+                        const SizedBox(width: 24),
+                        const _PrintDialogCenteredLabel('가로 폭 보정'),
+                        const SizedBox(width: 6),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: widthAppendController,
                           ),
                         ),
                         const SizedBox(width: 5),
@@ -456,7 +488,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
           if (!_hasLabelPrintAdjustments && copiesController != null)
             const Positioned(
               left: 24,
-              top: 149,
+              top: 187,
               child: Text(
                 '매수',
                 style: TextStyle(fontSize: 30, color: Color(0xff000000)),
@@ -465,7 +497,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
           if (!_hasLabelPrintAdjustments && copiesController != null)
             Positioned(
               left: 91,
-              top: 151,
+              top: 189,
               width: 84,
               height: 38,
               child: _PrintDialogInput(

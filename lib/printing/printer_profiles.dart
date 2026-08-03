@@ -1,38 +1,27 @@
-import 'dart:io';
 import 'package:printing/printing.dart';
 
-/// Logical printer language families we may support.
-enum PrinterLanguage {
-  ezpl, // Godex EZPL-compatible
-  zpl,  // Zebra ZPL (future)
-  tspl, // TSC TSPL (future)
-  cpcl, // CPCL (future)
-  rasterOnly,
-}
+enum LegacyPrinterType { godex, zebra, bixolon, citizen, other }
 
 class PrinterProfile {
   final String vendor;
   final String model;
-  final PrinterLanguage language;
   final double? dpi; // known default DPI if available
   final double? defaultWidthMm;
   final double? defaultHeightMm;
+  final LegacyPrinterType legacyType;
 
   const PrinterProfile({
     required this.vendor,
     required this.model,
-    required this.language,
     this.dpi,
     this.defaultWidthMm,
     this.defaultHeightMm,
+    this.legacyType = LegacyPrinterType.other,
   });
-
-  bool get canSendRaw => Platform.isWindows && language != PrinterLanguage.rasterOnly;
-  bool get prefersWindowsDriverOutput => false;
 
   @override
   String toString() =>
-      'PrinterProfile(vendor=$vendor, model=$model, lang=$language, dpi=$dpi, ${defaultWidthMm}x${defaultHeightMm}mm)';
+      'PrinterProfile(vendor=$vendor, model=$model, legacy=${legacyType.name}, dpi=$dpi, ${defaultWidthMm}x${defaultHeightMm}mm)';
 }
 
 double resolveLabelPrinterDpi({
@@ -53,45 +42,53 @@ PrinterProfile detectPrinterProfile(Printer? printer) {
   final String url = (printer?.url ?? '').toUpperCase();
   final String signature = '$name $location $url';
 
-  // Godex G500 (and generally Godex): EZPL, 203dpi typical, 80x60mm default
+  // Godex G500: 203.2dpi, 80x60mm default
   if (signature.contains('GODEX G500') || signature.contains('G500')) {
     return const PrinterProfile(
       vendor: 'GoDEX',
       model: 'G500',
-      language: PrinterLanguage.ezpl,
       dpi: 203.2,
       defaultWidthMm: 80.0,
       defaultHeightMm: 60.0,
+      legacyType: LegacyPrinterType.godex,
     );
   }
-  if (signature.contains('GODEX') || signature.contains('EZPL')) {
+  if (signature.contains('GODEX')) {
     return const PrinterProfile(
       vendor: 'GoDEX',
       model: 'Unknown',
-      language: PrinterLanguage.ezpl,
       dpi: 203,
+      legacyType: LegacyPrinterType.godex,
     );
   }
 
-  // Placeholder heuristics for future support
-  if (signature.contains('ZEBRA') || signature.contains('ZPL')) {
+  if (signature.contains('ZEBRA') ||
+      signature.contains('ZDESIGNER') ||
+      signature.contains('ZPL')) {
     return const PrinterProfile(
       vendor: 'Zebra',
       model: 'Unknown',
-      language: PrinterLanguage.zpl,
+      legacyType: LegacyPrinterType.zebra,
     );
   }
-  if (signature.contains('TSC') || signature.contains('TSPL')) {
+  if (signature.contains('BIXOLON')) {
     return const PrinterProfile(
-      vendor: 'TSC',
+      vendor: 'BIXOLON',
       model: 'Unknown',
-      language: PrinterLanguage.tspl,
+      legacyType: LegacyPrinterType.bixolon,
     );
   }
-
+  if (signature.contains('CITIZEN') ||
+      signature.contains('CLP-7201E') ||
+      signature.contains('CL-S700')) {
+    return const PrinterProfile(
+      vendor: 'CITIZEN',
+      model: 'Unknown',
+      legacyType: LegacyPrinterType.citizen,
+    );
+  }
   return const PrinterProfile(
     vendor: 'Unknown',
     model: 'Unknown',
-    language: PrinterLanguage.rasterOnly,
   );
 }

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
 import 'dart:math' show max, min;
-import 'dart:typed_data';
 import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle;
 
 import 'package:collection/collection.dart';
@@ -6006,9 +6005,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? await RawPrinterWin32.queryPrinterPortName(printer)
           : null;
       final backend = resolveLabelPrintBackend(
-        language: profile.language,
         portName: portName,
-        preferWindowsDriver: profile.prefersWindowsDriverOutput,
       );
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
@@ -6057,7 +6054,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       final driverPages = <LabelPrintUnit, LabelSheetWindowsDriverPage>{};
         final driverTextDescriptors =
           <LabelPrintUnit, List<LabelSheetWindowsTextDescriptor>>{};
-      final hybridCaptures = <LabelPrintUnit, LabelSheetHybridEzplCapture>{};
       final resolvedMetrics = <LabelPrintUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
         if (_labelPrintSessionController.cancellationRequested) {
@@ -6083,8 +6079,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         final options = _labelPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
-        if (backend.usesCanvasCapture) {
-          final windowsCapture = backend == LabelPrintBackend.windowsDriver
+        final windowsCapture = backend == LabelPrintBackend.windowsDriver
               ? await _labelPrintCaptureController.captureWindowsDriver(
                   metrics: LabelSheetPrintPageMetrics(
                     labelWidthMm: unit.row.widthMm,
@@ -6170,29 +6165,6 @@ class _HomePageManagerState extends State<HomePageManager> {
               'luminanceBins=${driverPage.luminanceHistogram}',
             );
           }
-        } else {
-          final hybrid = await _labelPrintCaptureController.captureHybridEzpl(
-            metrics: LabelSheetPrintPageMetrics(
-              labelWidthMm: unit.row.widthMm,
-              labelHeightMm: unit.row.heightMm,
-              dpi: dpi,
-            ),
-            options: options,
-            lineSpacingPercent: unit.row.lineSpacingPercent,
-          );
-          if (hybrid == null) {
-            throw StateError(
-              '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
-            );
-          }
-          capturedSheet = hybrid.sheet;
-          metrics = hybrid.metrics;
-          hybridCaptures[unit] = hybrid;
-          debugLog(
-            'labelPrintQuality ezpl unit=${unitIndex + 1}/${units.length} '
-            'itemId=${unit.row.itemId} ${hybrid.diagnostics}',
-          );
-        }
         final errors = capturedSheet.images
             .map(
               (image) => image.extraFields['itemCodeError']?.toString().trim(),
@@ -6242,12 +6214,6 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
-        } else if (backend == LabelPrintBackend.ezplRaw) {
-          final bytes = BytesBuilder(copy: false);
-          for (final unit in group.units) {
-            bytes.add(hybridCaptures[unit]!.bytes);
-          }
-          payloads[group] = bytes.takeBytes();
         } else {
           payloads[group] = const <int>[];
         }
@@ -6286,6 +6252,9 @@ class _HomePageManagerState extends State<HomePageManager> {
                   pageWidthMm: group.pageSpec.widthMm.toDouble(),
                   pageHeightMm:
                       group.pageSpec.heightMm + settings.extraAreaMm,
+                  copies: 1,
+                  widthAppendMm: settings.widthAppendMm,
+                  legacyPrinterType: profile.legacyType,
                     textDescriptors:
                       driverTextDescriptors[unit] ?? const [],
                 );
@@ -6293,13 +6262,6 @@ class _HomePageManagerState extends State<HomePageManager> {
                   'labelPrintQuality gdiDispatch ${result.diagnostics}',
                 );
               }
-              return true;
-            })(),
-            LabelPrintBackend.ezplRaw => await (() async {
-              final result = await RawPrinterWin32.sendRaw(printer, payload);
-              debugLog(
-                'labelPrintQuality rawDispatch ${result.diagnostics}',
-              );
               return true;
             })(),
           };
@@ -6490,9 +6452,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? await RawPrinterWin32.queryPrinterPortName(printer)
           : null;
       final backend = resolveLabelPrintBackend(
-        language: profile.language,
         portName: portName,
-        preferWindowsDriver: profile.prefersWindowsDriverOutput,
       );
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
@@ -6540,7 +6500,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       final driverPages = <ScaleOutputUnit, LabelSheetWindowsDriverPage>{};
         final driverTextDescriptors =
           <ScaleOutputUnit, List<LabelSheetWindowsTextDescriptor>>{};
-      final hybridCaptures = <ScaleOutputUnit, LabelSheetHybridEzplCapture>{};
       final resolvedMetrics = <ScaleOutputUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
         if (_scaleOutputSessionController.cancellationRequested) {
@@ -6566,8 +6525,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         final options = _scaleOutputPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
-        if (backend.usesCanvasCapture) {
-          final windowsCapture = backend == LabelPrintBackend.windowsDriver
+        final windowsCapture = backend == LabelPrintBackend.windowsDriver
               ? await _scaleOutputCaptureController.captureWindowsDriver(
                   metrics: LabelSheetPrintPageMetrics(
                     labelWidthMm: unit.row.widthMm,
@@ -6650,29 +6608,6 @@ class _HomePageManagerState extends State<HomePageManager> {
               'luminanceBins=${driverPage.luminanceHistogram}',
             );
           }
-        } else {
-          final hybrid = await _scaleOutputCaptureController.captureHybridEzpl(
-            metrics: LabelSheetPrintPageMetrics(
-              labelWidthMm: unit.row.widthMm,
-              labelHeightMm: unit.row.heightMm,
-              dpi: dpi,
-            ),
-            options: options,
-            lineSpacingPercent: unit.row.lineSpacingPercent,
-          );
-          if (hybrid == null) {
-            throw StateError(
-              '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
-            );
-          }
-          capturedSheet = hybrid.sheet;
-          metrics = hybrid.metrics;
-          hybridCaptures[unit] = hybrid;
-          debugLog(
-            'scalePrintQuality ezpl unit=${unitIndex + 1}/${units.length} '
-            'itemId=${unit.row.itemId} ${hybrid.diagnostics}',
-          );
-        }
         final errors = capturedSheet.images
             .map(
               (image) => image.extraFields['itemCodeError']?.toString().trim(),
@@ -6726,12 +6661,6 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
-        } else if (backend == LabelPrintBackend.ezplRaw) {
-          final bytes = BytesBuilder(copy: false);
-          for (final unit in sourceUnits) {
-            bytes.add(hybridCaptures[unit]!.bytes);
-          }
-          payloads[group] = bytes.takeBytes();
         } else {
           payloads[group] = const <int>[];
         }
@@ -6772,6 +6701,9 @@ class _HomePageManagerState extends State<HomePageManager> {
                   pageWidthMm: group.pageSpec.widthMm.toDouble(),
                   pageHeightMm:
                       group.pageSpec.heightMm + settings.extraAreaMm,
+                  copies: 1,
+                  widthAppendMm: settings.widthAppendMm,
+                  legacyPrinterType: profile.legacyType,
                     textDescriptors:
                       driverTextDescriptors[unit] ?? const [],
                 );
@@ -6779,13 +6711,6 @@ class _HomePageManagerState extends State<HomePageManager> {
                   'scalePrintQuality gdiDispatch ${result.diagnostics}',
                 );
               }
-              return true;
-            })(),
-            LabelPrintBackend.ezplRaw => await (() async {
-              final result = await RawPrinterWin32.sendRaw(printer, payload);
-              debugLog(
-                'scalePrintQuality rawDispatch ${result.diagnostics}',
-              );
               return true;
             })(),
           };
@@ -6957,6 +6882,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     leftPushMm: row.leftPushMm,
     topPushMm: row.topPushMm,
     extraAreaMm: settings.extraAreaMm,
+    widthAppendMm: settings.widthAppendMm,
     autoSpacingPercent: row.lineSpacingPercent,
     orientation: settings.orientation == LabelPrintOrientation.vertical
         ? LabelSheetPrintOrientation.vertical
@@ -6974,6 +6900,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     leftPushMm: row.leftPushMm,
     topPushMm: row.topPushMm,
     extraAreaMm: settings.extraAreaMm,
+    widthAppendMm: settings.widthAppendMm,
     autoSpacingPercent: row.lineSpacingPercent,
     orientation: settings.orientation == LabelPrintOrientation.vertical
         ? LabelSheetPrintOrientation.vertical

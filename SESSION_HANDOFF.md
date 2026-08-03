@@ -1,5 +1,23 @@
 # 현재 작업 상태
 
+## 진행 중: 레거시 Windows GDI 프린터 엔진 포팅 v1.0.43
+- 요청: 현재 raw EZPL/프린터별 직접 명령 중심 로직을 실제 고품질 레거시 `.tmp/LabelManager` 기준으로 제거하고, RTF 대신 최종 라벨시트를 출력 대상으로 포팅한다.
+- 레거시 확인: `CPrintManager`는 직접 EZPL/ZPL/TSPL을 만들지 않는다. 프린터 이름을 GODEX/ZEBRA(ZDESIGNER)/BIXOLON/CITIZEN(CL-P7201E, CL-S700)/ETC로 분류한 뒤 모두 `CreateDC(WINSPOOL)` + GDI + Windows 드라이버로 출력한다.
+- 실제 제조사 차이: BIXOLON은 `dmCopies=1`로 page를 반복 출력하고, CITIZEN은 주석의 20% 설명이 아니라 실제 식 `width*10 + int(width*0.2) + appendant`를 적용한다. GODEX `-2` 및 physical offset 인자는 호출되지만 `SetWidthFormatRange` 구현에서 사용되지 않아 동작상 무효다.
+- `printer_profiles.dart`, `label_print_dispatcher.dart`: 선택 프린터 이름을 레거시 제조사 profile로 자동 매핑하고, 모든 물리 포트는 Windows driver, `FILE:/PORTPROMPT:`만 PDF로 라우팅한다. raw 언어 모델을 삭제했다.
+- `label_bitmap_print_channel.cpp`, `windows_bitmap_printer.dart`: `DMPAPER_USER`, 실제 printer DPI 기준 mm 출력 크기, BIXOLON page 반복, CITIZEN 실제 폭 식, 별도 가로 폭 보정, driver 복사 수를 포팅했다.
+- `label_sheet_print_job.dart`: FortuneSheet 공용 `TextPainter` layout으로 일반/inline 텍스트를 GDI descriptor로 전달하고, 이미지·바코드·복합 요소는 printer-DPI bitmap fallback으로 유지한다. EZPL preparation/preflight/payload/raster 코드는 삭제했다.
+- `label_sheet_workbench.dart`, `home_page_manager.dart`: 라벨시트·품목·저울 발행의 raw capture/payload/send 분기를 삭제하고 Windows GDI/PDF만 사용한다.
+- `raw_printer_win32.dart`: 프린터 선택/포트/DPI 조회는 유지하고 미사용 `WritePrinter` raw 전송 API를 삭제했다. production `lib/`의 EZPL/raw protocol 참조는 0건이다.
+- 출력 설정 모델/저장/UI에 레거시 `Width Appendant` 의미의 `가로 폭 보정(mm)`을 `세로 추가`와 별도로 복원했다.
+- EZPL 전용 테스트를 제거하고 Windows GDI/PDF 회귀 테스트를 유지했다. focused 검증: 포팅 관련 62건, dead EZPL 정리 후 print job 11건 및 dispatcher 6건 통과.
+- 변경 Dart 파일 formatter 적용 및 편집기 analyzer 12개 파일 오류 0건.
+- 출력 관련 전체 테스트 52건 통과.
+- 최초 strict analyzer는 `raw_printer_win32.dart`의 미사용 `dart:typed_data` import 1건으로 실패했다. import 제거 후 동일 18개 파일 analyzer 재실행 결과 오류·경고 0건.
+- CITIZEN 폭 계산을 레거시 실제 식으로 재대조해 보정 폭과 분리했으며 Windows `/WX` Debug 재빌드 성공.
+- `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.43` 확인.
+- stage/commit 대상: 프린터 GDI 포팅 production 12개, 관련 테스트 6개, Windows bridge, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료·실물 검증 대기: Godex G500 출력 zoom/회전 정규화 v1.0.42
 - v1.0.41 실물 `.tmp/KakaoTalk_20260803_214958449.jpg`와 `.tmp/log/app_2026-08-03_21-41-53.log` 분석: raw 전송은 `42749/42749`로 정상이나 native `AT`가 페이지 중심 기준 180도 반전됐고 하단 내용이 누락됐다.
 - 직접 원인 1: EZPL job이 `^L`로 시작해 프린터에 저장된 whole-label rotation 상태를 상속했다. job-local `^LR0`로 회전을 명시적으로 초기화한다.

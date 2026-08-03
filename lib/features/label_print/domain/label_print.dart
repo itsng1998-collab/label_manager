@@ -55,6 +55,7 @@ class LabelPrintSettingsSnapshot {
     required this.topPushMm,
     required this.lineSpacingPercent,
     required this.extraAreaMm,
+    this.widthAppendMm = 0,
     required this.orientation,
     this.pdfSingleFile = true,
   });
@@ -68,6 +69,7 @@ class LabelPrintSettingsSnapshot {
         topPushMm = 0,
         lineSpacingPercent = 100,
         extraAreaMm = 0,
+        widthAppendMm = 0,
         orientation = LabelPrintOrientation.horizontal,
         pdfSingleFile = true;
 
@@ -79,6 +81,7 @@ class LabelPrintSettingsSnapshot {
   final double topPushMm;
   final int? lineSpacingPercent;
   final double extraAreaMm;
+  final double widthAppendMm;
   final LabelPrintOrientation orientation;
   final bool pdfSingleFile;
 }

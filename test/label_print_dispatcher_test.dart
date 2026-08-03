@@ -24,53 +24,37 @@ void main() {
     expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 300), 300);
   });
 
-  test('backend resolves only EZPL non-file ports to raw', () {
-    expect(
-      resolveLabelPrintBackend(
-        language: PrinterLanguage.ezpl,
-        portName: 'USB001',
-      ),
-      LabelPrintBackend.ezplRaw,
-    );
-    expect(
-      resolveLabelPrintBackend(
-        language: PrinterLanguage.ezpl,
-        portName: null,
-      ),
-      LabelPrintBackend.ezplRaw,
-    );
-    for (final value in [
-      (PrinterLanguage.ezpl, ' FILE: '),
-      (PrinterLanguage.ezpl, 'portprompt:'),
-      (PrinterLanguage.zpl, 'USB001'),
-      (PrinterLanguage.tspl, null),
-      (PrinterLanguage.cpcl, null),
-      (PrinterLanguage.rasterOnly, null),
-    ]) {
+  test('backend maps every physical printer to the Windows legacy driver', () {
+    for (final port in ['USB001', null]) {
       expect(
-        resolveLabelPrintBackend(language: value.$1, portName: value.$2),
+        resolveLabelPrintBackend(portName: port),
+        LabelPrintBackend.windowsDriver,
+      );
+    }
+    for (final port in [' FILE: ', 'portprompt:']) {
+      expect(
+        resolveLabelPrintBackend(portName: port),
         LabelPrintBackend.pdf,
       );
     }
   });
 
-  test('Godex G500 uses raw EZPL instead of Windows driver output', () {
-    expect(
-      resolveLabelPrintBackend(
-        language: PrinterLanguage.ezpl,
-        portName: 'USB001',
-        preferWindowsDriver: detectPrinterProfile(
-          const Printer(url: 'Godex G500', name: 'Godex G500'),
-        ).prefersWindowsDriverOutput,
-      ),
-      LabelPrintBackend.ezplRaw,
-    );
+  test('legacy printer names map to the original driver profiles', () {
+    LegacyPrinterType type(String name) => detectPrinterProfile(
+      Printer(url: name, name: name),
+    ).legacyType;
+
+    expect(type('Godex G500'), LegacyPrinterType.godex);
+    expect(type('ZDesigner ZD421'), LegacyPrinterType.zebra);
+    expect(type('BIXOLON SLP-DX420'), LegacyPrinterType.bixolon);
+    expect(type('Citizen CL-S700'), LegacyPrinterType.citizen);
+    expect(type('CLP-7201E'), LegacyPrinterType.citizen);
+    expect(type('Generic Label Printer'), LegacyPrinterType.other);
   });
 
   test('Windows driver output stays separate from PDF virtual printers', () {
     expect(LabelPrintBackend.windowsDriver.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.pdf.usesCanvasCapture, isTrue);
-    expect(LabelPrintBackend.ezplRaw.usesCanvasCapture, isFalse);
     expect(
       labelPrintRenderDpi(
         backend: LabelPrintBackend.windowsDriver,
@@ -87,33 +71,6 @@ void main() {
     );
   });
 
-  test('raw failure is propagated without PDF fallback', () async {
-    var rawCalls = 0;
-    var pdfCalls = 0;
-    final dispatcher = LabelPrintDispatcher(
-      sendPdf: (_) async {
-        pdfCalls += 1;
-        return true;
-      },
-      sendWindowsDriver: (_) async => true,
-      sendRaw: (_) async {
-        rawCalls += 1;
-        throw StateError('raw failed');
-      },
-    );
-
-    await expectLater(
-      dispatcher.dispatch(
-        backend: LabelPrintBackend.ezplRaw,
-        pdfBytes: Uint8List(1),
-        rawBytes: Uint8List(1),
-      ),
-      throwsStateError,
-    );
-    expect(rawCalls, 1);
-    expect(pdfCalls, 0);
-  });
-
   test('Windows driver dispatch does not call PDF sender', () async {
     var pdfCalls = 0;
     var windowsCalls = 0;
@@ -126,13 +83,11 @@ void main() {
         windowsCalls += 1;
         return true;
       },
-      sendRaw: (_) async => true,
     );
 
     final accepted = await dispatcher.dispatch(
       backend: LabelPrintBackend.windowsDriver,
       pdfBytes: Uint8List(1),
-      rawBytes: Uint8List(1),
     );
 
     expect(accepted, isTrue);

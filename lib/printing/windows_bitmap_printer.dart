@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
+import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:printing/printing.dart';
 
 class WindowsBitmapPrintResult {
@@ -29,6 +30,9 @@ class WindowsBitmapPrinter {
     required int sourceHeight,
     required double pageWidthMm,
     required double pageHeightMm,
+    required int copies,
+    required double widthAppendMm,
+    required LegacyPrinterType legacyPrinterType,
     List<LabelSheetWindowsTextDescriptor> textDescriptors = const [],
   }) async {
     if (!Platform.isWindows) {
@@ -44,6 +48,9 @@ class WindowsBitmapPrinter {
         'sourceHeight': sourceHeight,
         'pageWidthMm': pageWidthMm,
         'pageHeightMm': pageHeightMm,
+        'copies': copies,
+        'widthAppendMm': widthAppendMm,
+        'legacyPrinterType': legacyPrinterType.name,
         'textDescriptors': [
           for (final descriptor in textDescriptors) descriptor.toChannelMap(),
         ],

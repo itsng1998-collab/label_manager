@@ -26,6 +26,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
         : '${normalizeLegacyLabelPrintSpacingPercent(initial.lineSpacingPercent)}',
   );
   final extraArea = TextEditingController(text: '${initial.extraAreaMm}');
+  final widthAppend = TextEditingController(text: '${initial.widthAppendMm}');
   var printerName = initial.printerName ?? '';
   var orientation = initial.orientation == LabelPrintOrientation.vertical
       ? 'vertical'
@@ -67,6 +68,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
             leftPushController: leftPush,
             topPushController: topPush,
             extraAreaController: extraArea,
+            widthAppendController: widthAppend,
             autoSpacing: lineSpacing.text == '0'
                 ? 'none'
                 : lineSpacing.text,
@@ -136,6 +138,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                       topPush: topPush.text,
                       lineSpacing: lineSpacing.text,
                       extraArea: extraArea.text,
+                      widthAppend: widthAppend.text,
                       orientation: orientation,
                       pdfSingleFile: isPdfPrinter && pdfSingleFile,
                     );
