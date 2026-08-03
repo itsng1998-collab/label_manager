@@ -312,7 +312,7 @@ void main() {
     expect(layout.hasContentIntersection, isTrue);
   });
 
-  test('vertical physical layout rotates content without swapping page size', () {
+  test('vertical physical layout rotates content and swaps page size', () {
     final layout = LabelSheetPrintLayout.resolve(
       metrics: const LabelSheetPrintPageMetrics(
         labelWidthMm: 60,
@@ -331,10 +331,12 @@ void main() {
       ),
     );
 
-    expect(layout.pageWidthMm, 60);
-    expect(layout.pageHeightMm, 42);
+    expect(layout.pageWidthMm, 40);
+    expect(layout.pageHeightMm, 62);
     expect(layout.contentWidthMm, 30);
     expect(layout.contentHeightMm, 50);
+    expect(layout.clipRightMm, 40);
+    expect(layout.clipBottomMm, 60);
   });
 
   test('Windows driver page preserves final printer grid grayscale', () {

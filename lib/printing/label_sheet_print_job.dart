@@ -254,12 +254,16 @@ class LabelSheetPrintPageMetrics {
   final double? sourceWidthMm;
   final double? sourceHeightMm;
 
-  double get pageWidthMm => labelWidthMm.toDouble();
+  double pageWidthMm(LabelSheetPrintOptions options) =>
+      options.rotateQuarterTurns
+      ? labelHeightMm.toDouble()
+      : labelWidthMm.toDouble();
   double get effectiveSourceWidthMm => sourceWidthMm ?? labelWidthMm.toDouble();
   double get effectiveSourceHeightMm =>
       sourceHeightMm ?? labelHeightMm.toDouble();
   double pageHeightMm(LabelSheetPrintOptions options) =>
-      labelHeightMm + math.max(0, options.extraAreaMm);
+      (options.rotateQuarterTurns ? labelWidthMm : labelHeightMm).toDouble() +
+      math.max(0, options.extraAreaMm);
 
   int dotsFromMm(num millimeters) =>
       math.max(0, (millimeters * dpi / 25.4).round());
@@ -388,9 +392,11 @@ class LabelSheetPrintLayout {
     required LabelSheetPrintOptions options,
   }) {
     final rotated = options.rotateQuarterTurns;
+    final pageWidthMm = metrics.pageWidthMm(options);
+    final pageHeightMm = metrics.pageHeightMm(options);
     return LabelSheetPrintLayout(
-      pageWidthMm: metrics.pageWidthMm,
-      pageHeightMm: metrics.pageHeightMm(options),
+      pageWidthMm: pageWidthMm,
+      pageHeightMm: pageHeightMm,
       contentLeftMm: options.leftMarginMm + options.leftPushMm,
       contentTopMm: options.topMarginMm + options.topPushMm,
       contentWidthMm: rotated
@@ -399,8 +405,10 @@ class LabelSheetPrintLayout {
       contentHeightMm: rotated
           ? metrics.effectiveSourceWidthMm
           : metrics.effectiveSourceHeightMm,
-      clipRightMm: metrics.pageWidthMm - options.rightMarginMm,
-      clipBottomMm: metrics.labelHeightMm.toDouble(),
+      clipRightMm: pageWidthMm - options.rightMarginMm,
+      clipBottomMm: rotated
+          ? metrics.labelWidthMm.toDouble()
+          : metrics.labelHeightMm.toDouble(),
     );
   }
 

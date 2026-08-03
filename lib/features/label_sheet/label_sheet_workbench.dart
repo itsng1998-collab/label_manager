@@ -2136,7 +2136,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         bgraBytes: driverPage.bgraBytes,
         sourceWidth: driverPage.width,
         sourceHeight: driverPage.height,
-        pageWidthMm: metrics.pageWidthMm,
+        pageWidthMm: metrics.pageWidthMm(options),
         pageHeightMm: metrics.pageHeightMm(options),
         copies: options.copies,
         widthAppendMm: options.widthAppendMm,
@@ -2159,7 +2159,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       printer: printer,
       name: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
       format: PdfPageFormat(
-        metrics.pageWidthMm * PdfPageFormat.mm,
+        metrics.pageWidthMm(options) * PdfPageFormat.mm,
         metrics.pageHeightMm(options) * PdfPageFormat.mm,
         marginAll: 0,
       ),

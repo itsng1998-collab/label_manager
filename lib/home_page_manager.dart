@@ -6192,9 +6192,14 @@ class _HomePageManagerState extends State<HomePageManager> {
         units,
         (unit) {
           final metrics = resolvedMetrics[unit]!;
+          final options = _labelPrintOptions(unit.row, settings);
           return LabelPhysicalPageSpec(
-            widthMm: unit.row.widthMm,
-            heightMm: unit.row.heightMm,
+            widthMm: options.rotateQuarterTurns
+                ? unit.row.heightMm
+                : unit.row.widthMm,
+            heightMm: options.rotateQuarterTurns
+                ? unit.row.widthMm
+                : unit.row.heightMm,
             sourceWidthMm: metrics.effectiveSourceWidthMm,
             sourceHeightMm: metrics.effectiveSourceHeightMm,
             dpi: dpi,
@@ -6635,9 +6640,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       final groups = groupAdjacentLabelPrintUnits(labelUnits, (unit) {
         final sourceUnit = units[labelUnits.indexOf(unit)];
         final metrics = resolvedMetrics[sourceUnit]!;
+        final options = _scaleOutputPrintOptions(sourceUnit.row, settings);
         return LabelPhysicalPageSpec(
-          widthMm: sourceUnit.row.widthMm,
-          heightMm: sourceUnit.row.heightMm,
+          widthMm: options.rotateQuarterTurns
+              ? sourceUnit.row.heightMm
+              : sourceUnit.row.widthMm,
+          heightMm: options.rotateQuarterTurns
+              ? sourceUnit.row.widthMm
+              : sourceUnit.row.heightMm,
           sourceWidthMm: metrics.effectiveSourceWidthMm,
           sourceHeightMm: metrics.effectiveSourceHeightMm,
           dpi: dpi,

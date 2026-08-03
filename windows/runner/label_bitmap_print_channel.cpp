@@ -217,9 +217,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   devmode->dmPaperLength = static_cast<short>(page_height_mm * 10.0 + 0.5);
   devmode->dmOrientation = DMORIENT_PORTRAIT;
   devmode->dmCopies = static_cast<short>(bixolon ? 1 : copies);
-  DocumentPropertiesW(nullptr, printer,
-                      const_cast<wchar_t*>(printer_name.c_str()), devmode,
-                      devmode, DM_IN_BUFFER | DM_OUT_BUFFER);
+  if (DocumentPropertiesW(nullptr, printer,
+                          const_cast<wchar_t*>(printer_name.c_str()), devmode,
+                          devmode, DM_IN_BUFFER | DM_OUT_BUFFER) != IDOK) {
+    ClosePrinter(printer);
+    return PrintResult(false, {}, "DocumentPropertiesW apply failed");
+  }
   ClosePrinter(printer);
 
   HDC printer_dc = CreateDCW(L"WINSPOOL", printer_name.c_str(), nullptr, devmode);
@@ -240,8 +243,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const int target_height = dpi_y > 0
                                 ? static_cast<int>(page_height_mm * dpi_y / 25.4 + 0.5)
                                 : source_height;
-  const int destination_x = -physical_offset_x;
-  const int destination_y = -physical_offset_y;
+  const int destination_x = 0;
+  const int destination_y = 0;
   size_t native_text_requested_characters = 0;
   int native_text_min_height = 0;
   int native_text_max_height = 0;
@@ -263,6 +266,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   diagnostics << "printerDpi=" << dpi_x << "x" << dpi_y
               << " source=" << source_width << "x" << source_height
               << " target=" << target_width << "x" << target_height
+              << " scale=" << static_cast<double>(target_width) / source_width
+              << "x" << static_cast<double>(target_height) / source_height
               << " horzRes=" << GetDeviceCaps(printer_dc, HORZRES)
               << " vertRes=" << GetDeviceCaps(printer_dc, VERTRES)
               << " physical=" << physical_width << "x" << physical_height
@@ -327,8 +332,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       int native_text_failed = 0;
       size_t native_text_characters = 0;
       for (const auto& descriptor : text_descriptors) {
+        const int font_pixel_height = std::max(
+            1, MulDiv(descriptor.font_pixel_height, target_height,
+                      source_height));
         HFONT font = CreateFontW(
-            -descriptor.font_pixel_height, 0, 0, 0,
+            -font_pixel_height, 0, 0, 0,
             descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
             descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
@@ -339,7 +347,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         }
         HGDIOBJ previous_font = SelectObject(printer_dc, font);
         const COLORREF previous_color = SetTextColor(printer_dc, descriptor.color);
-        RECT text_rect = descriptor.rect;
+        RECT text_rect{
+          MulDiv(descriptor.rect.left, target_width, source_width),
+          MulDiv(descriptor.rect.top, target_height, source_height),
+          MulDiv(descriptor.rect.right, target_width, source_width),
+          MulDiv(descriptor.rect.bottom, target_height, source_height),
+        };
         OffsetRect(&text_rect, destination_x, destination_y);
         UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
         if (descriptor.horizontal_align == "0") {

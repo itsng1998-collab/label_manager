@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 레거시 GDI 포팅 재점검 v1.0.44
+- 사용자 확정: 세로 출력은 현재 용지 크기를 유지하지 않고 레거시 방식으로 폭·높이를 교환한다. 80x60 설정은 60x80 물리 용지로 출력한다.
+- 확인된 수정 대상: 공용 `LabelSheetPrintLayout`의 세로 page/clip 크기, 품목·저울/라벨시트 dispatch의 실제 page mm, GDI native text의 source bitmap→printer DC 배율, `DocumentPropertiesW` DEVMODE 적용 실패 전달.
+- `label_sheet_print_job.dart`: 세로 60x40 + 추가 2mm를 40x62mm page, 40x60mm clip으로 계산하도록 공용 layout/page API를 수정했다.
+- `label_sheet_workbench.dart`, `home_page_manager.dart`: 라벨시트·품목·저울의 GDI/PDF dispatch page mm도 공용 세로 물리 크기를 사용한다.
+- `label_bitmap_print_channel.cpp`: native text rect/font에 bitmap과 같은 source→actual DC 배율을 적용하고, 레거시에서 계산만 하고 쓰지 않던 `PHYSICALOFFSET` 음수 이동을 제거했다. DEVMODE 재적용 실패를 오류로 반환한다.
+- 제기된 BIXOLON 복사, CITIZEN 폭, printer handle 누수는 레거시와 현재 호출 경로 대조 결과 실제 결함이 아니므로 추가 보완하지 않았다.
+- 세로 물리 용지 focused 테스트 통과, 변경 Dart 파일 편집기 오류 0건. 버전을 `1.0.44`로 증가했다.
+- 출력 관련 전체 테스트 52건 통과.
+- 변경 Dart 4개 파일 strict analyzer 오류·경고 0건.
+- Windows `/WX` Debug 빌드 성공. `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.44` 확인.
+- stage/commit 대상: `label_sheet_print_job.dart`, `label_sheet_workbench.dart`, `home_page_manager.dart`, Windows GDI bridge, 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 진행 중: 레거시 Windows GDI 프린터 엔진 포팅 v1.0.43
 - 요청: 현재 raw EZPL/프린터별 직접 명령 중심 로직을 실제 고품질 레거시 `.tmp/LabelManager` 기준으로 제거하고, RTF 대신 최종 라벨시트를 출력 대상으로 포팅한다.
 - 레거시 확인: `CPrintManager`는 직접 EZPL/ZPL/TSPL을 만들지 않는다. 프린터 이름을 GODEX/ZEBRA(ZDESIGNER)/BIXOLON/CITIZEN(CL-P7201E, CL-S700)/ETC로 분류한 뒤 모두 `CreateDC(WINSPOOL)` + GDI + Windows 드라이버로 출력한다.
