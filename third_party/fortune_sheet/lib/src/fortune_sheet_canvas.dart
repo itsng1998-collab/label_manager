@@ -17368,60 +17368,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
       return;
     }
-    final maxLines = cell.normalizedTextWrap == '2' ? null : 1;
-    TextAlign textAlign = TextAlign.left;
-    if (maxLines == null) {
-      switch (cell.normalizedHorizontalAlign) {
-        case '0':
-          textAlign = TextAlign.center;
-        case '2':
-          textAlign = TextAlign.right;
-        case '3':
-          textAlign = TextAlign.justify;
-      }
-    }
-    final textPainter =
-        TextPainter(
-          text: _screenshotCellTextSpan(
-            cell,
-            settings: settings,
-            fontSize: fontSize,
-            textColor: textColor,
-            outputLineHeightMultiplier: outputLineHeightMultiplier,
-          ),
-          maxLines: maxLines,
-          textAlign: textAlign,
-          textDirection: TextDirection.ltr,
-          ellipsis: cell.normalizedTextWrap == '2' ? null : '',
-        )..layout(
-          maxWidth: maxLines == null
-              ? math.max(0.0, rect.width)
-              : double.infinity,
-        );
-    final dx = maxLines == null
-        ? rect.left
-        : _screenshotTextLeft(
-            cell,
-            rect,
-            math.min(textPainter.width, rect.width),
-          );
     final textOffsetY = _screenshotDoubleExtra(
       cell.extraFields,
       fortuneCellTextOffsetYExtraKey,
     );
-    final lineMetrics = textPainter.computeLineMetrics();
-    final lastLineDescent = lineMetrics.isEmpty
-        ? 0.0
-        : lineMetrics.last.descent;
-    final dy = textOffsetY == null || !textOffsetY.isFinite
-        ? _screenshotTextTop(cell, rect, textPainter.height)
-        : rect.top +
-              fortuneClampedCellTextOffsetY(
-                textOffsetY,
-                rect.height,
-                textPainter.height,
-                bottomOverflow: lastLineDescent,
-              );
+    final layout = fortuneLayoutCellText(
+      settings: settings,
+      cell: cell,
+      logicalBounds: rect,
+      fontSizeOverride: fontSize,
+      textSpan: _screenshotCellTextSpan(
+        cell,
+        settings: settings,
+        fontSize: fontSize,
+        textColor: textColor,
+        outputLineHeightMultiplier: outputLineHeightMultiplier,
+      ),
+      textOffsetY: textOffsetY,
+      outputLineHeightMultiplier: outputLineHeightMultiplier,
+    );
+    if (layout == null) return;
+    final textPainter = layout.painter;
+    final dx = layout.paintOffset.dx;
+    final dy = layout.paintOffset.dy;
     final rotation = cell.normalizedTextRotation;
     canvas.save();
     canvas.clipRect(rect, doAntiAlias: false);

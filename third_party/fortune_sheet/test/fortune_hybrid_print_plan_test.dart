@@ -191,6 +191,52 @@ void main() {
     expect(diagnostics.cellTextExcluded, isEmpty);
   });
 
+  test('cell text crossing the page edge uses its clipped native footprint', () {
+    final edgeSheet = FortuneSheet(
+      id: 'edge-text',
+      name: 'Edge Text',
+      rowCount: 1,
+      columnCount: 1,
+      defaultRowHeight: 40,
+      defaultColWidth: 120,
+      cells: {
+        const FortuneCellCoord(0, 0): const FortuneCell(value: '경계 텍스트'),
+      },
+    );
+    const edgeTransform = FortunePrintTransform(
+      sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 100, 40),
+      dpi: 203.2,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 26.4583333333,
+      clipBottomMm: 10.5833333333,
+      nativeAllowed: true,
+    );
+    final diagnostics = FortuneNativeCandidateDiagnostics();
+    final candidate = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: edgeSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 0,
+      ),
+      transform: edgeTransform,
+      diagnostics: diagnostics,
+    ).singleWhere(
+      (value) => value.kind == FortuneNativeCandidateKind.cellText,
+    );
+
+    expect(candidate.logicalPaintedFootprint.right, 100);
+    expect(candidate.logicalTextLayoutBounds?.right, 119);
+    expect(
+      candidate.printerPaintedFootprint.right,
+      closeTo(100 * 203.2 / 96, 0.01),
+    );
+    expect(diagnostics.cellTextExcluded, isEmpty);
+  });
+
   testWidgets('approved dynamic text is omitted from filtered capture', (
     tester,
   ) async {

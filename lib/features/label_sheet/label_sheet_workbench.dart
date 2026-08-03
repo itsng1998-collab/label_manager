@@ -928,10 +928,15 @@ class LabelSheetHybridEzplCapture {
     final textApproved = approvedCounts[FortuneNativeCandidateKind.cellText] ?? 0;
     final textLayouts = textDescriptors.map((descriptor) {
       final bounds = descriptor.predictedPaintedFootprint;
+      final lines = descriptor.textLineFootprints.map((line) {
+        return '${line.left.round()},${line.top.round()},'
+          '${line.width.round()}x${line.height.round()}';
+      }).join('|');
       return '${descriptor.candidateToken}@'
         '${bounds.left.round()},${bounds.top.round()},'
         '${bounds.width.round()}x${bounds.height.round()}/'
-        '${descriptor.fontHeightDots ?? 0}/${descriptor.lineCount}';
+        '${descriptor.fontHeightDots ?? 0}/${descriptor.lineCount}'
+        '{${lines.isEmpty ? "-" : lines}}';
     }).join(';');
     final rejectionSummary = textRejectionCounts.entries
       .map((entry) => '${entry.key}:${entry.value}')

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
-import 'dart:ui';
+
+import 'package:flutter/painting.dart';
 
 import 'fortune_border_compute.dart';
 import 'fortune_sheet_model.dart' hide Rect;
@@ -8,6 +9,152 @@ import 'fortune_sheet_painter.dart';
 enum FortuneNativeCandidateKind { barcode, line, rectangle, cellBorder, cellText }
 
 enum FortuneCellBorderEdgeAxis { vertical, horizontal }
+
+class FortuneNativeTextLineLayout {
+  const FortuneNativeTextLineLayout({
+    required this.text,
+    required this.logicalLeft,
+    required this.logicalTop,
+    required this.logicalWidth,
+    required this.logicalHeight,
+  });
+
+  final String text;
+  final double logicalLeft;
+  final double logicalTop;
+  final double logicalWidth;
+  final double logicalHeight;
+}
+
+class FortuneNativeCellTextLayout {
+  FortuneNativeCellTextLayout({
+    required this.fontSize,
+    required this.painter,
+    required this.paintOffset,
+    required this.lines,
+  });
+
+  final double fontSize;
+  final TextPainter painter;
+  final Offset paintOffset;
+  final List<FortuneNativeTextLineLayout> lines;
+}
+
+FortuneNativeCellTextLayout? fortuneLayoutCellText({
+  required FortuneSettings settings,
+  required FortuneCell cell,
+  required Rect logicalBounds,
+  double? fontSizeOverride,
+  InlineSpan? textSpan,
+  double? textOffsetY,
+  double? outputLineHeightMultiplier,
+}) {
+  if (logicalBounds.isEmpty || cell.renderedText.isEmpty) return null;
+  final fontSize = fontSizeOverride ?? cell.fontSize ?? settings.defaultFontSize;
+  final storedLineHeight = _fortunePrintDoubleExtra(
+    cell.extraFields,
+    'lineHeight',
+  );
+  double? lineHeight;
+  if (outputLineHeightMultiplier != null &&
+      outputLineHeightMultiplier.isFinite &&
+      outputLineHeightMultiplier > 0) {
+    lineHeight = outputLineHeightMultiplier;
+  } else if (storedLineHeight != null &&
+      storedLineHeight.isFinite &&
+      storedLineHeight > 0) {
+    lineHeight = storedLineHeight;
+  }
+  final maxLines = cell.normalizedTextWrap == '2' ? null : 1;
+  final textAlign = maxLines == null
+      ? switch (cell.normalizedHorizontalAlign) {
+          '0' => TextAlign.center,
+          '2' => TextAlign.right,
+          '3' => TextAlign.justify,
+          _ => TextAlign.left,
+        }
+      : TextAlign.left;
+  final painter = TextPainter(
+    text: textSpan ?? TextSpan(
+      text: cell.renderedText,
+      style: TextStyle(
+        fontSize: fontSize,
+        fontFamily: fortuneResolveFontFamily(
+          cell.fontFamily,
+          settings.fontFamilies,
+        ),
+        fontWeight: cell.bold ? FontWeight.w700 : FontWeight.w400,
+        fontStyle: cell.italic ? FontStyle.italic : FontStyle.normal,
+        height: lineHeight,
+      ),
+    ),
+    maxLines: maxLines,
+    textAlign: textAlign,
+    textDirection: TextDirection.ltr,
+    ellipsis: cell.normalizedTextWrap == '2' ? null : '',
+  )..layout(
+    maxWidth: maxLines == null ? logicalBounds.width : double.infinity,
+  );
+  final metrics = painter.computeLineMetrics();
+  if (metrics.isEmpty) return null;
+  final alignedWidth = math.min(painter.width, logicalBounds.width);
+  final painterLeft = maxLines == null
+      ? logicalBounds.left
+      : switch (cell.normalizedHorizontalAlign) {
+          '0' => logicalBounds.left +
+              math.max(0, (logicalBounds.width - alignedWidth) / 2),
+          '2' => logicalBounds.right - alignedWidth,
+          _ => logicalBounds.left,
+        };
+  final painterTop = textOffsetY == null || !textOffsetY.isFinite
+      ? switch (cell.normalizedVerticalAlign) {
+          '1' => logicalBounds.top,
+          '2' => logicalBounds.bottom - painter.height,
+          _ => logicalBounds.top +
+              math.max(0, (logicalBounds.height - painter.height) / 2),
+        }
+      : logicalBounds.top +
+          fortuneClampedCellTextOffsetY(
+            textOffsetY,
+            logicalBounds.height,
+            painter.height,
+            bottomOverflow: metrics.last.descent,
+          );
+  final lines = <FortuneNativeTextLineLayout>[];
+  var offset = 0;
+  for (final metric in metrics) {
+    final boundary = painter.getLineBoundary(TextPosition(offset: offset));
+    final end = boundary.end.clamp(boundary.start, cell.renderedText.length);
+    final lineText = cell.renderedText
+        .substring(boundary.start, end)
+        .replaceAll(RegExp(r'[\r\n]+$'), '');
+    if (lineText.isNotEmpty) {
+      lines.add(
+        FortuneNativeTextLineLayout(
+          text: lineText,
+          logicalLeft: painterLeft + metric.left,
+          logicalTop: painterTop + metric.baseline - metric.ascent,
+          logicalWidth: metric.width,
+          logicalHeight: metric.height,
+        ),
+      );
+    }
+    offset = math.max(offset + 1, boundary.end);
+  }
+  if (lines.isEmpty) return null;
+  return FortuneNativeCellTextLayout(
+    fontSize: fontSize,
+    painter: painter,
+    paintOffset: Offset(painterLeft, painterTop),
+    lines: List.unmodifiable(lines),
+  );
+}
+
+double? _fortunePrintDoubleExtra(Map<String, Object?> extraFields, String key) {
+  final value = extraFields[key];
+  if (value is num) return value.toDouble();
+  return double.tryParse('$value');
+}
 
 FortuneSheet fortuneSheetMaterializeDynamicComputedText(FortuneSheet sheet) {
   final computedText = <FortuneCellCoord, String>{};
@@ -145,6 +292,7 @@ class FortuneNativeCandidate {
     this.objectKey,
     this.cellBorderEdgeKey,
     this.cellCoord,
+    this.logicalTextLayoutBounds,
     required this.logicalPaintedFootprint,
     required this.printerPaintedFootprint,
   });
@@ -154,6 +302,7 @@ class FortuneNativeCandidate {
   final FortuneSheetObjectKey? objectKey;
   final FortuneCellBorderEdgeKey? cellBorderEdgeKey;
   final FortuneCellCoord? cellCoord;
+  final Rect? logicalTextLayoutBounds;
   final Rect logicalPaintedFootprint;
   final Rect printerPaintedFootprint;
 }
@@ -404,11 +553,15 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
       diagnostics?.recordCellTextExcluded('rawOverlayOverlap');
       continue;
     }
-    final printerFootprint = transform.logicalRectToPrinterDots(footprint);
-    if (!_sameRect(
-      printerFootprint.intersect(transform.printerClipDots),
-      printerFootprint,
-    )) {
+    final logicalFootprint = footprint.intersect(transform.sourceLogicalBounds);
+    if (logicalFootprint.isEmpty) {
+      diagnostics?.recordCellTextExcluded('printerClip');
+      continue;
+    }
+    final printerFootprint = transform
+        .logicalRectToPrinterDots(logicalFootprint)
+        .intersect(transform.printerClipDots);
+    if (printerFootprint.isEmpty) {
       diagnostics?.recordCellTextExcluded('printerClip');
       continue;
     }
@@ -417,7 +570,8 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
         token: 'text:${coord.row}:${coord.column}',
         kind: FortuneNativeCandidateKind.cellText,
         cellCoord: coord,
-        logicalPaintedFootprint: footprint,
+        logicalTextLayoutBounds: footprint,
+        logicalPaintedFootprint: logicalFootprint,
         printerPaintedFootprint: printerFootprint,
       ),
     );

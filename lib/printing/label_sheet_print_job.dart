@@ -699,6 +699,7 @@ class LabelSheetEzplNativeDescriptor {
     this.textCharacters = 0,
     this.fontHeightDots,
     this.lineCount = 0,
+    this.textLineFootprints = const <ui.Rect>[],
   });
 
   final String candidateToken;
@@ -708,6 +709,7 @@ class LabelSheetEzplNativeDescriptor {
   final int textCharacters;
   final int? fontHeightDots;
   final int lineCount;
+  final List<ui.Rect> textLineFootprints;
 
   FortuneNativeCandidateApproval get approval =>
       FortuneNativeCandidateApproval(
@@ -841,55 +843,63 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
   }
   final resolvedCell = cell!;
   final target = candidate.printerPaintedFootprint;
+  final layout = fortuneLayoutCellText(
+    settings: settings,
+    cell: resolvedCell,
+    logicalBounds:
+      candidate.logicalTextLayoutBounds ?? candidate.logicalPaintedFootprint,
+    outputLineHeightMultiplier: lineSpacingPercent == null
+        ? null
+        : lineSpacingPercent / 100,
+  );
+  if (layout == null || layout.painter.didExceedMaxLines) {
+    onRejected('textLayout');
+    return null;
+  }
+  final layoutBounds =
+      candidate.logicalTextLayoutBounds ?? candidate.logicalPaintedFootprint;
+  const layoutTolerance = 0.5;
+  for (final line in layout.lines) {
+    if (line.logicalLeft < layoutBounds.left - layoutTolerance ||
+        line.logicalLeft + line.logicalWidth >
+            layoutBounds.right + layoutTolerance) {
+      onRejected('widthOverflow');
+      return null;
+    }
+    if (line.logicalTop < layoutBounds.top - layoutTolerance ||
+        line.logicalTop + line.logicalHeight >
+            layoutBounds.bottom + layoutTolerance) {
+      onRejected('heightOverflow');
+      return null;
+    }
+  }
   final fontHeight = math.max(
     8,
-    ((resolvedCell.fontSize ?? settings.defaultFontSize) *
-            transform.dotsPerLogicalPixel)
+    (layout.fontSize * transform.dotsPerLogicalPixel)
         .round(),
   );
-  final lines = _ezplTextLines(
-    resolvedCell.renderedText,
-    maxWidthDots: target.width.floor(),
-    fontHeightDots: fontHeight,
-    wrap: resolvedCell.normalizedTextWrap == '2',
-  );
-  if (lines == null || lines.isEmpty) {
-    onRejected('widthOverflow');
-    return null;
-  }
-  final lineAdvance = math.max(
-    1,
-    (fontHeight * ((lineSpacingPercent ?? 112) / 100)).round(),
-  );
-  final textHeight = fontHeight + (lines.length - 1) * lineAdvance;
-  if (textHeight > target.height) {
-    onRejected('heightOverflow');
-    return null;
-  }
-  var top = target.top.round();
-  if (resolvedCell.normalizedVerticalAlign == '2') {
-    top = target.bottom.round() - textHeight;
-  } else if (resolvedCell.normalizedVerticalAlign != '1') {
-    top += math.max(0, (target.height.round() - textHeight) ~/ 2);
-  }
   final style = StringBuffer('0');
   if (resolvedCell.bold) style.write('B');
   if (resolvedCell.italic) style.write('T');
   if (resolvedCell.underline) style.write('U');
   style.write('E');
   final command = StringBuffer();
-  for (var index = 0; index < lines.length; index += 1) {
-    final line = lines[index];
-    final lineWidth = _ezplEstimatedTextWidth(line, fontHeight);
-    var left = target.left.round();
-    if (resolvedCell.normalizedHorizontalAlign == '2') {
-      left = target.right.round() - lineWidth.ceil();
-    } else if (resolvedCell.normalizedHorizontalAlign == '0') {
-      left += math.max(0, (target.width.round() - lineWidth.ceil()) ~/ 2);
-    }
+  final textLineFootprints = <ui.Rect>[];
+  for (final line in layout.lines) {
+    final lineDots = transform.logicalRectToPrinterDots(
+      ui.Rect.fromLTWH(
+        line.logicalLeft,
+        line.logicalTop,
+        line.logicalWidth,
+        line.logicalHeight,
+      ),
+    );
+    final left = lineDots.left.round();
+    final top = lineDots.top.round();
+    textLineFootprints.add(lineDots);
     command.write(
-      'AT,$left,${top + index * lineAdvance},$fontHeight,$fontHeight,0,'
-      '$style,0,0,${_escapeEzplText(line)}\r\n',
+      'AT,$left,$top,$fontHeight,$fontHeight,0,'
+      '$style,0,0,${_escapeEzplText(line.text)}\r\n',
     );
   }
   return LabelSheetEzplNativeDescriptor(
@@ -899,58 +909,9 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
     utf8: true,
     textCharacters: resolvedCell.renderedText.runes.length,
     fontHeightDots: fontHeight,
-    lineCount: lines.length,
+    lineCount: layout.lines.length,
+    textLineFootprints: List.unmodifiable(textLineFootprints),
   );
-}
-
-List<String>? _ezplTextLines(
-  String text, {
-  required int maxWidthDots,
-  required int fontHeightDots,
-  required bool wrap,
-}) {
-  if (maxWidthDots <= 0) return null;
-  final result = <String>[];
-  for (final explicitLine in text.replaceAll('\r\n', '\n').split('\n')) {
-    if (!wrap) {
-      if (_ezplEstimatedTextWidth(explicitLine, fontHeightDots) >
-          maxWidthDots) {
-        return null;
-      }
-      result.add(explicitLine);
-      continue;
-    }
-    var line = StringBuffer();
-    for (final rune in explicitLine.runes) {
-      final character = String.fromCharCode(rune);
-      final next = '${line.toString()}$character';
-      if (line.isNotEmpty &&
-          _ezplEstimatedTextWidth(next, fontHeightDots) > maxWidthDots) {
-        result.add(line.toString().trimRight());
-        line = StringBuffer(character.trimLeft());
-      } else {
-        line.write(character);
-      }
-    }
-    result.add(line.toString());
-  }
-  return result;
-}
-
-double _ezplEstimatedTextWidth(String text, int fontHeightDots) {
-  var units = 0.0;
-  for (final rune in text.runes) {
-    if (rune == 0x20) {
-      units += 0.35;
-    } else if (rune <= 0x7f) {
-      units += RegExp(r'[A-Z0-9]').hasMatch(String.fromCharCode(rune))
-          ? 0.62
-          : 0.52;
-    } else {
-      units += 1;
-    }
-  }
-  return units * fontHeightDots;
 }
 
 LabelSheetEzplNativeDescriptor? _preflightEzplBarcodeCandidate({

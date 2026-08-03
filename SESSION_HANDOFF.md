@@ -1,6 +1,28 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: Godex G500 동적 셀 전체 EZPL 직접 출력 v1.0.40
+## 완료·실물 검증 대기: Godex G500 경계 셀 EZPL 직접 출력 v1.0.41
+- v1.0.40 실물 `.tmp/KakaoTalk_20260803_205704138.jpg`와 `.tmp/log/app_2026-08-03_20-39-52.log` 분석: raw 전송은 `42461/42461`, native `AT` 텍스트는 선명하지만 30개 렌더 텍스트 중 20개가 모두 `printerClip`에서 후보 생성 전 탈락했다.
+- `cellText=10`, `fontHeight=17..17`이며 원부재료·검은 띠·영양정보·하단 문구는 raster에 남았다. 물리 라벨 경계를 일부 넘는 병합/끝 셀 footprint를 전부 거절한 것이 직접 원인이다.
+- `fortune_print_plan.dart`: 셀과 물리 page의 교차 영역을 native 제거 footprint로 사용하되 원래 셀 footprint를 텍스트 레이아웃 영역으로 별도 보존했다. 경계 셀 focused 테스트 통과.
+- `fortuneLayoutCellText`: 화면 캡처와 EZPL이 동일한 `TextPainter` 인스턴스/offset 계산을 사용하도록 공용화했다. font family/size/bold/italic/line-height/정렬과 nowrap clamp를 보존하며 실제 줄 문자열과 좌표를 반환한다.
+- `label_sheet_print_job.dart`: 고정 한글 폭 추정과 임의 줄간격을 제거하고 공용 레이아웃의 각 줄을 UTF-8 `AT`로 변환한다. 원래 셀 영역을 넘는 줄은 `widthOverflow/heightOverflow` fallback으로 유지한다.
+- `label_sheet_workbench.dart`: `textLayouts` 진단에 각 `AT` 줄의 실제 dot `x,y,width,height`를 추가했다.
+- GoLabel의 `AZ1`~`AZ9` Asian font 설정은 모두 비어 있다. 검증되지 않은 `At ... I`를 보내면 한글 누락 위험이 있어 검은 배경/흰 글자는 현재 `~G` EZPL fallback을 유지한다.
+- focused/핵심 출력 테스트 33건 통과. 페이지 경계 셀의 UTF-8 `AT` 승인 통합 테스트를 추가했고 focused 재검증에 통과했다.
+- 버전을 `1.0.41`로 증가했다. 검증 실행 예정: 출력 관련 전체 테스트, 변경 파일 analyzer, Windows `/WX` Debug build, `git diff --check`, EXE 버전 확인.
+- 출력 관련 전체 테스트 67건 통과.
+- analyzer 실행 예정: `flutter analyze lib/printing/label_sheet_print_job.dart lib/features/label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_print_plan.dart test/label_sheet_print_job_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`.
+- 최초 analyzer는 `fortune_print_plan.dart`의 중복 `dart:ui` import info 1건으로 실패했다. import 제거 후 동일 analyzer 재실행 결과 오류·경고 0건.
+- Windows 검증 실행 예정: `$env:CL='/WX'; flutter build windows --debug` 후 `git diff --check`, EXE FileVersion/ProductVersion 확인.
+- 최초 Windows `/WX` Debug 빌드는 실행 중인 Debug `label_manager.exe`의 파일 잠금으로 `LNK1168` 실패했다. PID 6680의 빌드 산출물 앱을 `CloseMainWindow`로 정상 종료했으며 동일 빌드를 재실행한다.
+- Debug 앱 정상 종료 후 Windows `/WX` Debug 재빌드 성공. 최종 `git diff --check`와 EXE FileVersion/ProductVersion 확인을 실행한다.
+- 공용 layout 연결 후 EZPL 한글 줄바꿈, filtered capture, screenshot 수평 정렬, red number TextSpan pixel focused 테스트 4건 통과. 최종 전체 출력 테스트/analyzer/Windows build를 재실행한다.
+- 최종 출력 관련 전체 테스트 67건 재통과.
+- 최종 strict analyzer는 canvas 제외 변경 5개 파일 오류·경고 0건. `fortune_sheet_canvas.dart --no-fatal-warnings`는 기존 미사용 경고 10건만 있고 새 오류는 없다.
+- 최종 Windows `/WX` Debug build 재실행 예정.
+- Dart formatter 적용 후 최종 출력 테스트 67건, strict analyzer 오류·경고 0건, Windows `/WX` Debug build 재통과.
+- `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.41` 확인.
+- stage/commit 대상: EZPL production 2개, FortuneSheet layout/canvas 2개, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - v1.0.39 실물 `.tmp/KakaoTalk_20260802_234102362.jpg`와 `.tmp/log/app_2026-08-02_23-39-00.log` 분석: `backend=ezplRaw`, `WritePrinter=42230/42230`, 내장 UTF-8 한글 출력은 성공했다.
 - 원인은 화면/PNG만 `dynamicArrayCompute` 값을 렌더 셀로 변환하고 print plan은 원본 `sheet.cells`만 읽어 정적 텍스트 9개/35자만 직접 승인한 것이다. 품목명·중량·날짜·제조원 등 동적 값은 raster에 남아 직접 텍스트와 배치가 달라졌다.
 - 수정 예정: FortuneSheet 공용 동적 텍스트 materialize helper를 추가하고, EZPL 후보 생성과 fallback 캡처가 동일한 snapshot을 사용하도록 한다. 후보/승인 누락 사유 로그도 확장한다.

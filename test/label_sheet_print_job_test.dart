@@ -614,6 +614,49 @@ void main() {
     expect(payload, contains('밀 함유'));
   });
 
+  test('EZPL AT approves text cells crossing the physical page edge', () {
+    const coord = fs.FortuneCellCoord(0, 0);
+    final preparation = prepareLabelSheetHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'edge-text',
+        name: 'Edge Text',
+        rowCount: 1,
+        columnCount: 1,
+        defaultRowHeight: 40,
+        defaultColWidth: 120,
+        cells: {coord: const fs.FortuneCell(value: '경계 텍스트')},
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 26,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 26,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(preparation.textCandidateExclusionCounts, isEmpty);
+    expect(preparation.textRejectionCounts, isEmpty);
+    expect(preparation.plan.approvedCellTextCoords, {coord});
+    expect(
+      preparation.descriptors.singleWhere(
+        (descriptor) => descriptor.textCharacters > 0,
+      ).command,
+      contains('경계 텍스트'),
+    );
+  });
+
   test('planned Hybrid emits dynamic computed values as native AT text', () async {
     final sheet = fs.FortuneSheet(
       id: 'dynamic-text',
