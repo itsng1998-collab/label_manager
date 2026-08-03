@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/painting.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
@@ -377,6 +378,7 @@ class LabelSheetHybridPrintPreparation {
     required this.renderedTextCells,
     required this.dynamicTextMaterialized,
     required this.textCandidateExclusionCounts,
+    required this.textCandidateExclusions,
     required this.textRejectionCounts,
   });
 
@@ -386,6 +388,7 @@ class LabelSheetHybridPrintPreparation {
   final int renderedTextCells;
   final int dynamicTextMaterialized;
   final Map<String, int> textCandidateExclusionCounts;
+  final List<FortuneNativeCellTextExclusion> textCandidateExclusions;
   final Map<String, int> textRejectionCounts;
 }
 
@@ -397,7 +400,12 @@ LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
   required LabelSheetPrintOptions options,
   int? lineSpacingPercent,
 }) {
-  final printSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
+  final materializedSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
+  final printSheet = materializedSheet.copyWith(
+    zoomRatio: 1,
+    rawZoomRatio: null,
+    hasRawZoomRatio: false,
+  );
   final dynamicTextMaterialized = printSheet.cells.entries.where((entry) {
     return sheet.cells[entry.key]?.renderedText != entry.value.renderedText;
   }).length;
@@ -442,6 +450,7 @@ LabelSheetHybridPrintPreparation prepareLabelSheetHybridPrint({
         .length,
     dynamicTextMaterialized: dynamicTextMaterialized,
     textCandidateExclusionCounts: candidateDiagnostics.cellTextExcluded,
+    textCandidateExclusions: candidateDiagnostics.cellTextExclusions,
     textRejectionCounts: Map.unmodifiable(textRejectionCounts),
   );
 }
@@ -816,38 +825,50 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
 }) {
   final coord = candidate.cellCoord;
   final cell = coord == null ? null : sheet.cells[coord];
-  final rejectionReason = cell == null
-      ? 'missingCell'
-      : cell.renderedText.isEmpty
-      ? 'emptyText'
-      : cell.inlineRuns?.isNotEmpty == true
-      ? 'inlineRuns'
-      : cell.isVerticalText
-      ? 'verticalText'
-      : cell.normalizedTextRotation != 0
-      ? 'rotatedText'
-      : cell.normalizedTextWrap == '1'
-      ? 'overflowText'
-      : cell.normalizedHorizontalAlign == '3'
-      ? 'justifyText'
-      : cell.strikeThrough
-      ? 'strikeThrough'
-      : cell.foreground.toARGB32() != 0xff000000
-      ? 'nonBlackText'
-      : cell.extraFields[fortuneCellTextOffsetYExtraKey] != null
-      ? 'customOffsetY'
-      : null;
+  final inlineRunRejection = cell == null
+      ? null
+      : _ezplInlineRunRejectionReason(cell);
+  String? rejectionReason;
+  if (cell == null) {
+    rejectionReason = 'missingCell';
+  } else if (cell.renderedText.isEmpty) {
+    rejectionReason = 'emptyText';
+  } else if (inlineRunRejection != null) {
+    rejectionReason = inlineRunRejection;
+  } else if (cell.isVerticalText) {
+    rejectionReason = 'verticalText';
+  } else if (cell.normalizedTextRotation != 0) {
+    rejectionReason = 'rotatedText';
+  } else if (cell.normalizedTextWrap == '1') {
+    rejectionReason = 'overflowText';
+  } else if (cell.normalizedHorizontalAlign == '3') {
+    rejectionReason = 'justifyText';
+  } else if (cell.strikeThrough) {
+    rejectionReason = 'strikeThrough';
+  } else if (cell.foreground.toARGB32() != 0xff000000) {
+    rejectionReason = 'nonBlackText';
+  } else if (cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
+    rejectionReason = 'customOffsetY';
+  }
   if (rejectionReason != null) {
     onRejected(rejectionReason);
     return null;
   }
   final resolvedCell = cell!;
   final target = candidate.printerPaintedFootprint;
+  final textSpan = _ezplCellTextSpan(
+    resolvedCell,
+    settings,
+    outputLineHeightMultiplier: lineSpacingPercent == null
+        ? null
+        : lineSpacingPercent / 100,
+  );
   final layout = fortuneLayoutCellText(
     settings: settings,
     cell: resolvedCell,
     logicalBounds:
       candidate.logicalTextLayoutBounds ?? candidate.logicalPaintedFootprint,
+    textSpan: textSpan,
     outputLineHeightMultiplier: lineSpacingPercent == null
         ? null
         : lineSpacingPercent / 100,
@@ -873,33 +894,41 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
       return null;
     }
   }
+  final fragments = _ezplTextFragments(resolvedCell, layout);
+  if (fragments.isEmpty) {
+    onRejected('textLayout');
+    return null;
+  }
   final fontHeight = math.max(
     8,
-    (layout.fontSize * transform.dotsPerLogicalPixel)
-        .round(),
+    (layout.fontSize * transform.dotsPerLogicalPixel).round(),
   );
-  final style = StringBuffer('0');
-  if (resolvedCell.bold) style.write('B');
-  if (resolvedCell.italic) style.write('T');
-  if (resolvedCell.underline) style.write('U');
-  style.write('E');
   final command = StringBuffer();
   final textLineFootprints = <ui.Rect>[];
-  for (final line in layout.lines) {
+  for (final fragment in fragments) {
     final lineDots = transform.logicalRectToPrinterDots(
       ui.Rect.fromLTWH(
-        line.logicalLeft,
-        line.logicalTop,
-        line.logicalWidth,
-        line.logicalHeight,
+        fragment.logicalLeft,
+        fragment.logicalTop,
+        fragment.logicalWidth,
+        fragment.logicalHeight,
       ),
     );
     final left = lineDots.left.round();
     final top = lineDots.top.round();
+    final fragmentFontHeight = math.max(
+      8,
+      (fragment.fontSize * transform.dotsPerLogicalPixel).round(),
+    );
+    final style = StringBuffer('0');
+    if (fragment.bold) style.write('B');
+    if (fragment.italic) style.write('T');
+    if (fragment.underline) style.write('U');
+    style.write('E');
     textLineFootprints.add(lineDots);
     command.write(
-      'AT,$left,$top,$fontHeight,$fontHeight,0,'
-      '$style,0,0,${_escapeEzplText(line.text)}\r\n',
+      'AT,$left,$top,$fragmentFontHeight,$fragmentFontHeight,0,'
+      '$style,0,0,${_escapeEzplText(fragment.text)}\r\n',
     );
   }
   return LabelSheetEzplNativeDescriptor(
@@ -912,6 +941,186 @@ LabelSheetEzplNativeDescriptor? _preflightEzplTextCandidate({
     lineCount: layout.lines.length,
     textLineFootprints: List.unmodifiable(textLineFootprints),
   );
+}
+
+String? _ezplInlineRunRejectionReason(FortuneCell cell) {
+  final runs = cell.inlineRuns;
+  if (runs == null || runs.isEmpty) return null;
+  if (runs.map((run) => run.text).join() != cell.renderedText) {
+    return 'inlineRunTextMismatch';
+  }
+  for (final run in runs) {
+    if ((run.foreground ?? cell.foreground).toARGB32() != 0xff000000) {
+      return 'nonBlackText';
+    }
+    if (run.strikeThrough ?? cell.strikeThrough) return 'strikeThrough';
+    if (run.extraFields['bg'] != null) return 'inlineRunBackground';
+    if (run.extraFields['script'] != null ||
+        run.extraFields['fontScale'] != null) {
+      return 'inlineRunScript';
+    }
+    if (run.extraFields['letterSpacing'] != null) {
+      return 'inlineRunLetterSpacing';
+    }
+    if (run.fontSize != null &&
+        (!run.fontSize!.isFinite || run.fontSize! <= 0)) {
+      return 'inlineRunFontSize';
+    }
+  }
+  return null;
+}
+
+InlineSpan _ezplCellTextSpan(
+  FortuneCell cell,
+  FortuneSettings settings, {
+  double? outputLineHeightMultiplier,
+}) {
+  final fontSize = cell.fontSize ?? settings.defaultFontSize;
+  final cellLineHeight = _ezplOutputLineHeight(
+    cell.extraFields,
+    outputLineHeightMultiplier,
+  );
+  final resolvedFamily = fortuneResolveFontFamily(
+    cell.fontFamily,
+    settings.fontFamilies,
+  );
+  final baseStyle = TextStyle(
+    fontSize: fontSize,
+    fontFamily: resolvedFamily,
+    fontWeight: cell.bold ? FontWeight.w700 : FontWeight.w400,
+    fontStyle: cell.italic ? FontStyle.italic : FontStyle.normal,
+    height: cellLineHeight,
+  );
+  final runs = cell.inlineRuns;
+  if (runs == null || runs.isEmpty) {
+    return TextSpan(text: cell.renderedText, style: baseStyle);
+  }
+  return TextSpan(
+    style: baseStyle,
+    children: [
+      for (final run in runs)
+        TextSpan(
+          text: run.text,
+          style: baseStyle.copyWith(
+            fontSize: run.fontSize ?? fontSize,
+            fontFamily: fortuneResolveFontFamily(
+              run.fontFamily,
+              settings.fontFamilies,
+              fallback: resolvedFamily,
+            ),
+            fontWeight: (run.bold ?? cell.bold)
+                ? FontWeight.w700
+                : FontWeight.w400,
+            fontStyle: (run.italic ?? cell.italic)
+                ? FontStyle.italic
+                : FontStyle.normal,
+            height: _ezplOutputLineHeight(
+              run.extraFields,
+              outputLineHeightMultiplier,
+              fallback: cellLineHeight,
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
+double? _ezplOutputLineHeight(
+  Map<String, Object?> extraFields,
+  double? override, {
+  double? fallback,
+}) {
+  if (override != null && override.isFinite && override > 0) return override;
+  final raw = extraFields['lineHeight'];
+  final stored = raw is num ? raw.toDouble() : double.tryParse('$raw');
+  return stored != null && stored.isFinite && stored > 0 ? stored : fallback;
+}
+
+class _EzplTextFragment {
+  const _EzplTextFragment({
+    required this.text,
+    required this.logicalLeft,
+    required this.logicalTop,
+    required this.logicalWidth,
+    required this.logicalHeight,
+    required this.fontSize,
+    required this.bold,
+    required this.italic,
+    required this.underline,
+  });
+
+  final String text;
+  final double logicalLeft;
+  final double logicalTop;
+  final double logicalWidth;
+  final double logicalHeight;
+  final double fontSize;
+  final bool bold;
+  final bool italic;
+  final bool underline;
+}
+
+List<_EzplTextFragment> _ezplTextFragments(
+  FortuneCell cell,
+  FortuneNativeCellTextLayout layout,
+) {
+  final runs = cell.inlineRuns;
+  if (runs == null || runs.isEmpty) {
+    return [
+      for (final line in layout.lines)
+        _EzplTextFragment(
+          text: line.text,
+          logicalLeft: line.logicalLeft,
+          logicalTop: line.logicalTop,
+          logicalWidth: line.logicalWidth,
+          logicalHeight: line.logicalHeight,
+          fontSize: layout.fontSize,
+          bold: cell.bold,
+          italic: cell.italic,
+          underline: cell.underline,
+        ),
+    ];
+  }
+  final fragments = <_EzplTextFragment>[];
+  var runStart = 0;
+  for (final run in runs) {
+    final runEnd = runStart + run.text.length;
+    for (final line in layout.lines) {
+      final start = math.max(runStart, line.textStart);
+      var end = math.min(runEnd, line.textEnd);
+      while (end > start &&
+          (cell.renderedText.codeUnitAt(end - 1) == 0x0a ||
+              cell.renderedText.codeUnitAt(end - 1) == 0x0d)) {
+        end -= 1;
+      }
+      if (end <= start) continue;
+      final boxes = layout.painter.getBoxesForSelection(
+        TextSelection(baseOffset: start, extentOffset: end),
+        boxHeightStyle: ui.BoxHeightStyle.strut,
+        boxWidthStyle: ui.BoxWidthStyle.tight,
+      );
+      if (boxes.isEmpty) continue;
+      final left = boxes.map((box) => box.left).reduce(math.min);
+      final top = boxes.map((box) => box.top).reduce(math.min);
+      final right = boxes.map((box) => box.right).reduce(math.max);
+      final bottom = boxes.map((box) => box.bottom).reduce(math.max);
+      fragments.add(
+        _EzplTextFragment(
+          text: cell.renderedText.substring(start, end),
+          logicalLeft: layout.paintOffset.dx + left,
+          logicalTop: layout.paintOffset.dy + top,
+          logicalWidth: right - left,
+          logicalHeight: bottom - top,
+          fontSize: run.fontSize ?? cell.fontSize ?? layout.fontSize,
+          bold: run.bold ?? cell.bold,
+          italic: run.italic ?? cell.italic,
+          underline: run.underline ?? cell.underline,
+        ),
+      );
+    }
+    runStart = runEnd;
+  }
+  return fragments;
 }
 
 LabelSheetEzplNativeDescriptor? _preflightEzplBarcodeCandidate({
@@ -1040,7 +1249,7 @@ Future<Uint8List> buildLabelSheetPlannedHybridEzplBytes({
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
     ..add(ascii.encode('^W ${metrics.pageWidthMm.round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
-    ..add(ascii.encode('^L\r\n'));
+    ..add(ascii.encode('^LR0\r\n'));
   _addEzplRasterGraphic(commands, raster);
   for (final candidate in plan.candidates) {
     final descriptor = descriptorByToken[candidate.token];
@@ -1210,7 +1419,7 @@ Future<Uint8List> buildLabelSheetEzplRasterBytes({
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
     ..add(ascii.encode('^W ${metrics.pageWidthMm.round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
-    ..add(ascii.encode('^L\r\n'))
+    ..add(ascii.encode('^LR0\r\n'))
     ..add(ascii.encode('~G\r\n'));
 
   for (var y = 0; y < raster.height; y += 1) {

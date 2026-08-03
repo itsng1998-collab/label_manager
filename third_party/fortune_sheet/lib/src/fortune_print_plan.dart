@@ -13,6 +13,8 @@ enum FortuneCellBorderEdgeAxis { vertical, horizontal }
 class FortuneNativeTextLineLayout {
   const FortuneNativeTextLineLayout({
     required this.text,
+    required this.textStart,
+    required this.textEnd,
     required this.logicalLeft,
     required this.logicalTop,
     required this.logicalWidth,
@@ -20,6 +22,8 @@ class FortuneNativeTextLineLayout {
   });
 
   final String text;
+  final int textStart;
+  final int textEnd;
   final double logicalLeft;
   final double logicalTop;
   final double logicalWidth;
@@ -132,6 +136,8 @@ FortuneNativeCellTextLayout? fortuneLayoutCellText({
       lines.add(
         FortuneNativeTextLineLayout(
           text: lineText,
+          textStart: boundary.start,
+          textEnd: end,
           logicalLeft: painterLeft + metric.left,
           logicalTop: painterTop + metric.baseline - metric.ascent,
           logicalWidth: metric.width,
@@ -319,16 +325,46 @@ class FortuneNativeCandidateApproval {
 
 class FortuneNativeCandidateDiagnostics {
   final Map<String, int> _cellTextExcluded = <String, int>{};
+  final List<FortuneNativeCellTextExclusion> _cellTextExclusions = [];
 
   Map<String, int> get cellTextExcluded => Map.unmodifiable(_cellTextExcluded);
+  List<FortuneNativeCellTextExclusion> get cellTextExclusions =>
+      List.unmodifiable(_cellTextExclusions);
 
-  void recordCellTextExcluded(String reason) {
+  void recordCellTextExcluded(
+    String reason, {
+    FortuneCellCoord? coord,
+    Rect? logicalFootprint,
+    Rect? printerFootprint,
+  }) {
     _cellTextExcluded.update(
       reason,
       (count) => count + 1,
       ifAbsent: () => 1,
     );
+    _cellTextExclusions.add(
+      FortuneNativeCellTextExclusion(
+        reason: reason,
+        coord: coord,
+        logicalFootprint: logicalFootprint,
+        printerFootprint: printerFootprint,
+      ),
+    );
   }
+}
+
+class FortuneNativeCellTextExclusion {
+  const FortuneNativeCellTextExclusion({
+    required this.reason,
+    required this.coord,
+    required this.logicalFootprint,
+    required this.printerFootprint,
+  });
+
+  final String reason;
+  final FortuneCellCoord? coord;
+  final Rect? logicalFootprint;
+  final Rect? printerFootprint;
 }
 
 class FortuneHybridRenderPlan {
@@ -369,9 +405,13 @@ List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
   FortuneNativeCandidateDiagnostics? diagnostics,
 }) {
   if (!transform.nativeAllowed || !transform.dpi.isFinite || transform.dpi <= 0) {
-    for (final cell in sheet.cells.values) {
+    for (final entry in sheet.cells.entries) {
+      final cell = entry.value;
       if (cell.renderedText.isNotEmpty) {
-        diagnostics?.recordCellTextExcluded('nativeDisabled');
+        diagnostics?.recordCellTextExcluded(
+          'nativeDisabled',
+          coord: entry.key,
+        );
       }
     }
     return const [];
@@ -515,13 +555,13 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
         coord.column < range.columnStart ||
         coord.column > range.columnEnd) {
       if (cell.renderedText.isNotEmpty) {
-        diagnostics?.recordCellTextExcluded('outsideRange');
+        diagnostics?.recordCellTextExcluded('outsideRange', coord: coord);
       }
       continue;
     }
     if (sheet.mergeAnchorFor(coord) != coord) {
       if (cell.renderedText.isNotEmpty) {
-        diagnostics?.recordCellTextExcluded('nonMergeAnchor');
+        diagnostics?.recordCellTextExcluded('nonMergeAnchor', coord: coord);
       }
       continue;
     }
@@ -542,27 +582,51 @@ List<FortuneNativeCandidate> _buildCellTextCandidates({
       metrics.rowEnd(rowEnd) - 2,
     );
     if (footprint.isEmpty) {
-      diagnostics?.recordCellTextExcluded('emptyFootprint');
+      diagnostics?.recordCellTextExcluded(
+        'emptyFootprint',
+        coord: coord,
+        logicalFootprint: footprint,
+      );
       continue;
     }
     if (objectFootprints.any((object) => object.overlaps(footprint))) {
-      diagnostics?.recordCellTextExcluded('objectOverlap');
+      diagnostics?.recordCellTextExcluded(
+        'objectOverlap',
+        coord: coord,
+        logicalFootprint: footprint,
+      );
       continue;
     }
     if (rawOverlayFootprints.any((raw) => raw.overlaps(footprint))) {
-      diagnostics?.recordCellTextExcluded('rawOverlayOverlap');
+      diagnostics?.recordCellTextExcluded(
+        'rawOverlayOverlap',
+        coord: coord,
+        logicalFootprint: footprint,
+      );
       continue;
     }
     final logicalFootprint = footprint.intersect(transform.sourceLogicalBounds);
     if (logicalFootprint.isEmpty) {
-      diagnostics?.recordCellTextExcluded('printerClip');
+      diagnostics?.recordCellTextExcluded(
+        'printerClip',
+        coord: coord,
+        logicalFootprint: footprint,
+      );
       continue;
     }
-    final printerFootprint = transform
-        .logicalRectToPrinterDots(logicalFootprint)
-        .intersect(transform.printerClipDots);
+    final transformedPrinterFootprint = transform.logicalRectToPrinterDots(
+      logicalFootprint,
+    );
+    final printerFootprint = transformedPrinterFootprint.intersect(
+      transform.printerClipDots,
+    );
     if (printerFootprint.isEmpty) {
-      diagnostics?.recordCellTextExcluded('printerClip');
+      diagnostics?.recordCellTextExcluded(
+        'printerClip',
+        coord: coord,
+        logicalFootprint: footprint,
+        printerFootprint: transformedPrinterFootprint,
+      );
       continue;
     }
     candidates.add(

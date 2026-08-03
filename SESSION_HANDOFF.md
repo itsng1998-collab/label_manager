@@ -1,5 +1,27 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: Godex G500 출력 zoom/회전 정규화 v1.0.42
+- v1.0.41 실물 `.tmp/KakaoTalk_20260803_214958449.jpg`와 `.tmp/log/app_2026-08-03_21-41-53.log` 분석: raw 전송은 `42749/42749`로 정상이나 native `AT`가 페이지 중심 기준 180도 반전됐고 하단 내용이 누락됐다.
+- 직접 원인 1: EZPL job이 `^L`로 시작해 프린터에 저장된 whole-label rotation 상태를 상속했다. job-local `^LR0`로 회전을 명시적으로 초기화한다.
+- 직접 원인 2: print geometry가 저장된 UI `sheet.zoomRatio` 약 1.7을 물리 좌표에 적용했다. 제조원 행이 49~58mm로 밀리고 30개 텍스트 중 12개가 `printerClip`으로 제외됐다. print snapshot만 `zoomRatio=1`로 정규화한다.
+- 수정 예정: zoom/회전 회귀 테스트, source/print zoom·bounds·제외 좌표·줄별 명령 로그를 추가하고 검정 inline run을 run별 UTF-8 `AT`로 직접 출력한다.
+- `label_sheet_print_job.dart`: 검정 inline run을 공용 `TextPainter`의 line boundary와 selection box로 분할해 run별 font size/bold/italic/underline을 보존한 UTF-8 `AT`로 출력한다. 비검정·취소선·배경·첨자 run만 명시적 fallback으로 남긴다.
+- `label_sheet_print_job_test.dart`: `원재료명` 굵은 run과 일반 run의 실제 줄바꿈이 3개 native `AT`로 승인되는 회귀 테스트를 추가했다.
+- focused 검증: 기존 한글 줄바꿈 `AT` 테스트와 신규 inline run native `AT` 테스트 통과.
+- `fortune_print_plan.dart`: native text 후보 제외 시 reason 합계와 함께 셀 좌표, 원본 logical footprint, 변환된 printer footprint를 보존한다.
+- `label_sheet_workbench.dart`: 품질 로그에 `sourceZoom`, 정규화 `printZoom`, `sourceLogicalBounds`, `printerClipDots`, 제외 셀별 reason/logical/printer footprint를 기록한다.
+- 셀별 `printerClip` 제외 진단 focused 테스트와 변경 production 3개 파일 analyzer 통과. Dart formatter 적용 완료.
+- 전체 출력 검증 실행 예정: `flutter test test/label_print_dispatcher_test.dart test/label_print_pipeline_test.dart test/label_sheet_print_job_test.dart test/label_print_session_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`.
+- 출력 관련 전체 테스트 70건 통과. 공용 line layout에 원문 `textStart/textEnd`를 보존해 빈 줄이 있어도 inline run fragment offset을 추정하지 않으며 focused 테스트 재통과.
+- 버전을 `1.0.42`로 증가했다.
+- 최종 검증 실행 예정: 변경 Dart 파일 strict analyzer, `$env:CL='/WX'; flutter build windows --debug`, `git diff --check`, Debug EXE FileVersion/ProductVersion 확인.
+- 변경 production/test 5개 파일 strict analyzer 오류·경고 0건. line offset 보강 후 출력 관련 전체 테스트 70건을 재실행한다.
+- line offset 보강 후 출력 관련 전체 테스트 70건 재통과.
+- Windows 검증 실행 예정: `$env:CL='/WX'; flutter build windows --debug` 후 `git diff --check`, `build/windows/x64/runner/Debug/label_manager.exe` FileVersion/ProductVersion 확인.
+- Windows `/WX` Debug build 성공. 최종 `git diff --check`와 Debug EXE FileVersion/ProductVersion를 확인한다.
+- `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.42` 확인.
+- stage/commit 대상: EZPL production 2개, FortuneSheet print plan, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료·실물 검증 대기: Godex G500 경계 셀 EZPL 직접 출력 v1.0.41
 - v1.0.40 실물 `.tmp/KakaoTalk_20260803_205704138.jpg`와 `.tmp/log/app_2026-08-03_20-39-52.log` 분석: raw 전송은 `42461/42461`, native `AT` 텍스트는 선명하지만 30개 렌더 텍스트 중 20개가 모두 `printerClip`에서 후보 생성 전 탈락했다.
 - `cellText=10`, `fontHeight=17..17`이며 원부재료·검은 띠·영양정보·하단 문구는 raster에 남았다. 물리 라벨 경계를 일부 넘는 병합/끝 셀 footprint를 전부 거절한 것이 직접 원인이다.

@@ -872,7 +872,9 @@ class LabelSheetHybridEzplCapture {
     required this.pixelHeight,
     required this.renderedTextCells,
     required this.dynamicTextMaterialized,
+    required this.sourceZoomRatio,
     required this.textCandidateExclusionCounts,
+    required this.textCandidateExclusions,
     required this.textRejectionCounts,
   });
 
@@ -887,7 +889,9 @@ class LabelSheetHybridEzplCapture {
   final int pixelHeight;
   final int renderedTextCells;
   final int dynamicTextMaterialized;
+  final double sourceZoomRatio;
   final Map<String, int> textCandidateExclusionCounts;
+  final List<FortuneNativeCellTextExclusion> textCandidateExclusions;
   final Map<String, int> textRejectionCounts;
 
   String get diagnostics {
@@ -944,11 +948,28 @@ class LabelSheetHybridEzplCapture {
     final candidateExclusionSummary = textCandidateExclusionCounts.entries
       .map((entry) => '${entry.key}:${entry.value}')
       .join(',');
+    String rectSummary(ui.Rect? rect) => rect == null
+      ? '-'
+      : '${rect.left.toStringAsFixed(1)},${rect.top.toStringAsFixed(1)},'
+        '${rect.width.toStringAsFixed(1)}x${rect.height.toStringAsFixed(1)}';
+    final excludedCells = textCandidateExclusions.map((exclusion) {
+      final coord = exclusion.coord;
+      return '${coord == null ? "-" : "${coord.row}:${coord.column}"}/'
+        '${exclusion.reason}/L:${rectSummary(exclusion.logicalFootprint)}/'
+        'P:${rectSummary(exclusion.printerFootprint)}';
+    }).join(';');
+    final sourceBounds = plan.transform.sourceLogicalBounds;
+    final printerClip = plan.transform.printerClipDots;
     return 'candidates=$candidateSummary approved=$approvedSummary '
+      'sourceZoom=${sourceZoomRatio.toStringAsFixed(3)} '
+      'printZoom=${plan.sheet.zoomRatio.toStringAsFixed(3)} '
+      'sourceLogicalBounds=${rectSummary(sourceBounds)} '
+      'printerClipDots=${rectSummary(printerClip)} '
       'renderedTextCells=$renderedTextCells '
       'dynamicTextMaterialized=$dynamicTextMaterialized '
       'textCandidateExcluded=${math.max(0, renderedTextCells - textCandidates)} '
       'textCandidateExcludedReasons=${candidateExclusionSummary.isEmpty ? "none" : candidateExclusionSummary} '
+      'textCandidateExcludedCells=[${excludedCells.isEmpty ? "none" : excludedCells}] '
         'nativeTextCandidates=$textCandidates nativeTextApproved=$textApproved '
         'nativeTextFallback=${textCandidates - textApproved} '
       'textRejected=${rejectionSummary.isEmpty ? "none" : rejectionSummary} '
@@ -2390,7 +2411,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       pixelHeight: capture.pixelSize.height.round(),
       renderedTextCells: preparation.renderedTextCells,
       dynamicTextMaterialized: preparation.dynamicTextMaterialized,
+      sourceZoomRatio: sheet.zoomRatio,
       textCandidateExclusionCounts: preparation.textCandidateExclusionCounts,
+      textCandidateExclusions: preparation.textCandidateExclusions,
       textRejectionCounts: preparation.textRejectionCounts,
     );
   }

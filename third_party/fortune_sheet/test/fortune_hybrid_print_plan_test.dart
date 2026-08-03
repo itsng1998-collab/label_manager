@@ -237,6 +237,52 @@ void main() {
     expect(diagnostics.cellTextExcluded, isEmpty);
   });
 
+  test('cell text exclusion records coordinate and clipped footprints', () {
+    final clippedSheet = FortuneSheet(
+      id: 'clipped-text',
+      name: 'Clipped Text',
+      rowCount: 2,
+      columnCount: 2,
+      defaultRowHeight: 20,
+      defaultColWidth: 20,
+      cells: {
+        const FortuneCellCoord(1, 1): const FortuneCell(value: '잘린 텍스트'),
+      },
+    );
+    const clippedTransform = FortunePrintTransform(
+      sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 40, 40),
+      dpi: 203.2,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 5,
+      clipBottomMm: 5,
+      nativeAllowed: true,
+    );
+    final diagnostics = FortuneNativeCandidateDiagnostics();
+
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: clippedSheet,
+      range: range,
+      transform: clippedTransform,
+      diagnostics: diagnostics,
+    );
+
+    expect(
+      candidates.where(
+        (candidate) => candidate.kind == FortuneNativeCandidateKind.cellText,
+      ),
+      isEmpty,
+    );
+    expect(diagnostics.cellTextExcluded, {'printerClip': 1});
+    final exclusion = diagnostics.cellTextExclusions.single;
+    expect(exclusion.reason, 'printerClip');
+    expect(exclusion.coord, const FortuneCellCoord(1, 1));
+    expect(exclusion.logicalFootprint, const ui.Rect.fromLTRB(23, 23, 40, 40));
+    expect(exclusion.printerFootprint, isNotNull);
+    expect(exclusion.printerFootprint!.left, greaterThan(40));
+  });
+
   testWidgets('approved dynamic text is omitted from filtered capture', (
     tester,
   ) async {

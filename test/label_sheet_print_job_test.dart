@@ -610,8 +610,62 @@ void main() {
       descriptors: preparation.descriptors,
     );
     final payload = utf8.decode(bytes, allowMalformed: false);
+    expect(payload, contains('^LR0\r\n'));
     expect(payload, contains('원재료명'));
     expect(payload, contains('밀 함유'));
+  });
+
+  test('EZPL AT emits supported inline Korean runs without raster fallback', () {
+    const coord = fs.FortuneCellCoord(0, 0);
+    final preparation = prepareLabelSheetHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'inline-text',
+        name: 'Inline Text',
+        rowCount: 2,
+        columnCount: 1,
+        defaultRowHeight: 36,
+        defaultColWidth: 84,
+        cells: {
+          coord: const fs.FortuneCell(
+            value: '원재료명: 우유, 밀 함유',
+            fontSize: 8,
+            textWrap: '2',
+            inlineRuns: [
+              fs.FortuneInlineTextRun(text: '원재료명: ', bold: true),
+              fs.FortuneInlineTextRun(text: '우유, 밀 함유'),
+            ],
+          ),
+        },
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 22,
+        heightMm: 12,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 22,
+        labelHeightMm: 12,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(preparation.textRejectionCounts, isEmpty);
+    expect(preparation.plan.approvedCellTextCoords, {coord});
+    final descriptor = preparation.descriptors.singleWhere(
+      (value) => value.textCharacters > 0,
+    );
+    expect(descriptor.command, contains(',0BE,0,0,원재료명: '));
+    expect(descriptor.command, contains(',0E,0,0,우유, '));
+    expect(descriptor.command, contains(',0E,0,0,밀 함유'));
+    expect(descriptor.command.split('AT,').length - 1, 3);
   });
 
   test('EZPL AT approves text cells crossing the physical page edge', () {
@@ -654,6 +708,52 @@ void main() {
         (descriptor) => descriptor.textCharacters > 0,
       ).command,
       contains('경계 텍스트'),
+    );
+  });
+
+  test('EZPL print ignores sheet UI zoom for lower label rows', () {
+    const lowerCoord = fs.FortuneCellCoord(11, 0);
+    final preparation = prepareLabelSheetHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'zoomed-print',
+        name: 'Zoomed Print',
+        rowCount: 13,
+        columnCount: 1,
+        zoomRatio: 1.7,
+        rawZoomRatio: 1.7,
+        hasRawZoomRatio: true,
+        defaultRowHeight: 18,
+        defaultColWidth: 303,
+        cells: {lowerCoord: const fs.FortuneCell(value: '하단 영양정보')},
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 80,
+        heightMm: 60,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 80,
+        labelHeightMm: 60,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(preparation.plan.sheet.zoomRatio, 1);
+    expect(preparation.textCandidateExclusionCounts, isEmpty);
+    expect(preparation.plan.approvedCellTextCoords, {lowerCoord});
+    expect(
+      preparation.descriptors.singleWhere(
+        (descriptor) => descriptor.textCharacters > 0,
+      ).command,
+      contains('하단 영양정보'),
     );
   });
 
