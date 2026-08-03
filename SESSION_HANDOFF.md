@@ -21,6 +21,7 @@
 - Windows `/WX` Debug build 성공. 최종 `git diff --check`와 Debug EXE FileVersion/ProductVersion를 확인한다.
 - `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.42` 확인.
 - stage/commit 대상: EZPL production 2개, FortuneSheet print plan, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `329484a Godex EZPL 출력 좌표와 직접 텍스트 개선`.
 
 ## 완료·실물 검증 대기: Godex G500 경계 셀 EZPL 직접 출력 v1.0.41
 - v1.0.40 실물 `.tmp/KakaoTalk_20260803_205704138.jpg`와 `.tmp/log/app_2026-08-03_20-39-52.log` 분석: raw 전송은 `42461/42461`, native `AT` 텍스트는 선명하지만 30개 렌더 텍스트 중 20개가 모두 `printerClip`에서 후보 생성 전 탈락했다.
