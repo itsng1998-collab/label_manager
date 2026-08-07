@@ -6436,7 +6436,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(message)));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      debugLog('labelPrintQuality failed error=$error\n$stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -6962,7 +6963,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(message)));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      debugLog('scalePrintQuality failed error=$error\n$stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()

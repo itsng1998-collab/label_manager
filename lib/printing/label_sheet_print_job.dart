@@ -1243,7 +1243,7 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
             const <LabelSheetEzplNativeDescriptor>[]) {
       if (descriptor.koreanAsian) {
         commands.add(
-          await CharsetConverter.encode('CP949', descriptor.command),
+          await CharsetConverter.encode('949', descriptor.command),
         );
       } else {
         commands.add(

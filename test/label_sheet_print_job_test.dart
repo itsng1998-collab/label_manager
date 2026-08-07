@@ -496,7 +496,7 @@ void main() {
         .setMockMethodCallHandler(charsetChannel, (call) async {
           expect(call.method, 'encode');
           final arguments = call.arguments as Map<Object?, Object?>;
-          expect(arguments['charset'], 'CP949');
+          expect(arguments['charset'], '949');
           return _encodeTestCp949(arguments['data']! as String);
         });
     addTearDown(

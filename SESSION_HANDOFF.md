@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: Godex AZ1 CP949 Windows encoding 오류 수정 v1.0.47
+- v1.0.46 실물 로그 `app_2026-08-07_23-08-20.log`: Korean package는 `282127/282127`, `status=installedByApp`, AZ1 descriptor 24개까지 성공했지만 payload 로그와 RAW dispatch 전에 중단됐다.
+- 원인: Windows `charset_converter` plugin은 `CP949` alias가 없고 code page 이름 `949` 또는 `ks_c_5601-1987`만 지원한다. `CP949` 호출이 `charset_name_unrecognized`를 반환했다.
+- `label_sheet_print_job.dart`: AZ1 command encoding charset을 `CP949`에서 Windows plugin 지원 이름 `949`로 수정했다.
+- `home_page_manager.dart`: 품목·저울 발행 최상위 catch에서 오류와 stack trace를 로그에 기록해 payload 단계 예외가 누락되지 않게 했다.
+- 버전을 `1.0.47`로 증가했다.
+- print job/provisioner focused 테스트 16건 통과, 변경 Dart 3개 파일 formatter 적용 완료.
+- strict analyzer 0 issues, 출력 관련 테스트 64건 통과, `git diff --check` 통과.
+- 첫 Windows `/WX` Debug 빌드는 실행 중이던 `label_manager.exe`의 산출물 잠금으로 `LNK1168` 실패했고 해당 테스트 프로세스만 종료한 뒤 성공했다. EXE 제품/파일 버전 `1.0.47`, EXE 옆 `godex_font_helper.exe` 존재를 확인했다.
+- 인쇄 최상위 catch 로그가 비슷한 일반 catch에 잘못 적용된 것을 커밋 전 diff 검토에서 발견해 원복하고 `_issueLabelPrint`/`_issueScaleOutput` catch로 정확히 이동했다. 이후 strict analyzer 0 issues 재확인.
+- 최종 Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 실물 확인: 기존 설치 marker를 재사용해 `availableInstalled`가 기록되고, `AZ1` payload/RAW dispatch까지 진행되며 한글이 출력되는지 확인한다. 글꼴 package 재설치는 불필요하다.
+- stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 unrelated 변경은 제외.
+
 ## 완료·실물 검증 대기: Godex G500 한글 Asian font 자동 프로비저닝 v1.0.46
 - v1.0.45 실물 로그는 RAW spool `46865/46865` 성공과 ASCII `AT` 선명 출력을 확인했지만, G500 기본 내장 TTF에 한글 glyph가 없어 `AT`로 승인한 한글이 filtered raster에서도 제거된 뒤 누락됐다.
 - 설치된 GoLabel II 1.2.0001에서 공식 `FontFile.dll`과 Korean 코드 테이블 `KSC.bin`/`KSC949.BIN`을 확인했다. DLL은 x86이며 `CreateKOFontFile` API를 export하므로 64비트 Flutter에서 직접 로드하지 않고 x86 helper 경계를 검토한다.
