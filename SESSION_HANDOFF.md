@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: GoDEX hybrid bitmap Q pattern 전환 v1.0.50
+- v1.0.49 실물 사진 `.tmp/IMG_20260807_0007.png`도 90도 회전 기준 두 검정 덩어리로 분할되고 원본 형상을 흰 구멍으로 출력했다.
+- 최신 로그 `app_2026-08-07_23-42-52.log`: `version=1.0.49`, 640x480, copies=1, raster ink=13.91%, native AT 5/AZ1 24/geometry 225, RAW `46548/46548` 성공. 캡처·크기·전송은 정상인데 parser 출력만 비정상이다.
+- 원인: `~G/G행`은 인쇄 버퍼 직접 수신 graphic mode인데 현재 hybrid payload는 그 binary stream 뒤에 native 명령 254개를 혼합했다. polarity를 바꿔도 parser 경계가 잘못되어 검정 블록/분할이 반복됐다.
+- 매뉴얼의 label-format 내부 bitmap 명령 `Qx,y,width,height`는 정확히 `width*height` 연속 binary data를 받고 같은 `^L...E` 안에서 native 명령과 공존한다.
+- `label_sheet_print_job.dart`: `~G/G행`을 `^L -> Q0,0,rowBytes,rows -> contiguous bitmap -> native -> E`로 교체하고 framing/commandOrder 진단을 갱신했다. 버전 `1.0.50`.
+- Q pattern 진단에 exact data bytes, zero/full/mixed byte 분포, FNV-1a 64 checksum을 추가해 실제 라벨 문자열 없이 payload 무결성을 추적한다.
+- print job 테스트 14건 통과. Q pattern의 정확한 `width*height` data 뒤 CRLF와 AZ1 native 명령 경계까지 검증한다.
+- 출력 관련 65건 및 strict analyzer 통과.
+- Windows `/WX` Debug 빌드 성공. `label_manager.exe` ProductVersion/FileVersion `1.0.50`, `godex_font_helper.exe` 동봉 확인.
+- stage 대상: print job, 회귀 테스트, `pubspec.yaml`, 본 문서. 기존 unrelated dirty 파일은 제외. 다음 실물 로그에서 `framing=QPatternContiguous`, `patternDataBytes=38400`, byte 분포/checksum, `native=AT:5,AZ1:24,geometry:225`, RAW requested/written 일치를 확인한다.
+- 기능 커밋: `ce60ce1` (`GoDEX 하이브리드 비트맵 명령 수정`). push하지 않음.
+
 ## 완료·실물 검증 대기: GoDEX EZPL polarity·단일 라벨 format 수정 v1.0.49
 - v1.0.48 실물 사진 `.tmp/IMG_20260807_0005.png`은 90도 회전 기준으로 원본 내용이 급지 방향 두 라벨에 분리되고, 검정/흰색이 반전됐다.
 - 최신 로그 `app_2026-08-07_23-30-57.log`: `version=1.0.48`, 80x60mm/640x480, `^P1`, RAW `46550/46550` 성공, 원본 raster ink `13.91%`인데 실물은 약 86% 검정이다. G500 실물 해석은 `1=검정`, `0=흰색`으로 확정됐다.
