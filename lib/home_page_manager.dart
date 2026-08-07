@@ -68,6 +68,7 @@ import 'package:label_manager/features/search_print/domain/search_print.dart';
 import 'package:label_manager/features/search_print/domain/search_print_settings.dart';
 import 'package:label_manager/features/search_print/presentation/search_print_settings_dialog.dart';
 import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
+import 'package:label_manager/printing/godex_korean_font_provisioner.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/features/label_print/data/label_print_persistence.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
@@ -6009,6 +6010,17 @@ class _HomePageManagerState extends State<HomePageManager> {
         profile: profile,
         portName: portName,
       );
+      final koreanFontProvision = backend == LabelPrintBackend.ezplRaw
+          ? await GodexKoreanFontProvisioner.production().ensureInstalled(
+              printer: printer,
+              portName: portName,
+            )
+          : null;
+      if (koreanFontProvision != null) {
+        debugLog(
+          'labelPrintQuality koreanFont ${koreanFontProvision.diagnostics}',
+        );
+      }
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
           : null;
@@ -6102,6 +6114,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   ),
                   options: options,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
+                  koreanAsianFontAvailable:
+                      koreanFontProvision?.canUseKoreanAsianFont ?? false,
                 )
               : null;
             final capture = backend == LabelPrintBackend.pdf
@@ -6175,7 +6189,9 @@ class _HomePageManagerState extends State<HomePageManager> {
             'nativeTextApprovedTokens=${windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens} '
             'nativeTextDescriptors=${windowsCapture?.textDescriptors.length ?? ezplTextDescriptors.length} '
             'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens)} '
-            'font=${ezplCapture == null ? 'WindowsDriver' : 'AT manufacturerBuiltInTTF UTF8'} '
+            'font=${ezplCapture == null ? 'WindowsDriver' : 'AT:UTF8+AZ1:CP949'} '
+            'atTextDescriptors=${ezplTextDescriptors.where((item) => !item.koreanAsian).length} '
+            'az1TextDescriptors=${ezplTextDescriptors.where((item) => item.koreanAsian).length} '
             'characters=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.textCharacters)} '
             'lines=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.lineCount)} '
             'preflightRejections=${ezplCapture?.preparation.textRejectionCounts ?? const {}} margins='
@@ -6520,6 +6536,17 @@ class _HomePageManagerState extends State<HomePageManager> {
         profile: profile,
         portName: portName,
       );
+      final koreanFontProvision = backend == LabelPrintBackend.ezplRaw
+          ? await GodexKoreanFontProvisioner.production().ensureInstalled(
+              printer: printer,
+              portName: portName,
+            )
+          : null;
+      if (koreanFontProvision != null) {
+        debugLog(
+          'scalePrintQuality koreanFont ${koreanFontProvision.diagnostics}',
+        );
+      }
       final printerDpi = Platform.isWindows
           ? await RawPrinterWin32.queryPrinterDpi(printer)
           : null;
@@ -6612,6 +6639,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   ),
                   options: options,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
+                  koreanAsianFontAvailable:
+                      koreanFontProvision?.canUseKoreanAsianFont ?? false,
                 )
               : null;
             final capture = backend == LabelPrintBackend.pdf
@@ -6685,7 +6714,9 @@ class _HomePageManagerState extends State<HomePageManager> {
             'nativeTextApprovedTokens=${windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens} '
             'nativeTextDescriptors=${windowsCapture?.textDescriptors.length ?? ezplTextDescriptors.length} '
             'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens)} '
-            'font=${ezplCapture == null ? 'WindowsDriver' : 'AT manufacturerBuiltInTTF UTF8'} '
+            'font=${ezplCapture == null ? 'WindowsDriver' : 'AT:UTF8+AZ1:CP949'} '
+            'atTextDescriptors=${ezplTextDescriptors.where((item) => !item.koreanAsian).length} '
+            'az1TextDescriptors=${ezplTextDescriptors.where((item) => item.koreanAsian).length} '
             'characters=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.textCharacters)} '
             'lines=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.lineCount)} '
             'preflightRejections=${ezplCapture?.preparation.textRejectionCounts ?? const {}}',

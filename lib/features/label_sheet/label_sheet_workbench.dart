@@ -21,6 +21,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_save_
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_image_import_dialog.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_settings.dart';
+import 'package:label_manager/printing/godex_korean_font_provisioner.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
@@ -935,11 +936,13 @@ class LabelSheetOutputCaptureController {
     required LabelSheetPrintPageMetrics metrics,
     required LabelSheetPrintOptions options,
     required int? lineSpacingPercent,
+    required bool koreanAsianFontAvailable,
   }) =>
       _state?._captureEzpl(
         metrics: metrics,
         options: options,
         lineSpacingPercent: lineSpacingPercent,
+        koreanAsianFontAvailable: koreanAsianFontAvailable,
       ) ??
       Future<LabelSheetEzplCapture?>.value();
 
@@ -2086,6 +2089,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       backend: backend,
       printerDpi: dpi,
     );
+    final koreanFontProvision = backend == LabelPrintBackend.ezplRaw
+        ? await GodexKoreanFontProvisioner.production().ensureInstalled(
+            printer: printer,
+            portName: rawPortName,
+          )
+        : null;
+    if (koreanFontProvision != null) {
+      debugLog(
+        'labelSheetPrint koreanFont ${koreanFontProvision.diagnostics}',
+      );
+    }
     debugLog(
       'labelSheetPrint start printer=${printer.name} profile=$profile '
       'port=$rawPortName backend=${backend.name} printerDpi=$dpi '
@@ -2110,6 +2124,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             metrics: metrics,
             options: options,
             lineSpacingPercent: options.autoSpacingPercent,
+            koreanAsianFontAvailable:
+                koreanFontProvision?.canUseKoreanAsianFont ?? false,
           )
         : null;
     final capture = backend == LabelPrintBackend.pdf
@@ -2153,6 +2169,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       final approvedTextTokens = textDescriptors
           .map((descriptor) => descriptor.candidateToken)
           .toSet();
+          final builtInTextDescriptors = textDescriptors
+            .where((descriptor) => !descriptor.koreanAsian)
+            .length;
+          final koreanTextDescriptors = textDescriptors
+            .where((descriptor) => descriptor.koreanAsian)
+            .length;
       final textCandidates = preparation.plan.candidates
           .where(
             (candidate) =>
@@ -2160,12 +2182,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           )
           .length;
       debugLog(
-        'labelSheetPrint ezpl font=AT manufacturerBuiltInTTF encoding=UTF8 '
+        'labelSheetPrint ezpl fonts=AT:UTF8,AZ1:CP949 '
         'renderedTextCells=${preparation.renderedTextCells} '
         'dynamicTextMaterialized=${preparation.dynamicTextMaterialized} '
         'textCandidateTokens=$textCandidates '
         'approvedTextTokens=${approvedTextTokens.length} '
         'textDescriptors=${textDescriptors.length} '
+        'atTextDescriptors=$builtInTextDescriptors '
+        'az1TextDescriptors=$koreanTextDescriptors '
         'fallbackTextTokens=${textCandidates - approvedTextTokens.length} '
         'characters=${textDescriptors.fold<int>(0, (sum, item) => sum + item.textCharacters)} '
         'lines=${textDescriptors.fold<int>(0, (sum, item) => sum + item.lineCount)} '
@@ -2176,7 +2200,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       for (final descriptor in textDescriptors) {
         debugLog(
           'labelSheetPrint ezplText token=${descriptor.candidateToken} '
-          'font=AT utf8=${descriptor.utf8} chars=${descriptor.textCharacters} '
+          'font=${descriptor.koreanAsian ? 'AZ1' : 'AT'} '
+          'encoding=${descriptor.koreanAsian ? 'CP949' : 'UTF8'} '
+          'chars=${descriptor.textCharacters} '
           'lines=${descriptor.lineCount} fontHeightDots=${descriptor.fontHeightDots} '
           'lineBounds=${descriptor.textLineFootprints}',
         );
@@ -2350,6 +2376,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required LabelSheetPrintPageMetrics metrics,
     required LabelSheetPrintOptions options,
     required int? lineSpacingPercent,
+    required bool koreanAsianFontAvailable,
   }) async {
     if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
     final sheet = _controller.getSheet();
@@ -2365,6 +2392,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       metrics: metrics,
       options: options,
       lineSpacingPercent: lineSpacingPercent,
+      koreanAsianFontAvailable: koreanAsianFontAvailable,
     );
     final capture = await _controller.captureHybridPlanAsPng(
       preparation.plan,

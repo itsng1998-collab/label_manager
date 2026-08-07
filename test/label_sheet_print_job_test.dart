@@ -1,13 +1,14 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'dart:ui';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:image/image.dart' as img;
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('print options normalize UI input values', () {
     final options = labelSheetPrintOptionsFromInput(
       copies: ' 3 ',
@@ -418,7 +419,9 @@ void main() {
     expect(page.bgraBytes, [0, 0, 0, 255, 255, 255, 255, 255]);
   });
 
-  test('Godex EZPL uses built-in UTF-8 AT text with raster fallback', () async {
+  test(
+    'Godex EZPL keeps Korean text in raster fallback until Asian font is available',
+    () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -456,16 +459,17 @@ void main() {
       options: options,
     );
 
-    final descriptor = preparation.descriptors.singleWhere(
-      (descriptor) =>
-          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
-    );
-    expect(descriptor.utf8, isTrue);
-    expect(descriptor.command, contains('AT,'));
-    expect(descriptor.command, contains(',0BE,0,0,원재료명 한글 출력'));
     expect(
-      preparation.plan.approvedCandidateTokens,
-      contains(descriptor.candidateToken),
+      preparation.descriptors.where(
+        (descriptor) =>
+            descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
+      ),
+      isEmpty,
+    );
+    expect(preparation.plan.approvedCandidateTokens, isEmpty);
+    expect(
+      preparation.textRejectionCounts,
+      containsPair('koreanAsianFontUnavailable', 1),
     );
 
     final blank = img.Image(width: 240, height: 80);
@@ -480,9 +484,86 @@ void main() {
     final payload = utf8.decode(bytes, allowMalformed: true);
 
     expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n^LR0\r\n~G\r\n'));
-    expect(payload, contains('AT,'));
-    expect(payload, contains('원재료명 한글 출력'));
+    expect(payload, isNot(contains('AT,')));
+    expect(payload, isNot(contains('원재료명 한글 출력')));
     expect(payload, endsWith('E\r\n'));
+    },
+  );
+
+  test('Godex EZPL uses provisioned AZ1 Korean font with CP949 data', () async {
+    const charsetChannel = MethodChannel('charset_converter');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(charsetChannel, (call) async {
+          expect(call.method, 'encode');
+          final arguments = call.arguments as Map<Object?, Object?>;
+          expect(arguments['charset'], 'CP949');
+          return _encodeTestCp949(arguments['data']! as String);
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(charsetChannel, null),
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetEzplPrint(
+      sheet: fs.FortuneSheet(
+        id: 'ezpl-korean',
+        name: 'EZPL Korean',
+        rowCount: 2,
+        columnCount: 2,
+        defaultRowHeight: 32,
+        defaultColWidth: 100,
+        cells: <fs.FortuneCellCoord, fs.FortuneCell>{
+          fs.FortuneCellCoord(0, 0): fs.FortuneCell(
+            value: '원재료명 PET',
+            fontSize: 10,
+          ),
+        },
+      ),
+      settings: const fs.FortuneSettings(defaultFontSize: 10),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 30,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 30,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: options,
+      koreanAsianFontAvailable: true,
+    );
+
+    final descriptor = preparation.descriptors.singleWhere(
+      (descriptor) =>
+          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
+    );
+    expect(descriptor.koreanAsian, isTrue);
+    expect(descriptor.utf8, isFalse);
+    expect(descriptor.command, contains('AZ1,'));
+    expect(descriptor.command, contains('원재료명 PET'));
+    expect(preparation.textRejectionCounts, isEmpty);
+
+    final blank = img.Image(width: 240, height: 80);
+    img.fill(blank, color: img.ColorRgb8(255, 255, 255));
+    final bytes = await buildLabelSheetPlannedEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(blank)),
+      metrics: preparation.geometry.metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
+    );
+    final cp949Text = _encodeTestCp949('원재료명 PET');
+
+    expect(_containsBytes(bytes, ascii.encode('AZ1,')), isTrue);
+    expect(_containsBytes(bytes, cp949Text), isTrue);
+    expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
   });
 
   test('buildLabelSheetPdfBytes creates one page per copy', () async {
@@ -511,4 +592,44 @@ void main() {
     expect(ascii.decode(bytes.take(4).toList()), '%PDF');
   });
 
+}
+
+bool _containsBytes(List<int> source, List<int> pattern) {
+  if (pattern.isEmpty || pattern.length > source.length) return false;
+  for (var start = 0; start <= source.length - pattern.length; start += 1) {
+    var matches = true;
+    for (var offset = 0; offset < pattern.length; offset += 1) {
+      if (source[start + offset] != pattern[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
+
+Uint8List _encodeTestCp949(String input) {
+  const koreanText = '원재료명 PET';
+  const koreanBytes = <int>[
+    0xbf,
+    0xf8,
+    0xc0,
+    0xe7,
+    0xb7,
+    0xe1,
+    0xb8,
+    0xed,
+    0x20,
+    0x50,
+    0x45,
+    0x54,
+  ];
+  final offset = input.indexOf(koreanText);
+  if (offset < 0) return Uint8List.fromList(ascii.encode(input));
+  return Uint8List.fromList(<int>[
+    ...ascii.encode(input.substring(0, offset)),
+    ...koreanBytes,
+    ...ascii.encode(input.substring(offset + koreanText.length)),
+  ]);
 }

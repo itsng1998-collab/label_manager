@@ -1,5 +1,40 @@
 # 현재 작업 상태
 
+## 진행 중: Godex G500 한글 Asian font 자동 프로비저닝 v1.0.46
+- v1.0.45 실물 로그는 RAW spool `46865/46865` 성공과 ASCII `AT` 선명 출력을 확인했지만, G500 기본 내장 TTF에 한글 glyph가 없어 `AT`로 승인한 한글이 filtered raster에서도 제거된 뒤 누락됐다.
+- 설치된 GoLabel II 1.2.0001에서 공식 `FontFile.dll`과 Korean 코드 테이블 `KSC.bin`/`KSC949.BIN`을 확인했다. DLL은 x86이며 `CreateKOFontFile` API를 export하므로 64비트 Flutter에서 직접 로드하지 않고 x86 helper 경계를 검토한다.
+- 우선 수정: Asian font 설치가 확인되지 않은 기본 상태에서는 비ASCII 문자가 포함된 text candidate를 `AT`로 승인하지 않고 `~G` fallback에 보존한다. ASCII는 기존 제조사 내장 `AT`를 유지한다.
+- 한글 raster 보존 focused 테스트 1건 통과.
+- `windows/godex_font_helper/Program.cs`: GoLabel의 x86 `CreateKOFontFile` ABI를 그대로 호출해 GulimChe 16dot Korean `AZ1` package를 생성하는 helper를 추가했다. 공식 GoLabel 설치 DLL을 참조하며 DLL/font package를 앱에 복제하지 않는다.
+- helper를 .NET Framework x86 compiler로 빌드하고 `굴림체/보통/16`을 선택해 공식 `AZ_KO16x16.DAT` 생성에 성공했다. 산출물은 282,127 bytes이며 AZ1용 package다.
+- 자동 프로비저닝 구현 전 DAT 헤더가 그대로 RAW 전송 가능한 EZPL stream인지 확인한다.
+- DAT는 `~MDELA,1` + `~F,1,Korean,16,16,...` + glyph binary로 구성된 완전한 RAW 설치 stream임을 확인했다. GoLabel SDK IL에서 출력 명령은 `AZ1,x,y,width,height,space,direction,data`임을 확인했다.
+- `godex_korean_font_provisioner.dart`: 설치된 GoLabel/helper로 package를 캐시 생성하고 RAW 전체 byte 전송 성공 후에만 printer name+port+package ID marker를 저장한다. package 누락/생성 실패/부분 전송은 Asian font를 활성화하지 않는다.
+- `windows/CMakeLists.txt`: .NET Framework x86 helper를 Windows 앱 빌드에 포함한다.
+- `godex_korean_font_provisioner_test.dart`: 전체 전송 marker/reuse, 부분 전송 marker 금지, package 누락 fallback 테스트를 추가했다.
+- provisioner focused 테스트 3건 통과.
+- `label_sheet_print_job.dart`: 확인된 capability에서는 비ASCII/혼합 text candidate 전체를 `AZ1`로 승인하고 command data를 CP949로 encode한다. capability가 없으면 raster, ASCII는 기존 `AT` UTF-8을 유지한다.
+- `label_sheet_print_job_test.dart`: provisioned Korean `AZ1` command와 CP949 payload 회귀 테스트를 추가했다. `charset_converter` channel은 실제 Windows CP949 기준 바이트로 mock한다.
+- print job 테스트 파일 전체 13건 통과.
+- `label_sheet_workbench.dart`: 라벨시트 Godex capture 전에 Korean font provisioner를 실행하고 성공 capability를 preparation에 전달한다. provision 결과와 AT/AZ1/raster 수, descriptor별 font/encoding을 기록한다.
+- `home_page_manager.dart`: 품목·저울 발행도 세션당 1회 동일 provisioner를 실행하고 모든 unit capture에 같은 capability를 전달한다. AT/AZ1 descriptor 수를 로그에 기록한다.
+- 실제 출력 경로 연결 후 production 4개 파일 편집기 진단 오류 0건.
+- 버전을 `1.0.46`으로 증가했다.
+- 변경 Dart 6개 파일 formatter 적용 완료.
+- 출력 관련 테스트 실행 예정: `flutter test test/godex_korean_font_provisioner_test.dart test/label_print_dispatcher_test.dart test/label_print_pipeline_test.dart test/label_sheet_print_job_test.dart test/label_print_session_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`.
+- 출력 관련 테스트 43건 통과.
+- strict analyzer 실행 예정: `flutter analyze lib/printing/godex_korean_font_provisioner.dart lib/printing/label_sheet_print_job.dart lib/features/label_sheet/label_sheet_workbench.dart lib/home_page_manager.dart test/godex_korean_font_provisioner_test.dart test/label_sheet_print_job_test.dart`.
+- 최초 strict analyzer는 Korean capability 인자가 인접 Windows capture에 들어간 위치 오류와 null-aware collection 문법 오류를 보고했다. 인자를 EZPL capture로 이동하고 문법/info를 정리한 뒤 동일 analyzer 0 issues.
+- formatter 후 출력 관련 테스트 64건 통과.
+- Windows 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 후 helper 존재/PE x86, EXE version, `git diff --check` 확인.
+- 최초 Windows `/WX` Debug 빌드는 CMake의 forward-slash C# source path를 `csc`가 옵션으로 해석해 실패했다. compiler/source/output을 native Windows 경로로 변환한 뒤 동일 빌드를 재실행한다.
+- native path 수정 후 helper 빌드는 통과했으나 실행 중 Debug 앱 PID 2500의 파일 잠금으로 `LNK1168`이 발생했다. `CloseMainWindow`로 정상 종료 후 동일 Windows `/WX` Debug 빌드 성공.
+- helper 존재/PE x86, 앱 EXE version, `git diff --check` 확인 예정.
+- 빌드 산출물 확인: `label_manager.exe` FileVersion/ProductVersion `1.0.46`, `godex_font_helper.exe` 6,656 bytes 및 `14C machine (x86)`.
+- `git diff --check` 통과, 변경 Dart 파일 편집기 진단 오류 0건.
+- 최종 stage/commit 대상: Korean provisioner/helper/CMake, 라벨시트·품목·저울 AZ1 연결, print job과 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 `doc/EZPL_EN_J_20180226.pdf/.txt`는 제외한다.
+- 수정 예정: font package 생성/전송/설치 marker, 확인된 AZ slot 출력, provisioning 및 AT/AZ/raster 진단 로그와 테스트.
+
 ## 진행 중: Godex G500 제조사 내장 폰트 EZPL 직접 출력 v1.0.45
 - 실물 v1.0.44 로그에서 `backend=windowsDriver`, G500 printable-area/DC 축소와 GDI 글꼴 raster 품질 저하를 확인했다. Godex 물리 포트만 `ezplRaw`, FILE/PORTPROMPT는 PDF, Zebra/BIXOLON/CITIZEN/기타는 기존 GDI로 자동 매핑한다.
 - `label_print_dispatcher.dart`: `ezplRaw` backend와 Godex profile 기반 자동 라우팅, raw sender 계약을 복원했다.

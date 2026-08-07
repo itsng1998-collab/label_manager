@@ -54,6 +54,24 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+set(GODEX_FONT_HELPER_SOURCE
+  "${CMAKE_CURRENT_SOURCE_DIR}/godex_font_helper/Program.cs")
+set(GODEX_FONT_HELPER_OUTPUT
+  "${CMAKE_CURRENT_BINARY_DIR}/godex_font_helper.exe")
+set(DOTNET_FRAMEWORK_CSC "$ENV{WINDIR}/Microsoft.NET/Framework/v4.0.30319/csc.exe")
+file(TO_NATIVE_PATH "${GODEX_FONT_HELPER_SOURCE}" GODEX_FONT_HELPER_SOURCE_NATIVE)
+file(TO_NATIVE_PATH "${GODEX_FONT_HELPER_OUTPUT}" GODEX_FONT_HELPER_OUTPUT_NATIVE)
+file(TO_NATIVE_PATH "${DOTNET_FRAMEWORK_CSC}" DOTNET_FRAMEWORK_CSC_NATIVE)
+add_custom_command(
+  OUTPUT "${GODEX_FONT_HELPER_OUTPUT}"
+  COMMAND "${DOTNET_FRAMEWORK_CSC_NATIVE}" /nologo /target:exe /platform:x86
+    /optimize+ "/out:${GODEX_FONT_HELPER_OUTPUT_NATIVE}"
+    "${GODEX_FONT_HELPER_SOURCE_NATIVE}"
+  DEPENDS "${GODEX_FONT_HELPER_SOURCE}"
+  VERBATIM)
+add_custom_target(godex_font_helper ALL DEPENDS "${GODEX_FONT_HELPER_OUTPUT}")
+add_dependencies(${BINARY_NAME} godex_font_helper)
+
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
@@ -74,6 +92,8 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
+install(FILES "${GODEX_FONT_HELPER_OUTPUT}"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)

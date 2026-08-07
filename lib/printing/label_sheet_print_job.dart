@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:charset_converter/charset_converter.dart';
 import 'package:flutter/painting.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as img;
@@ -334,6 +335,7 @@ class LabelSheetEzplNativeDescriptor {
     required this.predictedPaintedFootprint,
     required this.kind,
     this.utf8 = false,
+    this.koreanAsian = false,
     this.textCharacters = 0,
     this.fontHeightDots,
     this.lineCount = 0,
@@ -345,6 +347,7 @@ class LabelSheetEzplNativeDescriptor {
   final ui.Rect predictedPaintedFootprint;
   final FortuneNativeCandidateKind kind;
   final bool utf8;
+  final bool koreanAsian;
   final int textCharacters;
   final int? fontHeightDots;
   final int lineCount;
@@ -386,6 +389,7 @@ LabelSheetEzplPrintPreparation prepareLabelSheetEzplPrint({
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
   int? lineSpacingPercent,
+  bool koreanAsianFontAvailable = false,
 }) {
   final materializedSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
   final printSheet = materializedSheet.copyWith(
@@ -418,6 +422,7 @@ LabelSheetEzplPrintPreparation prepareLabelSheetEzplPrint({
     transform: geometry.transform,
     candidates: candidates,
     lineSpacingPercent: lineSpacingPercent,
+    koreanAsianFontAvailable: koreanAsianFontAvailable,
     textRejectionCounts: textRejectionCounts,
   );
   final plan = fortuneFinalizeHybridRenderPlan(
@@ -963,6 +968,7 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
   required FortunePrintTransform transform,
   required Iterable<FortuneNativeCandidate> candidates,
   required int? lineSpacingPercent,
+  required bool koreanAsianFontAvailable,
   required Map<String, int> textRejectionCounts,
 }) {
   void reject(String reason) => textRejectionCounts.update(
@@ -999,6 +1005,13 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       }
       if (cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
         reject('customOffsetY');
+        continue;
+      }
+      final usesKoreanAsianFont = cell.renderedText.runes.any(
+        (rune) => rune > 0x7f,
+      );
+      if (usesKoreanAsianFont && !koreanAsianFontAvailable) {
+        reject('koreanAsianFontUnavailable');
         continue;
       }
       final layout = fortuneLayoutCellText(
@@ -1046,16 +1059,23 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
           8,
           (fragment.fontSize * transform.dotsPerLogicalPixel).round(),
         );
-        final style = StringBuffer('0');
-        if (fragment.bold) style.write('B');
-        if (fragment.italic) style.write('T');
-        if (fragment.underline) style.write('U');
-        style.write('E');
-        command.write(
-          'AT,${footprint.left.round()},${footprint.top.round()},'
-          '$fontDots,$fontDots,0,$style,0,0,'
-          '${_escapeEzplText(fragment.text)}\r\n',
-        );
+        if (usesKoreanAsianFont) {
+          command.write(
+            'AZ1,${footprint.left.round()},${footprint.top.round()},'
+            '$fontDots,$fontDots,0,0,${_escapeEzplText(fragment.text)}\r\n',
+          );
+        } else {
+          final style = StringBuffer('0');
+          if (fragment.bold) style.write('B');
+          if (fragment.italic) style.write('T');
+          if (fragment.underline) style.write('U');
+          style.write('E');
+          command.write(
+            'AT,${footprint.left.round()},${footprint.top.round()},'
+            '$fontDots,$fontDots,0,$style,0,0,'
+            '${_escapeEzplText(fragment.text)}\r\n',
+          );
+        }
         footprints.add(footprint);
       }
       descriptors.add(
@@ -1064,7 +1084,8 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
           command: command.toString(),
           predictedPaintedFootprint: candidate.printerPaintedFootprint,
           kind: FortuneNativeCandidateKind.cellText,
-          utf8: true,
+          utf8: !usesKoreanAsianFont,
+          koreanAsian: usesKoreanAsianFont,
           textCharacters: cell.renderedText.runes.length,
           fontHeightDots: math.max(
             8,
@@ -1220,11 +1241,17 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     for (final descriptor in
         descriptorByToken[candidate.token] ??
             const <LabelSheetEzplNativeDescriptor>[]) {
-      commands.add(
-        descriptor.utf8
-            ? utf8.encode(descriptor.command)
-            : ascii.encode(descriptor.command),
-      );
+      if (descriptor.koreanAsian) {
+        commands.add(
+          await CharsetConverter.encode('CP949', descriptor.command),
+        );
+      } else {
+        commands.add(
+          descriptor.utf8
+              ? utf8.encode(descriptor.command)
+              : ascii.encode(descriptor.command),
+        );
+      }
     }
   }
   commands.add(ascii.encode('E\r\n'));
