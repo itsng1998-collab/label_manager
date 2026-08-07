@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: GoDEX Q pattern polarity 수정 v1.0.51
+- v1.0.50 실물 사진 `.tmp/IMG_20260807_0008.png`은 Q pattern 전환 후 두 장 분할은 사라졌지만 원본 흰 배경이 검정으로 출력됐다.
+- 최신 로그 `app_2026-08-07_23-58-00.log`: 640x480, pattern data 38,400 bytes, zero=32,259/full=4,623/mixed=1,518, checksum `b655b1bb14c79e71`, RAW `44639/44639` 성공. source ink는 13.91%인데 다수의 zero byte 영역이 실물 검정과 대응한다.
+- 원인 확정: label-format `Q` pattern은 `0=검정`, `1=흰색`이다. 이전 `~G` framing 실물 결과에서 추론한 `1=검정`을 Q pattern에도 적용해 흰 배경이 검정이 됐다.
+- `label_sheet_print_job.dart`: Q row를 `0xff`로 초기화하고 ink bit만 clear하는 `zeroBlackOneWhite` polarity로 수정했다. 버전 `1.0.51`.
+- print job 테스트 14건 통과. 다음 동일 라벨 로그의 예상 byte 분포는 `zero≈4623,full≈32259,mixed≈1518`이며 흰 배경이 `0xff`로 전송되는지 직접 판별한다.
+- 출력 관련 65건 및 strict analyzer 통과.
+- Windows `/WX` Debug 빌드 성공. `label_manager.exe` ProductVersion/FileVersion `1.0.51`, `godex_font_helper.exe` 동봉 확인.
+- stage 대상: print job, 회귀 테스트, `pubspec.yaml`, 본 문서. 기존 unrelated dirty 파일은 제외. 다음 실물 로그에서 `polarity=zeroBlackOneWhite`, `framing=QPatternContiguous`, 예상 byte 분포와 RAW requested/written 일치를 확인한다.
+- 기능 커밋: `fc22891` (`GoDEX Q 패턴 비트 극성 수정`). push하지 않음.
+
 ## 완료·실물 검증 대기: GoDEX hybrid bitmap Q pattern 전환 v1.0.50
 - v1.0.49 실물 사진 `.tmp/IMG_20260807_0007.png`도 90도 회전 기준 두 검정 덩어리로 분할되고 원본 형상을 흰 구멍으로 출력했다.
 - 최신 로그 `app_2026-08-07_23-42-52.log`: `version=1.0.49`, 640x480, copies=1, raster ink=13.91%, native AT 5/AZ1 24/geometry 225, RAW `46548/46548` 성공. 캡처·크기·전송은 정상인데 parser 출력만 비정상이다.
