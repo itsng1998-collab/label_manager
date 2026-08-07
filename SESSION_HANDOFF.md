@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: GoDEX EZPL polarity·단일 라벨 format 수정 v1.0.49
+- v1.0.48 실물 사진 `.tmp/IMG_20260807_0005.png`은 90도 회전 기준으로 원본 내용이 급지 방향 두 라벨에 분리되고, 검정/흰색이 반전됐다.
+- 최신 로그 `app_2026-08-07_23-30-57.log`: `version=1.0.48`, 80x60mm/640x480, `^P1`, RAW `46550/46550` 성공, 원본 raster ink `13.91%`인데 실물은 약 86% 검정이다. G500 실물 해석은 `1=검정`, `0=흰색`으로 확정됐다.
+- 매뉴얼상 `~G`는 control command이고 `^L`은 label format 시작이다. 현재 `^LR0 -> ~G` 순서는 graphic mode를 format 안에서 시작해 raster와 native descriptor가 두 라벨로 분리될 수 있다.
+- 수정 예정: `~G -> ^L -> G rows/native -> E` 단일 format 순서, `oneBlackZeroWhite` polarity, payload 경계·bit 밀도 진단 및 회귀 테스트.
+- `label_sheet_print_job.dart`: `~G -> ^L` 순서와 `1=검정` row encoding을 적용했다. 로그에 label mm/dots, copies, white/ink dots, command order, format count를 추가했다.
+- `label_sheet_print_job_test.dart`: 80x1mm/203.2dpi에서 `G,0x50`, 단일 검정 dot=`0x80`, 흰 dot=`0`, `~G -> ^L`, 단일 `E` 경계를 검증한다.
+- print job 14건 및 출력 관련 provisioner/dispatcher/pipeline/print job/session/fortune hybrid 테스트 65건 통과.
+- strict analyzer 통과: print job, home 품목/저울, workbench 직접 발행, 회귀 테스트.
+- Windows `/WX` Debug 빌드 성공. `label_manager.exe` ProductVersion/FileVersion `1.0.49`, `godex_font_helper.exe` 동봉 확인.
+- stage 대상: `label_sheet_print_job.dart`, 회귀 테스트, `pubspec.yaml`, 본 문서. 기존 unrelated dirty 파일은 제외. 다음 실물 로그에서 `polarity=oneBlackZeroWhite`, `commandOrder=setup>~G>^L>Grows+native>E`, `formatCount=1`, `640x480`, `copies=1` 확인 필요.
+- 기능 커밋: `feb7530` (`GoDEX 단일 라벨 그래픽 출력 순서 수정`). push하지 않음.
+
 ## 완료·실물 검증 대기: GoDEX EZPL raster polarity 수정 v1.0.48
 - v1.0.47 실물 출력 사진 `.tmp/IMG_20260807_0004.png`은 흰 배경이 대규모 검정 영역으로 출력되고 native text 위치도 깨졌다.
 - 최신 로그 `app_2026-08-07_23-18-18.log`: G500/USB001, 80x60mm, 203.2dpi, `availableInstalled`, AZ1 24개/AT 5개, payload 46,550 bytes, RAW `46550/46550` 접수 성공을 확인했다. 전송 문제가 아니라 payload 해석 문제다.
