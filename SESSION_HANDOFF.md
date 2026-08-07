@@ -13,6 +13,7 @@
 - 최종 Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
 - 실물 확인: 기존 설치 marker를 재사용해 `availableInstalled`가 기록되고, `AZ1` payload/RAW dispatch까지 진행되며 한글이 출력되는지 확인한다. 글꼴 package 재설치는 불필요하다.
 - stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 unrelated 변경은 제외.
+- 기능 커밋 완료: `344f425` (`Godex 한글 명령 CP949 인코딩 오류 수정`). 원격 push는 수행하지 않았다.
 
 ## 완료·실물 검증 대기: Godex G500 한글 Asian font 자동 프로비저닝 v1.0.46
 - v1.0.45 실물 로그는 RAW spool `46865/46865` 성공과 ASCII `AT` 선명 출력을 확인했지만, G500 기본 내장 TTF에 한글 glyph가 없어 `AT`로 승인한 한글이 filtered raster에서도 제거된 뒤 누락됐다.
