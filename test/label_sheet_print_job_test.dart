@@ -418,6 +418,73 @@ void main() {
     expect(page.bgraBytes, [0, 0, 0, 255, 255, 255, 255, 255]);
   });
 
+  test('Godex EZPL uses built-in UTF-8 AT text with raster fallback', () async {
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetEzplPrint(
+      sheet: fs.FortuneSheet(
+        id: 'ezpl-text',
+        name: 'EZPL Text',
+        rowCount: 2,
+        columnCount: 2,
+        defaultRowHeight: 32,
+        defaultColWidth: 100,
+        cells: <fs.FortuneCellCoord, fs.FortuneCell>{
+          fs.FortuneCellCoord(0, 0): fs.FortuneCell(
+            value: '원재료명 한글 출력',
+            fontSize: 10,
+            bold: true,
+          ),
+        },
+      ),
+      settings: const fs.FortuneSettings(defaultFontSize: 10),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 30,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 30,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: options,
+    );
+
+    final descriptor = preparation.descriptors.singleWhere(
+      (descriptor) =>
+          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
+    );
+    expect(descriptor.utf8, isTrue);
+    expect(descriptor.command, contains('AT,'));
+    expect(descriptor.command, contains(',0BE,0,0,원재료명 한글 출력'));
+    expect(
+      preparation.plan.approvedCandidateTokens,
+      contains(descriptor.candidateToken),
+    );
+
+    final blank = img.Image(width: 240, height: 80);
+    img.fill(blank, color: img.ColorRgb8(255, 255, 255));
+    final bytes = await buildLabelSheetPlannedEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(blank)),
+      metrics: preparation.geometry.metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
+    );
+    final payload = utf8.decode(bytes, allowMalformed: true);
+
+    expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n^LR0\r\n~G\r\n'));
+    expect(payload, contains('AT,'));
+    expect(payload, contains('원재료명 한글 출력'));
+    expect(payload, endsWith('E\r\n'));
+  });
+
   test('buildLabelSheetPdfBytes creates one page per copy', () async {
     final image = img.Image(width: 4, height: 4);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));

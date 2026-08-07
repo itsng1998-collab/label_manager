@@ -24,16 +24,26 @@ void main() {
     expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 300), 300);
   });
 
-  test('backend maps every physical printer to the Windows legacy driver', () {
+  test('backend maps Godex physical ports to raw EZPL', () {
+    final godex = detectPrinterProfile(
+      const Printer(url: 'Godex G500', name: 'Godex G500'),
+    );
+    final other = detectPrinterProfile(
+      const Printer(url: 'Office Printer', name: 'Office Printer'),
+    );
     for (final port in ['USB001', null]) {
       expect(
-        resolveLabelPrintBackend(portName: port),
+        resolveLabelPrintBackend(profile: godex, portName: port),
+        LabelPrintBackend.ezplRaw,
+      );
+      expect(
+        resolveLabelPrintBackend(profile: other, portName: port),
         LabelPrintBackend.windowsDriver,
       );
     }
     for (final port in [' FILE: ', 'portprompt:']) {
       expect(
-        resolveLabelPrintBackend(portName: port),
+        resolveLabelPrintBackend(profile: godex, portName: port),
         LabelPrintBackend.pdf,
       );
     }
@@ -55,6 +65,7 @@ void main() {
   test('Windows driver output stays separate from PDF virtual printers', () {
     expect(LabelPrintBackend.windowsDriver.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.pdf.usesCanvasCapture, isTrue);
+    expect(LabelPrintBackend.ezplRaw.usesCanvasCapture, isFalse);
     expect(
       labelPrintRenderDpi(
         backend: LabelPrintBackend.windowsDriver,
@@ -74,6 +85,7 @@ void main() {
   test('Windows driver dispatch does not call PDF sender', () async {
     var pdfCalls = 0;
     var windowsCalls = 0;
+    var rawCalls = 0;
     final dispatcher = LabelPrintDispatcher(
       sendPdf: (_) async {
         pdfCalls += 1;
@@ -83,15 +95,42 @@ void main() {
         windowsCalls += 1;
         return true;
       },
+      sendRaw: (_) async {
+        rawCalls += 1;
+        return true;
+      },
     );
 
     final accepted = await dispatcher.dispatch(
       backend: LabelPrintBackend.windowsDriver,
       pdfBytes: Uint8List(1),
+      rawBytes: Uint8List(1),
     );
 
     expect(accepted, isTrue);
     expect(windowsCalls, 1);
     expect(pdfCalls, 0);
+    expect(rawCalls, 0);
+  });
+
+  test('raw EZPL dispatch uses only the raw sender', () async {
+    var rawCalls = 0;
+    final dispatcher = LabelPrintDispatcher(
+      sendPdf: (_) async => false,
+      sendWindowsDriver: (_) async => false,
+      sendRaw: (_) async {
+        rawCalls += 1;
+        return true;
+      },
+    );
+
+    final accepted = await dispatcher.dispatch(
+      backend: LabelPrintBackend.ezplRaw,
+      pdfBytes: Uint8List(1),
+      rawBytes: Uint8List.fromList(<int>[0x5e, 0x51]),
+    );
+
+    expect(accepted, isTrue);
+    expect(rawCalls, 1);
   });
 }

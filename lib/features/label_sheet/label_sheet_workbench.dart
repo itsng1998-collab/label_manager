@@ -880,6 +880,24 @@ class LabelSheetWindowsDriverCapture {
   final int pixelHeight;
 }
 
+class LabelSheetEzplCapture {
+  const LabelSheetEzplCapture({
+    required this.pngBytes,
+    required this.sheet,
+    required this.metrics,
+    required this.preparation,
+    required this.pixelWidth,
+    required this.pixelHeight,
+  });
+
+  final Uint8List pngBytes;
+  final FortuneSheet sheet;
+  final LabelSheetPrintPageMetrics metrics;
+  final LabelSheetEzplPrintPreparation preparation;
+  final int pixelWidth;
+  final int pixelHeight;
+}
+
 class LabelSheetOutputCaptureController {
   _LabelSheetWorkbenchState? _state;
   Object? _ownerToken;
@@ -912,6 +930,18 @@ class LabelSheetOutputCaptureController {
         lineSpacingPercent: lineSpacingPercent,
       ) ??
       Future<LabelSheetWindowsDriverCapture?>.value();
+
+  Future<LabelSheetEzplCapture?> captureEzpl({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+    required int? lineSpacingPercent,
+  }) =>
+      _state?._captureEzpl(
+        metrics: metrics,
+        options: options,
+        lineSpacingPercent: lineSpacingPercent,
+      ) ??
+      Future<LabelSheetEzplCapture?>.value();
 
   void replaceAttachedOwner({
     required Object expectedOwnerToken,
@@ -2049,6 +2079,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         : null;
     final filePort = RawPrinterWin32.isFilePortName(rawPortName);
     final backend = resolveLabelPrintBackend(
+      profile: profile,
       portName: rawPortName,
     );
     final renderDpi = labelPrintRenderDpi(
@@ -2074,7 +2105,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             lineSpacingPercent: options.autoSpacingPercent,
           )
         : null;
-    final capture = backend != LabelPrintBackend.windowsDriver
+    final ezplCapture = backend == LabelPrintBackend.ezplRaw
+        ? await _captureEzpl(
+            metrics: metrics,
+            options: options,
+            lineSpacingPercent: options.autoSpacingPercent,
+          )
+        : null;
+    final capture = backend == LabelPrintBackend.pdf
         ? await _controller.captureRangeAsPng(
             labelSheetPrintRange(sheet, physicalSize),
             pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
@@ -2091,7 +2129,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!mounted) {
       return;
     }
-    if (capture == null && windowsCapture == null) {
+    if (capture == null && windowsCapture == null && ezplCapture == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')));
@@ -2100,11 +2138,65 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
     debugLog(
       'labelSheetPrint capture backend=${backend.name} '
-      'pixel=${windowsCapture == null ? '${capture!.pixelSize.width}x${capture.pixelSize.height}' : '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}'} '
-      'pngBytes=${windowsCapture?.pngBytes.length ?? capture!.pngBytes.length} '
-      'nativeText=${windowsCapture?.textDescriptors.length ?? 0} '
-      'fallbackText=${windowsCapture == null ? 0 : windowsCapture.plan.candidates.where((candidate) => candidate.kind == FortuneNativeCandidateKind.cellText).length - windowsCapture.textDescriptors.length}',
+      'pixel=${windowsCapture != null ? '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}' : ezplCapture != null ? '${ezplCapture.pixelWidth}x${ezplCapture.pixelHeight}' : '${capture!.pixelSize.width}x${capture.pixelSize.height}'} '
+      'pngBytes=${windowsCapture?.pngBytes.length ?? ezplCapture?.pngBytes.length ?? capture!.pngBytes.length}',
     );
+
+    if (ezplCapture != null) {
+      final preparation = ezplCapture.preparation;
+      final textDescriptors = preparation.descriptors
+          .where(
+            (descriptor) =>
+                descriptor.kind == FortuneNativeCandidateKind.cellText,
+          )
+          .toList(growable: false);
+      final approvedTextTokens = textDescriptors
+          .map((descriptor) => descriptor.candidateToken)
+          .toSet();
+      final textCandidates = preparation.plan.candidates
+          .where(
+            (candidate) =>
+                candidate.kind == FortuneNativeCandidateKind.cellText,
+          )
+          .length;
+      debugLog(
+        'labelSheetPrint ezpl font=AT manufacturerBuiltInTTF encoding=UTF8 '
+        'renderedTextCells=${preparation.renderedTextCells} '
+        'dynamicTextMaterialized=${preparation.dynamicTextMaterialized} '
+        'textCandidateTokens=$textCandidates '
+        'approvedTextTokens=${approvedTextTokens.length} '
+        'textDescriptors=${textDescriptors.length} '
+        'fallbackTextTokens=${textCandidates - approvedTextTokens.length} '
+        'characters=${textDescriptors.fold<int>(0, (sum, item) => sum + item.textCharacters)} '
+        'lines=${textDescriptors.fold<int>(0, (sum, item) => sum + item.lineCount)} '
+        'fontDots=${textDescriptors.map((item) => item.fontHeightDots).whereType<int>().toList()} '
+        'candidateExclusions=${preparation.textCandidateExclusionCounts} '
+        'preflightRejections=${preparation.textRejectionCounts}',
+      );
+      for (final descriptor in textDescriptors) {
+        debugLog(
+          'labelSheetPrint ezplText token=${descriptor.candidateToken} '
+          'font=AT utf8=${descriptor.utf8} chars=${descriptor.textCharacters} '
+          'lines=${descriptor.lineCount} fontHeightDots=${descriptor.fontHeightDots} '
+          'lineBounds=${descriptor.textLineFootprints}',
+        );
+      }
+      final rawBytes = await buildLabelSheetPlannedEzplBytes(
+        filteredPngBytes: ezplCapture.pngBytes,
+        metrics: ezplCapture.metrics,
+        options: options,
+        plan: preparation.plan,
+        descriptors: preparation.descriptors,
+      );
+      debugLog(
+        'labelSheetPrint ezplPayload bytes=${rawBytes.length} '
+        'fallbackPngBytes=${ezplCapture.pngBytes.length} '
+        'nativeDescriptors=${preparation.descriptors.length}',
+      );
+      final result = await RawPrinterWin32.sendRaw(printer, rawBytes);
+      debugLog('labelSheetPrint rawDispatch ${result.diagnostics}');
+      return;
+    }
 
     final driverPage = backend == LabelPrintBackend.windowsDriver
         ? prepareLabelSheetWindowsDriverPage(
@@ -2249,6 +2341,47 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       metrics: preparation.geometry.metrics,
       plan: preparation.plan,
       textDescriptors: preparation.descriptors,
+      pixelWidth: capture.pixelSize.width.round(),
+      pixelHeight: capture.pixelSize.height.round(),
+    );
+  }
+
+  Future<LabelSheetEzplCapture?> _captureEzpl({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+    required int? lineSpacingPercent,
+  }) async {
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
+    final sheet = _controller.getSheet();
+    final settings = _controller.settingsSnapshot;
+    final physicalSize = sheet == null
+        ? null
+        : fortuneSheetGridClientPhysicalSize(sheet);
+    if (sheet == null || settings == null || physicalSize == null) return null;
+    final preparation = prepareLabelSheetEzplPrint(
+      sheet: sheet,
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
+      options: options,
+      lineSpacingPercent: lineSpacingPercent,
+    );
+    final capture = await _controller.captureHybridPlanAsPng(
+      preparation.plan,
+      pixelRatio:
+          preparation.geometry.metrics.dpi * 2 /
+          fortuneSheetLogicalPixelsPerInch,
+      includeCellBorders: true,
+      outputLineHeightMultiplier: lineSpacingPercent == null
+          ? null
+          : lineSpacingPercent / 100,
+    );
+    if (capture == null) return null;
+    return LabelSheetEzplCapture(
+      pngBytes: capture.pngBytes,
+      sheet: capture.sheet,
+      metrics: preparation.geometry.metrics,
+      preparation: preparation,
       pixelWidth: capture.pixelSize.width.round(),
       pixelHeight: capture.pixelSize.height.round(),
     );

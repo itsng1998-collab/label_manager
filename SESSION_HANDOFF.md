@@ -1,5 +1,26 @@
 # 현재 작업 상태
 
+## 진행 중: Godex G500 제조사 내장 폰트 EZPL 직접 출력 v1.0.45
+- 실물 v1.0.44 로그에서 `backend=windowsDriver`, G500 printable-area/DC 축소와 GDI 글꼴 raster 품질 저하를 확인했다. Godex 물리 포트만 `ezplRaw`, FILE/PORTPROMPT는 PDF, Zebra/BIXOLON/CITIZEN/기타는 기존 GDI로 자동 매핑한다.
+- `label_print_dispatcher.dart`: `ezplRaw` backend와 Godex profile 기반 자동 라우팅, raw sender 계약을 복원했다.
+- `raw_printer_win32.dart`: `StartDocPrinter`/`WritePrinter` RAW spool 전송과 job ID, 요청/기록 byte 진단을 복원했다.
+- `label_sheet_print_job.dart`: 최종 FortuneSheet를 공용 hybrid plan으로 분리하고 G500 제조사 내장 TTF `AT` UTF-8 텍스트, `R` vector, `BQ/BA/BE/BB` barcode를 직접 출력한다. 미지원 이미지/배경/복합 스타일만 filtered PNG의 `~G` fallback으로 넣어 최종 출력 전체를 단일 EZPL job으로 만든다. 별도 RTF/Windows font/다운로드 font/AZ 슬롯은 사용하지 않는다.
+- `label_sheet_workbench.dart`: 라벨시트/공용 capture controller에 2배 supersampling EZPL fallback capture를 연결했다. 고유 후보 token과 descriptor 수, 문자/줄/font dots/line bounds, 제외·fallback 사유, payload와 WritePrinter 결과를 구분해 기록한다.
+- `home_page_manager.dart`: 품목·저울 라벨도 unit별 hybrid EZPL payload를 생성하고 group별 RAW spool job으로 전송한다. 비Godex GDI/PDF 경로는 유지한다.
+- 테스트: dispatcher/print job focused 18건, 출력 pipeline/hybrid plan 59건 통과. G500 한글을 내장 `AT` UTF-8로 승인하고 `AT + ~G` 단일 payload를 생성하는 신규 focused 테스트 통과.
+- 버전을 `1.0.45`로 증가했다.
+- Dart formatter 적용 완료.
+- 출력 관련 전체 테스트 실행 예정: `flutter test test/label_print_dispatcher_test.dart test/label_print_pipeline_test.dart test/label_sheet_print_job_test.dart test/label_print_session_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`.
+- strict analyzer 실행 예정: `flutter analyze lib/printing/label_print_dispatcher.dart lib/printing/raw_printer_win32.dart lib/printing/label_sheet_print_job.dart lib/features/label_sheet/label_sheet_workbench.dart lib/home_page_manager.dart test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart`.
+- formatter 후 출력 관련 전체 테스트 60건 통과.
+- 최초 strict analyzer는 `home_page_manager.dart`의 `BytesBuilder` import 누락 2건으로 실패했다. `dart:typed_data` import 추가 후 동일 analyzer 재실행 결과 오류·경고 0건.
+- Windows 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 후 `git diff --check`, Debug EXE FileVersion/ProductVersion 확인.
+- 최초 Windows `/WX` Debug build는 실행 중인 Debug `label_manager.exe`의 파일 잠금으로 `LNK1168` 실패했다. 빌드 산출물 PID 11668을 `CloseMainWindow`로 정상 종료한 뒤 동일 빌드 재실행에 성공했다.
+- `git diff --check` 통과. Debug EXE FileVersion/ProductVersion 모두 `1.0.45` 확인.
+- 최종 stage/commit 대상: `label_sheet_workbench.dart`, `home_page_manager.dart`, `label_print_dispatcher.dart`, `label_sheet_print_job.dart`, `raw_printer_win32.dart`, 출력 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`와 무관한 `pubspec.lock`은 제외한다.
+- 기능 커밋: `91e3fc4 Godex 내장 폰트 EZPL 직접 출력 복원` (인수인계 해시 기록 amend 전 기준).
+- stage/commit 예정: EZPL production 5개, 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`와 이번 작업과 무관한 자동 lockfile 변경 `pubspec.lock`은 제외한다.
+
 ## 완료·실물 검증 대기: 레거시 GDI 포팅 재점검 v1.0.44
 - 사용자 확정: 세로 출력은 현재 용지 크기를 유지하지 않고 레거시 방식으로 폭·높이를 교환한다. 80x60 설정은 60x80 물리 용지로 출력한다.
 - 확인된 수정 대상: 공용 `LabelSheetPrintLayout`의 세로 page/clip 크기, 품목·저울/라벨시트 dispatch의 실제 page mm, GDI native text의 source bitmap→printer DC 배율, `DocumentPropertiesW` DEVMODE 적용 실패 전달.

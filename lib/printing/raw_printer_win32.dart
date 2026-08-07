@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:printing/printing.dart';
@@ -30,6 +31,21 @@ const int _pdDisablePrintToFile = 0x00080000;
 const int _pdHidePrintToFile = 0x00100000;
 const int _gmemMoveable = 0x0002;
 const int _gmemZeroInit = 0x0040;
+
+class RawPrinterWriteResult {
+  const RawPrinterWriteResult({
+    required this.jobId,
+    required this.requestedBytes,
+    required this.writtenBytes,
+  });
+
+  final int jobId;
+  final int requestedBytes;
+  final int writtenBytes;
+
+  String get diagnostics =>
+      'jobId=$jobId requestedBytes=$requestedBytes writtenBytes=$writtenBytes';
+}
 
 typedef _PrintDlgWNative = Int32 Function(Pointer<_PrintDlgWStruct>);
 typedef _PrintDlgW = int Function(Pointer<_PrintDlgWStruct>);
@@ -317,6 +333,92 @@ class RawPrinterWin32 {
       units.add(unit);
     }
     return String.fromCharCodes(units);
+  }
+
+  static Future<RawPrinterWriteResult> sendRaw(
+    Printer printer,
+    Uint8List data,
+  ) async {
+    if (!Platform.isWindows) {
+      throw UnsupportedError('Raw printing is only supported on Windows.');
+    }
+    if (printer.name.isEmpty) {
+      throw ArgumentError('Printer name is not available.');
+    }
+    if (data.isEmpty) {
+      throw StateError('Empty printer command payload.');
+    }
+
+    final printerHandle = calloc<HANDLE>();
+    final printerName = printer.name.toNativeUtf16();
+    try {
+      if (OpenPrinter(printerName, printerHandle, nullptr) == 0) {
+        throw StateError('OpenPrinter failed with error ${GetLastError()}');
+      }
+      final docInfo = calloc<DOC_INFO_1>();
+      final docName = 'ITSnG EZPL Label'.toNativeUtf16();
+      final dataType = 'RAW'.toNativeUtf16();
+      docInfo.ref
+        ..pDocName = docName
+        ..pOutputFile = nullptr
+        ..pDatatype = dataType;
+      try {
+        final jobId = StartDocPrinter(printerHandle.value, 1, docInfo);
+        if (jobId == 0) {
+          throw StateError('StartDocPrinter failed (${GetLastError()})');
+        }
+        var writtenBytes = 0;
+        try {
+          if (StartPagePrinter(printerHandle.value) == 0) {
+            throw StateError('StartPagePrinter failed (${GetLastError()})');
+          }
+          final dataPointer = calloc<Uint8>(data.length);
+          final written = calloc<DWORD>();
+          try {
+            dataPointer.asTypedList(data.length).setAll(0, data);
+            if (WritePrinter(
+                      printerHandle.value,
+                      dataPointer.cast(),
+                      data.length,
+                      written,
+                    ) ==
+                    0 ||
+                written.value != data.length) {
+              throw StateError(
+                'WritePrinter failed (${GetLastError()}): '
+                '${written.value}/${data.length}',
+              );
+            }
+            writtenBytes = written.value;
+          } finally {
+            calloc.free(written);
+            calloc.free(dataPointer);
+          }
+          if (EndPagePrinter(printerHandle.value) == 0) {
+            throw StateError('EndPagePrinter failed (${GetLastError()})');
+          }
+        } finally {
+          if (EndDocPrinter(printerHandle.value) == 0) {
+            throw StateError('EndDocPrinter failed (${GetLastError()})');
+          }
+        }
+        return RawPrinterWriteResult(
+          jobId: jobId,
+          requestedBytes: data.length,
+          writtenBytes: writtenBytes,
+        );
+      } finally {
+        calloc.free(docInfo);
+        calloc.free(docName);
+        calloc.free(dataType);
+      }
+    } finally {
+      if (printerHandle.value != 0) {
+        ClosePrinter(printerHandle.value);
+      }
+      calloc.free(printerHandle);
+      calloc.free(printerName);
+    }
   }
 
   static Future<String?> queryPrinterPortName(Printer printer) async {

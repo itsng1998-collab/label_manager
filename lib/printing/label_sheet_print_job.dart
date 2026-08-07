@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -7,6 +8,8 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
+const num _labelSheetEzplInkLuminanceThreshold = 200;
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -322,6 +325,121 @@ class LabelSheetHybridPrintGeometry {
   final FortuneRange range;
   final LabelSheetPrintPageMetrics metrics;
   final FortunePrintTransform transform;
+}
+
+class LabelSheetEzplNativeDescriptor {
+  const LabelSheetEzplNativeDescriptor({
+    required this.candidateToken,
+    required this.command,
+    required this.predictedPaintedFootprint,
+    required this.kind,
+    this.utf8 = false,
+    this.textCharacters = 0,
+    this.fontHeightDots,
+    this.lineCount = 0,
+    this.textLineFootprints = const <ui.Rect>[],
+  });
+
+  final String candidateToken;
+  final String command;
+  final ui.Rect predictedPaintedFootprint;
+  final FortuneNativeCandidateKind kind;
+  final bool utf8;
+  final int textCharacters;
+  final int? fontHeightDots;
+  final int lineCount;
+  final List<ui.Rect> textLineFootprints;
+
+  FortuneNativeCandidateApproval get approval =>
+      FortuneNativeCandidateApproval(
+        candidateToken: candidateToken,
+        predictedPaintedFootprint: predictedPaintedFootprint,
+      );
+}
+
+class LabelSheetEzplPrintPreparation {
+  const LabelSheetEzplPrintPreparation({
+    required this.geometry,
+    required this.descriptors,
+    required this.plan,
+    required this.renderedTextCells,
+    required this.dynamicTextMaterialized,
+    required this.textCandidateExclusionCounts,
+    required this.textCandidateExclusions,
+    required this.textRejectionCounts,
+  });
+
+  final LabelSheetHybridPrintGeometry geometry;
+  final List<LabelSheetEzplNativeDescriptor> descriptors;
+  final FortuneHybridRenderPlan plan;
+  final int renderedTextCells;
+  final int dynamicTextMaterialized;
+  final Map<String, int> textCandidateExclusionCounts;
+  final List<FortuneNativeCellTextExclusion> textCandidateExclusions;
+  final Map<String, int> textRejectionCounts;
+}
+
+LabelSheetEzplPrintPreparation prepareLabelSheetEzplPrint({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  int? lineSpacingPercent,
+}) {
+  final materializedSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
+  final printSheet = materializedSheet.copyWith(
+    zoomRatio: 1,
+    rawZoomRatio: null,
+    hasRawZoomRatio: false,
+  );
+  final dynamicTextMaterialized = printSheet.cells.entries.where((entry) {
+    return sheet.cells[entry.key]?.renderedText != entry.value.renderedText;
+  }).length;
+  final geometry = resolveLabelSheetHybridPrintGeometry(
+    sheet: printSheet,
+    settings: settings,
+    physicalSize: physicalSize,
+    metrics: metrics,
+    options: options,
+  );
+  final candidateDiagnostics = FortuneNativeCandidateDiagnostics();
+  final candidates = fortuneBuildNativeCandidates(
+    settings: settings,
+    sheet: printSheet,
+    range: geometry.range,
+    transform: geometry.transform,
+    diagnostics: candidateDiagnostics,
+  );
+  final textRejectionCounts = <String, int>{};
+  final descriptors = _preflightLabelSheetEzplCandidates(
+    sheet: printSheet,
+    settings: settings,
+    transform: geometry.transform,
+    candidates: candidates,
+    lineSpacingPercent: lineSpacingPercent,
+    textRejectionCounts: textRejectionCounts,
+  );
+  final plan = fortuneFinalizeHybridRenderPlan(
+    settings: settings,
+    sheet: printSheet,
+    range: geometry.range,
+    transform: geometry.transform,
+    candidates: candidates,
+    approvals: descriptors.map((descriptor) => descriptor.approval),
+  );
+  return LabelSheetEzplPrintPreparation(
+    geometry: geometry,
+    descriptors: descriptors,
+    plan: plan,
+    renderedTextCells: printSheet.cells.values
+        .where((cell) => cell.renderedText.isNotEmpty)
+        .length,
+    dynamicTextMaterialized: dynamicTextMaterialized,
+    textCandidateExclusionCounts: candidateDiagnostics.cellTextExcluded,
+    textCandidateExclusions: candidateDiagnostics.cellTextExclusions,
+    textRejectionCounts: Map.unmodifiable(textRejectionCounts),
+  );
 }
 
 LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
@@ -838,6 +956,352 @@ List<_LabelSheetTextFragment> _labelSheetTextFragments(
   }
   return fragments;
 }
+
+List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required FortunePrintTransform transform,
+  required Iterable<FortuneNativeCandidate> candidates,
+  required int? lineSpacingPercent,
+  required Map<String, int> textRejectionCounts,
+}) {
+  void reject(String reason) => textRejectionCounts.update(
+    reason,
+    (count) => count + 1,
+    ifAbsent: () => 1,
+  );
+
+  final descriptors = <LabelSheetEzplNativeDescriptor>[];
+  for (final candidate in candidates) {
+    if (candidate.kind == FortuneNativeCandidateKind.cellText) {
+      final coord = candidate.cellCoord;
+      final cell = coord == null ? null : sheet.cells[coord];
+      if (cell == null || cell.renderedText.isEmpty) {
+        reject('missingOrEmptyText');
+        continue;
+      }
+      if (!_windowsInlineRunsSupported(cell)) {
+        reject('unsupportedInlineStyle');
+        continue;
+      }
+      if (cell.isVerticalText || cell.normalizedTextRotation != 0) {
+        reject('rotatedText');
+        continue;
+      }
+      if (cell.normalizedTextWrap == '1' ||
+          cell.normalizedHorizontalAlign == '3') {
+        reject('unsupportedTextLayout');
+        continue;
+      }
+      if (cell.strikeThrough || cell.foreground.toARGB32() != 0xff000000) {
+        reject('unsupportedTextDecoration');
+        continue;
+      }
+      if (cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
+        reject('customOffsetY');
+        continue;
+      }
+      final layout = fortuneLayoutCellText(
+        settings: settings,
+        cell: cell,
+        logicalBounds:
+            candidate.logicalTextLayoutBounds ??
+            candidate.logicalPaintedFootprint,
+        textSpan: _labelSheetCellTextSpan(
+          cell,
+          settings,
+          outputLineHeightMultiplier: lineSpacingPercent == null
+              ? null
+              : lineSpacingPercent / 100,
+        ),
+        outputLineHeightMultiplier: lineSpacingPercent == null
+            ? null
+            : lineSpacingPercent / 100,
+      );
+      if (layout == null || layout.painter.didExceedMaxLines) {
+        reject('textLayout');
+        continue;
+      }
+      final fragments = _labelSheetTextFragments(cell, layout, settings);
+      if (fragments.isEmpty ||
+          fragments.any(
+            (fragment) =>
+                fragment.strikeThrough || fragment.colorArgb != 0xff000000,
+          )) {
+        reject('unsupportedInlineDecoration');
+        continue;
+      }
+      final command = StringBuffer();
+      final footprints = <ui.Rect>[];
+      for (final fragment in fragments) {
+        final footprint = transform.logicalRectToPrinterDots(
+          ui.Rect.fromLTWH(
+            fragment.logicalLeft,
+            fragment.logicalTop,
+            fragment.logicalWidth,
+            fragment.logicalHeight,
+          ),
+        );
+        final fontDots = math.max(
+          8,
+          (fragment.fontSize * transform.dotsPerLogicalPixel).round(),
+        );
+        final style = StringBuffer('0');
+        if (fragment.bold) style.write('B');
+        if (fragment.italic) style.write('T');
+        if (fragment.underline) style.write('U');
+        style.write('E');
+        command.write(
+          'AT,${footprint.left.round()},${footprint.top.round()},'
+          '$fontDots,$fontDots,0,$style,0,0,'
+          '${_escapeEzplText(fragment.text)}\r\n',
+        );
+        footprints.add(footprint);
+      }
+      descriptors.add(
+        LabelSheetEzplNativeDescriptor(
+          candidateToken: candidate.token,
+          command: command.toString(),
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+          kind: FortuneNativeCandidateKind.cellText,
+          utf8: true,
+          textCharacters: cell.renderedText.runes.length,
+          fontHeightDots: math.max(
+            8,
+            (layout.fontSize * transform.dotsPerLogicalPixel).round(),
+          ),
+          lineCount: layout.lines.length,
+          textLineFootprints: List.unmodifiable(footprints),
+        ),
+      );
+      continue;
+    }
+    if (candidate.kind == FortuneNativeCandidateKind.barcode) {
+      final key = candidate.objectKey;
+      if (key == null) continue;
+      final image = sheet.images
+          .where(
+            (image) =>
+                image.id == key.id &&
+                image.extraFields['fortuneBarcode'] == true,
+          )
+          .firstOrNull;
+      if (image == null || image.extraFields['barcodeShowText'] == true) {
+        continue;
+      }
+      final text = image.extraFields['barcodeText']?.toString().trim() ?? '';
+      final format = image.extraFields['barcodeFormatId']?.toString() ?? '';
+      final barcodeCommand = _ezplBarcodeCommandForFormat(format);
+      if (barcodeCommand == null || text.isEmpty) continue;
+      final narrow = math.max(
+        1,
+        _metadataDouble(image.extraFields['barcodeModuleScale'], 2).round(),
+      );
+      final wide = math.max(narrow + 1, (narrow * 2.5).round());
+      final height = math.max(
+        8,
+        (_metadataDouble(
+                  image.extraFields['barcodeBarHeight'],
+                  image.height,
+                ) *
+                transform.dotsPerLogicalPixel)
+            .round(),
+      );
+      final target = candidate.printerPaintedFootprint;
+      descriptors.add(
+        LabelSheetEzplNativeDescriptor(
+          candidateToken: candidate.token,
+          command: '$barcodeCommand${target.left.round()},'
+              '${target.top.round()},$narrow,$wide,$height,0,0,'
+              '${_escapeEzplText(text)}\r\n',
+          predictedPaintedFootprint: target,
+          kind: FortuneNativeCandidateKind.barcode,
+        ),
+      );
+      continue;
+    }
+    final strokeWidthMm = switch (candidate.kind) {
+      FortuneNativeCandidateKind.line => sheet.lines
+          .where((line) => line.id == candidate.objectKey!.id)
+          .map((line) => line.strokeWidthMm)
+          .firstOrNull,
+      FortuneNativeCandidateKind.rectangle => sheet.shapes
+          .where((shape) => shape.id == candidate.objectKey!.id)
+          .map((shape) => shape.strokeWidthMm)
+          .firstOrNull,
+      FortuneNativeCandidateKind.cellBorder =>
+        math.min(
+              candidate.printerPaintedFootprint.width,
+              candidate.printerPaintedFootprint.height,
+            ) /
+            transform.dotsPerMillimeter,
+      FortuneNativeCandidateKind.barcode ||
+      FortuneNativeCandidateKind.cellText => null,
+    };
+    if (strokeWidthMm == null) continue;
+    final target = candidate.printerPaintedFootprint;
+    final strokeDots = math.max(
+      1,
+      (strokeWidthMm * transform.dotsPerMillimeter).round(),
+    );
+    descriptors.add(
+      LabelSheetEzplNativeDescriptor(
+        candidateToken: candidate.token,
+        command: 'R${target.left.round()},${target.top.round()},'
+            '${target.right.round()},${target.bottom.round()},'
+            '$strokeDots,$strokeDots\r\n',
+        predictedPaintedFootprint: target,
+        kind: candidate.kind,
+      ),
+    );
+  }
+  return List.unmodifiable(descriptors);
+}
+
+Future<Uint8List> buildLabelSheetPlannedEzplBytes({
+  required Uint8List filteredPngBytes,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  required FortuneHybridRenderPlan plan,
+  required Iterable<LabelSheetEzplNativeDescriptor> descriptors,
+}) async {
+  final source = img.decodePng(filteredPngBytes);
+  if (source == null) {
+    throw StateError('라벨 이미지를 EZPL 출력 이미지로 변환할 수 없습니다.');
+  }
+  final descriptorByToken = <String, List<LabelSheetEzplNativeDescriptor>>{};
+  for (final descriptor in descriptors) {
+    if (!plan.approvedCandidateTokens.contains(descriptor.candidateToken)) {
+      continue;
+    }
+    descriptorByToken
+        .putIfAbsent(
+          descriptor.candidateToken,
+          () => <LabelSheetEzplNativeDescriptor>[],
+        )
+        .add(descriptor);
+  }
+  final layout = LabelSheetPrintLayout.resolve(metrics: metrics, options: options);
+  final raster = img.Image(
+    width: metrics.dotsFromMm(metrics.pageWidthMm(options)),
+    height: metrics.dotsFromMm(metrics.pageHeightMm(options)),
+  );
+  img.fill(raster, color: img.ColorRgb8(255, 255, 255));
+  final oriented = options.rotateQuarterTurns
+      ? img.copyRotate(source, angle: 90)
+      : source;
+  final content = img.copyResize(
+    oriented,
+    width: metrics.dotsFromMm(layout.contentWidthMm),
+    height: metrics.dotsFromMm(layout.contentHeightMm),
+    interpolation: img.Interpolation.average,
+  );
+  img.compositeImage(
+    raster,
+    content,
+    dstX: metrics.signedDotsFromMm(layout.contentLeftMm),
+    dstY: metrics.signedDotsFromMm(layout.contentTopMm),
+  );
+  _clipEzplRasterToLabelArea(
+    raster,
+    metrics: metrics,
+    options: options,
+  );
+
+  final commands = BytesBuilder(copy: false)
+    ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
+    ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
+    ..add(ascii.encode('^P${options.copies}\r\n'))
+    ..add(ascii.encode('^LR0\r\n'));
+  _addEzplRasterGraphic(commands, raster);
+  final emittedTokens = <String>{};
+  for (final candidate in plan.candidates) {
+    if (!emittedTokens.add(candidate.token)) continue;
+    for (final descriptor in
+        descriptorByToken[candidate.token] ??
+            const <LabelSheetEzplNativeDescriptor>[]) {
+      commands.add(
+        descriptor.utf8
+            ? utf8.encode(descriptor.command)
+            : ascii.encode(descriptor.command),
+      );
+    }
+  }
+  commands.add(ascii.encode('E\r\n'));
+  return commands.takeBytes();
+}
+
+void _clipEzplRasterToLabelArea(
+  img.Image raster, {
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+}) {
+  final white = img.ColorRgb8(255, 255, 255);
+  final clipRight = metrics.signedDotsFromMm(
+    metrics.pageWidthMm(options) - options.rightMarginMm,
+  );
+  if (clipRight < raster.width) {
+    img.fillRect(
+      raster,
+      x1: math.max(0, clipRight),
+      y1: 0,
+      x2: raster.width - 1,
+      y2: raster.height - 1,
+      color: white,
+    );
+  }
+  final labelBottom = metrics.dotsFromMm(metrics.labelHeightMm);
+  if (labelBottom < raster.height) {
+    img.fillRect(
+      raster,
+      x1: 0,
+      y1: labelBottom,
+      x2: raster.width - 1,
+      y2: raster.height - 1,
+      color: white,
+    );
+  }
+}
+
+void _addEzplRasterGraphic(BytesBuilder commands, img.Image raster) {
+  final bytesPerRow = (raster.width + 7) ~/ 8;
+  commands.add(ascii.encode('~G\r\n'));
+  for (var y = 0; y < raster.height; y += 1) {
+    final row = Uint8List(bytesPerRow);
+    for (var x = 0; x < raster.width; x += 1) {
+      if (img.getLuminance(raster.getPixel(x, y)) <=
+          _labelSheetEzplInkLuminanceThreshold) {
+        row[x ~/ 8] |= 1 << (7 - (x % 8));
+      }
+    }
+    commands
+      ..addByte(0x47)
+      ..addByte(bytesPerRow)
+      ..add(row)
+      ..add(const <int>[0x0d, 0x0a]);
+  }
+}
+
+String? _ezplBarcodeCommandForFormat(String format) {
+  final normalized = format.toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9]'),
+    '',
+  );
+  if (normalized.contains('code128')) return 'BQ';
+  if (normalized.contains('code39')) return 'BA';
+  if (normalized.contains('ean13')) return 'BE';
+  if (normalized.contains('ean8')) return 'BB';
+  return null;
+}
+
+double _metadataDouble(Object? value, double fallback) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim()) ?? fallback;
+  return fallback;
+}
+
+String _escapeEzplText(String value) =>
+    value.replaceAll('\r', ' ').replaceAll('\n', ' ');
 
 Future<Uint8List> buildLabelSheetPdfGroupBytes(
   List<LabelSheetRenderedPage> pages,

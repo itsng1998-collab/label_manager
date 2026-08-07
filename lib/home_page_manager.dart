@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
 import 'dart:math' show max, min;
+import 'dart:typed_data' show BytesBuilder, Uint8List;
 import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle;
 
 import 'package:collection/collection.dart';
@@ -6005,6 +6006,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? await RawPrinterWin32.queryPrinterPortName(printer)
           : null;
       final backend = resolveLabelPrintBackend(
+        profile: profile,
         portName: portName,
       );
       final printerDpi = Platform.isWindows
@@ -6052,6 +6054,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final renderedPages = <LabelPrintUnit, LabelSheetRenderedPage>{};
       final driverPages = <LabelPrintUnit, LabelSheetWindowsDriverPage>{};
+      final ezplCaptures = <LabelPrintUnit, LabelSheetEzplCapture>{};
         final driverTextDescriptors =
           <LabelPrintUnit, List<LabelSheetWindowsTextDescriptor>>{};
       final resolvedMetrics = <LabelPrintUnit, LabelSheetPrintPageMetrics>{};
@@ -6090,19 +6093,31 @@ class _HomePageManagerState extends State<HomePageManager> {
                   lineSpacingPercent: unit.row.lineSpacingPercent,
                 )
               : null;
-            final capture = backend != LabelPrintBackend.windowsDriver
+            final ezplCapture = backend == LabelPrintBackend.ezplRaw
+              ? await _labelPrintCaptureController.captureEzpl(
+                  metrics: LabelSheetPrintPageMetrics(
+                    labelWidthMm: unit.row.widthMm,
+                    labelHeightMm: unit.row.heightMm,
+                    dpi: dpi,
+                  ),
+                  options: options,
+                  lineSpacingPercent: unit.row.lineSpacingPercent,
+                )
+              : null;
+            final capture = backend == LabelPrintBackend.pdf
               ? await _labelPrintCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
                 )
               : null;
-          if (capture == null && windowsCapture == null) {
+          if (capture == null && windowsCapture == null && ezplCapture == null) {
             throw StateError(
               '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
             );
           }
-          capturedSheet = windowsCapture?.sheet ?? capture!.sheet;
-          metrics = windowsCapture?.metrics ??
+            capturedSheet =
+              windowsCapture?.sheet ?? ezplCapture?.sheet ?? capture!.sheet;
+            metrics = windowsCapture?.metrics ?? ezplCapture?.metrics ??
               LabelSheetPrintPageMetrics(
                 labelWidthMm: unit.row.widthMm,
                 labelHeightMm: unit.row.heightMm,
@@ -6121,12 +6136,16 @@ class _HomePageManagerState extends State<HomePageManager> {
             driverPages[unit] = driverPage;
             driverTextDescriptors[unit] = windowsCapture!.textDescriptors;
           }
-          renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: windowsCapture?.pngBytes ?? capture!.pngBytes,
-            metrics: metrics,
-            options: options,
-          );
-          final nativeTextCandidates = windowsCapture?.plan.candidates
+          if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
+          if (backend == LabelPrintBackend.pdf) {
+            renderedPages[unit] = LabelSheetRenderedPage(
+              pngBytes: capture!.pngBytes,
+              metrics: metrics,
+              options: options,
+            );
+          }
+          final plan = windowsCapture?.plan ?? ezplCapture?.preparation.plan;
+          final nativeTextCandidates = plan?.candidates
                   .where(
                     (candidate) =>
                         candidate.kind ==
@@ -6134,15 +6153,32 @@ class _HomePageManagerState extends State<HomePageManager> {
                   )
                   .length ??
               0;
-          debugLog(
+            final ezplTextDescriptors = ezplCapture?.preparation.descriptors
+                .where(
+                (descriptor) =>
+                  descriptor.kind ==
+                  fs.FortuneNativeCandidateKind.cellText,
+                )
+                .toList(growable: false) ??
+              const <LabelSheetEzplNativeDescriptor>[];
+            final approvedTextTokens = ezplTextDescriptors
+              .map((descriptor) => descriptor.candidateToken)
+              .toSet()
+              .length;
+            debugLog(
             'labelPrintQuality capture unit=${unitIndex + 1}/${units.length} '
             'itemId=${unit.row.itemId} labelMm=${unit.row.widthMm}x${unit.row.heightMm} '
             'sourceMm=${metrics.effectiveSourceWidthMm}x${metrics.effectiveSourceHeightMm} '
-            'pixel=${windowsCapture == null ? '${capture!.pixelWidth}x${capture.pixelHeight}' : '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}'} '
-            'pngBytes=${windowsCapture?.pngBytes.length ?? capture!.pngBytes.length} '
+            'pixel=${windowsCapture != null ? '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}' : ezplCapture != null ? '${ezplCapture.pixelWidth}x${ezplCapture.pixelHeight}' : '${capture!.pixelWidth}x${capture.pixelHeight}'} '
+            'pngBytes=${windowsCapture?.pngBytes.length ?? ezplCapture?.pngBytes.length ?? capture!.pngBytes.length} '
             'nativeTextCandidates=$nativeTextCandidates '
-            'nativeTextApproved=${windowsCapture?.textDescriptors.length ?? 0} '
-            'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.length ?? 0)} margins='
+            'nativeTextApprovedTokens=${windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens} '
+            'nativeTextDescriptors=${windowsCapture?.textDescriptors.length ?? ezplTextDescriptors.length} '
+            'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens)} '
+            'font=${ezplCapture == null ? 'WindowsDriver' : 'AT manufacturerBuiltInTTF UTF8'} '
+            'characters=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.textCharacters)} '
+            'lines=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.lineCount)} '
+            'preflightRejections=${ezplCapture?.preparation.textRejectionCounts ?? const {}} margins='
             '${unit.row.leftMarginMm},${unit.row.rightMarginMm},${unit.row.topMarginMm} '
             'push=${unit.row.leftPushMm},${unit.row.topPushMm} '
             'orientation=${options.orientation.name}',
@@ -6219,6 +6255,25 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
+        } else if (backend == LabelPrintBackend.ezplRaw) {
+          final bytes = BytesBuilder(copy: false);
+          for (final unit in group.units) {
+            final ezplCapture = ezplCaptures[unit]!;
+            bytes.add(
+              await buildLabelSheetPlannedEzplBytes(
+                filteredPngBytes: ezplCapture.pngBytes,
+                metrics: ezplCapture.metrics,
+                options: _labelPrintOptions(unit.row, settings),
+                plan: ezplCapture.preparation.plan,
+                descriptors: ezplCapture.preparation.descriptors,
+              ),
+            );
+          }
+          payloads[group] = bytes.takeBytes();
+          debugLog(
+            'labelPrintQuality payload backend=${backend.name} '
+            'units=${group.units.length} ezplBytes=${payloads[group]!.length}',
+          );
         } else {
           payloads[group] = const <int>[];
         }
@@ -6267,6 +6322,11 @@ class _HomePageManagerState extends State<HomePageManager> {
                   'labelPrintQuality gdiDispatch ${result.diagnostics}',
                 );
               }
+              return true;
+            })(),
+            LabelPrintBackend.ezplRaw => await (() async {
+              final result = await RawPrinterWin32.sendRaw(printer, payload);
+              debugLog('labelPrintQuality rawDispatch ${result.diagnostics}');
               return true;
             })(),
           };
@@ -6457,6 +6517,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? await RawPrinterWin32.queryPrinterPortName(printer)
           : null;
       final backend = resolveLabelPrintBackend(
+        profile: profile,
         portName: portName,
       );
       final printerDpi = Platform.isWindows
@@ -6503,6 +6564,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final renderedPages = <ScaleOutputUnit, LabelSheetRenderedPage>{};
       final driverPages = <ScaleOutputUnit, LabelSheetWindowsDriverPage>{};
+      final ezplCaptures = <ScaleOutputUnit, LabelSheetEzplCapture>{};
         final driverTextDescriptors =
           <ScaleOutputUnit, List<LabelSheetWindowsTextDescriptor>>{};
       final resolvedMetrics = <ScaleOutputUnit, LabelSheetPrintPageMetrics>{};
@@ -6541,19 +6603,31 @@ class _HomePageManagerState extends State<HomePageManager> {
                   lineSpacingPercent: unit.row.lineSpacingPercent,
                 )
               : null;
-            final capture = backend != LabelPrintBackend.windowsDriver
+            final ezplCapture = backend == LabelPrintBackend.ezplRaw
+              ? await _scaleOutputCaptureController.captureEzpl(
+                  metrics: LabelSheetPrintPageMetrics(
+                    labelWidthMm: unit.row.widthMm,
+                    labelHeightMm: unit.row.heightMm,
+                    dpi: dpi,
+                  ),
+                  options: options,
+                  lineSpacingPercent: unit.row.lineSpacingPercent,
+                )
+              : null;
+            final capture = backend == LabelPrintBackend.pdf
               ? await _scaleOutputCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
                 )
               : null;
-          if (capture == null && windowsCapture == null) {
+          if (capture == null && windowsCapture == null && ezplCapture == null) {
             throw StateError(
               '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
             );
           }
-          capturedSheet = windowsCapture?.sheet ?? capture!.sheet;
-          metrics = windowsCapture?.metrics ??
+            capturedSheet =
+              windowsCapture?.sheet ?? ezplCapture?.sheet ?? capture!.sheet;
+            metrics = windowsCapture?.metrics ?? ezplCapture?.metrics ??
               LabelSheetPrintPageMetrics(
                 labelWidthMm: unit.row.widthMm,
                 labelHeightMm: unit.row.heightMm,
@@ -6572,12 +6646,16 @@ class _HomePageManagerState extends State<HomePageManager> {
             driverPages[unit] = driverPage;
             driverTextDescriptors[unit] = windowsCapture!.textDescriptors;
           }
-          renderedPages[unit] = LabelSheetRenderedPage(
-            pngBytes: windowsCapture?.pngBytes ?? capture!.pngBytes,
-            metrics: metrics,
-            options: options,
-          );
-          final nativeTextCandidates = windowsCapture?.plan.candidates
+          if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
+          if (backend == LabelPrintBackend.pdf) {
+            renderedPages[unit] = LabelSheetRenderedPage(
+              pngBytes: capture!.pngBytes,
+              metrics: metrics,
+              options: options,
+            );
+          }
+          final plan = windowsCapture?.plan ?? ezplCapture?.preparation.plan;
+          final nativeTextCandidates = plan?.candidates
                   .where(
                     (candidate) =>
                         candidate.kind ==
@@ -6585,15 +6663,32 @@ class _HomePageManagerState extends State<HomePageManager> {
                   )
                   .length ??
               0;
-          debugLog(
+            final ezplTextDescriptors = ezplCapture?.preparation.descriptors
+                .where(
+                (descriptor) =>
+                  descriptor.kind ==
+                  fs.FortuneNativeCandidateKind.cellText,
+                )
+                .toList(growable: false) ??
+              const <LabelSheetEzplNativeDescriptor>[];
+            final approvedTextTokens = ezplTextDescriptors
+              .map((descriptor) => descriptor.candidateToken)
+              .toSet()
+              .length;
+            debugLog(
             'scalePrintQuality capture unit=${unitIndex + 1}/${units.length} '
             'itemId=${unit.row.itemId} labelMm=${unit.row.widthMm}x${unit.row.heightMm} '
             'sourceMm=${metrics.effectiveSourceWidthMm}x${metrics.effectiveSourceHeightMm} '
-            'pixel=${windowsCapture == null ? '${capture!.pixelWidth}x${capture.pixelHeight}' : '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}'} '
-            'pngBytes=${windowsCapture?.pngBytes.length ?? capture!.pngBytes.length} '
+            'pixel=${windowsCapture != null ? '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}' : ezplCapture != null ? '${ezplCapture.pixelWidth}x${ezplCapture.pixelHeight}' : '${capture!.pixelWidth}x${capture.pixelHeight}'} '
+            'pngBytes=${windowsCapture?.pngBytes.length ?? ezplCapture?.pngBytes.length ?? capture!.pngBytes.length} '
             'nativeTextCandidates=$nativeTextCandidates '
-            'nativeTextApproved=${windowsCapture?.textDescriptors.length ?? 0} '
-            'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.length ?? 0)}',
+            'nativeTextApprovedTokens=${windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens} '
+            'nativeTextDescriptors=${windowsCapture?.textDescriptors.length ?? ezplTextDescriptors.length} '
+            'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens)} '
+            'font=${ezplCapture == null ? 'WindowsDriver' : 'AT manufacturerBuiltInTTF UTF8'} '
+            'characters=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.textCharacters)} '
+            'lines=${ezplTextDescriptors.fold<int>(0, (sum, item) => sum + item.lineCount)} '
+            'preflightRejections=${ezplCapture?.preparation.textRejectionCounts ?? const {}}',
           );
           if (driverPage != null) {
             debugLog(
@@ -6671,6 +6766,25 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
+        } else if (backend == LabelPrintBackend.ezplRaw) {
+          final bytes = BytesBuilder(copy: false);
+          for (final unit in sourceUnits) {
+            final ezplCapture = ezplCaptures[unit]!;
+            bytes.add(
+              await buildLabelSheetPlannedEzplBytes(
+                filteredPngBytes: ezplCapture.pngBytes,
+                metrics: ezplCapture.metrics,
+                options: _scaleOutputPrintOptions(unit.row, settings),
+                plan: ezplCapture.preparation.plan,
+                descriptors: ezplCapture.preparation.descriptors,
+              ),
+            );
+          }
+          payloads[group] = bytes.takeBytes();
+          debugLog(
+            'scalePrintQuality payload backend=${backend.name} '
+            'units=${sourceUnits.length} ezplBytes=${payloads[group]!.length}',
+          );
         } else {
           payloads[group] = const <int>[];
         }
@@ -6721,6 +6835,11 @@ class _HomePageManagerState extends State<HomePageManager> {
                   'scalePrintQuality gdiDispatch ${result.diagnostics}',
                 );
               }
+              return true;
+            })(),
+            LabelPrintBackend.ezplRaw => await (() async {
+              final result = await RawPrinterWin32.sendRaw(printer, payload);
+              debugLog('scalePrintQuality rawDispatch ${result.diagnostics}');
               return true;
             })(),
           };
