@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: Godex G500 한글 Asian font 자동 프로비저닝 v1.0.46
+## 완료·실물 검증 대기: Godex G500 한글 Asian font 자동 프로비저닝 v1.0.46
 - v1.0.45 실물 로그는 RAW spool `46865/46865` 성공과 ASCII `AT` 선명 출력을 확인했지만, G500 기본 내장 TTF에 한글 glyph가 없어 `AT`로 승인한 한글이 filtered raster에서도 제거된 뒤 누락됐다.
 - 설치된 GoLabel II 1.2.0001에서 공식 `FontFile.dll`과 Korean 코드 테이블 `KSC.bin`/`KSC949.BIN`을 확인했다. DLL은 x86이며 `CreateKOFontFile` API를 export하므로 64비트 Flutter에서 직접 로드하지 않고 x86 helper 경계를 검토한다.
 - 우선 수정: Asian font 설치가 확인되지 않은 기본 상태에서는 비ASCII 문자가 포함된 text candidate를 `AT`로 승인하지 않고 `~G` fallback에 보존한다. ASCII는 기존 제조사 내장 `AT`를 유지한다.
@@ -33,6 +33,8 @@
 - 빌드 산출물 확인: `label_manager.exe` FileVersion/ProductVersion `1.0.46`, `godex_font_helper.exe` 6,656 bytes 및 `14C machine (x86)`.
 - `git diff --check` 통과, 변경 Dart 파일 편집기 진단 오류 0건.
 - 최종 stage/commit 대상: Korean provisioner/helper/CMake, 라벨시트·품목·저울 AZ1 연결, print job과 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 `doc/EZPL_EN_J_20180226.pdf/.txt`는 제외한다.
+- 기능 커밋: `ce0fd55 Godex 한글 폰트 자동 설치와 AZ1 출력`.
+- 다음 실물 검증: marker가 없는 G500에서 최초 출력 시 `굴림체/보통/16` 선택 후 package spool 성공, 이어지는 라벨 payload의 `AZ1` 한글 품질과 이후 출력의 `availableInstalled` marker 재사용을 확인한다.
 - 수정 예정: font package 생성/전송/설치 marker, 확인된 AZ slot 출력, provisioning 및 AT/AZ/raster 진단 로그와 테스트.
 
 ## 진행 중: Godex G500 제조사 내장 폰트 EZPL 직접 출력 v1.0.45
