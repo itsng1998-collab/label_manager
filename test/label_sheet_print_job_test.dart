@@ -566,6 +566,63 @@ void main() {
     expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
   });
 
+  test('Godex EZPL raster uses binary row width and white-bit polarity', () async {
+    final blank = img.Image(width: 640, height: 2);
+    img.fill(blank, color: img.ColorRgb8(255, 255, 255));
+    const metrics = LabelSheetPrintPageMetrics(
+      labelWidthMm: 80,
+      labelHeightMm: 1,
+      dpi: 203.2,
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetEzplPrint(
+      sheet: fs.FortuneSheet(id: 'raster-polarity', name: 'Raster'),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 80,
+        heightMm: 1,
+      ),
+      metrics: metrics,
+      options: options,
+    );
+    String? diagnostics;
+    final bytes = await buildLabelSheetPlannedEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(blank)),
+      metrics: metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
+      onDiagnostics: (value) => diagnostics = value,
+    );
+    final graphicStart = bytes.indexOf(0x7e) + 4;
+    const bytesPerRow = 80;
+
+    expect(bytes.sublist(graphicStart, graphicStart + 2), <int>[0x47, 0x50]);
+    expect(
+      bytes.sublist(graphicStart + 2, graphicStart + 2 + bytesPerRow),
+      everyElement(0xff),
+    );
+    final secondRowStart = graphicStart + 2 + bytesPerRow + 2;
+    expect(
+      bytes.sublist(secondRowStart, secondRowStart + 2),
+      <int>[0x47, 0x50],
+    );
+    expect(bytes.sublist(bytes.length - 3), ascii.encode('E\r\n'));
+    expect(diagnostics, contains('polarity=zeroBlackOneWhite'));
+    expect(diagnostics, contains('framing=G+uint8RowBytes'));
+    expect(diagnostics, contains('rowBytes=80 rows=8'));
+    expect(diagnostics, contains('inkDots=0/5120'));
+    expect(diagnostics, contains('native=AT:0,AZ1:0,geometry:0'));
+    expect(diagnostics, contains('payloadBytes=${bytes.length}'));
+  });
+
   test('buildLabelSheetPdfBytes creates one page per copy', () async {
     final image = img.Image(width: 4, height: 4);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));

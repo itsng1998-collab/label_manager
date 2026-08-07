@@ -6282,6 +6282,10 @@ class _HomePageManagerState extends State<HomePageManager> {
                 options: _labelPrintOptions(unit.row, settings),
                 plan: ezplCapture.preparation.plan,
                 descriptors: ezplCapture.preparation.descriptors,
+                onDiagnostics: (diagnostics) => debugLog(
+                  'labelPrintQuality ezpl unit=${unit.copyIndex + 1} '
+                  '$diagnostics',
+                ),
               ),
             );
           }
@@ -6809,6 +6813,10 @@ class _HomePageManagerState extends State<HomePageManager> {
                 options: _scaleOutputPrintOptions(unit.row, settings),
                 plan: ezplCapture.preparation.plan,
                 descriptors: ezplCapture.preparation.descriptors,
+                onDiagnostics: (diagnostics) => debugLog(
+                  'scalePrintQuality ezpl unit=${unit.copyIndex + 1} '
+                  '$diagnostics',
+                ),
               ),
             );
           }

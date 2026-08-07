@@ -1185,6 +1185,7 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
   required LabelSheetPrintOptions options,
   required FortuneHybridRenderPlan plan,
   required Iterable<LabelSheetEzplNativeDescriptor> descriptors,
+  void Function(String diagnostics)? onDiagnostics,
 }) async {
   final source = img.decodePng(filteredPngBytes);
   if (source == null) {
@@ -1234,18 +1235,27 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
     ..add(ascii.encode('^LR0\r\n'));
-  _addEzplRasterGraphic(commands, raster);
+  final rasterStats = _addEzplRasterGraphic(commands, raster);
   final emittedTokens = <String>{};
+  var emittedAtDescriptors = 0;
+  var emittedAz1Descriptors = 0;
+  var emittedGeometryDescriptors = 0;
   for (final candidate in plan.candidates) {
     if (!emittedTokens.add(candidate.token)) continue;
     for (final descriptor in
         descriptorByToken[candidate.token] ??
             const <LabelSheetEzplNativeDescriptor>[]) {
       if (descriptor.koreanAsian) {
+        emittedAz1Descriptors += 1;
         commands.add(
           await CharsetConverter.encode('949', descriptor.command),
         );
       } else {
+        if (descriptor.kind == FortuneNativeCandidateKind.cellText) {
+          emittedAtDescriptors += 1;
+        } else {
+          emittedGeometryDescriptors += 1;
+        }
         commands.add(
           descriptor.utf8
               ? utf8.encode(descriptor.command)
@@ -1255,7 +1265,24 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     }
   }
   commands.add(ascii.encode('E\r\n'));
-  return commands.takeBytes();
+  final payload = commands.takeBytes();
+  onDiagnostics?.call(
+    'source=${source.width}x${source.height} '
+    'raster=${raster.width}x${raster.height} '
+    'threshold=$_labelSheetEzplInkLuminanceThreshold '
+    'polarity=zeroBlackOneWhite framing=G+uint8RowBytes '
+    'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
+    'inkDots=${rasterStats.inkDots}/${raster.width * raster.height} '
+    'inkPercent=${rasterStats.inkPercent.toStringAsFixed(2)} '
+    'rowsWithInk=${rasterStats.rowsWithInk} '
+    'rowInkMin=${rasterStats.minInkDotsPerRow} '
+    'rowInkMax=${rasterStats.maxInkDotsPerRow} '
+    'rasterSectionBytes=${rasterStats.encodedBytes} '
+    'approvedTokens=${plan.approvedCandidateTokens.length} '
+    'native=AT:$emittedAtDescriptors,AZ1:$emittedAz1Descriptors,'
+    'geometry:$emittedGeometryDescriptors payloadBytes=${payload.length}',
+  );
+  return payload;
 }
 
 void _clipEzplRasterToLabelArea(
@@ -1290,23 +1317,70 @@ void _clipEzplRasterToLabelArea(
   }
 }
 
-void _addEzplRasterGraphic(BytesBuilder commands, img.Image raster) {
+_LabelSheetEzplRasterStats _addEzplRasterGraphic(
+  BytesBuilder commands,
+  img.Image raster,
+) {
   final bytesPerRow = (raster.width + 7) ~/ 8;
+  var inkDots = 0;
+  var rowsWithInk = 0;
+  var minInkDotsPerRow = raster.height == 0 ? 0 : raster.width;
+  var maxInkDotsPerRow = 0;
   commands.add(ascii.encode('~G\r\n'));
   for (var y = 0; y < raster.height; y += 1) {
-    final row = Uint8List(bytesPerRow);
+    final row = Uint8List(bytesPerRow)..fillRange(0, bytesPerRow, 0xff);
+    var rowInkDots = 0;
     for (var x = 0; x < raster.width; x += 1) {
       if (img.getLuminance(raster.getPixel(x, y)) <=
           _labelSheetEzplInkLuminanceThreshold) {
-        row[x ~/ 8] |= 1 << (7 - (x % 8));
+        row[x ~/ 8] &= ~(1 << (7 - (x % 8)));
+        rowInkDots += 1;
       }
     }
+    inkDots += rowInkDots;
+    if (rowInkDots > 0) rowsWithInk += 1;
+    minInkDotsPerRow = math.min(minInkDotsPerRow, rowInkDots);
+    maxInkDotsPerRow = math.max(maxInkDotsPerRow, rowInkDots);
     commands
       ..addByte(0x47)
       ..addByte(bytesPerRow)
       ..add(row)
       ..add(const <int>[0x0d, 0x0a]);
   }
+  return _LabelSheetEzplRasterStats(
+    bytesPerRow: bytesPerRow,
+    rows: raster.height,
+    inkDots: inkDots,
+    rowsWithInk: rowsWithInk,
+    minInkDotsPerRow: minInkDotsPerRow,
+    maxInkDotsPerRow: maxInkDotsPerRow,
+    encodedBytes: 4 + raster.height * (bytesPerRow + 4),
+    totalDots: raster.width * raster.height,
+  );
+}
+
+class _LabelSheetEzplRasterStats {
+  const _LabelSheetEzplRasterStats({
+    required this.bytesPerRow,
+    required this.rows,
+    required this.inkDots,
+    required this.rowsWithInk,
+    required this.minInkDotsPerRow,
+    required this.maxInkDotsPerRow,
+    required this.encodedBytes,
+    required this.totalDots,
+  });
+
+  final int bytesPerRow;
+  final int rows;
+  final int inkDots;
+  final int rowsWithInk;
+  final int minInkDotsPerRow;
+  final int maxInkDotsPerRow;
+  final int encodedBytes;
+  final int totalDots;
+
+  double get inkPercent => totalDots == 0 ? 0 : inkDots * 100 / totalDots;
 }
 
 String? _ezplBarcodeCommandForFormat(String format) {

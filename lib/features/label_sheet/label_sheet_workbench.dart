@@ -2213,6 +2213,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         options: options,
         plan: preparation.plan,
         descriptors: preparation.descriptors,
+        onDiagnostics: (diagnostics) =>
+            debugLog('labelSheetPrint ezplQuality $diagnostics'),
       );
       debugLog(
         'labelSheetPrint ezplPayload bytes=${rawBytes.length} '
