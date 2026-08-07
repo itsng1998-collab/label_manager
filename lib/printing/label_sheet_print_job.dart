@@ -1234,7 +1234,6 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
     ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
-    ..add(ascii.encode('~G\r\n'))
     ..add(ascii.encode('^L\r\n'));
   final rasterStats = _addEzplRasterGraphic(commands, raster);
   final emittedTokens = <String>{};
@@ -1273,8 +1272,8 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     'labelMm=${metrics.pageWidthMm(options)}x${metrics.pageHeightMm(options)} '
     'labelDots=${raster.width}x${raster.height} copies=${options.copies} '
     'threshold=$_labelSheetEzplInkLuminanceThreshold '
-    'polarity=oneBlackZeroWhite framing=G+uint8RowBytes '
-    'commandOrder=setup>~G>^L>Grows+native>E formatCount=1 '
+    'polarity=oneBlackZeroWhite framing=QPatternContiguous '
+    'commandOrder=setup>^L>QPattern+native>E formatCount=1 '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
     'inkDots=${rasterStats.inkDots}/${raster.width * raster.height} '
     'whiteDots=${raster.width * raster.height - rasterStats.inkDots} '
@@ -1283,6 +1282,10 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     'rowInkMin=${rasterStats.minInkDotsPerRow} '
     'rowInkMax=${rasterStats.maxInkDotsPerRow} '
     'rasterSectionBytes=${rasterStats.encodedBytes} '
+    'patternDataBytes=${rasterStats.patternDataBytes} '
+    'patternBytes=zero:${rasterStats.zeroBytes},'
+    'full:${rasterStats.fullBytes},mixed:${rasterStats.mixedBytes} '
+    'patternFnv64=${rasterStats.fnv64Hex} '
     'approvedTokens=${plan.approvedCandidateTokens.length} '
     'native=AT:$emittedAtDescriptors,AZ1:$emittedAz1Descriptors,'
     'geometry:$emittedGeometryDescriptors payloadBytes=${payload.length}',
@@ -1331,6 +1334,16 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   var rowsWithInk = 0;
   var minInkDotsPerRow = raster.height == 0 ? 0 : raster.width;
   var maxInkDotsPerRow = 0;
+  var zeroBytes = 0;
+  var fullBytes = 0;
+  var mixedBytes = 0;
+  var fnv64 = BigInt.parse('cbf29ce484222325', radix: 16);
+  final fnv64Prime = BigInt.parse('100000001b3', radix: 16);
+  final fnv64Mask = BigInt.parse('ffffffffffffffff', radix: 16);
+  final patternHeader = ascii.encode(
+    'Q0,0,$bytesPerRow,${raster.height}\r\n',
+  );
+  commands.add(patternHeader);
   for (var y = 0; y < raster.height; y += 1) {
     final row = Uint8List(bytesPerRow);
     var rowInkDots = 0;
@@ -1342,15 +1355,22 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
       }
     }
     inkDots += rowInkDots;
+    for (final byte in row) {
+      if (byte == 0) {
+        zeroBytes += 1;
+      } else if (byte == 0xff) {
+        fullBytes += 1;
+      } else {
+        mixedBytes += 1;
+      }
+      fnv64 = ((fnv64 ^ BigInt.from(byte)) * fnv64Prime) & fnv64Mask;
+    }
     if (rowInkDots > 0) rowsWithInk += 1;
     minInkDotsPerRow = math.min(minInkDotsPerRow, rowInkDots);
     maxInkDotsPerRow = math.max(maxInkDotsPerRow, rowInkDots);
-    commands
-      ..addByte(0x47)
-      ..addByte(bytesPerRow)
-      ..add(row)
-      ..add(const <int>[0x0d, 0x0a]);
+    commands.add(row);
   }
+  commands.add(const <int>[0x0d, 0x0a]);
   return _LabelSheetEzplRasterStats(
     bytesPerRow: bytesPerRow,
     rows: raster.height,
@@ -1358,8 +1378,12 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
     rowsWithInk: rowsWithInk,
     minInkDotsPerRow: minInkDotsPerRow,
     maxInkDotsPerRow: maxInkDotsPerRow,
-    encodedBytes: 8 + raster.height * (bytesPerRow + 4),
+    encodedBytes: patternHeader.length + raster.height * bytesPerRow + 2,
     totalDots: raster.width * raster.height,
+    zeroBytes: zeroBytes,
+    fullBytes: fullBytes,
+    mixedBytes: mixedBytes,
+    fnv64: fnv64,
   );
 }
 
@@ -1373,6 +1397,10 @@ class _LabelSheetEzplRasterStats {
     required this.maxInkDotsPerRow,
     required this.encodedBytes,
     required this.totalDots,
+    required this.zeroBytes,
+    required this.fullBytes,
+    required this.mixedBytes,
+    required this.fnv64,
   });
 
   final int bytesPerRow;
@@ -1383,8 +1411,14 @@ class _LabelSheetEzplRasterStats {
   final int maxInkDotsPerRow;
   final int encodedBytes;
   final int totalDots;
+  final int zeroBytes;
+  final int fullBytes;
+  final int mixedBytes;
+  final BigInt fnv64;
 
   double get inkPercent => totalDots == 0 ? 0 : inkDots * 100 / totalDots;
+  int get patternDataBytes => bytesPerRow * rows;
+  String get fnv64Hex => fnv64.toRadixString(16).padLeft(16, '0');
 }
 
 String? _ezplBarcodeCommandForFormat(String format) {

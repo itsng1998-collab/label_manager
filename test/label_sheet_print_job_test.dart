@@ -483,7 +483,7 @@ void main() {
     );
     final payload = utf8.decode(bytes, allowMalformed: true);
 
-    expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n~G\r\n^L\r\n'));
+    expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n^L\r\nQ0,0,30,80\r\n'));
     expect(payload, isNot(contains('AT,')));
     expect(payload, isNot(contains('원재료명 한글 출력')));
     expect(payload, endsWith('E\r\n'));
@@ -560,13 +560,22 @@ void main() {
       descriptors: preparation.descriptors,
     );
     final cp949Text = _encodeTestCp949('원재료명 PET');
+    final patternHeader = ascii.encode('Q0,0,30,80\r\n');
+    final patternHeaderStart = _indexOfBytes(bytes, patternHeader);
+    final patternDataEnd = patternHeaderStart + patternHeader.length + 30 * 80;
 
+    expect(patternHeaderStart, greaterThanOrEqualTo(0));
+    expect(bytes.sublist(patternDataEnd, patternDataEnd + 2), <int>[0x0d, 0x0a]);
+    expect(
+      bytes.sublist(patternDataEnd + 2, patternDataEnd + 6),
+      ascii.encode('AZ1,'),
+    );
     expect(_containsBytes(bytes, ascii.encode('AZ1,')), isTrue);
     expect(_containsBytes(bytes, cp949Text), isTrue);
     expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
   });
 
-  test('Godex EZPL raster uses one-bit ink in a single label format', () async {
+  test('Godex EZPL hybrid uses contiguous Q pattern data', () async {
     final blank = img.Image(width: 640, height: 8);
     img.fill(blank, color: img.ColorRgb8(255, 255, 255));
     blank.setPixelRgb(0, 0, 0, 0, 0);
@@ -603,35 +612,39 @@ void main() {
       onDiagnostics: (value) => diagnostics = value,
     );
     final payloadPrefix = ascii.encode(
-      '^Q1,0,0\r\n^W 80\r\n^P1\r\n~G\r\n^L\r\n',
+      '^Q1,0,0\r\n^W 80\r\n^P1\r\n^L\r\nQ0,0,80,8\r\n',
     );
-    final graphicStart = payloadPrefix.length;
+    final patternDataStart = payloadPrefix.length;
     const bytesPerRow = 80;
 
-    expect(bytes.sublist(0, graphicStart), payloadPrefix);
-    expect(bytes.sublist(graphicStart, graphicStart + 2), <int>[0x47, 0x50]);
+    expect(bytes.sublist(0, patternDataStart), payloadPrefix);
     final firstRow = bytes.sublist(
-      graphicStart + 2,
-      graphicStart + 2 + bytesPerRow,
+      patternDataStart,
+      patternDataStart + bytesPerRow,
     );
     expect(firstRow.first, 0x80);
     expect(firstRow.skip(1), everyElement(0x00));
-    final secondRowStart = graphicStart + 2 + bytesPerRow + 2;
+    final secondRowStart = patternDataStart + bytesPerRow;
     expect(
-      bytes.sublist(secondRowStart, secondRowStart + 2),
-      <int>[0x47, 0x50],
+      bytes.sublist(secondRowStart, secondRowStart + bytesPerRow),
+      everyElement(0x00),
     );
+    final patternDataEnd = patternDataStart + bytesPerRow * 8;
+    expect(bytes.sublist(patternDataEnd, patternDataEnd + 2), <int>[0x0d, 0x0a]);
     expect(bytes.sublist(bytes.length - 3), ascii.encode('E\r\n'));
     expect(diagnostics, contains('polarity=oneBlackZeroWhite'));
-    expect(diagnostics, contains('framing=G+uint8RowBytes'));
+    expect(diagnostics, contains('framing=QPatternContiguous'));
     expect(
       diagnostics,
-      contains('commandOrder=setup>~G>^L>Grows+native>E formatCount=1'),
+      contains('commandOrder=setup>^L>QPattern+native>E formatCount=1'),
     );
     expect(diagnostics, contains('rowBytes=80 rows=8'));
     expect(diagnostics, contains('inkDots=1/5120'));
     expect(diagnostics, contains('whiteDots=5119'));
     expect(diagnostics, contains('rowsWithInk=1'));
+    expect(diagnostics, contains('patternDataBytes=640'));
+    expect(diagnostics, contains('patternBytes=zero:639,full:0,mixed:1'));
+    expect(diagnostics, contains(RegExp(r'patternFnv64=[0-9a-f]{16}')));
     expect(diagnostics, contains('native=AT:0,AZ1:0,geometry:0'));
     expect(diagnostics, contains('payloadBytes=${bytes.length}'));
   });
@@ -665,7 +678,11 @@ void main() {
 }
 
 bool _containsBytes(List<int> source, List<int> pattern) {
-  if (pattern.isEmpty || pattern.length > source.length) return false;
+  return _indexOfBytes(source, pattern) >= 0;
+}
+
+int _indexOfBytes(List<int> source, List<int> pattern) {
+  if (pattern.isEmpty || pattern.length > source.length) return -1;
   for (var start = 0; start <= source.length - pattern.length; start += 1) {
     var matches = true;
     for (var offset = 0; offset < pattern.length; offset += 1) {
@@ -674,9 +691,9 @@ bool _containsBytes(List<int> source, List<int> pattern) {
         break;
       }
     }
-    if (matches) return true;
+    if (matches) return start;
   }
-  return false;
+  return -1;
 }
 
 Uint8List _encodeTestCp949(String input) {
