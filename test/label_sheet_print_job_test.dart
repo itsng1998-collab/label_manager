@@ -622,17 +622,17 @@ void main() {
       patternDataStart,
       patternDataStart + bytesPerRow,
     );
-    expect(firstRow.first, 0x80);
-    expect(firstRow.skip(1), everyElement(0x00));
+    expect(firstRow.first, 0x7f);
+    expect(firstRow.skip(1), everyElement(0xff));
     final secondRowStart = patternDataStart + bytesPerRow;
     expect(
       bytes.sublist(secondRowStart, secondRowStart + bytesPerRow),
-      everyElement(0x00),
+      everyElement(0xff),
     );
     final patternDataEnd = patternDataStart + bytesPerRow * 8;
     expect(bytes.sublist(patternDataEnd, patternDataEnd + 2), <int>[0x0d, 0x0a]);
     expect(bytes.sublist(bytes.length - 3), ascii.encode('E\r\n'));
-    expect(diagnostics, contains('polarity=oneBlackZeroWhite'));
+    expect(diagnostics, contains('polarity=zeroBlackOneWhite'));
     expect(diagnostics, contains('framing=QPatternContiguous'));
     expect(
       diagnostics,
@@ -643,7 +643,7 @@ void main() {
     expect(diagnostics, contains('whiteDots=5119'));
     expect(diagnostics, contains('rowsWithInk=1'));
     expect(diagnostics, contains('patternDataBytes=640'));
-    expect(diagnostics, contains('patternBytes=zero:639,full:0,mixed:1'));
+    expect(diagnostics, contains('patternBytes=zero:0,full:639,mixed:1'));
     expect(diagnostics, contains(RegExp(r'patternFnv64=[0-9a-f]{16}')));
     expect(diagnostics, contains('native=AT:0,AZ1:0,geometry:0'));
     expect(diagnostics, contains('payloadBytes=${bytes.length}'));

@@ -1272,7 +1272,7 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     'labelMm=${metrics.pageWidthMm(options)}x${metrics.pageHeightMm(options)} '
     'labelDots=${raster.width}x${raster.height} copies=${options.copies} '
     'threshold=$_labelSheetEzplInkLuminanceThreshold '
-    'polarity=oneBlackZeroWhite framing=QPatternContiguous '
+    'polarity=zeroBlackOneWhite framing=QPatternContiguous '
     'commandOrder=setup>^L>QPattern+native>E formatCount=1 '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
     'inkDots=${rasterStats.inkDots}/${raster.width * raster.height} '
@@ -1345,12 +1345,12 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   );
   commands.add(patternHeader);
   for (var y = 0; y < raster.height; y += 1) {
-    final row = Uint8List(bytesPerRow);
+    final row = Uint8List(bytesPerRow)..fillRange(0, bytesPerRow, 0xff);
     var rowInkDots = 0;
     for (var x = 0; x < raster.width; x += 1) {
       if (img.getLuminance(raster.getPixel(x, y)) <=
           _labelSheetEzplInkLuminanceThreshold) {
-        row[x ~/ 8] |= 1 << (7 - (x % 8));
+        row[x ~/ 8] &= ~(1 << (7 - (x % 8)));
         rowInkDots += 1;
       }
     }
