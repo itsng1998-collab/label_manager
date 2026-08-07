@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: GoDEX EZPL raster polarity 수정 v1.0.48
+- v1.0.47 실물 출력 사진 `.tmp/IMG_20260807_0004.png`은 흰 배경이 대규모 검정 영역으로 출력되고 native text 위치도 깨졌다.
+- 최신 로그 `app_2026-08-07_23-18-18.log`: G500/USB001, 80x60mm, 203.2dpi, `availableInstalled`, AZ1 24개/AT 5개, payload 46,550 bytes, RAW `46550/46550` 접수 성공을 확인했다. 전송 문제가 아니라 payload 해석 문제다.
+- 조사 중 `Gwxxx`의 `w`를 십진 자릿수로 해석한 가설은 매뉴얼 예제 `50 bytes -> G2`의 설명 `(2: ASCII is 50 decimal)`과 맞지 않아 즉시 폐기했다. 기존 `G` + binary row byte count(`80 -> 0x50`, ASCII `P`) framing은 정상이다.
+- 원인: G500 `~G` raster는 `0=검정`, `1=흰색`인데 기존 코드는 흰색을 0, 잉크를 1로 보내 전체 흰 배경과 검정 내용이 반전됐다. 실물 사진의 검정 배경/흰 글자 구멍 패턴과 일치한다.
+- `label_sheet_print_job.dart`: raster row를 `0xff`로 초기화하고 잉크 pixel bit만 clear하도록 polarity를 수정했다.
+- `label_sheet_print_job_test.dart`: 실제 80mm/203.2dpi 조건에서 row prefix가 `G,0x50`, 빈 raster data가 모두 `0xff`, 다음 행과 `E` 경계가 유지되는 회귀 테스트를 추가했다.
+- `buildLabelSheetPlannedEzplBytes`: 선택적 진단 callback을 추가해 source/raster 크기, threshold, polarity/framing, row bytes/count, 전체·행별 ink dot 밀도, raster section bytes, 승인 token, AT/AZ1/geometry descriptor 수, payload bytes를 기록한다. 실제 라벨 문자열은 기록하지 않는다.
+- `home_page_manager.dart`: 품목/저울 출력 모두 unit별 `labelPrintQuality ezpl`/`scalePrintQuality ezpl` 진단을 로그에 연결했다.
+- `label_sheet_workbench.dart`: 직접 라벨시트 발행에도 `labelSheetPrint ezplQuality` 진단을 연결했다.
+- 버전을 `1.0.48`로 증가했다. print job 테스트 14건 및 `git diff --check` 통과.
+- 출력 관련 provisioner/dispatcher/pipeline/print job/session/fortune hybrid 테스트 65건 통과.
+- strict analyzer 통과: `label_sheet_print_job.dart`, `home_page_manager.dart`, `label_sheet_print_job_test.dart`; 직접 발행 callback 추가 후 `label_sheet_workbench.dart`, `label_sheet_print_job.dart` 재분석도 통과.
+- Windows `/WX` Debug 빌드 성공. `label_manager.exe` ProductVersion/FileVersion `1.0.48`, `godex_font_helper.exe` 동봉 확인.
+- 임시 산출물/캐시 추가 없음. stage 대상: print job, home 품목/저울, workbench 직접 발행, 회귀 테스트, `pubspec.yaml`, 본 문서. 기존 unrelated dirty 파일은 제외.
+- 기능 커밋: `408ceeb` (`GoDEX 래스터 반전 출력 및 품질 진단 수정`). push하지 않음.
+
 ## 완료·실물 검증 대기: Godex AZ1 CP949 Windows encoding 오류 수정 v1.0.47
 - v1.0.46 실물 로그 `app_2026-08-07_23-08-20.log`: Korean package는 `282127/282127`, `status=installedByApp`, AZ1 descriptor 24개까지 성공했지만 payload 로그와 RAW dispatch 전에 중단됐다.
 - 원인: Windows `charset_converter` plugin은 `CP949` alias가 없고 code page 이름 `949` 또는 `ks_c_5601-1987`만 지원한다. `CP949` 호출이 `charset_name_unrecognized`를 반환했다.
