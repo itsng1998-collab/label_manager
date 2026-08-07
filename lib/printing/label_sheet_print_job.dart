@@ -1234,7 +1234,8 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
     ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
-    ..add(ascii.encode('^LR0\r\n'));
+    ..add(ascii.encode('~G\r\n'))
+    ..add(ascii.encode('^L\r\n'));
   final rasterStats = _addEzplRasterGraphic(commands, raster);
   final emittedTokens = <String>{};
   var emittedAtDescriptors = 0;
@@ -1269,10 +1270,14 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
   onDiagnostics?.call(
     'source=${source.width}x${source.height} '
     'raster=${raster.width}x${raster.height} '
+    'labelMm=${metrics.pageWidthMm(options)}x${metrics.pageHeightMm(options)} '
+    'labelDots=${raster.width}x${raster.height} copies=${options.copies} '
     'threshold=$_labelSheetEzplInkLuminanceThreshold '
-    'polarity=zeroBlackOneWhite framing=G+uint8RowBytes '
+    'polarity=oneBlackZeroWhite framing=G+uint8RowBytes '
+    'commandOrder=setup>~G>^L>Grows+native>E formatCount=1 '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
     'inkDots=${rasterStats.inkDots}/${raster.width * raster.height} '
+    'whiteDots=${raster.width * raster.height - rasterStats.inkDots} '
     'inkPercent=${rasterStats.inkPercent.toStringAsFixed(2)} '
     'rowsWithInk=${rasterStats.rowsWithInk} '
     'rowInkMin=${rasterStats.minInkDotsPerRow} '
@@ -1326,14 +1331,13 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   var rowsWithInk = 0;
   var minInkDotsPerRow = raster.height == 0 ? 0 : raster.width;
   var maxInkDotsPerRow = 0;
-  commands.add(ascii.encode('~G\r\n'));
   for (var y = 0; y < raster.height; y += 1) {
-    final row = Uint8List(bytesPerRow)..fillRange(0, bytesPerRow, 0xff);
+    final row = Uint8List(bytesPerRow);
     var rowInkDots = 0;
     for (var x = 0; x < raster.width; x += 1) {
       if (img.getLuminance(raster.getPixel(x, y)) <=
           _labelSheetEzplInkLuminanceThreshold) {
-        row[x ~/ 8] &= ~(1 << (7 - (x % 8)));
+        row[x ~/ 8] |= 1 << (7 - (x % 8));
         rowInkDots += 1;
       }
     }
@@ -1354,7 +1358,7 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
     rowsWithInk: rowsWithInk,
     minInkDotsPerRow: minInkDotsPerRow,
     maxInkDotsPerRow: maxInkDotsPerRow,
-    encodedBytes: 4 + raster.height * (bytesPerRow + 4),
+    encodedBytes: 8 + raster.height * (bytesPerRow + 4),
     totalDots: raster.width * raster.height,
   );
 }

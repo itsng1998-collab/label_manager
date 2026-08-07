@@ -483,7 +483,7 @@ void main() {
     );
     final payload = utf8.decode(bytes, allowMalformed: true);
 
-    expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n^LR0\r\n~G\r\n'));
+    expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n~G\r\n^L\r\n'));
     expect(payload, isNot(contains('AT,')));
     expect(payload, isNot(contains('원재료명 한글 출력')));
     expect(payload, endsWith('E\r\n'));
@@ -566,9 +566,10 @@ void main() {
     expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
   });
 
-  test('Godex EZPL raster uses binary row width and white-bit polarity', () async {
-    final blank = img.Image(width: 640, height: 2);
+  test('Godex EZPL raster uses one-bit ink in a single label format', () async {
+    final blank = img.Image(width: 640, height: 8);
     img.fill(blank, color: img.ColorRgb8(255, 255, 255));
+    blank.setPixelRgb(0, 0, 0, 0, 0);
     const metrics = LabelSheetPrintPageMetrics(
       labelWidthMm: 80,
       labelHeightMm: 1,
@@ -601,24 +602,36 @@ void main() {
       descriptors: preparation.descriptors,
       onDiagnostics: (value) => diagnostics = value,
     );
-    final graphicStart = bytes.indexOf(0x7e) + 4;
+    final payloadPrefix = ascii.encode(
+      '^Q1,0,0\r\n^W 80\r\n^P1\r\n~G\r\n^L\r\n',
+    );
+    final graphicStart = payloadPrefix.length;
     const bytesPerRow = 80;
 
+    expect(bytes.sublist(0, graphicStart), payloadPrefix);
     expect(bytes.sublist(graphicStart, graphicStart + 2), <int>[0x47, 0x50]);
-    expect(
-      bytes.sublist(graphicStart + 2, graphicStart + 2 + bytesPerRow),
-      everyElement(0xff),
+    final firstRow = bytes.sublist(
+      graphicStart + 2,
+      graphicStart + 2 + bytesPerRow,
     );
+    expect(firstRow.first, 0x80);
+    expect(firstRow.skip(1), everyElement(0x00));
     final secondRowStart = graphicStart + 2 + bytesPerRow + 2;
     expect(
       bytes.sublist(secondRowStart, secondRowStart + 2),
       <int>[0x47, 0x50],
     );
     expect(bytes.sublist(bytes.length - 3), ascii.encode('E\r\n'));
-    expect(diagnostics, contains('polarity=zeroBlackOneWhite'));
+    expect(diagnostics, contains('polarity=oneBlackZeroWhite'));
     expect(diagnostics, contains('framing=G+uint8RowBytes'));
+    expect(
+      diagnostics,
+      contains('commandOrder=setup>~G>^L>Grows+native>E formatCount=1'),
+    );
     expect(diagnostics, contains('rowBytes=80 rows=8'));
-    expect(diagnostics, contains('inkDots=0/5120'));
+    expect(diagnostics, contains('inkDots=1/5120'));
+    expect(diagnostics, contains('whiteDots=5119'));
+    expect(diagnostics, contains('rowsWithInk=1'));
     expect(diagnostics, contains('native=AT:0,AZ1:0,geometry:0'));
     expect(diagnostics, contains('payloadBytes=${bytes.length}'));
   });
