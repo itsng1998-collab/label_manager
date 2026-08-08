@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 병합 border native/raster 중복 제거 v1.0.69
+- v1.0.68 실물 `.tmp/IMG_20260809_0002.png`: 2dot으로 전체 선만 두꺼워졌고 세로 실선의 점선 패턴은 유지됐다. 두께 가설은 기각하고 v1.0.67 device 1dot으로 복원한다.
+- 최신 로그 `.tmp/log/app_2026-08-09_00-06-08.log`: device mapping 및 2dot 경로 적용, border 225/225 draw, text 실패 0. native dispatch 자체는 정상이다.
+- 공용 FortuneSheet painter 원인: 병합 셀 한 변의 모든 edge key가 승인돼야 raster 전체 변을 생략하는 all-or-nothing 조건이다. native candidate가 실제 segment 일부만 승인하면 raster 전체 변과 native segment가 중복되어 점선/돌출 픽셀이 남는다.
+- 일반화 수정: 병합/일반 셀 border를 가로는 열 단위, 세로는 행 단위 segment로 분할하고 승인된 edge key만 raster에서 생략한다. 미승인/미지원 segment는 raster fallback으로 유지한다. 특정 라벨, 품목 ID, 셀 좌표 분기 없음.
+- 부분 승인된 병합 세로 변의 상단만 raster에서 제거되고 하단 fallback은 유지되는 widget capture 회귀 테스트 추가. 내부 병합 경계 기준 focused 테스트와 FortuneSheet capture 전체 9건 통과.
+- root `label_sheet_print_job_test.dart` 17건 및 출력 관련 5개 테스트 파일 62건 통과. Windows `/WX` Debug 빌드 성공, 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.69`, `git diff --check` 통과.
+- 커밋 대상: 공용 painter와 capture 테스트, 2dot 원복 관련 Dart/C++/계약 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. unrelated 문서 삭제, 로고 설정, `pubspec.lock` 변경은 제외.
+- 실물 판별: v1.0.63 native text/overflow fit과 device 1dot border를 유지하면서 병합 변의 native 승인 segment가 raster에 중복되지 않아 세로 실선의 점선/돌출 픽셀이 없어야 한다.
+
 ## 완료·실물 검증 대기: native border 물리 stroke 2dot 복원 v1.0.68
 - v1.0.67 실물 `.tmp/IMG_20260809_0001.png`: device-pixel mapping 적용 후에도 세로 실선에 점선처럼 불안정한 픽셀이 남았다.
 - 최신 로그 `.tmp/log/app_2026-08-09_00-01-03.log`: `nativeBorderMapping=devicePixels`, border 225/225 draw, text 실패 0. 좌표 소실과 dispatch 누락은 해결됐으며 정확한 1 device dot 세로선 자체의 열전사 연속성이 남은 문제다.

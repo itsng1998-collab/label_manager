@@ -19074,6 +19074,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           slashSegments,
           rect,
           borders,
+          metrics: metrics,
+          originX: originX,
+          originY: originY,
           rowStart: row,
           rowEnd: rectRowEnd,
           columnStart: column,
@@ -19173,77 +19176,86 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     List<_ScreenshotBorderLineSegment> slashSegments,
     Rect rect,
     FortuneCellBorders borders, {
+    required FortuneSheetMetrics metrics,
+    required double originX,
+    required double originY,
     required int rowStart,
     required int rowEnd,
     required int columnStart,
     required int columnEnd,
     required Set<FortuneCellBorderEdgeKey> omittedEdgeKeys,
   }) {
-    bool omitsHorizontal(int boundaryRow) =>
-        Iterable<int>.generate(
-          columnEnd - columnStart + 1,
-          (offset) => columnStart + offset,
-        ).every(
-          (column) => omittedEdgeKeys.contains(
-            FortuneCellBorderEdgeKey(
-              axis: FortuneCellBorderEdgeAxis.horizontal,
-              row: boundaryRow,
-              column: column,
+    void addHorizontalSegments(FortuneBorderSide side, int boundaryRow) {
+      final y = boundaryRow == rowStart ? rect.top : rect.bottom;
+      for (var column = columnStart; column <= columnEnd; column += 1) {
+        final key = FortuneCellBorderEdgeKey(
+          axis: FortuneCellBorderEdgeAxis.horizontal,
+          row: boundaryRow,
+          column: column,
+        );
+        if (omittedEdgeKeys.contains(key)) continue;
+        segments.add(
+          _ScreenshotBorderLineSegment(
+            side: side,
+            start: Offset(
+              column == columnStart
+                  ? rect.left
+                  : metrics.columnStart(column) - originX,
+              y,
             ),
+            end: Offset(
+              column == columnEnd
+                  ? rect.right
+                  : metrics.columnEnd(column) - originX,
+              y,
+            ),
+            horizontal: true,
           ),
         );
-    bool omitsVertical(int boundaryColumn) =>
-        Iterable<int>.generate(
-          rowEnd - rowStart + 1,
-          (offset) => rowStart + offset,
-        ).every(
-          (row) => omittedEdgeKeys.contains(
-            FortuneCellBorderEdgeKey(
-              axis: FortuneCellBorderEdgeAxis.vertical,
-              row: row,
-              column: boundaryColumn,
+      }
+    }
+
+    void addVerticalSegments(FortuneBorderSide side, int boundaryColumn) {
+      final x = boundaryColumn == columnStart ? rect.left : rect.right;
+      for (var row = rowStart; row <= rowEnd; row += 1) {
+        final key = FortuneCellBorderEdgeKey(
+          axis: FortuneCellBorderEdgeAxis.vertical,
+          row: row,
+          column: boundaryColumn,
+        );
+        if (omittedEdgeKeys.contains(key)) continue;
+        segments.add(
+          _ScreenshotBorderLineSegment(
+            side: side,
+            start: Offset(
+              x,
+              row == rowStart
+                  ? rect.top
+                  : metrics.rowStart(row) - originY,
             ),
+            end: Offset(
+              x,
+              row == rowEnd
+                  ? rect.bottom
+                  : metrics.rowEnd(row) - originY,
+            ),
+            horizontal: false,
           ),
         );
-    if (borders.top case final side? when !omitsHorizontal(rowStart)) {
-      segments.add(
-        _ScreenshotBorderLineSegment(
-          side: side,
-          start: rect.topLeft,
-          end: rect.topRight,
-          horizontal: true,
-        ),
-      );
+      }
     }
-    if (borders.right case final side? when !omitsVertical(columnEnd + 1)) {
-      segments.add(
-        _ScreenshotBorderLineSegment(
-          side: side,
-          start: rect.topRight,
-          end: rect.bottomRight,
-          horizontal: false,
-        ),
-      );
+
+    if (borders.top case final side?) {
+      addHorizontalSegments(side, rowStart);
     }
-    if (borders.bottom case final side? when !omitsHorizontal(rowEnd + 1)) {
-      segments.add(
-        _ScreenshotBorderLineSegment(
-          side: side,
-          start: rect.bottomLeft,
-          end: rect.bottomRight,
-          horizontal: true,
-        ),
-      );
+    if (borders.right case final side?) {
+      addVerticalSegments(side, columnEnd + 1);
     }
-    if (borders.left case final side? when !omitsVertical(columnStart)) {
-      segments.add(
-        _ScreenshotBorderLineSegment(
-          side: side,
-          start: rect.topLeft,
-          end: rect.bottomLeft,
-          horizontal: false,
-        ),
-      );
+    if (borders.bottom case final side?) {
+      addHorizontalSegments(side, rowEnd + 1);
+    }
+    if (borders.left case final side?) {
+      addVerticalSegments(side, columnStart);
     }
     if (borders.slash case final side?) {
       slashSegments.add(

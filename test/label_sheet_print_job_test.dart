@@ -351,18 +351,6 @@ void main() {
       ),
       containsAll(<bool>[true, false]),
     );
-    expect(
-      preparation.borderDescriptors.map(
-        (descriptor) => descriptor.thicknessDots,
-      ),
-      everyElement(2),
-    );
-    expect(
-      preparation.borderDescriptors.map(
-        (descriptor) => descriptor.toChannelMap()['thicknessDots'],
-      ),
-      everyElement(2),
-    );
   });
 
   test('Windows hybrid output geometry ignores preview zoom', () {
