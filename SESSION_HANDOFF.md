@@ -6,6 +6,7 @@
 - 작업 28은 blank `Q` body 뒤에 firmware native `Rleft,top,right,bottom,lrw,ubw` 명령으로 동일 선을 출력했다. `.tmp/IMG_20260809_0010.png`의 native 선도 돌출이 남았고 주 폭은 1dot-R 5px, 2dot-R 9px, 3dot-R 11px로 bitmap보다 두꺼워져 EZPL geometry 전환도 기각했다.
 - 작업 29는 공식 EZPL `^H5`, `^S5`로 저농도 비교했다. `.tmp/IMG_20260809_0011.png`에서 1dot 누락 행이 기본 10행에서 33행으로, 좌우 경계 변화가 `117/179`에서 `216/254`로 증가했고 2·3dot도 악화되어 농도 저하도 기각했다. 작업 30으로 `^H10`, `^S5`를 RAW 전송해 프린터 설정을 복원했다.
 - 결론: 앱이 생성한 최종 bitmap에는 점선/계단이 없으며 G500이 고정 dot 열을 라벨에 열전사하는 단계에서 가장자리 변화가 생긴다. native geometry와 농도 조절로도 개선되지 않아 특정 셀 또는 공용 렌더러 코드로 완전히 제거할 수 없다. production v1.0.72 코드는 변경하지 않았으며, 소프트웨어에서 가능한 최소 왜곡은 final device 1dot이지만 v1.0.71 실물에서도 사용자가 불합격 판정했으므로 자동 원복하지 않는다.
+- 사용자 두께 기준은 `.tmp/IMG_20260809_0001.png`의 강제 1dot 실험선이 아니라 FortuneSheet 기본 1px 실선의 물리 두께다. 203.2dpi 환산값은 약 2.12dot이므로 v1.0.72의 반올림 2dot을 유지한다. `Windows hybrid moves solid black cell borders to native descriptors` focused 테스트에서 모든 기본 border의 `thicknessDots == 2` 계약 통과; 코드 변경 없음.
 
 ## 완료·실물 검증 대기: printer footprint 두께의 단일 bitmap border 합성 v1.0.72
 - v1.0.71 실물 `.tmp/IMG_20260809_0005.png`에도 세로선의 점선형 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_00-27-26.log`는 `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`로 최종 device mask가 실제 적용됐음을 확인했다.
