@@ -7,6 +7,7 @@
 - descriptor/channel의 기본 border 물리 두께 2dot 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. C++ 최종 device rect에 축척·중심 기준 footprint 두께 적용 완료; Windows `/WX` Debug 빌드 성공.
 - 출력 관련 5개 파일 62건과 FortuneSheet capture 9건 통과, 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.72`, `git diff --check` 통과.
+- 기능 커밋: `ac8572a` (`테두리 물리 폭을 비트맵에 적용`).
 - 실물 로그 판별: `nativeBorderThickness=footprintRounded`, `nativeBorderComposite=bitmapMask`, top-down DIB 정상값 `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`여야 한다. native text/overflow fit은 v1.0.63 경로 그대로 유지한다.
 
 ## 완료·실물 검증 대기: native border 최종 device bitmap mask 합성 v1.0.71
