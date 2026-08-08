@@ -10,6 +10,7 @@
 - 첫 `/WX` 빌드는 `RECT LONG`과 `MulDiv int` 사이 `std::max` 타입 불일치 2건으로 실패. device 우측/하단 매핑 결과를 `LONG` 변수로 명시해 수정 후 Windows `/WX` Debug 재빌드 성공.
 - 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.67`, `git diff --check` 통과.
+- 기능 커밋: `d08edf9` (`세로 실선을 최종 장치 좌표로 출력`).
 - 실물 로그 판별: `nativeBorderMapping=devicePixels`, border descriptor/requested/drawn 수 일치, `nativeTextMapping=anisotropic`, `nativeTextFailed=0`. 세로 실선은 전 구간 동일 X의 연속 1dot이고 점선/교대 픽셀이 없어야 한다.
 
 ## 완료: v1.0.63 출력 기준선 원복
