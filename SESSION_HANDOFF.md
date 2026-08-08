@@ -6,7 +6,7 @@
 - `labelSheetWindowsFontPixelHeight`와 10pt→28dot 테스트를 제거하고 기존 `fontSize × dotsPerLogicalPixel` 계산으로 복원한다. 시트 조판과 Windows native text가 동일한 logical font size를 사용해야 셀 레이아웃과 일치한다.
 - 버전은 `1.0.56`으로 증가한다. 자동 검증 후 프린터 속도도 품질 효과가 없었던 50.8mm/s에서 실험 전 127mm/s로 복원한다.
 - Windows hybrid descriptor focused test 1건 통과. Windows `/WX` Debug 빌드 성공.
-- G500 큐를 실험 전 `JobPrintSpeed=opt127000`, `Ptxcn_PrintSpeed=127 mms`, `JobUseCurrentPrinterSettings=OptYes`로 복원했다. 농도 level 8, dithering opt2 유지 확인.
+- G500 큐를 `JobPrintSpeed=opt127000`, `Ptxcn_PrintSpeed=127 mms`, `JobUseCurrentPrinterSettings=OptNo`로 복원했다. 농도 level 8, dithering opt2 유지 확인.
 - 출력 관련 5개 테스트 파일 21건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.56`, `git diff --check` 통과.
 - v1.0.56은 v1.0.54와 동일한 시트 logical font size 계산을 사용한다. 추가 실물 품질 실험은 종료하며, 더 높은 품질이 필수이면 300dpi 장비 또는 시트 글꼴 크기·셀 레이아웃 자체를 변경해야 한다.
