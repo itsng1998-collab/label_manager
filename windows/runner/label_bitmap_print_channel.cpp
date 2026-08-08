@@ -237,14 +237,20 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const int physical_height = GetDeviceCaps(printer_dc, PHYSICALHEIGHT);
   const int physical_offset_x = GetDeviceCaps(printer_dc, PHYSICALOFFSETX);
   const int physical_offset_y = GetDeviceCaps(printer_dc, PHYSICALOFFSETY);
-  const int target_width = dpi_x > 0
-                               ? static_cast<int>(page_width_mm * dpi_x / 25.4 + 0.5)
-                               : source_width;
-  const int target_height = dpi_y > 0
-                                ? static_cast<int>(page_height_mm * dpi_y / 25.4 + 0.5)
-                                : source_height;
-  const int destination_x = 0;
-  const int destination_y = 0;
+    const int printable_width = GetDeviceCaps(printer_dc, HORZRES);
+    const int printable_height = GetDeviceCaps(printer_dc, VERTRES);
+    const int requested_target_width =
+      dpi_x > 0
+        ? static_cast<int>(page_width_mm * dpi_x / 25.4 + 0.5)
+        : source_width;
+    const int requested_target_height =
+      dpi_y > 0
+        ? static_cast<int>(page_height_mm * dpi_y / 25.4 + 0.5)
+        : source_height;
+    const int target_width = requested_target_width;
+    const int target_height = requested_target_height;
+    const int destination_x = -physical_offset_x;
+    const int destination_y = -physical_offset_y;
   size_t native_text_requested_characters = 0;
   int native_text_min_height = 0;
   int native_text_max_height = 0;
@@ -265,11 +271,13 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   std::ostringstream diagnostics;
   diagnostics << "printerDpi=" << dpi_x << "x" << dpi_y
               << " source=" << source_width << "x" << source_height
+              << " requestedTarget=" << requested_target_width << "x"
+              << requested_target_height
               << " target=" << target_width << "x" << target_height
               << " scale=" << static_cast<double>(target_width) / source_width
               << "x" << static_cast<double>(target_height) / source_height
-              << " horzRes=" << GetDeviceCaps(printer_dc, HORZRES)
-              << " vertRes=" << GetDeviceCaps(printer_dc, VERTRES)
+              << " horzRes=" << printable_width
+              << " vertRes=" << printable_height
               << " physical=" << physical_width << "x" << physical_height
               << " offset=" << physical_offset_x << "," << physical_offset_y
               << " destination=" << destination_x << "," << destination_y
