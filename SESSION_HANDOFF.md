@@ -1,5 +1,12 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: native border 최종 device bitmap mask 합성 v1.0.71
+- v1.0.70 실물 `.tmp/IMG_20260809_0004.png`에도 세로선 옆 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_00-22-53.log`는 `nativeBorderFillRects=30`, `nativeBordersDrawn=225`로 경계 좌표 고정과 연속 rect 병합이 실제 적용됐음을 확인했다. segment 접합 가설은 기각한다.
+- 일반화 수정: 이미 병합된 모든 border rect를 최종 device 크기의 32bpp 흑백 mask에 1dot으로 채우고 `SRCAND` 단일 bitmap으로 프린터 DC에 합성한다. 개별 `FillRect`의 드라이버 rasterization을 제거하며, bitmap mask 미지원 시에만 기존 rect 출력으로 fallback한다.
+- 버전 `1.0.71`; Windows `/WX` Debug 빌드 성공. 출력 관련 5개 파일 62건과 FortuneSheet capture 9건 통과, diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.71`, `git diff --check` 통과.
+- 실물 로그 판별: `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=480`, `nativeBordersDrawn=225`여야 한다. `fillRectFallback`이면 해당 드라이버에서 mask 합성이 실패한 것이다. native text/overflow fit은 v1.0.63 경로 그대로 유지한다.
+
 ## 완료·실물 검증 대기: native border 경계 좌표 고정 및 연속 병합 v1.0.70
 - v1.0.69 실물 `.tmp/IMG_20260809_0003.png`에서 세로 실선 옆 열의 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_00-15-20.log`는 v1.0.69, native border 225/225 draw, text 실패 0을 확인했다.
 - 특정 라벨이 아닌 모든 FortuneSheet border에서 edge row/column identity를 유지하고 같은 경계 segment의 source X/Y를 한 번만 양자화한다. descriptor 경계 좌표 계약 테스트 17건 통과.
