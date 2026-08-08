@@ -8,6 +8,7 @@
 - 일반화 계약: 품목 ID, 문구, 셀 좌표, 라벨 양식에 대한 분기 없이 `PrintBitmap`의 모든 native text descriptor에 renderer-wide `kNativeTextRightOverhangDots`를 동일 적용한다. source printer-dot 기준이므로 라벨 크기와 무관하다.
 - 버전 `1.0.65`; 일반화 상수 적용 후 Windows `/WX` Debug 빌드 성공. 출력 관련 5개 테스트 파일 62건 통과, 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.65`, `git diff --check` 통과.
+- 기능 커밋: `6ae1185` (`native 텍스트 장평 회귀 제거`).
 - 실물 판별: v1.0.63처럼 균일한 장평과 곧은 1dot 세로선을 유지하면서 마지막 glyph만 보여야 한다. 로그의 `nativeTextFitted`는 실제 overflow descriptor에만 제한되고 v1.0.64의 `nativeTextWidthCalibrated` 항목은 없어야 한다.
 
 ## 완료·실물 검증 대기: native 글자 폭을 편집기 fragment 폭과 일치 v1.0.64
