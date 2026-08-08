@@ -287,6 +287,66 @@ void main() {
     );
   });
 
+  test('Windows hybrid moves solid black cell borders to native descriptors', () {
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'sheet',
+        name: 'Sheet',
+        rowCount: 10,
+        columnCount: 10,
+        borderInfo: const [
+          fs.FortuneBorderInfo(
+            rangeType: 'range',
+            borderType: 'border-all',
+            color: Color(0xff000000),
+            style: 1,
+            ranges: [
+              fs.FortuneRange(
+                rowStart: 0,
+                rowEnd: 0,
+                columnStart: 0,
+                columnEnd: 0,
+              ),
+            ],
+          ),
+        ],
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 20,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 20,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+      lineSpacingPercent: null,
+    );
+
+    expect(preparation.borderDescriptors, isNotEmpty);
+    expect(
+      preparation.plan.approvedCellBorderEdgeKeys,
+      hasLength(preparation.borderDescriptors.length),
+    );
+    expect(
+      preparation.borderDescriptors.every(
+        (descriptor) =>
+            descriptor.right > descriptor.left &&
+            descriptor.bottom > descriptor.top,
+      ),
+      isTrue,
+    );
+  });
+
   test('Windows hybrid output geometry ignores preview zoom', () {
     const settings = fs.FortuneSettings();
     const physicalSize = fs.FortuneSheetGridClientPhysicalSize(

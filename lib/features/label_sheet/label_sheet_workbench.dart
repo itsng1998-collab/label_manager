@@ -867,6 +867,7 @@ class LabelSheetWindowsDriverCapture {
     required this.metrics,
     required this.plan,
     required this.textDescriptors,
+    required this.borderDescriptors,
     required this.pixelWidth,
     required this.pixelHeight,
   });
@@ -877,6 +878,7 @@ class LabelSheetWindowsDriverCapture {
   final LabelSheetPrintPageMetrics metrics;
   final FortuneHybridRenderPlan plan;
   final List<LabelSheetWindowsTextDescriptor> textDescriptors;
+  final List<LabelSheetWindowsBorderDescriptor> borderDescriptors;
   final int pixelWidth;
   final int pixelHeight;
 }
@@ -2388,6 +2390,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       metrics: preparation.geometry.metrics,
       plan: preparation.plan,
       textDescriptors: preparation.descriptors,
+      borderDescriptors: preparation.borderDescriptors,
       pixelWidth: capture.pixelSize.width.round(),
       pixelHeight: capture.pixelSize.height.round(),
     );

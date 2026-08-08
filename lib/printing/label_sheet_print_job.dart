@@ -643,12 +643,39 @@ class LabelSheetWindowsHybridPreparation {
   const LabelSheetWindowsHybridPreparation({
     required this.geometry,
     required this.descriptors,
+    required this.borderDescriptors,
     required this.plan,
   });
 
   final LabelSheetHybridPrintGeometry geometry;
   final List<LabelSheetWindowsTextDescriptor> descriptors;
+  final List<LabelSheetWindowsBorderDescriptor> borderDescriptors;
   final FortuneHybridRenderPlan plan;
+}
+
+class LabelSheetWindowsBorderDescriptor {
+  const LabelSheetWindowsBorderDescriptor({
+    required this.candidateToken,
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+    required this.predictedPaintedFootprint,
+  });
+
+  final String candidateToken;
+  final int left;
+  final int top;
+  final int right;
+  final int bottom;
+  final ui.Rect predictedPaintedFootprint;
+
+  Map<String, Object?> toChannelMap() => <String, Object?>{
+    'left': left,
+    'top': top,
+    'right': right,
+    'bottom': bottom,
+  };
 }
 
 LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
@@ -678,7 +705,29 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
     transform: geometry.transform,
   );
   final descriptors = <LabelSheetWindowsTextDescriptor>[];
+  final borderDescriptors = <LabelSheetWindowsBorderDescriptor>[];
   final approvedTextCandidates = <String, FortuneNativeCandidate>{};
+  if (options.orientation == LabelSheetPrintOrientation.horizontal) {
+    for (final candidate in candidates) {
+      if (candidate.kind != FortuneNativeCandidateKind.cellBorder) continue;
+      final footprint = candidate.printerPaintedFootprint;
+      final left = footprint.left.floor();
+      final top = footprint.top.floor();
+      final right = footprint.right.ceil();
+      final bottom = footprint.bottom.ceil();
+      if (right <= left || bottom <= top) continue;
+      borderDescriptors.add(
+        LabelSheetWindowsBorderDescriptor(
+          candidateToken: candidate.token,
+          left: left,
+          top: top,
+          right: right,
+          bottom: bottom,
+          predictedPaintedFootprint: footprint,
+        ),
+      );
+    }
+  }
   if (options.orientation == LabelSheetPrintOrientation.horizontal) {
     for (final candidate in candidates) {
       if (candidate.kind != FortuneNativeCandidateKind.cellText ||
@@ -769,16 +818,25 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
     range: geometry.range,
     transform: geometry.transform,
     candidates: candidates,
-    approvals: approvedTextCandidates.values.map(
-      (candidate) => FortuneNativeCandidateApproval(
-        candidateToken: candidate.token,
-        predictedPaintedFootprint: candidate.printerPaintedFootprint,
+    approvals: <FortuneNativeCandidateApproval>[
+      ...approvedTextCandidates.values.map(
+        (candidate) => FortuneNativeCandidateApproval(
+          candidateToken: candidate.token,
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+        ),
       ),
-    ),
+      ...borderDescriptors.map(
+        (descriptor) => FortuneNativeCandidateApproval(
+          candidateToken: descriptor.candidateToken,
+          predictedPaintedFootprint: descriptor.predictedPaintedFootprint,
+        ),
+      ),
+    ],
   );
   return LabelSheetWindowsHybridPreparation(
     geometry: geometry,
     descriptors: List.unmodifiable(descriptors),
+    borderDescriptors: List.unmodifiable(borderDescriptors),
     plan: plan,
   );
 }

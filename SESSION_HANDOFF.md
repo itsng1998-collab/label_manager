@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: Windows native 셀 테두리 및 overflow 글꼴 폭 맞춤 v1.0.62
+- v1.0.61 실물 `.tmp/IMG_20260808_0017.png`과 로그 `.tmp/log/app_2026-08-08_22-52-42.log`: `BLACKONWHITE`, `nativeTextMapping=anisotropic` 모두 적용됐지만 선 지그재그/두께 편차와 오른쪽 clipping이 남았다. 후단 640→620 비정수 bitmap 축소 모드 튜닝은 종료한다.
+- FortuneSheet의 검은 실선 cell border 후보는 stroke footprint와 edge key를 이미 제공한다. Windows border descriptor로 승인해 hybrid raster에서 제거하고 C++가 최종 mapping 좌표에서 직사각형 직선으로 직접 그리도록 전환한다.
+- native text는 `DT_CALCRECT` 실측 폭이 셀 rect를 넘는 descriptor만 평균 glyph 폭을 비례 축소해 오른쪽 끝을 셀 안에 맞춘다. 높이와 비 overflow 텍스트는 유지한다.
+- Dart descriptor/capture/일반·저울 출력 전달과 C++ native border/text fit 구현 완료. 첫 `/WX` 빌드는 `std::max` long/int 불일치 1건으로 실패했고 Win32 `MulDiv` 반환형에 맞춰 수정 후 성공했다.
+- native border 승인 테스트를 포함한 `label_sheet_print_job_test.dart` 17건 통과. 최신 변경 포함 Windows `/WX` Debug 재빌드 성공.
+- 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.62`, `git diff --check` 통과.
+- 실물 로그 판별: `nativeBorderDescriptors`와 `nativeBordersRequested`/`nativeBordersDrawn`이 같은 양수, `nativeTextFailed=0`. overflow가 있으면 `nativeTextFitted`가 양수다. native border가 raster 축소에서 제거되어 선이 직선·균일 두께로 출력되고 오른쪽 문장이 셀 안에 모두 보여야 한다.
+
 ## 완료·실물 검증 대기: 흑백 선 보존 축소 및 native 글꼴 폭 동기화 v1.0.61
 - v1.0.60 실물 `.tmp/IMG_20260808_0016.png`은 전체 내용과 외곽선은 들어왔지만 일부 세로선 지그재그, 가로/세로선 두께 편차, 긴 문장 오른쪽 clipping이 남았다.
 - 최신 로그 `.tmp/log/app_2026-08-08_22-46-34.log`: `target=620x480`, `destination=0,0`, `gray=0` 적용 확인. 흑백화와 printable 폭 맞춤 자체는 적용됐다.

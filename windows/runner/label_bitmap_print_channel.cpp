@@ -73,6 +73,35 @@ struct NativeTextDescriptor {
   bool wrap = false;
 };
 
+struct NativeBorderDescriptor {
+  RECT rect{};
+};
+
+std::vector<NativeBorderDescriptor> BorderDescriptorsArg(
+    const EncodableMap& args) {
+  const auto iter = args.find(EncodableValue("borderDescriptors"));
+  const auto* values = iter == args.end()
+                           ? nullptr
+                           : std::get_if<EncodableList>(&iter->second);
+  if (values == nullptr) return {};
+  std::vector<NativeBorderDescriptor> descriptors;
+  descriptors.reserve(values->size());
+  for (const auto& value : *values) {
+    const auto* map = std::get_if<EncodableMap>(&value);
+    if (map == nullptr) continue;
+    NativeBorderDescriptor descriptor;
+    descriptor.rect.left = IntArg(*map, "left", 0);
+    descriptor.rect.top = IntArg(*map, "top", 0);
+    descriptor.rect.right = IntArg(*map, "right", 0);
+    descriptor.rect.bottom = IntArg(*map, "bottom", 0);
+    if (descriptor.rect.right > descriptor.rect.left &&
+        descriptor.rect.bottom > descriptor.rect.top) {
+      descriptors.push_back(descriptor);
+    }
+  }
+  return descriptors;
+}
+
 std::vector<NativeTextDescriptor> TextDescriptorsArg(
     const EncodableMap& args) {
   const auto iter = args.find(EncodableValue("textDescriptors"));
@@ -168,6 +197,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const bool citizen = legacy_printer_type == "citizen";
   const auto pixels_iter = args.find(EncodableValue("bgra"));
   const auto text_descriptors = TextDescriptorsArg(args);
+  const auto border_descriptors = BorderDescriptorsArg(args);
   const auto* bgra = pixels_iter == args.end()
                          ? nullptr
                          : std::get_if<std::vector<uint8_t>>(&pixels_iter->second);
@@ -294,6 +324,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " devmodeCopies=" << devmode->dmCopies
               << " widthAppendMm=" << width_append_mm
               << " nativeTextRequested=" << text_descriptors.size()
+              << " nativeBordersRequested=" << border_descriptors.size()
               << " nativeTextRequestedCharacters="
               << native_text_requested_characters
               << " nativeTextHeight=" << native_text_min_height << ".."
@@ -349,9 +380,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       SetWindowExtEx(printer_dc, source_width, source_height, nullptr);
       SetViewportExtEx(printer_dc, target_width, target_height, nullptr);
       SetViewportOrgEx(printer_dc, destination_x, destination_y, nullptr);
+      int native_borders_drawn = 0;
+      HBRUSH border_brush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+      for (const auto& descriptor : border_descriptors) {
+        if (FillRect(printer_dc, &descriptor.rect, border_brush) != 0) {
+          ++native_borders_drawn;
+        }
+      }
       const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
       int native_text_drawn = 0;
       int native_text_failed = 0;
+      int native_text_fitted = 0;
       size_t native_text_characters = 0;
       for (const auto& descriptor : text_descriptors) {
         const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
@@ -387,6 +426,29 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         DrawTextW(printer_dc, descriptor.text.c_str(),
                   static_cast<int>(descriptor.text.size()), &measured,
                   flags | DT_CALCRECT);
+        HFONT fitted_font = nullptr;
+        const LONG available_width = text_rect.right - text_rect.left;
+        const LONG measured_width = measured.right - measured.left;
+        if (!descriptor.wrap && measured_width > available_width &&
+            available_width > 0) {
+          TEXTMETRICW text_metrics{};
+          LOGFONTW log_font{};
+          if (GetTextMetricsW(printer_dc, &text_metrics) != 0 &&
+              GetObjectW(font, sizeof(log_font), &log_font) != 0) {
+            log_font.lfWidth = std::max(
+              1, MulDiv(text_metrics.tmAveCharWidth, available_width,
+                    measured_width));
+            fitted_font = CreateFontIndirectW(&log_font);
+            if (fitted_font != nullptr) {
+              SelectObject(printer_dc, fitted_font);
+              ++native_text_fitted;
+              measured = text_rect;
+              DrawTextW(printer_dc, descriptor.text.c_str(),
+                        static_cast<int>(descriptor.text.size()), &measured,
+                        flags | DT_CALCRECT);
+            }
+          }
+        }
         const LONG text_height = measured.bottom - measured.top;
         if (descriptor.vertical_align == "2") {
           text_rect.top = std::max(text_rect.top,
@@ -406,14 +468,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         }
         SetTextColor(printer_dc, previous_color);
         SelectObject(printer_dc, previous_font);
+        if (fitted_font != nullptr) DeleteObject(fitted_font);
         DeleteObject(font);
       }
       SetBkMode(printer_dc, previous_background_mode);
       RestoreDC(printer_dc, text_dc_state);
       diagnostics << " nativeTextDrawn=" << native_text_drawn
                   << " nativeTextFailed=" << native_text_failed
+                  << " nativeTextFitted=" << native_text_fitted
           << " nativeTextCharacters=" << native_text_characters
-          << " nativeTextMapping=anisotropic";
+                  << " nativeTextMapping=anisotropic"
+                  << " nativeBordersDrawn=" << native_borders_drawn;
       if (native_text_failed > 0) {
         error = "Native text rendering failed: " +
                 std::to_string(native_text_failed);

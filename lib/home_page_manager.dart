@@ -6069,6 +6069,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       final ezplCaptures = <LabelPrintUnit, LabelSheetEzplCapture>{};
         final driverTextDescriptors =
           <LabelPrintUnit, List<LabelSheetWindowsTextDescriptor>>{};
+        final driverBorderDescriptors =
+          <LabelPrintUnit, List<LabelSheetWindowsBorderDescriptor>>{};
       final resolvedMetrics = <LabelPrintUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
         if (_labelPrintSessionController.cancellationRequested) {
@@ -6172,6 +6174,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           if (driverPage != null) {
             driverPages[unit] = driverPage;
             driverTextDescriptors[unit] = windowsCapture!.textDescriptors;
+            driverBorderDescriptors[unit] = windowsCapture.borderDescriptors;
           }
           if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
           if (backend == LabelPrintBackend.pdf) {
@@ -6211,6 +6214,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             'nativeTextCandidates=$nativeTextCandidates '
             'nativeTextApprovedTokens=${windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens} '
             'nativeTextDescriptors=${windowsCapture?.textDescriptors.length ?? ezplTextDescriptors.length} '
+            'nativeBorderDescriptors=${windowsCapture?.borderDescriptors.length ?? 0} '
             'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens)} '
             'font=${ezplCapture == null ? 'WindowsDriver' : 'AT:UTF8+AZ1:CP949'} '
             'atTextDescriptors=${ezplTextDescriptors.where((item) => !item.koreanAsian).length} '
@@ -6360,6 +6364,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   legacyPrinterType: profile.legacyType,
                     textDescriptors:
                       driverTextDescriptors[unit] ?? const [],
+                    borderDescriptors:
+                      driverBorderDescriptors[unit] ?? const [],
                 );
                 debugLog(
                   'labelPrintQuality gdiDispatch ${result.diagnostics}',
@@ -6622,6 +6628,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       final ezplCaptures = <ScaleOutputUnit, LabelSheetEzplCapture>{};
         final driverTextDescriptors =
           <ScaleOutputUnit, List<LabelSheetWindowsTextDescriptor>>{};
+        final driverBorderDescriptors =
+          <ScaleOutputUnit, List<LabelSheetWindowsBorderDescriptor>>{};
       final resolvedMetrics = <ScaleOutputUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
         if (_scaleOutputSessionController.cancellationRequested) {
@@ -6702,6 +6710,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           if (driverPage != null) {
             driverPages[unit] = driverPage;
             driverTextDescriptors[unit] = windowsCapture!.textDescriptors;
+            driverBorderDescriptors[unit] = windowsCapture.borderDescriptors;
           }
           if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
           if (backend == LabelPrintBackend.pdf) {
@@ -6741,6 +6750,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             'nativeTextCandidates=$nativeTextCandidates '
             'nativeTextApprovedTokens=${windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens} '
             'nativeTextDescriptors=${windowsCapture?.textDescriptors.length ?? ezplTextDescriptors.length} '
+            'nativeBorderDescriptors=${windowsCapture?.borderDescriptors.length ?? 0} '
             'nativeTextFallback=${nativeTextCandidates - (windowsCapture?.textDescriptors.map((item) => item.candidateToken).toSet().length ?? approvedTextTokens)} '
             'font=${ezplCapture == null ? 'WindowsDriver' : 'AT:UTF8+AZ1:CP949'} '
             'atTextDescriptors=${ezplTextDescriptors.where((item) => !item.koreanAsian).length} '
@@ -6893,6 +6903,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   legacyPrinterType: profile.legacyType,
                     textDescriptors:
                       driverTextDescriptors[unit] ?? const [],
+                    borderDescriptors:
+                      driverBorderDescriptors[unit] ?? const [],
                 );
                 debugLog(
                   'scalePrintQuality gdiDispatch ${result.diagnostics}',

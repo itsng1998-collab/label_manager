@@ -34,6 +34,7 @@ class WindowsBitmapPrinter {
     required double widthAppendMm,
     required LegacyPrinterType legacyPrinterType,
     List<LabelSheetWindowsTextDescriptor> textDescriptors = const [],
+    List<LabelSheetWindowsBorderDescriptor> borderDescriptors = const [],
   }) async {
     if (!Platform.isWindows) {
       throw UnsupportedError('Windows bitmap printing is only supported on Windows.');
@@ -53,6 +54,10 @@ class WindowsBitmapPrinter {
         'legacyPrinterType': legacyPrinterType.name,
         'textDescriptors': [
           for (final descriptor in textDescriptors) descriptor.toChannelMap(),
+        ],
+        'borderDescriptors': [
+          for (final descriptor in borderDescriptors)
+            descriptor.toChannelMap(),
         ],
       },
     );
