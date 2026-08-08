@@ -658,6 +658,7 @@ class LabelSheetWindowsBorderDescriptor {
     required this.candidateToken,
     required this.horizontal,
     required this.boundaryIndex,
+    required this.thicknessDots,
     required this.left,
     required this.top,
     required this.right,
@@ -668,6 +669,7 @@ class LabelSheetWindowsBorderDescriptor {
   final String candidateToken;
   final bool horizontal;
   final int boundaryIndex;
+  final int thicknessDots;
   final int left;
   final int top;
   final int right;
@@ -676,6 +678,7 @@ class LabelSheetWindowsBorderDescriptor {
 
   Map<String, Object?> toChannelMap() => <String, Object?>{
     'horizontal': horizontal,
+    'thicknessDots': thicknessDots,
     'left': left,
     'top': top,
     'right': right,
@@ -721,6 +724,10 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       final edge = candidate.cellBorderEdgeKey!;
       final horizontal = edge.axis == FortuneCellBorderEdgeAxis.horizontal;
       final boundaryIndex = horizontal ? edge.row : edge.column;
+      final thicknessDots = math.max(
+        1,
+        (horizontal ? footprint.height : footprint.width).round(),
+      );
       final centerX = horizontal
           ? footprint.center.dx.round()
           : verticalBoundaryCenters.putIfAbsent(
@@ -743,6 +750,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
           candidateToken: candidate.token,
           horizontal: horizontal,
           boundaryIndex: boundaryIndex,
+          thicknessDots: thicknessDots,
           left: left,
           top: top,
           right: right,

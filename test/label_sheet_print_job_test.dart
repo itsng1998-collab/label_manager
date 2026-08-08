@@ -351,6 +351,18 @@ void main() {
       ),
       containsAll(<bool>[true, false]),
     );
+    expect(
+      preparation.borderDescriptors.map(
+        (descriptor) => descriptor.thicknessDots,
+      ),
+      everyElement(2),
+    );
+    expect(
+      preparation.borderDescriptors.map(
+        (descriptor) => descriptor.toChannelMap()['thicknessDots'],
+      ),
+      everyElement(2),
+    );
     for (final horizontal in <bool>[true, false]) {
       final descriptors = preparation.borderDescriptors.where(
         (descriptor) => descriptor.horizontal == horizontal,

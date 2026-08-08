@@ -1,12 +1,21 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: printer footprint 두께의 단일 bitmap border 합성 v1.0.72
+- v1.0.71 실물 `.tmp/IMG_20260809_0005.png`에도 세로선의 점선형 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_00-27-26.log`는 `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`로 최종 device mask가 실제 적용됐음을 확인했다.
+- v1.0.68 사진의 2dot 세로선은 4~5 image px, v1.0.71의 1dot은 1~2 image px로 측정됐다. 이전 `개별 vector rect + footprint 두께`와 현재 `단일 bitmap + 1dot`은 각각 실패했지만, 레거시 border 폭에 해당하는 `단일 bitmap + footprint 물리 두께` 조합은 미검증이다.
+- 특정 라벨/셀 분기 없이 FortuneSheet candidate의 printer footprint 두께를 descriptor에 복원하고, 최종 device bitmap mask에서 중심 기준으로 적용한다.
+- descriptor/channel의 기본 border 물리 두께 2dot 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. C++ 최종 device rect에 축척·중심 기준 footprint 두께 적용 완료; Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 파일 62건과 FortuneSheet capture 9건 통과, 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.72`, `git diff --check` 통과.
+- 실물 로그 판별: `nativeBorderThickness=footprintRounded`, `nativeBorderComposite=bitmapMask`, top-down DIB 정상값 `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`여야 한다. native text/overflow fit은 v1.0.63 경로 그대로 유지한다.
+
 ## 완료·실물 검증 대기: native border 최종 device bitmap mask 합성 v1.0.71
 - v1.0.70 실물 `.tmp/IMG_20260809_0004.png`에도 세로선 옆 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_00-22-53.log`는 `nativeBorderFillRects=30`, `nativeBordersDrawn=225`로 경계 좌표 고정과 연속 rect 병합이 실제 적용됐음을 확인했다. segment 접합 가설은 기각한다.
 - 일반화 수정: 이미 병합된 모든 border rect를 최종 device 크기의 32bpp 흑백 mask에 1dot으로 채우고 `SRCAND` 단일 bitmap으로 프린터 DC에 합성한다. 개별 `FillRect`의 드라이버 rasterization을 제거하며, bitmap mask 미지원 시에만 기존 rect 출력으로 fallback한다.
 - 버전 `1.0.71`; Windows `/WX` Debug 빌드 성공. 출력 관련 5개 파일 62건과 FortuneSheet capture 9건 통과, diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.71`, `git diff --check` 통과.
 - 기능 커밋: `5e4d3c2` (`테두리를 최종 비트맵으로 합성`).
-- 실물 로그 판별: `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=480`, `nativeBordersDrawn=225`여야 한다. `fillRectFallback`이면 해당 드라이버에서 mask 합성이 실패한 것이다. native text/overflow fit은 v1.0.63 경로 그대로 유지한다.
+- 실물 로그 판별: `nativeBorderComposite=bitmapMask`, top-down DIB 정상값 `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`여야 한다. `fillRectFallback`이면 해당 드라이버에서 mask 합성이 실패한 것이다. native text/overflow fit은 v1.0.63 경로 그대로 유지한다.
 
 ## 완료·실물 검증 대기: native border 경계 좌표 고정 및 연속 병합 v1.0.70
 - v1.0.69 실물 `.tmp/IMG_20260809_0003.png`에서 세로 실선 옆 열의 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_00-15-20.log`는 v1.0.69, native border 225/225 draw, text 실패 0을 확인했다.

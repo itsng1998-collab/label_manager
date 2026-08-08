@@ -76,6 +76,7 @@ struct NativeTextDescriptor {
 struct NativeBorderDescriptor {
   RECT rect{};
   bool horizontal = false;
+  int thickness_dots = 1;
 };
 
 struct DeviceBorderRect {
@@ -98,6 +99,8 @@ std::vector<NativeBorderDescriptor> BorderDescriptorsArg(
     if (map == nullptr) continue;
     NativeBorderDescriptor descriptor;
     descriptor.horizontal = BoolArg(*map, "horizontal", false);
+    descriptor.thickness_dots =
+      std::max(1, IntArg(*map, "thicknessDots", 1));
     descriptor.rect.left = IntArg(*map, "left", 0);
     descriptor.rect.top = IntArg(*map, "top", 0);
     descriptor.rect.right = IntArg(*map, "right", 0);
@@ -400,16 +403,21 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
             MulDiv(descriptor.rect.right, target_width, source_width);
         const LONG mapped_bottom = destination_y +
             MulDiv(descriptor.rect.bottom, target_height, source_height);
+        const LONG thickness = std::max(
+            1L, static_cast<LONG>(MulDiv(
+                    descriptor.thickness_dots,
+                    descriptor.horizontal ? target_height : target_width,
+                    descriptor.horizontal ? source_height : source_width)));
         RECT device_rect{};
         if (descriptor.horizontal) {
           device_rect.left = left;
-          device_rect.top = top;
+          device_rect.top = top - thickness / 2;
           device_rect.right = std::max(left + 1, mapped_right);
-          device_rect.bottom = top + 1;
+          device_rect.bottom = device_rect.top + thickness;
         } else {
-          device_rect.left = left;
+          device_rect.left = left - thickness / 2;
           device_rect.top = top;
-          device_rect.right = left + 1;
+          device_rect.right = device_rect.left + thickness;
           device_rect.bottom = std::max(top + 1, mapped_bottom);
         }
         device_borders.push_back(
@@ -633,6 +641,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           << " nativeTextCharacters=" << native_text_characters
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
+                  << " nativeBorderThickness=footprintRounded"
                   << " nativeBorderComposite="
                   << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
                   << " nativeBorderMaskLines=" << native_border_mask_lines
