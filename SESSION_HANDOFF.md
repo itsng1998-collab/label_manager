@@ -11,6 +11,7 @@
 - strict analyzer: 변경 Dart 2개 파일 오류·경고 0건. 편집기 diagnostics도 변경 4개 파일 오류 0건.
 - Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion 모두 `1.0.52`, `git diff --check` 통과.
 - stage 대상: resolver, dispatcher 회귀 테스트, `pubspec.yaml`, 본 문서. 다음 실물 출력 로그에서 `backend=windowsDriver`, GDI dispatch 성공, `nativeTextFailed=0`을 확인하고 `.tmp/IMG_20260807_0002.png`와 품질을 비교한다.
+- 기능 커밋: `76a3c15` (`GoDEX 기본 Windows 드라이버 출력 복원`). push하지 않음.
 - 기존 unrelated 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 EZPL 문서 2개는 수정·stage·commit에서 제외한다.
 
 ## 완료·실물 검증 대기: GoDEX Q pattern polarity 수정 v1.0.51
