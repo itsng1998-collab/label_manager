@@ -5,6 +5,7 @@
 - 특정 라벨이 아닌 모든 FortuneSheet border에서 edge row/column identity를 유지하고 같은 경계 segment의 source X/Y를 한 번만 양자화한다. descriptor 경계 좌표 계약 테스트 17건 통과.
 - Windows에서 동일한 device 축에 있고 맞닿거나 겹치는 1dot segment만 하나의 연속 rect로 병합한다. 성공 segment 수 225/225 진단은 유지하고 실제 호출 수는 `nativeBorderFillRects`로 기록한다. Windows `/WX` Debug 빌드 성공.
 - 버전 `1.0.70`; FortuneSheet capture 9건과 출력 관련 5개 파일 62건 통과. 변경 파일 diagnostics 오류 0건, Windows `/WX` Debug 빌드 성공.
+- 기능 커밋: `1334c7a` (`세로 테두리를 연속 선으로 출력`).
 - 실물 로그 판별: `nativeBordersRequested=225`, `nativeBordersDrawn=225`를 유지하면서 `nativeBorderFillRects`는 225보다 작아야 한다. native text/overflow fit은 v1.0.63 경로 그대로이며 세로선은 경계별 하나의 연속 rect로 출력되어야 한다.
 
 ## 완료·실물 검증 대기: 병합 border native/raster 중복 제거 v1.0.69
