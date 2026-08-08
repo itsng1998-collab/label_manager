@@ -17,6 +17,8 @@ using EncodableMap = flutter::EncodableMap;
 using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
+constexpr LONG kNativeTextRightOverhangDots = 1;
+
 std::wstring Utf8ToWide(const std::string& value);
 
 const std::string* StringArg(const EncodableMap& args, const char* key) {
@@ -391,7 +393,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       int native_text_drawn = 0;
       int native_text_failed = 0;
       int native_text_fitted = 0;
-      int native_text_width_calibrated = 0;
       size_t native_text_characters = 0;
       for (const auto& descriptor : text_descriptors) {
         const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
@@ -430,17 +431,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         HFONT fitted_font = nullptr;
         const LONG available_width = text_rect.right - text_rect.left;
         const LONG measured_width = measured.right - measured.left;
-        if (!descriptor.wrap && available_width > 0 && measured_width > 0 &&
-            std::abs(measured_width - available_width) > 1) {
+        if (!descriptor.wrap && measured_width > available_width &&
+            available_width > 0) {
           TEXTMETRICW text_metrics{};
           LOGFONTW log_font{};
           if (GetTextMetricsW(printer_dc, &text_metrics) != 0 &&
               GetObjectW(font, sizeof(log_font), &log_font) != 0) {
-            const LONG desired_width = available_width;
+            const LONG desired_width = std::max(1L, available_width - 2);
             int fitted_width = std::max(
                 1, MulDiv(text_metrics.tmAveCharWidth, desired_width,
                           measured_width));
-            for (int attempt = 0; attempt < 8; ++attempt) {
+            for (int attempt = 0; attempt < 4; ++attempt) {
               log_font.lfWidth = fitted_width;
               HFONT next_fitted_font = CreateFontIndirectW(&log_font);
               if (next_fitted_font == nullptr) break;
@@ -453,22 +454,15 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                         flags | DT_CALCRECT);
               const LONG fitted_measured_width =
                   measured.right - measured.left;
-              if (std::abs(fitted_measured_width - desired_width) <= 1) break;
+              if (fitted_measured_width <= desired_width) break;
               const int next_width = std::max(
                   1, MulDiv(fitted_width, desired_width,
                             fitted_measured_width));
-              fitted_width = next_width != fitted_width
+              fitted_width = next_width < fitted_width
                                  ? next_width
-                                 : fitted_width +
-                                       (fitted_measured_width < desired_width
-                                            ? 1
-                                            : -1);
-              fitted_width = std::max(1, fitted_width);
+                                 : std::max(1, fitted_width - 1);
             }
-            if (fitted_font != nullptr) {
-              ++native_text_fitted;
-              ++native_text_width_calibrated;
-            }
+            if (fitted_font != nullptr) ++native_text_fitted;
           }
         }
         const LONG text_height = measured.bottom - measured.top;
@@ -479,10 +473,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           text_rect.top += std::max<LONG>(
               0, (text_rect.bottom - text_rect.top - text_height) / 2);
         }
+        text_rect.right += kNativeTextRightOverhangDots;
         const int draw_result = DrawTextW(
             printer_dc, descriptor.text.c_str(),
-          static_cast<int>(descriptor.text.size()), &text_rect,
-          flags | DT_NOCLIP);
+            static_cast<int>(descriptor.text.size()), &text_rect, flags);
         if (draw_result > 0) {
           ++native_text_drawn;
           native_text_characters += descriptor.text.size();
@@ -499,8 +493,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       diagnostics << " nativeTextDrawn=" << native_text_drawn
                   << " nativeTextFailed=" << native_text_failed
                   << " nativeTextFitted=" << native_text_fitted
-                    << " nativeTextWidthCalibrated="
-                    << native_text_width_calibrated
           << " nativeTextCharacters=" << native_text_characters
                   << " nativeTextMapping=anisotropic"
                   << " nativeBordersDrawn=" << native_borders_drawn;

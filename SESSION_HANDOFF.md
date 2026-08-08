@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 장평 회귀 제거 및 일반화된 우측 glyph 여유 v1.0.65
+- v1.0.64 실물 `.tmp/IMG_20260808_0020.png`: 세로선 지그재그가 다시 두드러지고 표 텍스트 장평이 셀마다 달라져 v1.0.63보다 악화됐다.
+- v1.0.64 로그 `.tmp/log/app_2026-08-08_23-29-00.log`: 36개 descriptor 중 34개가 `nativeTextWidthCalibrated` 됐다. 거의 모든 fragment에 서로 다른 `lfWidth`를 적용한 양방향 보정이 장평 회귀 원인이다.
+- v1.0.64의 양방향 폭 보정과 전역 `DT_NOCLIP`은 제거하고 재사용하지 않는다. v1.0.63의 overflow 2개만 축소하는 균일 장평 동작으로 복원한다.
+- 오른쪽 마지막 glyph는 장평을 바꾸지 않고 최종 `DrawTextW` rect 오른쪽에 고정 1 source dot 여유만 추가한다. 표/셀/1dot 선 좌표와 640→620 비율은 변경하지 않는다.
+- 일반화 계약: 품목 ID, 문구, 셀 좌표, 라벨 양식에 대한 분기 없이 `PrintBitmap`의 모든 native text descriptor에 renderer-wide `kNativeTextRightOverhangDots`를 동일 적용한다. source printer-dot 기준이므로 라벨 크기와 무관하다.
+- 버전 `1.0.65`; 일반화 상수 적용 후 Windows `/WX` Debug 빌드 성공. 출력 관련 5개 테스트 파일 62건 통과, 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.65`, `git diff --check` 통과.
+- 실물 판별: v1.0.63처럼 균일한 장평과 곧은 1dot 세로선을 유지하면서 마지막 glyph만 보여야 한다. 로그의 `nativeTextFitted`는 실제 overflow descriptor에만 제한되고 v1.0.64의 `nativeTextWidthCalibrated` 항목은 없어야 한다.
+
 ## 완료·실물 검증 대기: native 글자 폭을 편집기 fragment 폭과 일치 v1.0.64
 - v1.0.63 실물 `.tmp/IMG_20260808_0019.png`: 1dot 선 두께는 개선됐지만 긴 문장의 오른쪽 끝이 계속 잘린다.
 - v1.0.63 로그 `.tmp/log/app_2026-08-08_23-15-37.log`: source 640x480, target 620x480, native text 36개/581자 모두 그리기 성공, fit 2개, border 225개 모두 그리기 성공. 표·선·텍스트의 640→620 가로 비율은 동일하므로 표 전체 축소 문제는 아니다.
