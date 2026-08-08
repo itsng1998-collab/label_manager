@@ -435,18 +435,32 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           LOGFONTW log_font{};
           if (GetTextMetricsW(printer_dc, &text_metrics) != 0 &&
               GetObjectW(font, sizeof(log_font), &log_font) != 0) {
-            log_font.lfWidth = std::max(
-              1, MulDiv(text_metrics.tmAveCharWidth, available_width,
-                    measured_width));
-            fitted_font = CreateFontIndirectW(&log_font);
-            if (fitted_font != nullptr) {
-              SelectObject(printer_dc, fitted_font);
-              ++native_text_fitted;
+            const LONG desired_width = std::max(1L, available_width - 2);
+            int fitted_width = std::max(
+                1, MulDiv(text_metrics.tmAveCharWidth, desired_width,
+                          measured_width));
+            for (int attempt = 0; attempt < 4; ++attempt) {
+              log_font.lfWidth = fitted_width;
+              HFONT next_fitted_font = CreateFontIndirectW(&log_font);
+              if (next_fitted_font == nullptr) break;
+              SelectObject(printer_dc, next_fitted_font);
+              if (fitted_font != nullptr) DeleteObject(fitted_font);
+              fitted_font = next_fitted_font;
               measured = text_rect;
               DrawTextW(printer_dc, descriptor.text.c_str(),
                         static_cast<int>(descriptor.text.size()), &measured,
                         flags | DT_CALCRECT);
+              const LONG fitted_measured_width =
+                  measured.right - measured.left;
+              if (fitted_measured_width <= desired_width) break;
+              const int next_width = std::max(
+                  1, MulDiv(fitted_width, desired_width,
+                            fitted_measured_width));
+              fitted_width = next_width < fitted_width
+                                 ? next_width
+                                 : std::max(1, fitted_width - 1);
             }
+            if (fitted_font != nullptr) ++native_text_fitted;
           }
         }
         const LONG text_height = measured.bottom - measured.top;

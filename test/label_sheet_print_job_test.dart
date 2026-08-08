@@ -340,8 +340,8 @@ void main() {
     expect(
       preparation.borderDescriptors.every(
         (descriptor) =>
-            descriptor.right > descriptor.left &&
-            descriptor.bottom > descriptor.top,
+            descriptor.right - descriptor.left == 1 ||
+            descriptor.bottom - descriptor.top == 1,
       ),
       isTrue,
     );

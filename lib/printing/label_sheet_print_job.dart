@@ -711,10 +711,14 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
     for (final candidate in candidates) {
       if (candidate.kind != FortuneNativeCandidateKind.cellBorder) continue;
       final footprint = candidate.printerPaintedFootprint;
-      final left = footprint.left.floor();
-      final top = footprint.top.floor();
-      final right = footprint.right.ceil();
-      final bottom = footprint.bottom.ceil();
+      final edge = candidate.cellBorderEdgeKey!;
+      final horizontal = edge.axis == FortuneCellBorderEdgeAxis.horizontal;
+      final centerX = footprint.center.dx.round();
+      final centerY = footprint.center.dy.round();
+      final left = horizontal ? footprint.left.round() : centerX;
+      final top = horizontal ? centerY : footprint.top.round();
+      final right = horizontal ? footprint.right.round() : centerX + 1;
+      final bottom = horizontal ? centerY + 1 : footprint.bottom.round();
       if (right <= left || bottom <= top) continue;
       borderDescriptors.add(
         LabelSheetWindowsBorderDescriptor(

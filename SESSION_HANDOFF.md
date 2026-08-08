@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: native 테두리 1dot 및 overflow 반복 맞춤 v1.0.63
+- v1.0.62 실물 `.tmp/IMG_20260808_0018.png`은 선 지그재그는 크게 줄었지만 편집 화면보다 선이 두껍고 오른쪽 끝이 계속 잘렸다.
+- 최신 로그 `.tmp/log/app_2026-08-08_23-08-59.log`: native border 225개 요청/그리기 일치, text 실패 0, fit 2개. native 경로 적용은 정상이다.
+- 선 두께 원인: 약 2.1dot stroke footprint를 `floor/ceil`해 3~4 source dot으로 확대했다. edge 중심 좌표에서 가로 높이 또는 세로 폭을 정확히 1 source dot으로 고정한다.
+- 오른쪽 clipping 원인: 평균 glyph 폭으로 한 번만 축소해 실제 재측정 폭이 여전히 셀보다 클 수 있었다. 2dot 안전 여백을 두고 최대 4회 재측정하며 실제 폭이 셀 안에 들어올 때까지 fitted font 폭을 줄인다.
+- 버전은 `1.0.63`으로 증가. 1dot native border 테스트를 포함한 `label_sheet_print_job_test.dart` 17건 통과. Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.63`, `git diff --check` 통과.
+- 실물 판별: 선은 edge 중심의 1dot으로 편집 화면과 유사한 얇은 두께여야 한다. `nativeTextFitted` 대상은 2dot 안전 여백 안에서 반복 실측되어 오른쪽 끝이 모두 보여야 하며 `nativeTextFailed=0`이어야 한다.
+
 ## 완료·실물 검증 대기: Windows native 셀 테두리 및 overflow 글꼴 폭 맞춤 v1.0.62
 - v1.0.61 실물 `.tmp/IMG_20260808_0017.png`과 로그 `.tmp/log/app_2026-08-08_22-52-42.log`: `BLACKONWHITE`, `nativeTextMapping=anisotropic` 모두 적용됐지만 선 지그재그/두께 편차와 오른쪽 clipping이 남았다. 후단 640→620 비정수 bitmap 축소 모드 튜닝은 종료한다.
 - FortuneSheet의 검은 실선 cell border 후보는 stroke footprint와 edge key를 이미 제공한다. Windows border descriptor로 승인해 hybrid raster에서 제거하고 C++가 최종 mapping 좌표에서 직사각형 직선으로 직접 그리도록 전환한다.
