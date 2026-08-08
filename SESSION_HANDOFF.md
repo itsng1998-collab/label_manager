@@ -8,6 +8,7 @@
 - `label_sheet_print_job_test.dart` 17건 통과. 출력 코드·테스트·버전은 `git diff 6ac7d72 -- ...` 결과 `V1_0_63_EXACT_MATCH`로 기준 커밋과 정확히 일치한다.
 - Windows `/WX` Debug 빌드 성공. 출력 관련 5개 테스트 파일 62건 통과, 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.63`, `git diff --check` 통과. 출력 코드·테스트·버전은 최종 검증에서도 `V1_0_63_EXACT_MATCH`다.
+- 원복 커밋: `09f1944` (`출력 품질을 v1.0.63 기준으로 원복`).
 
 ## 완료·실물 검증 대기: 편집기 동일 셀 텍스트 raster + native 1dot 선 v1.0.66
 - 사용자 기준선은 실물 품질이 가장 좋은 v1.0.63이다. 이후 GDI `lfWidth`/draw rect 보정은 설정 font size와 셀 점유 비율을 동시에 재현하지 못했다.
