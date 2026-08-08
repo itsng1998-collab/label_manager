@@ -9,6 +9,7 @@
 - root `label_sheet_print_job_test.dart` 17건 및 출력 관련 5개 테스트 파일 62건 통과. Windows `/WX` Debug 빌드 성공, 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.69`, `git diff --check` 통과.
 - 커밋 대상: 공용 painter와 capture 테스트, 2dot 원복 관련 Dart/C++/계약 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. unrelated 문서 삭제, 로고 설정, `pubspec.lock` 변경은 제외.
+- 기능 커밋: `ad8edf5` (`병합 테두리의 중복 출력을 제거`).
 - 실물 판별: v1.0.63 native text/overflow fit과 device 1dot border를 유지하면서 병합 변의 native 승인 segment가 raster에 중복되지 않아 세로 실선의 점선/돌출 픽셀이 없어야 한다.
 
 ## 완료·실물 검증 대기: native border 물리 stroke 2dot 복원 v1.0.68
