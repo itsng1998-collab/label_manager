@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: GoDEX GDI 작은 한글 raster 품질 개선 v1.0.53
+- v1.0.52 실물 `.tmp/IMG_20260808_0001.png`은 회전·분할·극성은 정상이나 작은 한글 획과 선이 거칠어 고품질 기준에는 미달했다.
+- 최신 로그 `.tmp/log/app_2026-08-08_17-46-37.log`: `version=1.0.52`, `backend=windowsDriver`, 641x481 capture→640x480 page, raster ink 50,556, native descriptor 22개/378자, `nativeTextFailed=0`, GDI 640x480→639x480 성공.
+- v1.0.44 로그 `.tmp/log/app_2026-08-07_20-47-37.log`와 capture PNG bytes, raster ink, native text 수/높이/font, GDI source/target/offset이 모두 동일해 backend 복원 누락이나 코드 회귀는 아니다.
+- 원인 가설: `CreateFontW`의 `DEFAULT_QUALITY`가 11~17px 한글을 회색 안티앨리어싱하고 203dpi 단색 드라이버가 이를 디더링해 거친 획을 만든다.
+- `label_bitmap_print_channel.cpp`: Windows native text를 `NONANTIALIASED_QUALITY`로 고정하고 GDI 진단에 `fontQuality=NONANTIALIASED_QUALITY`를 추가했다. 프린터 속도 127mm/s·농도 8 및 640→639 배율은 이번 실험에서 고정했다.
+- `pubspec.yaml`: 호환 가능한 출력 품질 실험으로 PATCH 버전을 `1.0.52`에서 `1.0.53`으로 증가했다.
+- 첫 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`: 성공.
+- 출력 관련 5개 테스트 파일 21건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.53`, `git diff --check` 통과.
+- 다음 실물 로그에서 `version=1.0.53`, `backend=windowsDriver`, `fontQuality=NONANTIALIASED_QUALITY`, `nativeTextFailed=0`을 확인하고 `.tmp/IMG_20260808_0001.png`의 작은 한글 획과 비교한다.
+- 결과가 개선되지 않으면 코드를 더 섞지 않고 G500 드라이버 속도만 현재 127mm/s에서 50.8/76.2mm/s로 낮춘 A/B를 수행한다. 농도 8과 나머지 조건은 유지한다.
+- 기존 unrelated 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 EZPL 문서 2개는 수정·stage·commit에서 제외한다.
+
 ## 완료·실물 검증 대기: GoDEX G500 기본 Windows 드라이버 출력 복원 v1.0.52
 - 실물 비교 결과 v1.0.44의 Windows GDI 하이브리드 출력(`.tmp/IMG_20260807_0002.png`)이 v1.0.45~v1.0.51 RAW EZPL 결과보다 전체 레이아웃과 작은 한글 품질이 안정적이었다.
 - 원인: `resolveLabelPrintBackend`가 GoDEX 물리 포트만 `ezplRaw`로 강제해 설치된 Seagull Godex G500 11.6 드라이버의 글꼴 rasterization과 프린터별 변환을 우회했다.
