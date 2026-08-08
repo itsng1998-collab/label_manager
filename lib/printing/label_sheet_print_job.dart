@@ -724,10 +724,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       final edge = candidate.cellBorderEdgeKey!;
       final horizontal = edge.axis == FortuneCellBorderEdgeAxis.horizontal;
       final boundaryIndex = horizontal ? edge.row : edge.column;
-      final thicknessDots = math.max(
-        1,
-        (horizontal ? footprint.height : footprint.width).round(),
-      );
+      const thicknessDots = 1;
       final centerX = horizontal
           ? footprint.center.dx.round()
           : verticalBoundaryCenters.putIfAbsent(

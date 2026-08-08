@@ -1,12 +1,22 @@
 # 현재 작업 상태
 
+## 완료: FortuneSheet 기본 테두리 1px -> 1dot v1.0.73
+- 사용자 요청에 따라 FortuneSheet cell border의 기본 1px를 물리 DPI 환산하지 않고 Windows 최종 device 1dot으로 고정한다. 특정 셀·품목·양식 분기 없이 승인된 모든 가로/세로 cell border에 공통 적용한다.
+- `label_sheet_print_job.dart`: `thicknessDots`를 footprint 반올림 값에서 상수 1로 변경했다. boundary별 단일 좌표 양자화와 raster/native 중복 제거는 유지한다.
+- `label_sheet_print_job_test.dart`: descriptor와 channel map의 두께 계약을 2dot에서 1dot으로 변경했다. `Windows hybrid moves solid black cell borders to native descriptors` focused 테스트 1건 통과.
+- `label_bitmap_print_channel.cpp`: 실제 동작과 일치하도록 진단값을 `nativeBorderThickness=oneDeviceDot`으로 변경했다. final device bitmap mask 합성, native text 및 overflow fit은 유지한다.
+- `pubspec.yaml`: 버전 `1.0.73`으로 증가했다.
+- `label_sheet_print_job_test.dart` 전체 17건 통과, 변경 파일 diagnostics 오류 0건. VS Code test runner는 `label_print_settings_test.dart`를 발견하지 못했지만 `C:/Flutter/bin/flutter.bat test test/label_sheet_print_job_test.dart test/label_print_settings_test.dart` CLI 검증은 21건 모두 통과했다.
+- Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. `git diff --check` 통과, Debug EXE FileVersion/ProductVersion 모두 `1.0.73`, 변경 파일 diagnostics 오류 0건.
+- 커밋 대상: `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경과 문서 삭제는 제외한다.
+
 ## 완료: G500 RAW 선 품질 분리 진단
 - 작업 26에서 앱과 동일한 `QPatternContiguous` framing과 640x480 1-bit body를 사용해 RAW 출력 자체를 복구했다. 작업 27은 실물에서 확인된 G500 극성 `oneBlackZeroWhite`로 1·2·3dot 세로/가로선을 출력했고 `.tmp/IMG_20260809_0009.png`에서 Windows GDI를 완전히 우회한 고정 X bitmap 선에도 가장자리 변화가 재현됐다.
 - RAW bitmap 세로선의 행별 사진 폭은 1dot `1..4px`(주로 2px), 2dot `2..7px`(주로 5px), 3dot `1..9px`(주로 8px)였다. 원본 raster는 모든 행에서 동일한 고정 열이므로 FortuneSheet 좌표, Windows driver, GDI primitive, segment 접합은 원인이 아니다. 두꺼울수록 열전사 가장자리 돌출이 커졌고 1dot이 최소 왜곡이었다.
 - 작업 28은 blank `Q` body 뒤에 firmware native `Rleft,top,right,bottom,lrw,ubw` 명령으로 동일 선을 출력했다. `.tmp/IMG_20260809_0010.png`의 native 선도 돌출이 남았고 주 폭은 1dot-R 5px, 2dot-R 9px, 3dot-R 11px로 bitmap보다 두꺼워져 EZPL geometry 전환도 기각했다.
 - 작업 29는 공식 EZPL `^H5`, `^S5`로 저농도 비교했다. `.tmp/IMG_20260809_0011.png`에서 1dot 누락 행이 기본 10행에서 33행으로, 좌우 경계 변화가 `117/179`에서 `216/254`로 증가했고 2·3dot도 악화되어 농도 저하도 기각했다. 작업 30으로 `^H10`, `^S5`를 RAW 전송해 프린터 설정을 복원했다.
 - 결론: 앱이 생성한 최종 bitmap에는 점선/계단이 없으며 G500이 고정 dot 열을 라벨에 열전사하는 단계에서 가장자리 변화가 생긴다. native geometry와 농도 조절로도 개선되지 않아 특정 셀 또는 공용 렌더러 코드로 완전히 제거할 수 없다. production v1.0.72 코드는 변경하지 않았으며, 소프트웨어에서 가능한 최소 왜곡은 final device 1dot이지만 v1.0.71 실물에서도 사용자가 불합격 판정했으므로 자동 원복하지 않는다.
-- 사용자 두께 기준은 `.tmp/IMG_20260809_0001.png`의 강제 1dot 실험선이 아니라 FortuneSheet 기본 1px 실선의 물리 두께다. 203.2dpi 환산값은 약 2.12dot이므로 v1.0.72의 반올림 2dot을 유지한다. `Windows hybrid moves solid black cell borders to native descriptors` focused 테스트에서 모든 기본 border의 `thicknessDots == 2` 계약 통과; 코드 변경 없음.
+- 당시에는 FortuneSheet 기본 1px의 물리 환산값 약 2.12dot을 기준으로 v1.0.72의 2dot을 유지했으나, 이후 사용자 요청으로 `1px -> 1dot` 직접 대응을 최종 기준으로 변경했다. v1.0.73 진행 항목이 이 결정을 대체한다.
 
 ## 완료·실물 검증 대기: printer footprint 두께의 단일 bitmap border 합성 v1.0.72
 - v1.0.71 실물 `.tmp/IMG_20260809_0005.png`에도 세로선의 점선형 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_00-27-26.log`는 `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`로 최종 device mask가 실제 적용됐음을 확인했다.

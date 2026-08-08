@@ -355,13 +355,13 @@ void main() {
       preparation.borderDescriptors.map(
         (descriptor) => descriptor.thicknessDots,
       ),
-      everyElement(2),
+      everyElement(1),
     );
     expect(
       preparation.borderDescriptors.map(
         (descriptor) => descriptor.toChannelMap()['thicknessDots'],
       ),
-      everyElement(2),
+      everyElement(1),
     );
     for (final horizontal in <bool>[true, false]) {
       final descriptors = preparation.borderDescriptors.where(

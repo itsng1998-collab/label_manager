@@ -641,7 +641,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           << " nativeTextCharacters=" << native_text_characters
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
-                  << " nativeBorderThickness=footprintRounded"
+                  << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderComposite="
                   << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
                   << " nativeBorderMaskLines=" << native_border_mask_lines
