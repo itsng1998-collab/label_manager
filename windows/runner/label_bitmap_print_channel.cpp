@@ -247,10 +247,16 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       dpi_y > 0
         ? static_cast<int>(page_height_mm * dpi_y / 25.4 + 0.5)
         : source_height;
-    const int target_width = requested_target_width;
-    const int target_height = requested_target_height;
-    const int destination_x = -physical_offset_x;
-    const int destination_y = -physical_offset_y;
+    const int target_width = printable_width > 0
+      ? std::min(requested_target_width, printable_width)
+      : requested_target_width;
+    const int target_height = printable_height > 0
+      ? std::min(requested_target_height, printable_height)
+      : requested_target_height;
+    // 음수 physical offset은 양쪽 비인쇄 영역만 잘라내므로 재사용하지 않는다.
+    // 전체 라벨을 printable DC에 맞춰 bitmap과 native text를 함께 축소한다.
+    const int destination_x = 0;
+    const int destination_y = 0;
   size_t native_text_requested_characters = 0;
   int native_text_min_height = 0;
   int native_text_max_height = 0;

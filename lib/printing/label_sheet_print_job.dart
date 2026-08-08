@@ -11,6 +11,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 const num _labelSheetEzplInkLuminanceThreshold = 200;
+const num _labelSheetWindowsInkLuminanceThreshold = 200;
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -133,11 +134,13 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   var pixelIndex = 0;
   for (final pixel in page) {
     final luminance = img.getLuminance(pixel);
-    if (luminance > 0 && luminance < 255) antialiasPixels += 1;
-    if (luminance < 255) nonWhitePixels += 1;
+    final value = luminance <= _labelSheetWindowsInkLuminanceThreshold
+        ? 0
+        : 255;
+    if (value > 0 && value < 255) antialiasPixels += 1;
+    if (value < 255) nonWhitePixels += 1;
     luminanceHistogram[math.min(7, luminance.toInt() ~/ 32)] += 1;
     coverageInkEquivalent += (255 - luminance) / 255;
-    final value = luminance.round().clamp(0, 255);
     if (value == 0) {
       inkPixels += 1;
     }

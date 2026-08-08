@@ -450,7 +450,7 @@ void main() {
     expect(layout.clipBottomMm, 60);
   });
 
-  test('Windows driver page preserves final printer grid grayscale', () {
+  test('Windows driver page thresholds final printer grid to monochrome', () {
     final image = img.Image(width: 4, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
     image
@@ -484,15 +484,15 @@ void main() {
 
     expect((page.width, page.height), (2, 1));
     expect(page.bgraBytes, hasLength(2 * 1 * 4));
-    expect(page.inkPixels, 0);
-    expect(page.antialiasPixels, 2);
-    expect(page.bgraBytes.sublist(0, 4), [63, 63, 63, 255]);
-    expect(page.bgraBytes.sublist(4, 8), [225, 225, 225, 255]);
+    expect(page.inkPixels, 1);
+    expect(page.antialiasPixels, 0);
+    expect(page.bgraBytes.sublist(0, 4), [0, 0, 0, 255]);
+    expect(page.bgraBytes.sublist(4, 8), [255, 255, 255, 255]);
     expect(page.luminanceHistogram.reduce((left, right) => left + right), 2);
     expect(page.coverageInkEquivalent, closeTo(0.8706, 0.001));
     expect(page.rasterMapping, 'averageResize');
-    expect(page.nonWhitePixels, 2);
-    expect(page.isolatedInkPixels, 0);
+    expect(page.nonWhitePixels, 1);
+    expect(page.isolatedInkPixels, 1);
   });
 
   test('Windows driver page crops one-pixel capture overflow', () {
