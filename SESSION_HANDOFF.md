@@ -8,6 +8,7 @@
 - v1.0.63의 native text와 overflow fit은 그대로 유지. 기본 border 2dot 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. 버전 `1.0.68`; Windows `/WX` Debug 빌드 성공.
 - 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.68`, `git diff --check` 통과.
+- 기능 커밋: `bd17dd0` (`셀 테두리 물리 두께를 정확히 출력`).
 - 실물 로그 판별: `nativeBorderMapping=devicePixels`, `nativeBorderThickness=footprintRounded`, border descriptor/requested/drawn 수 일치, text 실패 0. 세로선은 편집기 기본 stroke에 해당하는 연속 2dot이며 점선 픽셀이 없어야 한다.
 
 ## 완료·실물 검증 대기: native border 최종 device 1dot 고정 v1.0.67
