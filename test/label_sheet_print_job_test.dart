@@ -339,11 +339,17 @@ void main() {
     );
     expect(
       preparation.borderDescriptors.every(
-        (descriptor) =>
-            descriptor.right - descriptor.left == 1 ||
-            descriptor.bottom - descriptor.top == 1,
+        (descriptor) => descriptor.horizontal
+            ? descriptor.bottom - descriptor.top == 1
+            : descriptor.right - descriptor.left == 1,
       ),
       isTrue,
+    );
+    expect(
+      preparation.borderDescriptors.map(
+        (descriptor) => descriptor.toChannelMap()['horizontal'],
+      ),
+      containsAll(<bool>[true, false]),
     );
   });
 

@@ -656,6 +656,7 @@ class LabelSheetWindowsHybridPreparation {
 class LabelSheetWindowsBorderDescriptor {
   const LabelSheetWindowsBorderDescriptor({
     required this.candidateToken,
+    required this.horizontal,
     required this.left,
     required this.top,
     required this.right,
@@ -664,6 +665,7 @@ class LabelSheetWindowsBorderDescriptor {
   });
 
   final String candidateToken;
+  final bool horizontal;
   final int left;
   final int top;
   final int right;
@@ -671,6 +673,7 @@ class LabelSheetWindowsBorderDescriptor {
   final ui.Rect predictedPaintedFootprint;
 
   Map<String, Object?> toChannelMap() => <String, Object?>{
+    'horizontal': horizontal,
     'left': left,
     'top': top,
     'right': right,
@@ -723,6 +726,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       borderDescriptors.add(
         LabelSheetWindowsBorderDescriptor(
           candidateToken: candidate.token,
+          horizontal: horizontal,
           left: left,
           top: top,
           right: right,

@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: native border 최종 device 1dot 고정 v1.0.67
+- v1.0.63 실물 `.tmp/IMG_20260808_0022.png`: 세로 실선 일부에 점선/교대 픽셀처럼 보이는 구간이 남았다.
+- 최신 로그 `.tmp/log/app_2026-08-08_23-54-21.log`: v1.0.63, native border descriptor/requested/drawn 225개 일치, text 36개 draw 성공. raster 중복이나 dispatch 누락이 아니다.
+- 원인 확인: 1 source dot 세로 `RECT`를 `MM_ANISOTROPIC` 640→620으로 변환하면 20개 source X(`16,47,80,...,623`)에서 device 폭이 0dot이 된다. 분할 border segment가 주기적으로 소실되어 실선에 점선이 섞여 보인다.
+- v1.0.63의 native text, overflow fit, edge 중심 1dot descriptor는 유지한다. border 방향을 채널로 전달하고 C++에서 최종 device 좌표로 정수 변환한 뒤 세로 폭 또는 가로 높이를 정확히 1 device dot으로 `FillRect`한다. 텍스트만 기존 anisotropic mapping을 사용한다.
+- 특정 라벨/좌표 분기 없이 모든 Windows native cell border에 동일 적용한다. 버전은 과거 실패 v1.0.64~66과 구분해 `1.0.67`로 증가.
+- 가로/세로 방향 전달과 1dot descriptor 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. Windows `/WX` 빌드 및 출력 회귀 검증 예정.
+- 첫 `/WX` 빌드는 `RECT LONG`과 `MulDiv int` 사이 `std::max` 타입 불일치 2건으로 실패. device 우측/하단 매핑 결과를 `LONG` 변수로 명시해 수정 후 Windows `/WX` Debug 재빌드 성공.
+- 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.67`, `git diff --check` 통과.
+- 실물 로그 판별: `nativeBorderMapping=devicePixels`, border descriptor/requested/drawn 수 일치, `nativeTextMapping=anisotropic`, `nativeTextFailed=0`. 세로 실선은 전 구간 동일 X의 연속 1dot이고 점선/교대 픽셀이 없어야 한다.
+
 ## 완료: v1.0.63 출력 기준선 원복
 - v1.0.66 실물 `.tmp/IMG_20260808_0021.png`: FortuneSheet raster 텍스트가 작은 한글 획을 잃고 선 주변 왜곡도 커져 v1.0.63보다 나쁘다.
 - 사용자 요청에 따라 v1.0.64~v1.0.66 실험을 중단하고 기능 커밋 `6ac7d72`의 v1.0.63 출력 구현으로 정확히 복원한다.
