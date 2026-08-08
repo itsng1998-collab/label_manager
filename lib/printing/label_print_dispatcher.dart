@@ -16,9 +16,7 @@ LabelPrintBackend resolveLabelPrintBackend({
   final normalizedPort = portName?.trim().toUpperCase();
   final isFilePort = normalizedPort == 'FILE:' || normalizedPort == 'PORTPROMPT:';
   if (isFilePort) return LabelPrintBackend.pdf;
-  return profile.legacyType == LegacyPrinterType.godex
-      ? LabelPrintBackend.ezplRaw
-      : LabelPrintBackend.windowsDriver;
+  return LabelPrintBackend.windowsDriver;
 }
 
 typedef LabelPrintBytesSender = Future<bool> Function(Uint8List bytes);

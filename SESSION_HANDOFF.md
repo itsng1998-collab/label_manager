@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: GoDEX G500 기본 Windows 드라이버 출력 복원 v1.0.52
+- 실물 비교 결과 v1.0.44의 Windows GDI 하이브리드 출력(`.tmp/IMG_20260807_0002.png`)이 v1.0.45~v1.0.51 RAW EZPL 결과보다 전체 레이아웃과 작은 한글 품질이 안정적이었다.
+- 원인: `resolveLabelPrintBackend`가 GoDEX 물리 포트만 `ezplRaw`로 강제해 설치된 Seagull Godex G500 11.6 드라이버의 글꼴 rasterization과 프린터별 변환을 우회했다.
+- `resolveLabelPrintBackend`: GoDEX를 포함한 모든 물리 포트를 기존 GDI 하이브리드 `windowsDriver`로 복원하고 FILE/PORTPROMPT는 PDF를 유지했다. EZPL RAW 및 한글 폰트 프로비저닝 구현은 후속 비교 실험을 위해 보존했다.
+- `label_print_dispatcher_test.dart`: GoDEX USB/null 포트의 Windows driver 라우팅과 파일 포트 PDF 계약으로 회귀 테스트를 갱신했다.
+- `pubspec.yaml`: 호환 가능한 출력 backend 수정으로 PATCH 버전을 `1.0.51`에서 `1.0.52`로 증가했다.
+- 첫 focused 검증 `flutter test test/label_print_dispatcher_test.dart`: 7건 통과.
+- 출력 관련 검증: 지정한 5개 테스트 파일 21건 통과.
+- strict analyzer: 변경 Dart 2개 파일 오류·경고 0건. 편집기 diagnostics도 변경 4개 파일 오류 0건.
+- Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion 모두 `1.0.52`, `git diff --check` 통과.
+- stage 대상: resolver, dispatcher 회귀 테스트, `pubspec.yaml`, 본 문서. 다음 실물 출력 로그에서 `backend=windowsDriver`, GDI dispatch 성공, `nativeTextFailed=0`을 확인하고 `.tmp/IMG_20260807_0002.png`와 품질을 비교한다.
+- 기존 unrelated 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 EZPL 문서 2개는 수정·stage·commit에서 제외한다.
+
 ## 완료·실물 검증 대기: GoDEX Q pattern polarity 수정 v1.0.51
 - v1.0.50 실물 사진 `.tmp/IMG_20260807_0008.png`은 Q pattern 전환 후 두 장 분할은 사라졌지만 원본 흰 배경이 검정으로 출력됐다.
 - 최신 로그 `app_2026-08-07_23-58-00.log`: 640x480, pattern data 38,400 bytes, zero=32,259/full=4,623/mixed=1,518, checksum `b655b1bb14c79e71`, RAW `44639/44639` 성공. source ink는 13.91%인데 다수의 zero byte 영역이 실물 검정과 대응한다.
