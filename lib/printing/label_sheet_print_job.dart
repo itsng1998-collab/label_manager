@@ -656,8 +656,13 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   required LabelSheetPrintOptions options,
   required int? lineSpacingPercent,
 }) {
+  final printSheet = sheet.copyWith(
+    zoomRatio: 1,
+    rawZoomRatio: null,
+    hasRawZoomRatio: false,
+  );
   final geometry = resolveLabelSheetHybridPrintGeometry(
-    sheet: sheet,
+    sheet: printSheet,
     settings: settings,
     physicalSize: physicalSize,
     metrics: metrics,
@@ -665,7 +670,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   );
   final candidates = fortuneBuildNativeCandidates(
     settings: settings,
-    sheet: sheet,
+    sheet: printSheet,
     range: geometry.range,
     transform: geometry.transform,
   );
@@ -677,7 +682,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
           candidate.cellCoord == null) {
         continue;
       }
-      final cell = sheet.cells[candidate.cellCoord!];
+      final cell = printSheet.cells[candidate.cellCoord!];
       if (cell == null ||
           cell.renderedText.isEmpty ||
           !_windowsInlineRunsSupported(cell) ||
@@ -757,7 +762,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   }
   final plan = fortuneFinalizeHybridRenderPlan(
     settings: settings,
-    sheet: sheet,
+    sheet: printSheet,
     range: geometry.range,
     transform: geometry.transform,
     candidates: candidates,

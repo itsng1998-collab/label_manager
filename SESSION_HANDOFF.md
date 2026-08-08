@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: Windows hybrid 출력 zoom 정규화 v1.0.59
+- v1.0.58 실물 `.tmp/IMG_20260808_0010.png`은 v1.0.57과 동일하게 제조원에서 끝나며 `120g`, 영양정보, 반품 문구가 누락됐다. 최신 로그 `.tmp/log/app_2026-08-08_22-18-09.log`도 capture/descriptor/ink가 v1.0.57과 동일해 owner 동기화 가설을 기각한다.
+- 확정 원인: FortuneSheet `sheet.metrics(settings)`는 `sheet.zoomRatio`를 행·열 크기에 적용한다. 출력 미리보기 zoom은 1.5인데 Windows hybrid 경로만 이를 그대로 geometry와 screenshot capture에 사용해 80×60 물리 clip 안에 원본 앞쪽 약 2/3을 확대 출력했다. EZPL 경로는 이미 zoom 1로 정규화한다.
+- `prepareLabelSheetWindowsHybridPrint`: geometry, native 후보/descriptor, raster plan이 모두 zoom 1의 `printSheet`를 사용하도록 통일한다. 화면 zoom은 출력 내용과 물리 좌표에 영향을 주지 않는다.
+- v1.0.58 owner fingerprint 동기화는 stale capture 방지 안전장치로 유지한다. 버전은 `1.0.59`로 증가하고 zoom 독립 회귀 테스트를 추가한다.
+- 라벨 단위 조사: 시트는 96 logical px/in, transform은 dpi/96, Windows bitmap은 mm×dpi/25.4, DEVMODE는 0.1mm 단위를 사용한다. 80×60mm·203.2dpi는 모든 Dart 단계에서 정확히 640×480dot이며 단위 혼용은 없다.
+- 드라이버가 보고한 정수 203dpi로 C++ target 폭이 639dot이 되는 1dot(약 0.125mm) 반올림 차이는 있으나, v1.0.58의 하단 약 20mm 누락 원인은 될 수 없다. 80×60mm→640×480dot 계약 테스트를 추가한다.
+- zoom 독립 및 80×60mm 단위 계약을 포함한 `label_sheet_print_job_test.dart` 16건 통과. Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 테스트 파일 45건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.59`, `git diff --check` 통과.
+- 실물 판별: 미리보기 zoom 150%와 무관하게 전체 80×60mm가 640×480dot source에 들어가야 한다. `120g`, 오른쪽 테두리, 영양정보, 반품 문구가 모두 출력되고 제조원 행이 60mm 바닥까지 확대되지 않아야 한다.
+
 ## 완료·실물 검증 대기: 출력 preview/capture owner 동기화 v1.0.58
 - v1.0.57 실물에서 물리 offset 보정은 적용됐지만 화면 미리보기와 다른 내용이 출력됐다. native text 실패가 0이고 후보 수 자체가 원본보다 적어 stale preview capture로 원인을 좁혔다.
 - 발행 루프는 preview refresh 후 frame 두 번만 기다리고, 실제 capture controller owner가 발행 unit의 workbook fingerprint와 일치하는지 확인하지 않았다.

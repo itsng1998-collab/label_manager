@@ -112,6 +112,49 @@ void main() {
     expect(geometry.transform.nativeAllowed, isTrue);
   });
 
+  test('80x60mm label units resolve to 640x480 dots at 203.2dpi', () {
+    const physicalSize = fs.FortuneSheetGridClientPhysicalSize(
+      widthMm: 80,
+      heightMm: 60,
+    );
+    final geometry = resolveLabelSheetHybridPrintGeometry(
+      sheet: fs.FortuneSheet(id: 'sheet', name: 'Sheet', zoomRatio: 1),
+      settings: const fs.FortuneSettings(),
+      physicalSize: physicalSize,
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 80,
+        labelHeightMm: 60,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(
+      physicalSize.logicalSize.width,
+      closeTo(80 * fs.fortuneSheetLogicalPixelsPerInch / 25.4, 1e-9),
+    );
+    expect(
+      physicalSize.logicalSize.height,
+      closeTo(60 * fs.fortuneSheetLogicalPixelsPerInch / 25.4, 1e-9),
+    );
+    final printerBounds = geometry.transform.logicalRectToPrinterDots(
+      Offset.zero & physicalSize.logicalSize,
+    );
+    expect(printerBounds.left, closeTo(0, 1e-9));
+    expect(printerBounds.top, closeTo(0, 1e-9));
+    expect(printerBounds.right, closeTo(640, 1e-9));
+    expect(printerBounds.bottom, closeTo(480, 1e-9));
+    expect(geometry.metrics.dotsFromMm(80), 640);
+    expect(geometry.metrics.dotsFromMm(60), 480);
+  });
+
   test('Windows hybrid approves plain and inline cell text', () {
     final sheet = fs.FortuneSheet(
       id: 'sheet',
@@ -241,6 +284,73 @@ void main() {
     expect(
       preparation.plan.approvedCellTextCoords,
       {const fs.FortuneCellCoord(0, 0)},
+    );
+  });
+
+  test('Windows hybrid output geometry ignores preview zoom', () {
+    const settings = fs.FortuneSettings();
+    const physicalSize = fs.FortuneSheetGridClientPhysicalSize(
+      widthMm: 80,
+      heightMm: 60,
+    );
+    const metrics = LabelSheetPrintPageMetrics(
+      labelWidthMm: 80,
+      labelHeightMm: 60,
+      dpi: 203.2,
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    fs.FortuneSheet sheet(double zoomRatio) => fs.FortuneSheet(
+      id: 'sheet',
+      name: 'Sheet',
+      zoomRatio: zoomRatio,
+      rowHeights: const {0: 200, 1: 200},
+      columnWidths: const {0: 280, 1: 280},
+      cells: {
+        const fs.FortuneCellCoord(1, 1): const fs.FortuneCell(
+          value: '오른쪽 아래',
+        ),
+      },
+    );
+
+    final normal = prepareLabelSheetWindowsHybridPrint(
+      sheet: sheet(1),
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
+      options: options,
+      lineSpacingPercent: null,
+    );
+    final zoomed = prepareLabelSheetWindowsHybridPrint(
+      sheet: sheet(1.5),
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
+      options: options,
+      lineSpacingPercent: null,
+    );
+
+    expect(zoomed.plan.sheet.zoomRatio, 1);
+    expect(zoomed.geometry.range.rowStart, normal.geometry.range.rowStart);
+    expect(zoomed.geometry.range.rowEnd, normal.geometry.range.rowEnd);
+    expect(
+      zoomed.geometry.range.columnStart,
+      normal.geometry.range.columnStart,
+    );
+    expect(zoomed.geometry.range.columnEnd, normal.geometry.range.columnEnd);
+    expect(
+      zoomed.geometry.transform.sourceLogicalBounds,
+      normal.geometry.transform.sourceLogicalBounds,
+    );
+    expect(
+      zoomed.descriptors.map((descriptor) => descriptor.toChannelMap()),
+      normal.descriptors.map((descriptor) => descriptor.toChannelMap()),
     );
   });
 
