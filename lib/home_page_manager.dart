@@ -6088,9 +6088,32 @@ class _HomePageManagerState extends State<HomePageManager> {
         final unit = units[unitIndex];
         _labelPrintRenderUnit = unit;
         _labelPrintSessionController.selectItem(unit.row.itemId);
-        _labelPrintSessionController.refreshPreview();
-        await WidgetsBinding.instance.endOfFrame;
-        await WidgetsBinding.instance.endOfFrame;
+        final expectedCaptureOwner = _itemOutputPreviewIdentityKey(
+          labelSizeId: commandLabelSize.labelSizeId,
+          itemId: unit.row.itemId,
+          workbook: _itemOutputPreview(
+            labelSize: commandLabelSize,
+            item: unit.row.item,
+            elementText: unit.row.item.item.element,
+            elementWorkbook: _itemElementFormStateFor(
+              unit.row.item,
+              commandLabelSize,
+            ).workbook,
+            referenceAt: requestedAt,
+            projectedColumnValues: unit.projectedColumnValues,
+          ).workbook,
+        );
+        final captureOwnerReady = await waitForLabelSheetOutputCaptureOwner(
+          controller: _labelPrintCaptureController,
+          expectedOwnerToken: expectedCaptureOwner,
+          waitForFrame: () => WidgetsBinding.instance.endOfFrame,
+          refreshPreview: _labelPrintSessionController.refreshPreview,
+        );
+        if (!captureOwnerReady) {
+          throw StateError(
+            '${unit.row.item.item.itemName} 출력 미리보기 갱신을 확인할 수 없습니다.',
+          );
+        }
         final options = _labelPrintOptions(unit.row, settings);
         late final fs.FortuneSheet capturedSheet;
         late final LabelSheetPrintPageMetrics metrics;
@@ -8819,9 +8842,11 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     return LabelOutputPreview(
       workbook: preview.workbook,
       hintText: preview.hintText,
-      identityKey:
-          'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:'
-          '${itemOutputPreviewWorkbookFingerprint(preview.workbook)}',
+      identityKey: _itemOutputPreviewIdentityKey(
+        labelSizeId: labelSize?.labelSizeId,
+        itemId: item.item.itemId,
+        workbook: preview.workbook,
+      ),
       labelSize: labelSize,
       imageObjectIds: imageObjectIds,
       barcodeObjectIds: barcodeObjectIds,
@@ -8832,6 +8857,14 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     );
   }
 }
+
+String _itemOutputPreviewIdentityKey({
+  required int? labelSizeId,
+  required int itemId,
+  required fs.FortuneWorkbook? workbook,
+}) =>
+    'item-output:${labelSizeId ?? 'none'}:$itemId:'
+    '${itemOutputPreviewWorkbookFingerprint(workbook)}';
 
 @visibleForTesting
 int itemOutputPreviewWorkbookFingerprint(fs.FortuneWorkbook? workbook) {

@@ -907,6 +907,9 @@ class LabelSheetOutputCaptureController {
   bool get isAttached => _state != null;
   Object? get attachedOwnerToken => _ownerToken;
 
+  bool isAttachedTo(Object ownerToken) =>
+      _state != null && _ownerToken == ownerToken;
+
   @visibleForTesting
   FortuneSheet? get debugActiveSheet => _state?._latestWorkbook.activeSheet;
 
@@ -981,6 +984,22 @@ class LabelSheetOutputCaptureController {
       _replacementOwnerToken = null;
     }
   }
+}
+
+Future<bool> waitForLabelSheetOutputCaptureOwner({
+  required LabelSheetOutputCaptureController controller,
+  required Object expectedOwnerToken,
+  required Future<void> Function() waitForFrame,
+  required VoidCallback refreshPreview,
+  int maxFramePumps = 4,
+}) async {
+  if (controller.isAttachedTo(expectedOwnerToken)) return true;
+  for (var index = 0; index < maxFramePumps; index += 1) {
+    refreshPreview();
+    await waitForFrame();
+    if (controller.isAttachedTo(expectedOwnerToken)) return true;
+  }
+  return false;
 }
 
 class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>

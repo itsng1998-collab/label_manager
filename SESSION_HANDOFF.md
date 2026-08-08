@@ -1,5 +1,14 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 출력 preview/capture owner 동기화 v1.0.58
+- v1.0.57 실물에서 물리 offset 보정은 적용됐지만 화면 미리보기와 다른 내용이 출력됐다. native text 실패가 0이고 후보 수 자체가 원본보다 적어 stale preview capture로 원인을 좁혔다.
+- 발행 루프는 preview refresh 후 frame 두 번만 기다리고, 실제 capture controller owner가 발행 unit의 workbook fingerprint와 일치하는지 확인하지 않았다.
+- `_itemOutputPreviewIdentityKey`로 화면과 발행 루프의 owner token 생성을 통일하고, `waitForLabelSheetOutputCaptureOwner`가 예상 token attach를 확인한 뒤에만 capture한다. 불일치가 지속되면 잘못된 라벨을 출력하지 않고 오류로 중단한다.
+- 버전은 `1.0.58`로 증가. 신규 owner wait 테스트를 포함한 `label_print_session_test.dart` 22건 통과. Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 테스트 파일 43건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.58`, `git diff --check` 통과.
+- 실물 판별: 화면에 보이는 최신 workbook owner가 attach된 경우에만 출력된다. 원본의 `120g`, 오른쪽 테두리, 영양정보, 반품 문구가 모두 나와야 한다. owner가 갱신되지 않으면 이전 내용을 출력하지 않고 `출력 미리보기 갱신을 확인할 수 없습니다.` 오류로 중단해야 한다.
+
 ## 완료·실물 실패: GDI 물리 용지 offset clipping 수정 v1.0.57
 - 원본 시트 이미지는 80×60mm 안에 모든 내용이 있지만 v1.0.56 실물 `.tmp/IMG_20260808_0008.png`은 오른쪽 마지막 내용이 잘렸다.
 - v1.0.56 로그는 `source=640x480`, `target=639x480`, `horzRes=620`, `physical=640x480`, `offset=10,0`이다. GDI DC의 실제 인쇄 가능 폭 620도트보다 19도트 넓게 그려 오른쪽이 clipping됐다.

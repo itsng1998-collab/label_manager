@@ -632,6 +632,24 @@ void main() {
     expect(captureController.debugActiveSheet?.id, 'second');
   });
 
+  test('output capture owner wait refreshes until expected preview attaches', () async {
+    final captureController = LabelSheetOutputCaptureController();
+    var framePumps = 0;
+    var refreshes = 0;
+
+    final attached = await waitForLabelSheetOutputCaptureOwner(
+      controller: captureController,
+      expectedOwnerToken: 'expected',
+      refreshPreview: () => refreshes += 1,
+      waitForFrame: () async => framePumps += 1,
+      maxFramePumps: 3,
+    );
+
+    expect(attached, isFalse);
+    expect(refreshes, 3);
+    expect(framePumps, 3);
+  });
+
   testWidgets('started output capture survives workbench detach', (
     tester,
   ) async {
