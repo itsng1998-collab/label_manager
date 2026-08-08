@@ -8,6 +8,7 @@
 - 버전 `1.0.66`; text raster 유지와 native 1dot border 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. Windows `/WX` Debug 빌드 성공.
 - 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.66`, `git diff --check` 통과.
+- 기능 커밋: `8ce6e82` (`편집기 텍스트 비율로 일반화 출력`).
 - 실물 로그 판별: 모든 양식에서 `nativeTextDescriptors=0`, `nativeTextRequested=0`, `nativeTextFallback=nativeTextCandidates`, native border descriptor/requested/drawn 수 일치. 텍스트 font size·장평·셀 점유율은 편집기와 같고 선은 v1.0.63의 곧은 1dot이어야 한다.
 
 ## 완료·실물 검증 대기: 장평 회귀 제거 및 일반화된 우측 glyph 여유 v1.0.65
