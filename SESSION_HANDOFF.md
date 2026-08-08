@@ -1,6 +1,17 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: GoDEX GDI 작은 한글 raster 품질 개선 v1.0.53
+## 완료·실물 A/B 대기: GoDEX GDI 기준선 복원 및 프린터 속도 A/B v1.0.54
+- v1.0.53 실물 `.tmp/IMG_20260808_0002.png`은 비안티앨리어싱으로 작은 한글의 계단과 획 단절이 더 뚜렷해져 고품질 개선에 실패했다.
+- 최신 로그 `.tmp/log/app_2026-08-08_17-57-52.log`: `version=1.0.53`, `backend=windowsDriver`, `fontQuality=NONANTIALIASED_QUALITY`, `nativeTextFailed=0`. capture, raster ink, descriptor, 640→639 배율은 v1.0.52와 동일하므로 변경 적용 실패나 다른 출력 변수의 영향이 아니다.
+- `label_bitmap_print_channel.cpp`: 실패한 `NONANTIALIASED_QUALITY`를 `DEFAULT_QUALITY`로 복원하고 재사용 방지 사유를 남겼다. 진단 문자열도 `fontQuality=DEFAULT_QUALITY`로 복원했다.
+- `pubspec.yaml`: 실패 실험 복원과 다음 속도 A/B 기준 버전을 `1.0.54`로 증가했다.
+- 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`: 성공.
+- 출력 관련 5개 테스트 파일 21건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.54`, `git diff --check` 통과.
+- v1.0.54에서 G500 드라이버 속도만 127mm/s→76.2mm/s로 낮춰 실물 A/B한다. 농도 8, driver dithering opt2, 코드와 배율은 유지한다.
+- 다음 로그 판별 조건: `version=1.0.54`, `backend=windowsDriver`, `fontQuality=DEFAULT_QUALITY`, `nativeTextFailed=0`. 실물 사진은 v1.0.52 `.tmp/IMG_20260808_0001.png`과 비교한다.
+
+## 완료·실물 실패: GoDEX GDI 작은 한글 raster 품질 개선 v1.0.53
 - v1.0.52 실물 `.tmp/IMG_20260808_0001.png`은 회전·분할·극성은 정상이나 작은 한글 획과 선이 거칠어 고품질 기준에는 미달했다.
 - 최신 로그 `.tmp/log/app_2026-08-08_17-46-37.log`: `version=1.0.52`, `backend=windowsDriver`, 641x481 capture→640x480 page, raster ink 50,556, native descriptor 22개/378자, `nativeTextFailed=0`, GDI 640x480→639x480 성공.
 - v1.0.44 로그 `.tmp/log/app_2026-08-07_20-47-37.log`와 capture PNG bytes, raster ink, native text 수/높이/font, GDI source/target/offset이 모두 동일해 backend 복원 누락이나 코드 회귀는 아니다.
@@ -10,8 +21,7 @@
 - 첫 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`: 성공.
 - 출력 관련 5개 테스트 파일 21건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.53`, `git diff --check` 통과.
-- 다음 실물 로그에서 `version=1.0.53`, `backend=windowsDriver`, `fontQuality=NONANTIALIASED_QUALITY`, `nativeTextFailed=0`을 확인하고 `.tmp/IMG_20260808_0001.png`의 작은 한글 획과 비교한다.
-- 결과가 개선되지 않으면 코드를 더 섞지 않고 G500 드라이버 속도만 현재 127mm/s에서 50.8/76.2mm/s로 낮춘 A/B를 수행한다. 농도 8과 나머지 조건은 유지한다.
+- 실물 `.tmp/IMG_20260808_0002.png`과 로그에서 변경 적용은 확인됐지만 작은 한글의 계단과 획 단절이 더 두드러져 가설을 기각했다.
 - 기능 커밋: `6baead8` (`GoDEX 작은 한글 비안티앨리어싱 출력 적용`). push하지 않음.
 - 기존 unrelated 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 EZPL 문서 2개는 수정·stage·commit에서 제외한다.
 

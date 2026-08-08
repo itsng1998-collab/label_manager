@@ -284,7 +284,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << native_text_requested_characters
               << " nativeTextHeight=" << native_text_min_height << ".."
               << native_text_max_height
-              << " fontQuality=NONANTIALIASED_QUALITY nativeTextFonts=";
+              << " fontQuality=DEFAULT_QUALITY nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
     diagnostics << native_text_fonts[index];
@@ -340,7 +340,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
             -font_pixel_height, 0, 0, 0,
             descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
             descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+          // v1.0.53 실물에서 비안티앨리어싱은 작은 한글의 획 단절과 계단을 키웠다.
+          OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
         if (font == nullptr) {
           ++native_text_failed;
