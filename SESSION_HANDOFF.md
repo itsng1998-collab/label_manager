@@ -5,6 +5,7 @@
 - 일반화 수정: 이미 병합된 모든 border rect를 최종 device 크기의 32bpp 흑백 mask에 1dot으로 채우고 `SRCAND` 단일 bitmap으로 프린터 DC에 합성한다. 개별 `FillRect`의 드라이버 rasterization을 제거하며, bitmap mask 미지원 시에만 기존 rect 출력으로 fallback한다.
 - 버전 `1.0.71`; Windows `/WX` Debug 빌드 성공. 출력 관련 5개 파일 62건과 FortuneSheet capture 9건 통과, diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.71`, `git diff --check` 통과.
+- 기능 커밋: `5e4d3c2` (`테두리를 최종 비트맵으로 합성`).
 - 실물 로그 판별: `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=480`, `nativeBordersDrawn=225`여야 한다. `fillRectFallback`이면 해당 드라이버에서 mask 합성이 실패한 것이다. native text/overflow fit은 v1.0.63 경로 그대로 유지한다.
 
 ## 완료·실물 검증 대기: native border 경계 좌표 고정 및 연속 병합 v1.0.70
