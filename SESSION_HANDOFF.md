@@ -7,6 +7,7 @@
 - 수정 예정: 모든 native text를 Flutter fragment 폭에 맞춰 GDI 실측 폭을 양방향 반복 보정하고 최종 glyph clip을 제거한다. 표/셀 좌표 및 640→620 물리 비율은 유지한다.
 - 버전 `1.0.64`; Windows `/WX` Debug 빌드 성공. 출력 관련 5개 테스트 파일 62건 통과, 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.64`, `git diff --check` 통과.
+- 기능 커밋: `887ea7f` (`편집기 기준으로 native 글자 폭 보정`).
 - 실물 판별: 표/셀 위치와 1dot 선은 v1.0.63과 같아야 한다. 긴 문장은 편집기의 fragment 폭으로 보정되어 오른쪽 마지막 glyph가 잘리지 않아야 하며 로그에 `nativeTextFailed=0`, `nativeTextWidthCalibrated`가 기록되어야 한다.
 
 ## 완료·실물 검증 대기: native 테두리 1dot 및 overflow 반복 맞춤 v1.0.63
