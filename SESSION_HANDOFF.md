@@ -9,6 +9,7 @@
 - 출력 관련 5개 테스트 파일 45건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.60`, `git diff --check` 통과.
 - 실물 로그 판별: `version=1.0.60`, `source=640x480`, `target=620x480`, `horzRes=620`, `destination=0,0`, `gray=0`. 오른쪽 끝 내용과 외곽선이 printable 영역 안에 모두 들어오고 가로·세로선의 점선/지그재그가 없어야 한다.
+- 기능 커밋: `e7eeba2` (`라벨 선명도와 오른쪽 잘림 수정`). push하지 않음.
 
 ## 완료·실물 검증 대기: Windows hybrid 출력 zoom 정규화 v1.0.59
 - v1.0.58 실물 `.tmp/IMG_20260808_0010.png`은 v1.0.57과 동일하게 제조원에서 끝나며 `120g`, 영양정보, 반품 문구가 누락됐다. 최신 로그 `.tmp/log/app_2026-08-08_22-18-09.log`도 capture/descriptor/ink가 v1.0.57과 동일해 owner 동기화 가설을 기각한다.
