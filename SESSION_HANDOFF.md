@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: native border 물리 stroke 2dot 복원 v1.0.68
+- v1.0.67 실물 `.tmp/IMG_20260809_0001.png`: device-pixel mapping 적용 후에도 세로 실선에 점선처럼 불안정한 픽셀이 남았다.
+- 최신 로그 `.tmp/log/app_2026-08-09_00-01-03.log`: `nativeBorderMapping=devicePixels`, border 225/225 draw, text 실패 0. 좌표 소실과 dispatch 누락은 해결됐으며 정확한 1 device dot 세로선 자체의 열전사 연속성이 남은 문제다.
+- FortuneSheet 기본 1 logical px stroke의 203.2dpi 물리 두께는 `203.2/96=2.116... dots`다. v1.0.62의 `floor/ceil` 3~4dot은 두꺼웠고 v1.0.63~67의 강제 1dot은 편집기보다 얇다.
+- candidate의 실제 printer footprint 두께를 반올림해 descriptor로 전달하고, C++에서 target device 축척 후 중심 기준 정확한 두께로 그린다. 현재 기본선은 가로/세로 모두 2 device dots이며 특정 라벨/좌표 분기 없이 모든 Windows native cell border에 적용한다.
+- v1.0.63의 native text와 overflow fit은 그대로 유지. 기본 border 2dot 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. 버전 `1.0.68`; Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.68`, `git diff --check` 통과.
+- 실물 로그 판별: `nativeBorderMapping=devicePixels`, `nativeBorderThickness=footprintRounded`, border descriptor/requested/drawn 수 일치, text 실패 0. 세로선은 편집기 기본 stroke에 해당하는 연속 2dot이며 점선 픽셀이 없어야 한다.
+
 ## 완료·실물 검증 대기: native border 최종 device 1dot 고정 v1.0.67
 - v1.0.63 실물 `.tmp/IMG_20260808_0022.png`: 세로 실선 일부에 점선/교대 픽셀처럼 보이는 구간이 남았다.
 - 최신 로그 `.tmp/log/app_2026-08-08_23-54-21.log`: v1.0.63, native border descriptor/requested/drawn 225개 일치, text 36개 draw 성공. raster 중복이나 dispatch 누락이 아니다.
