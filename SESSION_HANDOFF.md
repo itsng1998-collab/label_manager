@@ -10,6 +10,7 @@
 - EXE FileVersion/ProductVersion 모두 `1.0.54`, `git diff --check` 통과.
 - v1.0.54에서 G500 드라이버 속도만 127mm/s→76.2mm/s로 낮춰 실물 A/B한다. 농도 8, driver dithering opt2, 코드와 배율은 유지한다.
 - 다음 로그 판별 조건: `version=1.0.54`, `backend=windowsDriver`, `fontQuality=DEFAULT_QUALITY`, `nativeTextFailed=0`. 실물 사진은 v1.0.52 `.tmp/IMG_20260808_0001.png`과 비교한다.
+- 기능 커밋: `a077d6c` (`GoDEX 한글 출력 기준 품질 복원`). push하지 않음.
 
 ## 완료·실물 실패: GoDEX GDI 작은 한글 raster 품질 개선 v1.0.53
 - v1.0.52 실물 `.tmp/IMG_20260808_0001.png`은 회전·분할·극성은 정상이나 작은 한글 획과 선이 거칠어 고품질 기준에는 미달했다.
