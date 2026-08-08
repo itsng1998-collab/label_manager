@@ -351,6 +351,18 @@ void main() {
       ),
       containsAll(<bool>[true, false]),
     );
+    for (final horizontal in <bool>[true, false]) {
+      final descriptors = preparation.borderDescriptors.where(
+        (descriptor) => descriptor.horizontal == horizontal,
+      );
+      final boundaries = <int, Set<int>>{};
+      for (final descriptor in descriptors) {
+        boundaries
+            .putIfAbsent(descriptor.boundaryIndex, () => <int>{})
+            .add(horizontal ? descriptor.top : descriptor.left);
+      }
+      expect(boundaries.values, everyElement(hasLength(1)));
+    }
   });
 
   test('Windows hybrid output geometry ignores preview zoom', () {

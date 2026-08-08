@@ -1,5 +1,12 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: native border 경계 좌표 고정 및 연속 병합 v1.0.70
+- v1.0.69 실물 `.tmp/IMG_20260809_0003.png`에서 세로 실선 옆 열의 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_00-15-20.log`는 v1.0.69, native border 225/225 draw, text 실패 0을 확인했다.
+- 특정 라벨이 아닌 모든 FortuneSheet border에서 edge row/column identity를 유지하고 같은 경계 segment의 source X/Y를 한 번만 양자화한다. descriptor 경계 좌표 계약 테스트 17건 통과.
+- Windows에서 동일한 device 축에 있고 맞닿거나 겹치는 1dot segment만 하나의 연속 rect로 병합한다. 성공 segment 수 225/225 진단은 유지하고 실제 호출 수는 `nativeBorderFillRects`로 기록한다. Windows `/WX` Debug 빌드 성공.
+- 버전 `1.0.70`; FortuneSheet capture 9건과 출력 관련 5개 파일 62건 통과. 변경 파일 diagnostics 오류 0건, Windows `/WX` Debug 빌드 성공.
+- 실물 로그 판별: `nativeBordersRequested=225`, `nativeBordersDrawn=225`를 유지하면서 `nativeBorderFillRects`는 225보다 작아야 한다. native text/overflow fit은 v1.0.63 경로 그대로이며 세로선은 경계별 하나의 연속 rect로 출력되어야 한다.
+
 ## 완료·실물 검증 대기: 병합 border native/raster 중복 제거 v1.0.69
 - v1.0.68 실물 `.tmp/IMG_20260809_0002.png`: 2dot으로 전체 선만 두꺼워졌고 세로 실선의 점선 패턴은 유지됐다. 두께 가설은 기각하고 v1.0.67 device 1dot으로 복원한다.
 - 최신 로그 `.tmp/log/app_2026-08-09_00-06-08.log`: device mapping 및 2dot 경로 적용, border 225/225 draw, text 실패 0. native dispatch 자체는 정상이다.

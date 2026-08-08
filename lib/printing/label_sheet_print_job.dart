@@ -657,6 +657,7 @@ class LabelSheetWindowsBorderDescriptor {
   const LabelSheetWindowsBorderDescriptor({
     required this.candidateToken,
     required this.horizontal,
+    required this.boundaryIndex,
     required this.left,
     required this.top,
     required this.right,
@@ -666,6 +667,7 @@ class LabelSheetWindowsBorderDescriptor {
 
   final String candidateToken;
   final bool horizontal;
+  final int boundaryIndex;
   final int left;
   final int top;
   final int right;
@@ -709,6 +711,8 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   );
   final descriptors = <LabelSheetWindowsTextDescriptor>[];
   final borderDescriptors = <LabelSheetWindowsBorderDescriptor>[];
+  final verticalBoundaryCenters = <int, int>{};
+  final horizontalBoundaryCenters = <int, int>{};
   final approvedTextCandidates = <String, FortuneNativeCandidate>{};
   if (options.orientation == LabelSheetPrintOrientation.horizontal) {
     for (final candidate in candidates) {
@@ -716,8 +720,19 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       final footprint = candidate.printerPaintedFootprint;
       final edge = candidate.cellBorderEdgeKey!;
       final horizontal = edge.axis == FortuneCellBorderEdgeAxis.horizontal;
-      final centerX = footprint.center.dx.round();
-      final centerY = footprint.center.dy.round();
+      final boundaryIndex = horizontal ? edge.row : edge.column;
+      final centerX = horizontal
+          ? footprint.center.dx.round()
+          : verticalBoundaryCenters.putIfAbsent(
+              boundaryIndex,
+              () => footprint.center.dx.round(),
+            );
+      final centerY = horizontal
+          ? horizontalBoundaryCenters.putIfAbsent(
+              boundaryIndex,
+              () => footprint.center.dy.round(),
+            )
+          : footprint.center.dy.round();
       final left = horizontal ? footprint.left.round() : centerX;
       final top = horizontal ? centerY : footprint.top.round();
       final right = horizontal ? footprint.right.round() : centerX + 1;
@@ -727,6 +742,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
         LabelSheetWindowsBorderDescriptor(
           candidateToken: candidate.token,
           horizontal: horizontal,
+          boundaryIndex: boundaryIndex,
           left: left,
           top: top,
           right: right,

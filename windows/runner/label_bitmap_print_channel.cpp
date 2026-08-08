@@ -78,6 +78,12 @@ struct NativeBorderDescriptor {
   bool horizontal = false;
 };
 
+struct DeviceBorderRect {
+  RECT rect{};
+  bool horizontal = false;
+  int segment_count = 1;
+};
+
 std::vector<NativeBorderDescriptor> BorderDescriptorsArg(
     const EncodableMap& args) {
   const auto iter = args.find(EncodableValue("borderDescriptors"));
@@ -379,7 +385,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     } else {
       const int text_dc_state = SaveDC(printer_dc);
       int native_borders_drawn = 0;
+      int native_border_fill_rects = 0;
       HBRUSH border_brush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+      std::vector<DeviceBorderRect> device_borders;
+      device_borders.reserve(border_descriptors.size());
       for (const auto& descriptor : border_descriptors) {
         const LONG left = destination_x +
             MulDiv(descriptor.rect.left, target_width, source_width);
@@ -401,8 +410,66 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           device_rect.right = left + 1;
           device_rect.bottom = std::max(top + 1, mapped_bottom);
         }
-        if (FillRect(printer_dc, &device_rect, border_brush) != 0) {
-          ++native_borders_drawn;
+        device_borders.push_back(
+            DeviceBorderRect{device_rect, descriptor.horizontal, 1});
+      }
+      std::sort(
+          device_borders.begin(), device_borders.end(),
+          [](const DeviceBorderRect& left, const DeviceBorderRect& right) {
+            if (left.horizontal != right.horizontal) {
+              return left.horizontal < right.horizontal;
+            }
+            if (left.horizontal) {
+              if (left.rect.top != right.rect.top) {
+                return left.rect.top < right.rect.top;
+              }
+              if (left.rect.bottom != right.rect.bottom) {
+                return left.rect.bottom < right.rect.bottom;
+              }
+              if (left.rect.left != right.rect.left) {
+                return left.rect.left < right.rect.left;
+              }
+              return left.rect.right < right.rect.right;
+            }
+            if (left.rect.left != right.rect.left) {
+              return left.rect.left < right.rect.left;
+            }
+            if (left.rect.right != right.rect.right) {
+              return left.rect.right < right.rect.right;
+            }
+            if (left.rect.top != right.rect.top) {
+              return left.rect.top < right.rect.top;
+            }
+            return left.rect.bottom < right.rect.bottom;
+          });
+      std::vector<DeviceBorderRect> merged_device_borders;
+      merged_device_borders.reserve(device_borders.size());
+      for (const auto& border : device_borders) {
+        if (!merged_device_borders.empty()) {
+          auto& previous = merged_device_borders.back();
+          const bool same_axis = previous.horizontal == border.horizontal;
+          const bool can_merge = previous.horizontal
+              ? same_axis && previous.rect.top == border.rect.top &&
+                    previous.rect.bottom == border.rect.bottom &&
+                    border.rect.left <= previous.rect.right
+              : same_axis && previous.rect.left == border.rect.left &&
+                    previous.rect.right == border.rect.right &&
+                    border.rect.top <= previous.rect.bottom;
+          if (can_merge) {
+            previous.rect.right =
+                std::max(previous.rect.right, border.rect.right);
+            previous.rect.bottom =
+                std::max(previous.rect.bottom, border.rect.bottom);
+            previous.segment_count += border.segment_count;
+            continue;
+          }
+        }
+        merged_device_borders.push_back(border);
+      }
+      for (const auto& border : merged_device_borders) {
+        if (FillRect(printer_dc, &border.rect, border_brush) != 0) {
+          native_borders_drawn += border.segment_count;
+          ++native_border_fill_rects;
         }
       }
       SetMapMode(printer_dc, MM_ANISOTROPIC);
@@ -515,6 +582,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           << " nativeTextCharacters=" << native_text_characters
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
+                  << " nativeBorderFillRects=" << native_border_fill_rects
                   << " nativeBordersDrawn=" << native_borders_drawn;
       if (native_text_failed > 0) {
         error = "Native text rendering failed: " +
