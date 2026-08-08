@@ -1,5 +1,9 @@
 # 현재 작업 상태
 
+## 진행 중: G500 RAW 선 품질 분리 진단
+- 최초 작업 22는 잘못된 4인자 `Q` 도형 명령이라 스풀러에는 접수됐지만 출력되지 않았다. 작업 23은 앱과 같은 6인자 `R` 명령으로 수정했으나 세로/가로 끝 좌표가 같아 폭 0 도형으로 무시될 가능성이 있었다.
+- 최종 작업 24는 `Rleft,top,right,bottom,lrw,ubw` 형식과 실제 1·2·3dot 폭/높이를 사용해 `156/156 bytes` RAW 전송 성공. 프린터 `Normal`, `USB001`, spool job 0 확인. 실물 출력 여부 및 1·2·3dot 세로선 가장자리 비교 대기.
+
 ## 완료·실물 검증 대기: printer footprint 두께의 단일 bitmap border 합성 v1.0.72
 - v1.0.71 실물 `.tmp/IMG_20260809_0005.png`에도 세로선의 점선형 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_00-27-26.log`는 `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`로 최종 device mask가 실제 적용됐음을 확인했다.
 - v1.0.68 사진의 2dot 세로선은 4~5 image px, v1.0.71의 1dot은 1~2 image px로 측정됐다. 이전 `개별 vector rect + footprint 두께`와 현재 `단일 bitmap + 1dot`은 각각 실패했지만, 레거시 border 폭에 해당하는 `단일 bitmap + footprint 물리 두께` 조합은 미검증이다.
