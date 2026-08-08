@@ -1,5 +1,14 @@
 # 현재 작업 상태
 
+## 완료: v1.0.63 출력 기준선 원복
+- v1.0.66 실물 `.tmp/IMG_20260808_0021.png`: FortuneSheet raster 텍스트가 작은 한글 획을 잃고 선 주변 왜곡도 커져 v1.0.63보다 나쁘다.
+- 사용자 요청에 따라 v1.0.64~v1.0.66 실험을 중단하고 기능 커밋 `6ac7d72`의 v1.0.63 출력 구현으로 정확히 복원한다.
+- `label_sheet_print_job.dart`: Windows native text descriptor 생성과 text candidate 승인 복원. `label_bitmap_print_channel.cpp`: 현재 코드가 이미 v1.0.63과 동일함을 `git diff 6ac7d72 HEAD`로 확인했다.
+- 테스트의 Windows native text 승인/강제 줄간격 계약을 v1.0.63 상태로 복원하고 `pubspec.yaml` 버전도 요청대로 `1.0.63`으로 되돌렸다.
+- `label_sheet_print_job_test.dart` 17건 통과. 출력 코드·테스트·버전은 `git diff 6ac7d72 -- ...` 결과 `V1_0_63_EXACT_MATCH`로 기준 커밋과 정확히 일치한다.
+- Windows `/WX` Debug 빌드 성공. 출력 관련 5개 테스트 파일 62건 통과, 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.63`, `git diff --check` 통과. 출력 코드·테스트·버전은 최종 검증에서도 `V1_0_63_EXACT_MATCH`다.
+
 ## 완료·실물 검증 대기: 편집기 동일 셀 텍스트 raster + native 1dot 선 v1.0.66
 - 사용자 기준선은 실물 품질이 가장 좋은 v1.0.63이다. 이후 GDI `lfWidth`/draw rect 보정은 설정 font size와 셀 점유 비율을 동시에 재현하지 못했다.
 - 일반화 원인: 같은 font size라도 Flutter `TextPainter`와 Windows GDI의 glyph metric이 달라 native text로 재생성하면 편집기 장평·점유율과 달라진다.

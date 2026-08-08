@@ -155,7 +155,7 @@ void main() {
     expect(geometry.metrics.dotsFromMm(60), 480);
   });
 
-  test('Windows hybrid keeps every cell text in editor raster', () {
+  test('Windows hybrid approves plain and inline cell text', () {
     final sheet = fs.FortuneSheet(
       id: 'sheet',
       name: 'Sheet',
@@ -221,11 +221,36 @@ void main() {
       lineSpacingPercent: null,
     );
 
-    expect(preparation.descriptors, isEmpty);
-    expect(preparation.plan.approvedCellTextCoords, isEmpty);
+    expect(preparation.descriptors, hasLength(2));
+    final descriptor = preparation.descriptors.firstWhere(
+      (value) => value.candidateToken == 'text:0:0',
+    );
+    expect(descriptor.text, '원재료');
+    expect(descriptor.fontFamily, 'Arial');
+    expect(descriptor.fontPixelHeight, greaterThan(0));
+    expect(descriptor.bold, isTrue);
+    expect(descriptor.colorArgb, 0xff123456);
+    expect(descriptor.horizontalAlign, '1');
+    expect(descriptor.verticalAlign, '1');
+    expect(descriptor.wrap, isFalse);
+    expect(
+      preparation.plan.approvedCellTextCoords,
+      {
+        const fs.FortuneCellCoord(0, 0),
+        const fs.FortuneCellCoord(0, 1),
+      },
+    );
+    expect(
+      preparation.descriptors.firstWhere(
+        (value) => value.candidateToken == 'text:0:1',
+      ).text,
+      '서식',
+    );
+    expect(descriptor.toChannelMap()['text'], '원재료');
+    expect(descriptor.toChannelMap()['colorArgb'], 0xff123456);
   });
 
-  test('Windows hybrid keeps forced line spacing text in editor raster', () {
+  test('Windows hybrid applies forced line spacing to native text layout', () {
     final preparation = prepareLabelSheetWindowsHybridPrint(
       sheet: fs.FortuneSheet(
         id: 'sheet',
@@ -255,8 +280,11 @@ void main() {
       lineSpacingPercent: 120,
     );
 
-    expect(preparation.descriptors, isEmpty);
-    expect(preparation.plan.approvedCellTextCoords, isEmpty);
+    expect(preparation.descriptors, hasLength(1));
+    expect(
+      preparation.plan.approvedCellTextCoords,
+      {const fs.FortuneCellCoord(0, 0)},
+    );
   });
 
   test('Windows hybrid moves solid black cell borders to native descriptors', () {

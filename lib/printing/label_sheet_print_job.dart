@@ -706,6 +706,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   );
   final descriptors = <LabelSheetWindowsTextDescriptor>[];
   final borderDescriptors = <LabelSheetWindowsBorderDescriptor>[];
+  final approvedTextCandidates = <String, FortuneNativeCandidate>{};
   if (options.orientation == LabelSheetPrintOrientation.horizontal) {
     for (final candidate in candidates) {
       if (candidate.kind != FortuneNativeCandidateKind.cellBorder) continue;
@@ -731,6 +732,90 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       );
     }
   }
+  if (options.orientation == LabelSheetPrintOrientation.horizontal) {
+    for (final candidate in candidates) {
+      if (candidate.kind != FortuneNativeCandidateKind.cellText ||
+          candidate.cellCoord == null) {
+        continue;
+      }
+      final cell = printSheet.cells[candidate.cellCoord!];
+      if (cell == null ||
+          cell.renderedText.isEmpty ||
+          !_windowsInlineRunsSupported(cell) ||
+          cell.isVerticalText ||
+          cell.normalizedTextRotation != 0 ||
+          cell.normalizedTextWrap == '1' ||
+          cell.normalizedHorizontalAlign == '3' ||
+          cell.extraFields[fortuneCellTextOffsetYExtraKey] != null) {
+        continue;
+      }
+      final layout = fortuneLayoutCellText(
+        settings: settings,
+        cell: cell,
+        logicalBounds:
+            candidate.logicalTextLayoutBounds ??
+            candidate.logicalPaintedFootprint,
+        textSpan: _labelSheetCellTextSpan(
+          cell,
+          settings,
+          outputLineHeightMultiplier: lineSpacingPercent == null
+              ? null
+              : lineSpacingPercent / 100,
+        ),
+        outputLineHeightMultiplier: lineSpacingPercent == null
+            ? null
+            : lineSpacingPercent / 100,
+      );
+      if (layout == null || layout.painter.didExceedMaxLines) continue;
+      final fragments = _labelSheetTextFragments(cell, layout, settings);
+      if (fragments.isEmpty) continue;
+      for (final fragment in fragments) {
+        final target = geometry.transform.logicalRectToPrinterDots(
+          ui.Rect.fromLTWH(
+            fragment.logicalLeft,
+            fragment.logicalTop,
+            fragment.logicalWidth,
+            fragment.logicalHeight,
+          ),
+        );
+        final left = target.left.round();
+        final top = target.top.round();
+        final right = target.right.round();
+        final bottom = target.bottom.round();
+        if (right <= left || bottom <= top) continue;
+        descriptors.add(
+          LabelSheetWindowsTextDescriptor(
+            candidateToken: candidate.token,
+            text: fragment.text,
+            left: left,
+            top: top,
+            right: right,
+            bottom: bottom,
+            fontFamily: fragment.fontFamily,
+            fontPixelHeight: math.max(
+              1,
+              (fragment.fontSize * geometry.transform.dotsPerLogicalPixel)
+                  .round(),
+            ),
+            bold: fragment.bold,
+            italic: fragment.italic,
+            underline: fragment.underline,
+            strikeThrough: fragment.strikeThrough,
+            colorArgb: fragment.colorArgb,
+            horizontalAlign: '1',
+            verticalAlign: '1',
+            wrap: false,
+            predictedPaintedFootprint: candidate.printerPaintedFootprint,
+          ),
+        );
+      }
+      if (descriptors.any(
+        (descriptor) => descriptor.candidateToken == candidate.token,
+      )) {
+        approvedTextCandidates[candidate.token] = candidate;
+      }
+    }
+  }
   final plan = fortuneFinalizeHybridRenderPlan(
     settings: settings,
     sheet: printSheet,
@@ -738,6 +823,12 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
     transform: geometry.transform,
     candidates: candidates,
     approvals: <FortuneNativeCandidateApproval>[
+      ...approvedTextCandidates.values.map(
+        (candidate) => FortuneNativeCandidateApproval(
+          candidateToken: candidate.token,
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+        ),
+      ),
       ...borderDescriptors.map(
         (descriptor) => FortuneNativeCandidateApproval(
           candidateToken: descriptor.candidateToken,
