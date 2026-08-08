@@ -329,12 +329,14 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = 32;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
-    const int previous_mode = SetStretchBltMode(printer_dc, COLORONCOLOR);
+    // v1.0.60의 COLORONCOLOR는 축소 과정에서 1px 선을 불규칙하게 버렸다.
+    const int previous_mode = SetStretchBltMode(printer_dc, BLACKONWHITE);
     const int scan_lines = StretchDIBits(
         printer_dc, destination_x, destination_y, target_width, target_height,
         0, 0, source_width, source_height, bgra->data(), &bitmap_info,
         DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
+                << " stretchMode=BLACKONWHITE"
                 << " sourceBpp=" << bitmap_info.bmiHeader.biBitCount
                 << " compression=BI_RGB"
                 << " rasterOp=SRCCOPY"
@@ -342,14 +344,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
+      const int text_dc_state = SaveDC(printer_dc);
+      SetMapMode(printer_dc, MM_ANISOTROPIC);
+      SetWindowExtEx(printer_dc, source_width, source_height, nullptr);
+      SetViewportExtEx(printer_dc, target_width, target_height, nullptr);
+      SetViewportOrgEx(printer_dc, destination_x, destination_y, nullptr);
       const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
       int native_text_drawn = 0;
       int native_text_failed = 0;
       size_t native_text_characters = 0;
       for (const auto& descriptor : text_descriptors) {
-        const int font_pixel_height = std::max(
-            1, MulDiv(descriptor.font_pixel_height, target_height,
-                      source_height));
+        const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
         HFONT font = CreateFontW(
             -font_pixel_height, 0, 0, 0,
             descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
@@ -364,12 +369,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         HGDIOBJ previous_font = SelectObject(printer_dc, font);
         const COLORREF previous_color = SetTextColor(printer_dc, descriptor.color);
         RECT text_rect{
-          MulDiv(descriptor.rect.left, target_width, source_width),
-          MulDiv(descriptor.rect.top, target_height, source_height),
-          MulDiv(descriptor.rect.right, target_width, source_width),
-          MulDiv(descriptor.rect.bottom, target_height, source_height),
+          descriptor.rect.left,
+          descriptor.rect.top,
+          descriptor.rect.right,
+          descriptor.rect.bottom,
         };
-        OffsetRect(&text_rect, destination_x, destination_y);
         UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
         if (descriptor.horizontal_align == "0") {
           flags |= DT_CENTER;
@@ -405,9 +409,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         DeleteObject(font);
       }
       SetBkMode(printer_dc, previous_background_mode);
+      RestoreDC(printer_dc, text_dc_state);
       diagnostics << " nativeTextDrawn=" << native_text_drawn
                   << " nativeTextFailed=" << native_text_failed
-                  << " nativeTextCharacters=" << native_text_characters;
+          << " nativeTextCharacters=" << native_text_characters
+          << " nativeTextMapping=anisotropic";
       if (native_text_failed > 0) {
         error = "Native text rendering failed: " +
                 std::to_string(native_text_failed);

@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 흑백 선 보존 축소 및 native 글꼴 폭 동기화 v1.0.61
+- v1.0.60 실물 `.tmp/IMG_20260808_0016.png`은 전체 내용과 외곽선은 들어왔지만 일부 세로선 지그재그, 가로/세로선 두께 편차, 긴 문장 오른쪽 clipping이 남았다.
+- 최신 로그 `.tmp/log/app_2026-08-08_22-46-34.log`: `target=620x480`, `destination=0,0`, `gray=0` 적용 확인. 흑백화와 printable 폭 맞춤 자체는 적용됐다.
+- 확정 원인 1: `COLORONCOLOR` 640→620 축소가 source 열 20개를 선택적으로 버려 1px 선이 불규칙하게 탈락했다. `BLACKONWHITE`로 바꿔 축소 시 검은 선 픽셀을 보존한다.
+- 확정 원인 2: v1.0.60은 native text rect만 620/640으로 줄이고 GDI glyph 폭은 그대로 사용해 긴 텍스트가 좁아진 rect에서 잘렸다. `MM_ANISOTROPIC` source 640×480→viewport 620×480 mapping으로 rect와 글꼴 glyph를 함께 변환한다.
+- 버전은 `1.0.61`로 증가. Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 테스트 파일 45건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.61`, `git diff --check` 통과.
+- 실물 로그 판별: `target=620x480`, `gray=0`, `stretchMode=BLACKONWHITE`, `nativeTextMapping=anisotropic`, native text 실패 0. 세로선이 곧고 가로/세로선 두께가 균일하며 긴 문장의 오른쪽 끝이 모두 보여야 한다.
+
 ## 완료·실물 검증 대기: G500 printable 폭 맞춤 및 선 raster 흑백화 v1.0.60
 - v1.0.59 실물 `.tmp/IMG_20260808_0014.png`에서 전체 80×60 내용 복원은 성공했다. 다만 일부 세로선이 점선/지그재그처럼 보이고 가로선에 점선이 생기며 오른쪽 끝 내용이 잘린다.
 - 최신 로그 `.tmp/log/app_2026-08-08_22-28-12.log`: `source=640x480`, `target=639x480`, `horzRes=620`, `physical=640x480`, `offset=10,0`, `destination=-10,0`, gray raster 1,286px. 음수 offset은 620dot printable 영역 밖의 양끝을 잘라내므로 오른쪽 clipping을 해결하지 못했다.
