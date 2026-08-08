@@ -8,6 +8,7 @@
 - 버전은 `1.0.63`으로 증가. 1dot native border 테스트를 포함한 `label_sheet_print_job_test.dart` 17건 통과. Windows `/WX` Debug 빌드 성공.
 - 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.63`, `git diff --check` 통과.
+- 기능 커밋: `6ac7d72` (`native 선 두께와 텍스트 넘침 보정`).
 - 실물 판별: 선은 edge 중심의 1dot으로 편집 화면과 유사한 얇은 두께여야 한다. `nativeTextFitted` 대상은 2dot 안전 여백 안에서 반복 실측되어 오른쪽 끝이 모두 보여야 하며 `nativeTextFailed=0`이어야 한다.
 
 ## 완료·실물 검증 대기: Windows native 셀 테두리 및 overflow 글꼴 폭 맞춤 v1.0.62
