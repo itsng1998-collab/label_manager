@@ -17,8 +17,6 @@ using EncodableMap = flutter::EncodableMap;
 using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
-constexpr LONG kNativeTextRightOverhangDots = 1;
-
 std::wstring Utf8ToWide(const std::string& value);
 
 const std::string* StringArg(const EncodableMap& args, const char* key) {
@@ -473,7 +471,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           text_rect.top += std::max<LONG>(
               0, (text_rect.bottom - text_rect.top - text_height) / 2);
         }
-        text_rect.right += kNativeTextRightOverhangDots;
         const int draw_result = DrawTextW(
             printer_dc, descriptor.text.c_str(),
             static_cast<int>(descriptor.text.size()), &text_rect, flags);

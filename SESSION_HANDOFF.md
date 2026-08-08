@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 편집기 동일 셀 텍스트 raster + native 1dot 선 v1.0.66
+- 사용자 기준선은 실물 품질이 가장 좋은 v1.0.63이다. 이후 GDI `lfWidth`/draw rect 보정은 설정 font size와 셀 점유 비율을 동시에 재현하지 못했다.
+- 일반화 원인: 같은 font size라도 Flutter `TextPainter`와 Windows GDI의 glyph metric이 달라 native text로 재생성하면 편집기 장평·점유율과 달라진다.
+- 모든 FortuneSheet Windows 라벨의 셀 텍스트를 문구, 품목 ID, 셀 좌표, 서식 종류와 무관하게 native 승인하지 않고 편집기와 동일한 FortuneSheet raster에 유지한다. 설정 font size, 장평, inline run, 셀 점유 비율과 overflow가 편집기 렌더링 그대로 출력된다.
+- 셀 테두리는 v1.0.63의 native edge 중심 1dot 승인만 유지해 640→620 bitmap 축소의 선 지그재그를 방지한다. v1.0.65의 우측 1dot GDI rect 보정은 제거했다.
+- 버전 `1.0.66`; text raster 유지와 native 1dot border 계약을 포함한 `label_sheet_print_job_test.dart` 17건 통과. Windows `/WX` Debug 빌드 성공.
+- 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.66`, `git diff --check` 통과.
+- 실물 로그 판별: 모든 양식에서 `nativeTextDescriptors=0`, `nativeTextRequested=0`, `nativeTextFallback=nativeTextCandidates`, native border descriptor/requested/drawn 수 일치. 텍스트 font size·장평·셀 점유율은 편집기와 같고 선은 v1.0.63의 곧은 1dot이어야 한다.
+
 ## 완료·실물 검증 대기: 장평 회귀 제거 및 일반화된 우측 glyph 여유 v1.0.65
 - v1.0.64 실물 `.tmp/IMG_20260808_0020.png`: 세로선 지그재그가 다시 두드러지고 표 텍스트 장평이 셀마다 달라져 v1.0.63보다 악화됐다.
 - v1.0.64 로그 `.tmp/log/app_2026-08-08_23-29-00.log`: 36개 descriptor 중 34개가 `nativeTextWidthCalibrated` 됐다. 거의 모든 fragment에 서로 다른 `lfWidth`를 적용한 양방향 보정이 장평 회귀 원인이다.
