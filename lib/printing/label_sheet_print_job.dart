@@ -648,6 +648,11 @@ class LabelSheetWindowsHybridPreparation {
   final FortuneHybridRenderPlan plan;
 }
 
+int labelSheetWindowsFontPixelHeight({
+  required double fontSizePoints,
+  required double dpi,
+}) => math.max(1, (fontSizePoints * dpi / 72).round());
+
 LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   required FortuneSheet sheet,
   required FortuneSettings settings,
@@ -731,11 +736,10 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
             right: right,
             bottom: bottom,
             fontFamily: fragment.fontFamily,
-          fontPixelHeight: math.max(
-            1,
-              (fragment.fontSize * geometry.transform.dotsPerLogicalPixel)
-                  .round(),
-          ),
+            fontPixelHeight: labelSheetWindowsFontPixelHeight(
+              fontSizePoints: fragment.fontSize,
+              dpi: metrics.dpi,
+            ),
             bold: fragment.bold,
             italic: fragment.italic,
             underline: fragment.underline,

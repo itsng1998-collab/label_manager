@@ -184,7 +184,7 @@ void main() {
     );
     expect(descriptor.text, '원재료');
     expect(descriptor.fontFamily, 'Arial');
-    expect(descriptor.fontPixelHeight, greaterThan(0));
+    expect(descriptor.fontPixelHeight, 28);
     expect(descriptor.bold, isTrue);
     expect(descriptor.colorArgb, 0xff123456);
     expect(descriptor.horizontalAlign, '1');
@@ -205,6 +205,13 @@ void main() {
     );
     expect(descriptor.toChannelMap()['text'], '원재료');
     expect(descriptor.toChannelMap()['colorArgb'], 0xff123456);
+  });
+
+  test('Windows font height converts sheet points to printer dots', () {
+    expect(
+      labelSheetWindowsFontPixelHeight(fontSizePoints: 10, dpi: 203.2),
+      28,
+    );
   });
 
   test('Windows hybrid applies forced line spacing to native text layout', () {

@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 시트 point 글꼴의 Windows GDI 물리 크기 보정 v1.0.55
+- 실물 비교: 현재 시트 출력 `.tmp/IMG_20260808_0005.png`은 50.8mm/s에서도 작은 한글 획이 끊기며, 레거시 결과 `.tmp/IMG_20260808_0006.png`은 같은 203dpi 장비에서 획이 더 굵고 연속적이다.
+- 사용자 확정: 현재 프로젝트는 RTF를 출력 원본으로 사용하지 않으며 시트만 사용한다. 검토 중 추가했던 RTF 직접 출력 관련 미커밋 변경은 모두 제거했고 diff 0을 확인했다.
+- 원인: FortuneSheet 저장/API의 `fontSize`는 point 단위인데 Windows descriptor는 `dpi/96` logical pixel 비율을 곱했다. GDI 음수 font height의 물리 변환은 `point × dpi / 72`가 맞아 현재 native text가 25% 작게 생성됐다.
+- `labelSheetWindowsFontPixelHeight`: 시트 font point를 `point × dpi / 72`로 printer dot에 변환하고 Windows native descriptor에 적용했다. 시트 데이터·레이아웃·bitmap·프린터 설정은 변경하지 않았다.
+- focused test: Windows hybrid descriptor와 10pt·203.2dpi→28dot 계약 2건 통과.
+- 첫 Windows `/WX` 빌드는 실행 중인 `label_manager.exe`가 파일을 잠가 `LNK1168`로 실패했다. PID 14040 종료 후 동일 명령을 재실행해 성공했다.
+- 출력 관련 5개 테스트 파일 22건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.55`, `git diff --check` 통과.
+- 다음 실물 로그 판별 조건: `version=1.0.55`, `backend=windowsDriver`, `fontQuality=DEFAULT_QUALITY`, `nativeTextHeight`가 기존 `11..17`에서 예상 `15..23` 근처로 증가, `nativeTextFailed=0`.
+- 프린터 큐는 마지막 A/B의 50.8mm/s, 농도 level 8, dithering opt2 상태다. v1.0.55 실물은 `.tmp/IMG_20260808_0005.png` 및 레거시 `.tmp/IMG_20260808_0006.png`과 글자 크기·획 연속성·cell clipping을 비교한다.
+
 ## 완료·실물 A/B 대기: GoDEX GDI 기준선 복원 및 프린터 속도 A/B v1.0.54
 - v1.0.54 실물 `.tmp/IMG_20260808_0003.png`은 작은 한글과 검은 바탕의 흰 글자에 픽셀 계단이 남아 고품질 기준에 미달했다.
 - 최신 로그 `.tmp/log/app_2026-08-08_18-03-35.log`: `version=1.0.54`, `backend=windowsDriver`, `fontQuality=DEFAULT_QUALITY`, `nativeTextFailed=0`; 출력 데이터는 v1.0.52 기준선과 동일하다.
