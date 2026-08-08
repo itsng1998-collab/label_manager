@@ -9,6 +9,7 @@
 - `label_sheet_print_job_test.dart` 전체 17건 통과, 변경 파일 diagnostics 오류 0건. VS Code test runner는 `label_print_settings_test.dart`를 발견하지 못했지만 `C:/Flutter/bin/flutter.bat test test/label_sheet_print_job_test.dart test/label_print_settings_test.dart` CLI 검증은 21건 모두 통과했다.
 - Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. `git diff --check` 통과, Debug EXE FileVersion/ProductVersion 모두 `1.0.73`, 변경 파일 diagnostics 오류 0건.
 - 커밋 대상: `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경과 문서 삭제는 제외한다.
+- 기능 커밋: `cceaaf2` (`시트 테두리를 1dot으로 출력`).
 
 ## 완료: G500 RAW 선 품질 분리 진단
 - 작업 26에서 앱과 동일한 `QPatternContiguous` framing과 640x480 1-bit body를 사용해 RAW 출력 자체를 복구했다. 작업 27은 실물에서 확인된 G500 극성 `oneBlackZeroWhite`로 1·2·3dot 세로/가로선을 출력했고 `.tmp/IMG_20260809_0009.png`에서 Windows GDI를 완전히 우회한 고정 X bitmap 선에도 가장자리 변화가 재현됐다.
