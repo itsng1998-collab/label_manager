@@ -1,5 +1,14 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: native 글자 폭을 편집기 fragment 폭과 일치 v1.0.64
+- v1.0.63 실물 `.tmp/IMG_20260808_0019.png`: 1dot 선 두께는 개선됐지만 긴 문장의 오른쪽 끝이 계속 잘린다.
+- v1.0.63 로그 `.tmp/log/app_2026-08-08_23-15-37.log`: source 640x480, target 620x480, native text 36개/581자 모두 그리기 성공, fit 2개, border 225개 모두 그리기 성공. 표·선·텍스트의 640→620 가로 비율은 동일하므로 표 전체 축소 문제는 아니다.
+- 원인: GDI 폭이 Flutter fragment 폭보다 넓을 때만 축소하며, 최종 `DrawTextW`가 Flutter 측정 폭과 정확히 같은 rect로 glyph를 clip한다. 글꼴 메트릭/오버행 차이가 오른쪽 끝 손실로 나타난다.
+- 수정 예정: 모든 native text를 Flutter fragment 폭에 맞춰 GDI 실측 폭을 양방향 반복 보정하고 최종 glyph clip을 제거한다. 표/셀 좌표 및 640→620 물리 비율은 유지한다.
+- 버전 `1.0.64`; Windows `/WX` Debug 빌드 성공. 출력 관련 5개 테스트 파일 62건 통과, 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.64`, `git diff --check` 통과.
+- 실물 판별: 표/셀 위치와 1dot 선은 v1.0.63과 같아야 한다. 긴 문장은 편집기의 fragment 폭으로 보정되어 오른쪽 마지막 glyph가 잘리지 않아야 하며 로그에 `nativeTextFailed=0`, `nativeTextWidthCalibrated`가 기록되어야 한다.
+
 ## 완료·실물 검증 대기: native 테두리 1dot 및 overflow 반복 맞춤 v1.0.63
 - v1.0.62 실물 `.tmp/IMG_20260808_0018.png`은 선 지그재그는 크게 줄었지만 편집 화면보다 선이 두껍고 오른쪽 끝이 계속 잘렸다.
 - 최신 로그 `.tmp/log/app_2026-08-08_23-08-59.log`: native border 225개 요청/그리기 일치, text 실패 0, fit 2개. native 경로 적용은 정상이다.
