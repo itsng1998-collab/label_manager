@@ -12,6 +12,7 @@
 - EXE FileVersion/ProductVersion 모두 `1.0.53`, `git diff --check` 통과.
 - 다음 실물 로그에서 `version=1.0.53`, `backend=windowsDriver`, `fontQuality=NONANTIALIASED_QUALITY`, `nativeTextFailed=0`을 확인하고 `.tmp/IMG_20260808_0001.png`의 작은 한글 획과 비교한다.
 - 결과가 개선되지 않으면 코드를 더 섞지 않고 G500 드라이버 속도만 현재 127mm/s에서 50.8/76.2mm/s로 낮춘 A/B를 수행한다. 농도 8과 나머지 조건은 유지한다.
+- 기능 커밋: `6baead8` (`GoDEX 작은 한글 비안티앨리어싱 출력 적용`). push하지 않음.
 - 기존 unrelated 변경 `lib/core/app.dart`, `pubspec.lock`, 삭제 상태의 EZPL 문서 2개는 수정·stage·commit에서 제외한다.
 
 ## 완료·실물 검증 대기: GoDEX G500 기본 Windows 드라이버 출력 복원 v1.0.52
