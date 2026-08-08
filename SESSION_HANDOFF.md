@@ -1,8 +1,11 @@
 # 현재 작업 상태
 
-## 진행 중: G500 RAW 선 품질 분리 진단
-- 최초 작업 22는 잘못된 4인자 `Q` 도형 명령이라 스풀러에는 접수됐지만 출력되지 않았다. 작업 23은 앱과 같은 6인자 `R` 명령으로 수정했으나 세로/가로 끝 좌표가 같아 폭 0 도형으로 무시될 가능성이 있었다.
-- 최종 작업 24는 `Rleft,top,right,bottom,lrw,ubw` 형식과 실제 1·2·3dot 폭/높이를 사용해 `156/156 bytes` RAW 전송 성공. 프린터 `Normal`, `USB001`, spool job 0 확인. 실물 출력 여부 및 1·2·3dot 세로선 가장자리 비교 대기.
+## 완료: G500 RAW 선 품질 분리 진단
+- 작업 26에서 앱과 동일한 `QPatternContiguous` framing과 640x480 1-bit body를 사용해 RAW 출력 자체를 복구했다. 작업 27은 실물에서 확인된 G500 극성 `oneBlackZeroWhite`로 1·2·3dot 세로/가로선을 출력했고 `.tmp/IMG_20260809_0009.png`에서 Windows GDI를 완전히 우회한 고정 X bitmap 선에도 가장자리 변화가 재현됐다.
+- RAW bitmap 세로선의 행별 사진 폭은 1dot `1..4px`(주로 2px), 2dot `2..7px`(주로 5px), 3dot `1..9px`(주로 8px)였다. 원본 raster는 모든 행에서 동일한 고정 열이므로 FortuneSheet 좌표, Windows driver, GDI primitive, segment 접합은 원인이 아니다. 두꺼울수록 열전사 가장자리 돌출이 커졌고 1dot이 최소 왜곡이었다.
+- 작업 28은 blank `Q` body 뒤에 firmware native `Rleft,top,right,bottom,lrw,ubw` 명령으로 동일 선을 출력했다. `.tmp/IMG_20260809_0010.png`의 native 선도 돌출이 남았고 주 폭은 1dot-R 5px, 2dot-R 9px, 3dot-R 11px로 bitmap보다 두꺼워져 EZPL geometry 전환도 기각했다.
+- 작업 29는 공식 EZPL `^H5`, `^S5`로 저농도 비교했다. `.tmp/IMG_20260809_0011.png`에서 1dot 누락 행이 기본 10행에서 33행으로, 좌우 경계 변화가 `117/179`에서 `216/254`로 증가했고 2·3dot도 악화되어 농도 저하도 기각했다. 작업 30으로 `^H10`, `^S5`를 RAW 전송해 프린터 설정을 복원했다.
+- 결론: 앱이 생성한 최종 bitmap에는 점선/계단이 없으며 G500이 고정 dot 열을 라벨에 열전사하는 단계에서 가장자리 변화가 생긴다. native geometry와 농도 조절로도 개선되지 않아 특정 셀 또는 공용 렌더러 코드로 완전히 제거할 수 없다. production v1.0.72 코드는 변경하지 않았으며, 소프트웨어에서 가능한 최소 왜곡은 final device 1dot이지만 v1.0.71 실물에서도 사용자가 불합격 판정했으므로 자동 원복하지 않는다.
 
 ## 완료·실물 검증 대기: printer footprint 두께의 단일 bitmap border 합성 v1.0.72
 - v1.0.71 실물 `.tmp/IMG_20260809_0005.png`에도 세로선의 점선형 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_00-27-26.log`는 `nativeBorderComposite=bitmapMask`, `nativeBorderMaskLines=-480`, `nativeBordersDrawn=225`로 최종 device mask가 실제 적용됐음을 확인했다.
