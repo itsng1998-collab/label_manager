@@ -8,6 +8,7 @@
 - 출력 관련 5개 테스트 파일 21건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.57`, `git diff --check` 통과.
 - 실물 로그 확인 기준: `version=1.0.57`, `requestedTarget=639x480`, `target=639x480`, `offset=10,0`, `destination=-10,0`. 오른쪽 마지막 내용과 테두리가 원본 시트와 같은 위치에서 잘리지 않아야 한다.
+- 기능 커밋: `eab066d` (`라벨 오른쪽 출력 잘림 수정`). push하지 않음.
 
 ## 완료: v1.0.55 글꼴 크기 회귀 복원 및 품질 개선 종료 v1.0.56
 - v1.0.55 실물 `.tmp/IMG_20260808_0007.png`은 글자가 과대해져 셀 오른쪽 clipping과 정렬 손상이 발생했다.
