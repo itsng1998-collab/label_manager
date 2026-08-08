@@ -9,6 +9,7 @@
 - 출력 관련 5개 테스트 파일 45건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.61`, `git diff --check` 통과.
 - 실물 로그 판별: `target=620x480`, `gray=0`, `stretchMode=BLACKONWHITE`, `nativeTextMapping=anisotropic`, native text 실패 0. 세로선이 곧고 가로/세로선 두께가 균일하며 긴 문장의 오른쪽 끝이 모두 보여야 한다.
+- 기능 커밋: `683a6bb` (`축소 출력 선과 글꼴 폭 동기화`). push하지 않음.
 
 ## 완료·실물 검증 대기: G500 printable 폭 맞춤 및 선 raster 흑백화 v1.0.60
 - v1.0.59 실물 `.tmp/IMG_20260808_0014.png`에서 전체 80×60 내용 복원은 성공했다. 다만 일부 세로선이 점선/지그재그처럼 보이고 가로선에 점선이 생기며 오른쪽 끝 내용이 잘린다.
