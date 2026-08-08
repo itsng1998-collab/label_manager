@@ -9,6 +9,7 @@
 - 출력 관련 5개 테스트 파일 62건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.62`, `git diff --check` 통과.
 - 실물 로그 판별: `nativeBorderDescriptors`와 `nativeBordersRequested`/`nativeBordersDrawn`이 같은 양수, `nativeTextFailed=0`. overflow가 있으면 `nativeTextFitted`가 양수다. native border가 raster 축소에서 제거되어 선이 직선·균일 두께로 출력되고 오른쪽 문장이 셀 안에 모두 보여야 한다.
+- 기능 커밋: `16d0e54` (`셀 테두리와 넘침 텍스트 직접 출력`). push하지 않음.
 
 ## 완료·실물 검증 대기: 흑백 선 보존 축소 및 native 글꼴 폭 동기화 v1.0.61
 - v1.0.60 실물 `.tmp/IMG_20260808_0016.png`은 전체 내용과 외곽선은 들어왔지만 일부 세로선 지그재그, 가로/세로선 두께 편차, 긴 문장 오른쪽 clipping이 남았다.
