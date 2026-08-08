@@ -11,6 +11,7 @@
 - EXE FileVersion/ProductVersion 모두 `1.0.55`, `git diff --check` 통과.
 - 다음 실물 로그 판별 조건: `version=1.0.55`, `backend=windowsDriver`, `fontQuality=DEFAULT_QUALITY`, `nativeTextHeight`가 기존 `11..17`에서 예상 `15..23` 근처로 증가, `nativeTextFailed=0`.
 - 프린터 큐는 마지막 A/B의 50.8mm/s, 농도 level 8, dithering opt2 상태다. v1.0.55 실물은 `.tmp/IMG_20260808_0005.png` 및 레거시 `.tmp/IMG_20260808_0006.png`과 글자 크기·획 연속성·cell clipping을 비교한다.
+- 기능 커밋: `e5dc3e7` (`시트 글꼴 GDI 물리 크기 보정`). push하지 않음.
 
 ## 완료·실물 A/B 대기: GoDEX GDI 기준선 복원 및 프린터 속도 A/B v1.0.54
 - v1.0.54 실물 `.tmp/IMG_20260808_0003.png`은 작은 한글과 검은 바탕의 흰 글자에 픽셀 계단이 남아 고품질 기준에 미달했다.
