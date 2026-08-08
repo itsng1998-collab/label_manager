@@ -11,6 +11,7 @@
 - 출력 관련 5개 테스트 파일 45건 통과. 변경 파일 diagnostics 오류 0건.
 - EXE FileVersion/ProductVersion 모두 `1.0.59`, `git diff --check` 통과.
 - 실물 판별: 미리보기 zoom 150%와 무관하게 전체 80×60mm가 640×480dot source에 들어가야 한다. `120g`, 오른쪽 테두리, 영양정보, 반품 문구가 모두 출력되고 제조원 행이 60mm 바닥까지 확대되지 않아야 한다.
+- 기능 커밋: `a17540f` (`출력 시트 확대 배율 정규화`). push하지 않음.
 
 ## 완료·실물 검증 대기: 출력 preview/capture owner 동기화 v1.0.58
 - v1.0.57 실물에서 물리 offset 보정은 적용됐지만 화면 미리보기와 다른 내용이 출력됐다. native text 실패가 0이고 후보 수 자체가 원본보다 적어 stale preview capture로 원인을 좁혔다.
