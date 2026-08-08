@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: GDI 물리 용지 offset clipping 수정 v1.0.57
+## 완료·실물 실패: GDI 물리 용지 offset clipping 수정 v1.0.57
 - 원본 시트 이미지는 80×60mm 안에 모든 내용이 있지만 v1.0.56 실물 `.tmp/IMG_20260808_0008.png`은 오른쪽 마지막 내용이 잘렸다.
 - v1.0.56 로그는 `source=640x480`, `target=639x480`, `horzRes=620`, `physical=640x480`, `offset=10,0`이다. GDI DC의 실제 인쇄 가능 폭 620도트보다 19도트 넓게 그려 오른쪽이 clipping됐다.
 - `label_bitmap_print_channel.cpp`: GDI printable DC 원점은 물리 용지의 `(10,0)`인데 기존 destination `(0,0)`이 시트 전체를 오른쪽으로 10도트 이동시켰다. 원본 크기와 비율은 유지하고 destination을 `(-PHYSICALOFFSETX, -PHYSICALOFFSETY)`로 보정해 시트 물리 좌표와 프린터 용지 좌표를 일치시킨다. bitmap, 테두리, native text에 동일하게 적용된다.
@@ -9,6 +9,9 @@
 - EXE FileVersion/ProductVersion 모두 `1.0.57`, `git diff --check` 통과.
 - 실물 로그 확인 기준: `version=1.0.57`, `requestedTarget=639x480`, `target=639x480`, `offset=10,0`, `destination=-10,0`. 오른쪽 마지막 내용과 테두리가 원본 시트와 같은 위치에서 잘리지 않아야 한다.
 - 기능 커밋: `eab066d` (`라벨 오른쪽 출력 잘림 수정`). push하지 않음.
+- v1.0.57 실물 `.tmp/IMG_20260808_0009.png`과 로그 `.tmp/log/app_2026-08-08_21-57-54.log` 확인: `destination=-10,0` 적용 및 native text 22개 전부 draw 성공, 실패 0. 표는 왼쪽으로 이동했지만 `120g`, 오른쪽 세로 테두리, 영양정보·반품 문구가 계속 없고 제조원 두 번째 줄도 원본과 다르므로 사용자 문제는 해결되지 않았다.
+- 사용자는 인쇄 직전 앱 출력 미리보기가 붙여넣은 원본과 동일했다고 확인했다. 프린터 clipping이 아니라 같은 화면 sheet에 대한 Windows hybrid capture/descriptor 결과가 미리보기와 달라지는 문제로 원인을 재분류한다.
+- 물리 offset 보정은 좌표 정합을 위해 유지하지만 추가 이동·폭 축소로 해결하지 않는다. 다음 작업은 capture 직전 active sheet fingerprint/cell count/range와 생성 PNG를 미리보기 workbook과 대조해 stale capture 또는 hybrid omission/descriptor 결함을 찾는다.
 
 ## 완료: v1.0.55 글꼴 크기 회귀 복원 및 품질 개선 종료 v1.0.56
 - v1.0.55 실물 `.tmp/IMG_20260808_0007.png`은 글자가 과대해져 셀 오른쪽 clipping과 정렬 손상이 발생했다.
