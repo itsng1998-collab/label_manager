@@ -6,6 +6,7 @@
 - 실물 직후 PrintTicket 확인 결과 속도가 여전히 `127 mms`, `JobUseCurrentPrinterSettings=OptYes`여서 요청한 76.2mm/s A/B는 실제 수행되지 않았다.
 - `Godex G500` 큐의 `JobUseCurrentPrinterSettings=OptNo`, `JobPrintSpeed=opt76200`을 적용했다. 재조회 결과 `Ptxcn_PrintSpeed=76 mms`, 농도 level 8, dithering opt2 유지 확인.
 - 다음 실물에서도 차이가 없으면 같은 조건에서 50.8mm/s를 마지막 물리 A/B로 수행한다. 50.8mm/s에서도 개선이 없으면 현재 203dpi G500·작은 11~17px 한글 조합의 실용 품질 한계로 판정하고, 유의미한 향상은 300dpi 장비 또는 글꼴 크기/레이아웃 변경으로 전환한다.
+- 속도 A/B 조건 갱신 커밋: `833f5fa` (`GoDEX 속도 실물 검증 조건 갱신`). push하지 않음.
 - v1.0.53 실물 `.tmp/IMG_20260808_0002.png`은 비안티앨리어싱으로 작은 한글의 계단과 획 단절이 더 뚜렷해져 고품질 개선에 실패했다.
 - 최신 로그 `.tmp/log/app_2026-08-08_17-57-52.log`: `version=1.0.53`, `backend=windowsDriver`, `fontQuality=NONANTIALIASED_QUALITY`, `nativeTextFailed=0`. capture, raster ink, descriptor, 640→639 배율은 v1.0.52와 동일하므로 변경 적용 실패나 다른 출력 변수의 영향이 아니다.
 - `label_bitmap_print_channel.cpp`: 실패한 `NONANTIALIASED_QUALITY`를 `DEFAULT_QUALITY`로 복원하고 재사용 방지 사유를 남겼다. 진단 문자열도 `fontQuality=DEFAULT_QUALITY`로 복원했다.
