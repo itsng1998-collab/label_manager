@@ -5,7 +5,9 @@
 - 최신 로그 `.tmp/log/app_2026-08-08_18-03-35.log`: `version=1.0.54`, `backend=windowsDriver`, `fontQuality=DEFAULT_QUALITY`, `nativeTextFailed=0`; 출력 데이터는 v1.0.52 기준선과 동일하다.
 - 실물 직후 PrintTicket 확인 결과 속도가 여전히 `127 mms`, `JobUseCurrentPrinterSettings=OptYes`여서 요청한 76.2mm/s A/B는 실제 수행되지 않았다.
 - `Godex G500` 큐의 `JobUseCurrentPrinterSettings=OptNo`, `JobPrintSpeed=opt76200`을 적용했다. 재조회 결과 `Ptxcn_PrintSpeed=76 mms`, 농도 level 8, dithering opt2 유지 확인.
-- 다음 실물에서도 차이가 없으면 같은 조건에서 50.8mm/s를 마지막 물리 A/B로 수행한다. 50.8mm/s에서도 개선이 없으면 현재 203dpi G500·작은 11~17px 한글 조합의 실용 품질 한계로 판정하고, 유의미한 향상은 300dpi 장비 또는 글꼴 크기/레이아웃 변경으로 전환한다.
+- 76.2mm/s 실물 `.tmp/IMG_20260808_0004.png`과 최신 로그 `.tmp/log/app_2026-08-08_18-09-15.log`를 확인했다. v1.0.54 출력 경로와 76.2mm/s 설정은 정상 적용됐지만 127mm/s 결과 대비 체감 가능한 품질 향상이 없었다.
+- 마지막 물리 A/B로 `JobPrintSpeed=opt50800`을 적용했다. 재조회 결과 `Ptxcn_PrintSpeed=51 mms`, `JobUseCurrentPrinterSettings=OptNo`, 농도 level 8, dithering opt2 유지 확인.
+- 50.8mm/s 실물도 같으면 현재 203dpi G500·작은 11~17px 한글·기존 레이아웃 조합의 실용 품질 한계로 최종 판정하고 코드 튜닝을 종료한다. 유의미한 향상은 300dpi 장비 또는 글꼴 크기/레이아웃 변경으로 전환한다.
 - 속도 A/B 조건 갱신 커밋: `833f5fa` (`GoDEX 속도 실물 검증 조건 갱신`). push하지 않음.
 - v1.0.53 실물 `.tmp/IMG_20260808_0002.png`은 비안티앨리어싱으로 작은 한글의 계단과 획 단절이 더 뚜렷해져 고품질 개선에 실패했다.
 - 최신 로그 `.tmp/log/app_2026-08-08_17-57-52.log`: `version=1.0.53`, `backend=windowsDriver`, `fontQuality=NONANTIALIASED_QUALITY`, `nativeTextFailed=0`. capture, raster ink, descriptor, 640→639 배율은 v1.0.52와 동일하므로 변경 적용 실패나 다른 출력 변수의 영향이 아니다.
