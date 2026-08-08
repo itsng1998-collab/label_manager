@@ -1,6 +1,18 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: 시트 point 글꼴의 Windows GDI 물리 크기 보정 v1.0.55
+## 완료: v1.0.55 글꼴 크기 회귀 복원 및 품질 개선 종료 v1.0.56
+- v1.0.55 실물 `.tmp/IMG_20260808_0007.png`은 글자가 과대해져 셀 오른쪽 clipping과 정렬 손상이 발생했다.
+- 최신 로그 `.tmp/log/app_2026-08-08_18-35-32.log`: `version=1.0.55`, `nativeTextHeight=14..23`, `nativeTextFailed=0`. 변경 적용 실패가 아니라 point→dot 계산 자체의 회귀다.
+- `labelSheetWindowsFontPixelHeight`와 10pt→28dot 테스트를 제거하고 기존 `fontSize × dotsPerLogicalPixel` 계산으로 복원한다. 시트 조판과 Windows native text가 동일한 logical font size를 사용해야 셀 레이아웃과 일치한다.
+- 버전은 `1.0.56`으로 증가한다. 자동 검증 후 프린터 속도도 품질 효과가 없었던 50.8mm/s에서 실험 전 127mm/s로 복원한다.
+- Windows hybrid descriptor focused test 1건 통과. Windows `/WX` Debug 빌드 성공.
+- G500 큐를 실험 전 `JobPrintSpeed=opt127000`, `Ptxcn_PrintSpeed=127 mms`, `JobUseCurrentPrinterSettings=OptYes`로 복원했다. 농도 level 8, dithering opt2 유지 확인.
+- 출력 관련 5개 테스트 파일 21건 통과. 변경 파일 diagnostics 오류 0건.
+- EXE FileVersion/ProductVersion 모두 `1.0.56`, `git diff --check` 통과.
+- v1.0.56은 v1.0.54와 동일한 시트 logical font size 계산을 사용한다. 추가 실물 품질 실험은 종료하며, 더 높은 품질이 필수이면 300dpi 장비 또는 시트 글꼴 크기·셀 레이아웃 자체를 변경해야 한다.
+- 최종 판정: RTF를 사용하지 않는 시트 전용, 203dpi G500, 기존 레이아웃 조건에서는 v1.0.54 계열 GDI hybrid가 현재 최선이다. 추가 font quality·크기·속도 튜닝은 모두 무효 또는 회귀가 확인되어 종료한다.
+
+## 완료·실물 실패: 시트 point 글꼴의 Windows GDI 물리 크기 보정 v1.0.55
 - 실물 비교: 현재 시트 출력 `.tmp/IMG_20260808_0005.png`은 50.8mm/s에서도 작은 한글 획이 끊기며, 레거시 결과 `.tmp/IMG_20260808_0006.png`은 같은 203dpi 장비에서 획이 더 굵고 연속적이다.
 - 사용자 확정: 현재 프로젝트는 RTF를 출력 원본으로 사용하지 않으며 시트만 사용한다. 검토 중 추가했던 RTF 직접 출력 관련 미커밋 변경은 모두 제거했고 diff 0을 확인했다.
 - 원인: FortuneSheet 저장/API의 `fontSize`는 point 단위인데 Windows descriptor는 `dpi/96` logical pixel 비율을 곱했다. GDI 음수 font height의 물리 변환은 `point × dpi / 72`가 맞아 현재 native text가 25% 작게 생성됐다.
