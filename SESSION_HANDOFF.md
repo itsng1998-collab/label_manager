@@ -8,6 +8,7 @@
 - 버전 편집 완료: `pubspec.yaml`을 `1.0.88`로 갱신했다.
 - 1.0.88 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
 - 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.88`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. stage/commit 대상은 `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md` 3개다.
+- 기능 커밋: `fe80be0` (`작은 한글 획 품질 개선`).
 - 실물 판별: 로그에 `nativeTextCoverage=foregroundThreshold20`, `nativeTextCoverageKept>0`, `nativeTextCoverageDiscarded>0`, `nativeTextFailed=0`가 있어야 한다. 제2행 주원료의 작은 한글과 제3·9행 검정 바탕 흰 한글의 끊긴 획이 이어져야 하며, 일반 글자·uniformScale overflow·표의 fixed-X·1dot border는 v1.0.87 상태를 유지해야 한다.
 
 ## 완료·실물 검증 대기: 굴림 overflow 장평 왜곡 제거 v1.0.87
