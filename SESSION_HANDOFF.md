@@ -6,7 +6,7 @@
 - 일반화 수정: source raster 축소 후 border를 그리기 전에 각 final-device Y에서 실제 vertical descriptor들의 최소 left와 최대 right를 구한다. 세로 border가 존재하는 Y에 한해 `left - 1`, `right`의 바깥쪽 1dot만 흰색으로 정리한 뒤 모든 1dot border를 같은 bitmap에 그린다.
 - v1.80처럼 외곽선 안쪽을 지우지 않으므로 검정 행 앞·뒤의 흰 세로선 회귀를 만들지 않는다. 특정 행·셀·품목 분기 없이 최외곽 vertical geometry로만 동작하며 내부 세로선과 native text는 변경하지 않는다.
 - diagnostics: `nativeBorderOuterClearance=exteriorOneDeviceDot`, `nativeBorderOuterClearPixels`. 버전 `1.0.82`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 중간·버전 반영·스타일 정리 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.82`, `get_errors` 0건, `git diff --check` 통과. 폐기한 `WHITE_BRUSH`, `SRCAND`, endpoint guard가 없는 것도 확인했다. 실물 로그에서 `nativeBorderOuterClearPixels`가 양수인지, 제3·제9행 왼쪽 바깥 돌출이 제거되고 안쪽 흰 세로선 없이 나머지 세로선·1dot이 유지되는지 확인이 필요하다.
-- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `fa9ca91` (`최종 비트맵의 외곽 돌출을 제거`).
 
 ## 완료·실물 검증 대기: raster와 1dot border 단일 final-device bitmap 합성 v1.0.81
 - v1.0.80 실물 `.tmp/IMG_20260809_0007.png`에서 제3·제9행 왼쪽 돌출은 남았고, 해당 검정 행의 앞·뒤에 이전에 없던 흰 세로선이 생겼다. 로그 `.tmp/log/app_2026-08-09_13-38-44.log`는 version `1.0.80`, `nativeBorderOuterRasterClearPixels=146`을 확인해 프린터 DC의 흰 덮기가 실제 회귀 원인이다.
