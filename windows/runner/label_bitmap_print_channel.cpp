@@ -88,7 +88,8 @@ struct DeviceBorderRect {
 std::vector<uint8_t> ComposeFinalDeviceBitmap(
     const std::vector<uint8_t>& source, int source_width, int source_height,
     int target_width, int target_height,
-    const std::vector<NativeBorderDescriptor>& border_descriptors) {
+  const std::vector<NativeBorderDescriptor>& border_descriptors,
+  int* outer_clear_pixels) {
   std::vector<uint8_t> result(
       static_cast<size_t>(target_width) * target_height * 4, 0xFF);
   for (int target_y = 0; target_y < target_height; ++target_y) {
@@ -124,6 +125,8 @@ std::vector<uint8_t> ComposeFinalDeviceBitmap(
       result[target_offset + 2] = red;
     }
   }
+  std::vector<DeviceBorderRect> device_borders;
+  device_borders.reserve(border_descriptors.size());
   for (const auto& descriptor : border_descriptors) {
     const LONG left = MulDiv(descriptor.rect.left, target_width, source_width);
     const LONG top = MulDiv(descriptor.rect.top, target_height, source_height);
@@ -148,6 +151,42 @@ std::vector<uint8_t> ComposeFinalDeviceBitmap(
       rect.right = rect.left + thickness;
       rect.bottom = std::max(top + 1, mapped_bottom);
     }
+    device_borders.push_back(DeviceBorderRect{rect, descriptor.horizontal, 1});
+  }
+  int cleared_pixels = 0;
+  for (int y = 0; y < target_height; ++y) {
+    int outer_left = target_width;
+    int outer_right = 0;
+    bool has_vertical_border = false;
+    for (const auto& border : device_borders) {
+      if (border.horizontal || y < border.rect.top || y >= border.rect.bottom) {
+        continue;
+      }
+      has_vertical_border = true;
+      outer_left = std::min(outer_left, static_cast<int>(border.rect.left));
+      outer_right = std::max(outer_right, static_cast<int>(border.rect.right));
+    }
+    if (!has_vertical_border) continue;
+    const int exterior_x[] = {outer_left - 1, outer_right};
+    for (const int x : exterior_x) {
+      if (x < 0 || x >= target_width) continue;
+      const size_t offset =
+          (static_cast<size_t>(y) * target_width + x) * 4;
+      if (result[offset] == 0xFF && result[offset + 1] == 0xFF &&
+          result[offset + 2] == 0xFF) {
+        continue;
+      }
+      result[offset] = 0xFF;
+      result[offset + 1] = 0xFF;
+      result[offset + 2] = 0xFF;
+      ++cleared_pixels;
+    }
+  }
+  if (outer_clear_pixels != nullptr) {
+    *outer_clear_pixels = cleared_pixels;
+  }
+  for (const auto& border : device_borders) {
+    const RECT& rect = border.rect;
     const int clipped_left = std::clamp<int>(rect.left, 0, target_width);
     const int clipped_top = std::clamp<int>(rect.top, 0, target_height);
     const int clipped_right = std::clamp<int>(rect.right, 0, target_width);
@@ -444,9 +483,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       error = "StartPage failed: " + std::to_string(GetLastError());
       break;
     }
+    int native_border_outer_clear_pixels = 0;
     const auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
-        border_descriptors);
+        border_descriptors, &native_border_outer_clear_pixels);
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -671,6 +711,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
+                  << " nativeBorderOuterClearance=exteriorOneDeviceDot"
+                  << " nativeBorderOuterClearPixels="
+                  << native_border_outer_clear_pixels
                   << " nativeBorderComposite=finalDeviceBitmap"
                   << " nativeBorderBitmapLines=" << scan_lines
                   << " nativeBorderFillRects=" << native_border_fill_rects
