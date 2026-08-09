@@ -88,41 +88,24 @@ struct DeviceBorderRect {
 std::vector<uint8_t> ComposeFinalDeviceBitmap(
     const std::vector<uint8_t>& source, int source_width, int source_height,
     int target_width, int target_height,
-  const std::vector<NativeBorderDescriptor>& border_descriptors,
-  int* outer_clear_pixels) {
+    const std::vector<NativeBorderDescriptor>& border_descriptors) {
   std::vector<uint8_t> result(
       static_cast<size_t>(target_width) * target_height * 4, 0xFF);
   for (int target_y = 0; target_y < target_height; ++target_y) {
-    const int source_top = target_y * source_height / target_height;
-    const int source_bottom = std::min(
-        source_height,
-        std::max(source_top + 1,
-                 ((target_y + 1) * source_height + target_height - 1) /
-                     target_height));
+    const int source_y = std::min(
+        source_height - 1,
+        ((target_y * 2 + 1) * source_height) / (target_height * 2));
     for (int target_x = 0; target_x < target_width; ++target_x) {
-      const int source_left = target_x * source_width / target_width;
-      const int source_right = std::min(
-          source_width,
-          std::max(source_left + 1,
-                   ((target_x + 1) * source_width + target_width - 1) /
-                       target_width));
-      uint8_t blue = 0xFF;
-      uint8_t green = 0xFF;
-      uint8_t red = 0xFF;
-      for (int source_y = source_top; source_y < source_bottom; ++source_y) {
-        for (int source_x = source_left; source_x < source_right; ++source_x) {
-          const size_t source_offset =
-              (static_cast<size_t>(source_y) * source_width + source_x) * 4;
-          blue &= source[source_offset];
-          green &= source[source_offset + 1];
-          red &= source[source_offset + 2];
-        }
-      }
+      const int source_x = std::min(
+          source_width - 1,
+          ((target_x * 2 + 1) * source_width) / (target_width * 2));
+      const size_t source_offset =
+          (static_cast<size_t>(source_y) * source_width + source_x) * 4;
       const size_t target_offset =
           (static_cast<size_t>(target_y) * target_width + target_x) * 4;
-      result[target_offset] = blue;
-      result[target_offset + 1] = green;
-      result[target_offset + 2] = red;
+      result[target_offset] = source[source_offset];
+      result[target_offset + 1] = source[source_offset + 1];
+      result[target_offset + 2] = source[source_offset + 2];
     }
   }
   std::vector<DeviceBorderRect> device_borders;
@@ -152,38 +135,6 @@ std::vector<uint8_t> ComposeFinalDeviceBitmap(
       rect.bottom = std::max(top + 1, mapped_bottom);
     }
     device_borders.push_back(DeviceBorderRect{rect, descriptor.horizontal, 1});
-  }
-  int cleared_pixels = 0;
-  for (int y = 0; y < target_height; ++y) {
-    int outer_left = target_width;
-    int outer_right = 0;
-    bool has_vertical_border = false;
-    for (const auto& border : device_borders) {
-      if (border.horizontal || y < border.rect.top || y >= border.rect.bottom) {
-        continue;
-      }
-      has_vertical_border = true;
-      outer_left = std::min(outer_left, static_cast<int>(border.rect.left));
-      outer_right = std::max(outer_right, static_cast<int>(border.rect.right));
-    }
-    if (!has_vertical_border) continue;
-    const int exterior_x[] = {outer_left - 1, outer_right};
-    for (const int x : exterior_x) {
-      if (x < 0 || x >= target_width) continue;
-      const size_t offset =
-          (static_cast<size_t>(y) * target_width + x) * 4;
-      if (result[offset] == 0xFF && result[offset + 1] == 0xFF &&
-          result[offset + 2] == 0xFF) {
-        continue;
-      }
-      result[offset] = 0xFF;
-      result[offset + 1] = 0xFF;
-      result[offset + 2] = 0xFF;
-      ++cleared_pixels;
-    }
-  }
-  if (outer_clear_pixels != nullptr) {
-    *outer_clear_pixels = cleared_pixels;
   }
   for (const auto& border : device_borders) {
     const RECT& rect = border.rect;
@@ -483,10 +434,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       error = "StartPage failed: " + std::to_string(GetLastError());
       break;
     }
-    int native_border_outer_clear_pixels = 0;
     const auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
-        border_descriptors, &native_border_outer_clear_pixels);
+        border_descriptors);
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -494,14 +444,14 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = 32;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
-    // v1.0.60의 COLORONCOLOR는 축소 과정에서 1px 선을 불규칙하게 버렸다.
-    const int previous_mode = SetStretchBltMode(printer_dc, BLACKONWHITE);
+    const int previous_mode = SetStretchBltMode(printer_dc, COLORONCOLOR);
     const int scan_lines = StretchDIBits(
         printer_dc, destination_x, destination_y, target_width, target_height,
         0, 0, target_width, target_height, composed_bitmap.data(),
         &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
-                << " stretchMode=softwareBLACKONWHITE"
+                << " stretchMode=COLORONCOLOR_1TO1"
+                << " sourceRasterResample=nearestCenter"
                 << " sourceBpp=" << bitmap_info.bmiHeader.biBitCount
                 << " compression=BI_RGB"
                 << " rasterOp=SRCCOPY"
@@ -711,9 +661,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
-                  << " nativeBorderOuterClearance=exteriorOneDeviceDot"
-                  << " nativeBorderOuterClearPixels="
-                  << native_border_outer_clear_pixels
                   << " nativeBorderComposite=finalDeviceBitmap"
                   << " nativeBorderBitmapLines=" << scan_lines
                   << " nativeBorderFillRects=" << native_border_fill_rects
