@@ -23,6 +23,7 @@
 - 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.85`, 변경 파일 `get_errors` 0건, `git diff --check` 통과. 별도 임시 파일은 만들지 않았고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
 - 실물 검증 필요: v1.0.85로 동일 라벨을 출력해 제3·제9행 왼쪽 외곽선이 인접 흰 행보다 바깥/안쪽으로 1dot 이동하지 않는지, 같은 검정 행 오른쪽 외곽선 안쪽의 흰 세로줄이 사라졌는지 확인한다. 다른 세로선 fixed-X·1dot, native text, overflow-fit도 함께 유지돼야 한다.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `b7b3796` (`네이티브 테두리 배경의 빈줄을 제거`).
 
 ## 완료·실물 검증 대기: native border와 source raster 배경의 경계 소유권 통일 v1.0.84
 - v1.0.83 실물 완료 판정을 철회한다. `.tmp/IMG_20260809_0011.png`에서 첫 검정 띠의 왼쪽 경계는 인접 흰 행 X=1167 대비 X=1164, 두 번째는 X=1166 대비 X=1163으로 약 3 image px(약 1 device dot) 왼쪽이다. `.tmp/IMG_20260809_0010.png`도 같은 상대 이동이 있었으나 전체 X 분포만 보고 완료로 잘못 판정했다.
