@@ -1,6 +1,27 @@
 # 현재 작업 상태
 
-## 완료·실물 검증: source raster 검정 팽창 원인 제거 v1.0.83
+## 완료·실물 검증 대기: native border와 source raster 배경의 경계 소유권 통일 v1.0.84
+- v1.0.83 실물 완료 판정을 철회한다. `.tmp/IMG_20260809_0011.png`에서 첫 검정 띠의 왼쪽 경계는 인접 흰 행 X=1167 대비 X=1164, 두 번째는 X=1166 대비 X=1163으로 약 3 image px(약 1 device dot) 왼쪽이다. `.tmp/IMG_20260809_0010.png`도 같은 상대 이동이 있었으나 전체 X 분포만 보고 완료로 잘못 판정했다.
+- 정상 기준 `.tmp/IMG_v1.0.44.png`는 동일한 3000×2102 사진에서 검정 띠와 앞뒤 흰 행의 왼쪽 경계가 모두 X=1176으로 일치한다. 따라서 남은 돌출은 촬영 원근이나 프린터 번짐이 아니라 v1.0.83 렌더 경로의 행별 차이다.
+- 현재 가설: 승인된 cell border는 source raster에서 생략하고 final-device bitmap에 native 1dot으로 그리지만, 검정 셀 배경은 생략된 border 중심선까지 source raster에 남는다. 640→620 재표본화 phase와 border `MulDiv` 양자화가 달라 검정 배경이 native 외곽선 바깥 1dot을 소유한다.
+- 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`에서 hybrid capture의 승인된 native border footprint만 셀 배경에서 제외해 배경과 border의 경계 소유권을 통일하고, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`에 검정 배경이 생략된 외곽 border 바깥으로 남지 않는 회귀 테스트를 추가한다. 특정 행·셀·품목 분기나 C++ 강제 흰색 후처리는 사용하지 않는다. 상태: 미검증.
+- 테스트 편집 완료: `hybrid capture reserves approved native border footprint`를 추가했다. 최초 1:1 정수 경계 테스트는 기존 구현에서도 통과해 FortuneSheet의 기본 rect rasterization 자체가 원인이라는 가설을 반증했다. 실제 장치 배율 `203.2/96`과 소수 셀 경계에서 raster `floor`와 native descriptor `round` 위상 차이를 재현하도록 강화했으며 구현 전 실패 확인 예정이다.
+- 구현 전 검증: 강화한 회귀 테스트는 경계 픽셀 white 기대가 false로 실패해 소수 경계의 raster/native 양자화 불일치를 재현했다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 편집 완료: 최초 셀 border 재계산 방식은 border가 인접 셀 한쪽에 귀속될 때 검정 배경 셀에서 선을 찾지 못해 회귀 테스트에 실패했다. 이를 제거하고 `FortuneHybridRenderPlan.candidates`의 승인된 `logicalPaintedFootprint`를 capture에 직접 전달한다. `_drawScreenshotCellBackground`는 실제 native footprint와 겹치는 배경만 비안티앨리어스 clip으로 제외하므로 병합·인접 셀 귀속·stroke width를 재추정하지 않는다. raster fallback border나 border가 없는 배경은 기존 `drawRect`를 유지하며 특정 셀 분기 및 출력 후 clear는 없다. 회귀 테스트 재실행 예정.
+- 집중 검증 완료: `C:/Flutter/bin/flutter.bat test test/fortune_print_capture_test.dart --plain-name "hybrid capture reserves approved native border footprint"` 통과. 소수 경계 바깥 raster coverage가 흰색이고 native footprint 안쪽의 검정 배경은 유지된다.
+- 다음 검증 예정: FortuneSheet 캡처 테스트 전체, 루트 `test/label_sheet_print_job_test.dart`, `/WX` Windows debug build를 순서대로 실행한다.
+- 포맷 및 패키지 검증 완료: 수정한 Dart 2개 파일을 `dart format`으로 정리했고, FortuneSheet 패키지에서 `C:/Flutter/bin/flutter.bat test test/fortune_print_capture_test.dart` 전체 10건 통과.
+- 앱 레벨 검증 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_print_job_test.dart`.
+- 앱 레벨 검증 완료: `C:/Flutter/bin/flutter.bat test test/label_sheet_print_job_test.dart` 전체 18건 통과. 수정 Dart 파일 `get_errors` 0건, `git diff --check` 통과.
+- 버전 편집 완료: `pubspec.yaml`을 `1.0.84`로 갱신했다.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 예정: Debug EXE FileVersion/ProductVersion, 전체 변경 파일 `get_errors`, `git diff --check`, stage 대상 점검.
+- 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.84`, 변경 파일 `get_errors` 0건, `git diff --check` 통과. 별도 임시 파일은 만들지 않았고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
+- 실물 검증 필요: v1.0.84로 동일 라벨을 출력해 제3·제9행 검정 띠의 맨 왼쪽 경계가 인접 흰 행 외곽선보다 1dot 왼쪽으로 나오지 않는지 확인한다. 다른 세로선의 fixed-X·1dot, native text, overflow-fit도 함께 유지돼야 한다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
+## 완료·실물 재검증 실패: source raster 검정 팽창 감소 v1.0.83
 - v1.0.82 실물 `.tmp/IMG_20260809_0009.png`에서도 제3·제9행 맨 왼쪽 외곽 세로선의 바깥 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_14-28-27.log`는 version `1.0.82`, `nativeBorderOuterClearPixels=73`을 확인해 바깥 1dot 강제 제거는 실행됐지만 효과가 없었다. 사용자 지적대로 증상 후처리이며 원인 해결이 아니므로 전부 제거했다.
 - FortuneSheet capture는 셀 배경을 정확한 셀 `Rect`에 먼저 그리고, 승인된 border edge만 source raster에서 생략한다. C++은 이 border 없는 640×480 raster를 620×480으로 줄이면서 destination 픽셀의 source 영역을 bitwise AND하는 소프트웨어 BLACKONWHITE를 사용했다.
 - 원인: BLACKONWHITE는 source 영역 중 하나라도 검정이면 destination을 검정으로 만들어 검정 셀 배경 경계를 수평으로 팽창시킨다. 과거 COLORONCOLOR에서 유실되던 1px border는 현재 source raster에서 생략되고 final-device 1dot으로 별도 합성되므로 이 보존 필터를 유지할 이유가 없다.

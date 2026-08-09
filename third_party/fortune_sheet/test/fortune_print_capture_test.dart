@@ -639,8 +639,20 @@ void main() {
         clipBottomMm: 20,
         nativeAllowed: true,
       ),
-      candidates: const [],
-      approvedCandidateTokens: const [],
+      candidates: const [
+        FortuneNativeCandidate(
+          token: 'left-border',
+          kind: FortuneNativeCandidateKind.cellBorder,
+          cellBorderEdgeKey: FortuneCellBorderEdgeKey(
+            axis: FortuneCellBorderEdgeAxis.vertical,
+            row: 0,
+            column: 1,
+          ),
+          logicalPaintedFootprint: ui.Rect.fromLTRB(19.7, 0, 20.7, 20),
+          printerPaintedFootprint: ui.Rect.fromLTRB(41.70, 0, 43.82, 42.34),
+        ),
+      ],
+      approvedCandidateTokens: const ['left-border'],
       approvedObjectKeys: const [],
       approvedCellBorderEdgeKeys: {
         const FortuneCellBorderEdgeKey(
@@ -668,6 +680,115 @@ void main() {
       _hasDarkPixelNear(pixels, width, height, width ~/ 2, height * 3 ~/ 4),
       isTrue,
     );
+  });
+
+  testWidgets('hybrid capture reserves approved native border footprint', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    const settings = FortuneSettings(
+      defaultRowHeight: 20,
+      defaultColWidth: 20.2,
+    );
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Sheet1',
+      rowCount: 1,
+      columnCount: 2,
+      defaultRowHeight: 20,
+      defaultColWidth: 20.2,
+      cells: {
+        const FortuneCellCoord(0, 1): const FortuneCell(
+          background: ui.Color(0xff000000),
+        ),
+      },
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-left',
+          color: ui.Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 1,
+              columnEnd: 1,
+            ),
+          ],
+        ),
+      ],
+    );
+    final workbook = FortuneWorkbook(settings: settings, sheets: [sheet]);
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 240,
+          height: 180,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final plan = FortuneHybridRenderPlan(
+      settings: settings,
+      sheet: sheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 1,
+      ),
+      transform: const FortunePrintTransform(
+        sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 40.4, 20),
+        dpi: 203.2,
+        contentLeftMm: 0,
+        contentTopMm: 0,
+        clipRightMm: 20,
+        clipBottomMm: 20,
+        nativeAllowed: true,
+      ),
+      candidates: const [],
+      approvedCandidateTokens: const [],
+      approvedObjectKeys: const [],
+      approvedCellBorderEdgeKeys: {
+        const FortuneCellBorderEdgeKey(
+          axis: FortuneCellBorderEdgeAxis.vertical,
+          row: 0,
+          column: 1,
+        ),
+      },
+      approvedCellTextCoords: const [],
+    );
+    final capture = await tester.runAsync(
+      () => controller.captureHybridPlanAsPng(
+        plan,
+        pixelRatio: 203.2 / fortuneSheetLogicalPixelsPerInch,
+        includeCellBorders: true,
+      ),
+    );
+
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    final width = capture!.pixelSize.width.toInt();
+    final scale = 203.2 / fortuneSheetLogicalPixelsPerInch;
+    final boundaryX = (20.2 * scale).floor();
+    final centerY = (10 * scale).round();
+    expect(_isWhite(pixels!, width, boundaryX, centerY), isTrue);
+    expect(_isBlack(pixels, width, boundaryX + 3, centerY), isTrue);
   });
 
   testWidgets('print capture includes typed lines and shapes', (tester) async {

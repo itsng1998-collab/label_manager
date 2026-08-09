@@ -16041,6 +16041,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSettings? settingsOverride,
     Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
     Set<FortuneCellBorderEdgeKey> omittedCellBorderEdgeKeys = const {},
+    Map<FortuneCellBorderEdgeKey, Rect> omittedCellBorderFootprints = const {},
     Set<FortuneCellCoord> omittedCellTextCoords = const {},
     Size? logicalClipSize,
   }) async {
@@ -16129,7 +16130,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           final conditionStyle = conditionStyles[anchor];
           final background = conditionStyle?.cellColor ?? cell?.background;
           if (background != null) {
-            canvas.drawRect(rect, Paint()..color = background);
+            _drawScreenshotCellBackground(
+              canvas,
+              rect,
+              background,
+              originX: originX,
+              originY: originY,
+              omittedBorderFootprints: omittedCellBorderFootprints.values,
+            );
           }
           if (conditionStyle?.dataBar case final dataBar?) {
             _drawScreenshotConditionDataBar(canvas, rect, dataBar);
@@ -16460,6 +16468,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       settingsOverride: plan.settings,
       omittedObjectKeys: plan.approvedObjectKeys,
       omittedCellBorderEdgeKeys: plan.approvedCellBorderEdgeKeys,
+      omittedCellBorderFootprints: {
+        for (final candidate in plan.candidates)
+          if (candidate.cellBorderEdgeKey case final edgeKey?
+              when plan.approvedCellBorderEdgeKeys.contains(edgeKey))
+            edgeKey: candidate.logicalPaintedFootprint,
+      },
       omittedCellTextCoords: plan.approvedCellTextCoords,
       logicalClipSize: plan.transform.sourceLogicalBounds.size,
     );
@@ -19125,6 +19139,34 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         clipBounds: clipBounds,
       );
     }
+  }
+
+  void _drawScreenshotCellBackground(
+    Canvas canvas,
+    Rect rect,
+    Color background, {
+    required double originX,
+    required double originY,
+    required Iterable<Rect> omittedBorderFootprints,
+  }) {
+    final paint = Paint()..color = background;
+    if (omittedBorderFootprints.isEmpty) {
+      canvas.drawRect(rect, paint);
+      return;
+    }
+
+    canvas.save();
+    for (final logicalFootprint in omittedBorderFootprints) {
+      final footprint = logicalFootprint.translate(-originX, -originY);
+      if (!footprint.overlaps(rect)) continue;
+      canvas.clipRect(
+        footprint,
+        clipOp: ui.ClipOp.difference,
+        doAntiAlias: false,
+      );
+    }
+    canvas.drawRect(rect, paint);
+    canvas.restore();
   }
 
   FortuneCellBorders? _screenshotRenderedCellBorders({
