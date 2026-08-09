@@ -10,6 +10,7 @@
 - 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 버전 `1.0.75`; Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.0.75`.
 - 실물 로그 판별: `nativeBorderDescriptors`가 표의 승인 가능한 검정 실선 edge 전체 수와 같고, Windows diagnostics가 `nativeBorderThickness=oneDeviceDot`, `nativeBorderComposite=bitmapMask`, `nativeBordersDrawn` 동일 수여야 한다. 지정 외곽 교차점 돌출은 없어야 하며 모든 세로선은 행 전체에서 동일 X의 1dot이어야 한다.
 - 커밋 대상: `third_party/fortune_sheet/lib/src/fortune_print_plan.dart`, `third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`, `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `9cf4183` (`모든 표 테두리를 1dot 실선으로 출력`).
 
 ## 완료·실물 검증 대기: 외곽 세로선 교차점 돌출 제거 v1.0.74
 - 실물 재비교: `.tmp/IMG_v1.0.73.png`의 세 번째 행 맨 왼쪽 외곽 세로선에는 각 가로 행 경계 위치마다 바깥쪽 돌출 픽셀이 반복되지만, `.tmp/IMG_v1.0.44.png`의 같은 위치에는 없다. 따라서 이전의 `프린터 열전사 번짐으로 개선 불가` 결론은 이 현상에 대해서는 철회한다.
