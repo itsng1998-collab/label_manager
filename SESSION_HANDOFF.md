@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 외곽 개선 유지 + 전체 세로선 final device 1dot v1.0.75
+- v1.0.74 실물 `.tmp/IMG_20260809_0001.png`: 지정한 세 번째 행 맨 왼쪽 외곽 교차점 돌출은 개선됐지만, 모든 border를 source raster로 복원하면서 640→620 축소에 의해 다른 세로선의 X가 행별로 이동하는 지그재그와 1dot보다 두꺼운 선이 재현됐다.
+- 원인: FortuneSheet cell border candidate는 1px stroke footprint가 printer clip 밖으로 0.5px라도 나가면 외곽선을 후보에서 제외했다. v1.0.73의 final device 1dot mask에는 내부선만 들어가고 외곽선은 source raster에 남아 혼합 교차점 돌출이 발생했다. v1.0.74는 혼합을 없앴지만 전체 source raster 축소 회귀를 만들었다.
+- 일반화 수정: 공용 `_buildCellBorderCandidates`에서 border footprint가 clip과 교차하면 clipped footprint로 후보를 유지한다. Windows descriptor 좌표는 clipped footprint 중심이 아니라 sheet row/column의 실제 logical boundary를 printer dot으로 변환한다.
+- 결과 구조: 모든 승인 가능한 검정 실선 cell border의 외곽·내부 가로/세로선이 source raster에서 함께 생략되고, C++ final device bitmap mask에서 정확히 1dot으로 함께 합성된다. 지정 외곽 교차점은 동일 mask 소유권을 유지하고, 다른 세로선은 source 640→target 620 축소를 거치지 않는다. 특정 셀·행·품목 분기 없음.
+- `fortune_print_plan.dart`: clip에 일부 걸친 외곽 border candidate 유지. `label_sheet_print_job.dart`: 실제 grid boundary 기반 1dot descriptor 복원. 테스트 2개에 clip 외곽 네 변 후보, descriptor 4개 승인, 1dot 두께, half-open 네 모서리 접합 계약 추가.
+- 단일 셀 외곽 네 변 및 2×2 다중 행 세로 boundary focused 테스트 통과. 출력 준비·dispatch·session·설정·pipeline과 FortuneSheet capture/plan 관련 7개 파일 81건 모두 통과. 최종 `label_sheet_print_job_test.dart` 전체 18건 재통과.
+- 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 버전 `1.0.75`; Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.0.75`.
+- 실물 로그 판별: `nativeBorderDescriptors`가 표의 승인 가능한 검정 실선 edge 전체 수와 같고, Windows diagnostics가 `nativeBorderThickness=oneDeviceDot`, `nativeBorderComposite=bitmapMask`, `nativeBordersDrawn` 동일 수여야 한다. 지정 외곽 교차점 돌출은 없어야 하며 모든 세로선은 행 전체에서 동일 X의 1dot이어야 한다.
+- 커밋 대상: `third_party/fortune_sheet/lib/src/fortune_print_plan.dart`, `third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`, `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 외곽 세로선 교차점 돌출 제거 v1.0.74
 - 실물 재비교: `.tmp/IMG_v1.0.73.png`의 세 번째 행 맨 왼쪽 외곽 세로선에는 각 가로 행 경계 위치마다 바깥쪽 돌출 픽셀이 반복되지만, `.tmp/IMG_v1.0.44.png`의 같은 위치에는 없다. 따라서 이전의 `프린터 열전사 번짐으로 개선 불가` 결론은 이 현상에 대해서는 철회한다.
 - 원인: v1.0.44는 모든 cell border를 최종 FortuneSheet raster 한 장에서 함께 그렸다. v1.0.73은 clip 외곽의 왼쪽 세로선은 raster에 남고 승인된 가로선은 native border descriptor로 분리되어, 서로 다른 rasterization의 교차점에서 가로선 끝점이 외곽 세로선 바깥으로 반복 돌출됐다.

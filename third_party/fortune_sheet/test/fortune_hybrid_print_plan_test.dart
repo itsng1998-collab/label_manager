@@ -142,6 +142,60 @@ void main() {
     expect(plan.approvedCellBorderEdgeKeys, isEmpty);
   });
 
+  test('cell borders intersecting the printer clip remain candidates', () {
+    final borderSheet = FortuneSheet(
+      id: 'clip-border',
+      name: 'Clip Border',
+      rowCount: 1,
+      columnCount: 1,
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-all',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 0,
+              columnEnd: 0,
+            ),
+          ],
+        ),
+      ],
+    );
+    final borders = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: borderSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 0,
+      ),
+      transform: transform,
+    ).where(
+      (candidate) => candidate.kind == FortuneNativeCandidateKind.cellBorder,
+    );
+
+    expect(borders, hasLength(4));
+    expect(
+      borders.where(
+        (candidate) => candidate.cellBorderEdgeKey?.column == 0,
+      ),
+      isNotEmpty,
+    );
+    expect(
+      borders.every(
+        (candidate) => transform.printerClipDots.contains(
+          candidate.printerPaintedFootprint.center,
+        ),
+      ),
+      isTrue,
+    );
+  });
+
   test('dynamic computed text is materialized for native print candidates', () {
     final dynamicSheet = FortuneSheet(
       id: 'dynamic-text',

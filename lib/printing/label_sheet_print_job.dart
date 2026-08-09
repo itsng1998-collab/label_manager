@@ -717,6 +717,34 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   final approvedTextCandidates = <String, FortuneNativeCandidate>{};
   if (options.orientation == LabelSheetPrintOrientation.horizontal) {
     for (final candidate in candidates) {
+      if (candidate.kind != FortuneNativeCandidateKind.cellBorder) continue;
+      final edge = candidate.cellBorderEdgeKey!;
+      final horizontal = edge.axis == FortuneCellBorderEdgeAxis.horizontal;
+      final footprint = geometry.transform.logicalRectToPrinterDots(
+        candidate.logicalPaintedFootprint,
+      );
+      final left = horizontal ? footprint.left.round() : footprint.center.dx.round();
+      final top = horizontal ? footprint.center.dy.round() : footprint.top.round();
+      final right = horizontal ? footprint.right.round() : left + 1;
+      final bottom = horizontal ? top + 1 : footprint.bottom.round();
+      if (right <= left || bottom <= top) continue;
+      borderDescriptors.add(
+        LabelSheetWindowsBorderDescriptor(
+          candidateToken: candidate.token,
+          horizontal: horizontal,
+          boundaryIndex: horizontal ? edge.row : edge.column,
+          thicknessDots: 1,
+          left: left,
+          top: top,
+          right: right,
+          bottom: bottom,
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+        ),
+      );
+    }
+  }
+  if (options.orientation == LabelSheetPrintOrientation.horizontal) {
+    for (final candidate in candidates) {
       if (candidate.kind != FortuneNativeCandidateKind.cellText ||
           candidate.cellCoord == null) {
         continue;

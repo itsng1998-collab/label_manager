@@ -287,7 +287,7 @@ void main() {
     );
   });
 
-  test('Windows hybrid keeps cell borders in one raster surface', () {
+  test('Windows hybrid moves all cell borders to one device mask', () {
     final preparation = prepareLabelSheetWindowsHybridPrint(
       sheet: fs.FortuneSheet(
         id: 'sheet',
@@ -332,8 +332,104 @@ void main() {
       lineSpacingPercent: null,
     );
 
-    expect(preparation.borderDescriptors, isEmpty);
-    expect(preparation.plan.approvedCellBorderEdgeKeys, isEmpty);
+    expect(preparation.borderDescriptors, hasLength(4));
+    expect(preparation.plan.approvedCellBorderEdgeKeys, hasLength(4));
+    expect(
+      preparation.borderDescriptors.map(
+        (descriptor) => descriptor.thicknessDots,
+      ),
+      everyElement(1),
+    );
+    final vertical = preparation.borderDescriptors
+        .where((descriptor) => !descriptor.horizontal)
+        .toList();
+    final horizontal = preparation.borderDescriptors
+        .where((descriptor) => descriptor.horizontal)
+        .toList();
+    expect(vertical.map((descriptor) => descriptor.left), contains(0));
+    expect(horizontal.map((descriptor) => descriptor.left), everyElement(0));
+    final right = vertical.reduce(
+      (current, descriptor) =>
+          descriptor.left > current.left ? descriptor : current,
+    );
+    final bottom = horizontal.reduce(
+      (current, descriptor) =>
+          descriptor.top > current.top ? descriptor : current,
+    );
+    expect(
+      horizontal.map((descriptor) => descriptor.right),
+      everyElement(right.left),
+    );
+    expect(vertical.map((descriptor) => descriptor.top), everyElement(0));
+    expect(
+      vertical.map((descriptor) => descriptor.bottom),
+      everyElement(bottom.top),
+    );
+  });
+
+  test('Windows device mask keeps vertical boundaries fixed across rows', () {
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'multi-row-border',
+        name: 'Multi-row Border',
+        rowCount: 2,
+        columnCount: 2,
+        borderInfo: const [
+          fs.FortuneBorderInfo(
+            rangeType: 'range',
+            borderType: 'border-all',
+            color: Color(0xff000000),
+            style: 1,
+            ranges: [
+              fs.FortuneRange(
+                rowStart: 0,
+                rowEnd: 1,
+                columnStart: 0,
+                columnEnd: 1,
+              ),
+            ],
+          ),
+        ],
+      ),
+      settings: const fs.FortuneSettings(
+        defaultRowHeight: 18,
+        defaultColWidth: 31,
+      ),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 20,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 20,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+      lineSpacingPercent: null,
+    );
+
+    expect(preparation.borderDescriptors, hasLength(12));
+    expect(preparation.plan.approvedCellBorderEdgeKeys, hasLength(12));
+    final vertical = preparation.borderDescriptors.where(
+      (descriptor) => !descriptor.horizontal,
+    );
+    final positionsByBoundary = <int, Set<int>>{};
+    for (final descriptor in vertical) {
+      positionsByBoundary
+          .putIfAbsent(descriptor.boundaryIndex, () => <int>{})
+          .add(descriptor.left);
+      expect(descriptor.right - descriptor.left, 1);
+      expect(descriptor.thicknessDots, 1);
+    }
+    expect(positionsByBoundary, hasLength(3));
+    expect(positionsByBoundary.values, everyElement(hasLength(1)));
   });
 
   test('Windows hybrid output geometry ignores preview zoom', () {

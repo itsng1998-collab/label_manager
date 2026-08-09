@@ -733,15 +733,13 @@ List<FortuneNativeCandidate> _buildCellBorderCandidates({
         rawOverlayFootprints.any((raw) => raw.overlaps(logicalFootprint))) {
       continue;
     }
-    final printerFootprint = transform.logicalRectToPrinterDots(
+    final transformedPrinterFootprint = transform.logicalRectToPrinterDots(
       logicalFootprint,
     );
-    if (!_sameRect(
-      printerFootprint.intersect(transform.printerClipDots),
-      printerFootprint,
-    )) {
-      continue;
-    }
+    final printerFootprint = transformedPrinterFootprint.intersect(
+      transform.printerClipDots,
+    );
+    if (printerFootprint.isEmpty) continue;
     candidates.add(
       FortuneNativeCandidate(
         token: 'border:${entry.key.axis.name}:${entry.key.row}:'
