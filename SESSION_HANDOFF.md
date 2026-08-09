@@ -8,6 +8,7 @@
 - diagnostics를 `sourceRasterResample=nearestCenter`, `stretchMode=COLORONCOLOR_1TO1`로 변경한다. 기존 `nativeBorderJunction=singleFinalDeviceBitmap`, `nativeBorderComposite=finalDeviceBitmap`, native text 경로는 유지한다. 버전 `1.0.83`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 직후·버전 반영·1:1 출력 모드 정리 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.83`, `get_errors` 0건, `git diff --check` 통과. 강제 외곽 clear와 영역 AND 축소 코드가 없는 것도 확인했다. 실물에서 제3·제9행 왼쪽 돌출이 제거되고 다른 세로선·1dot 및 raster fallback 품질이 유지되는지 확인이 필요하다.
 - 기능 커밋: `8a4bd2f` (`인쇄 래스터의 검정 팽창을 제거`).
 - 실물 검증: `.tmp/IMG_20260809_0009.png`는 생성 시각 14:29:33으로 v1.0.82 출력이며, 검정 행에서 왼쪽 최초 검정 픽셀이 정상 X=1156~1157보다 X=1150~1151로 5~7 image px 돌출됐다. `.tmp/IMG_20260809_0010.png`는 v1.0.83 출력 로그 14:34:30 직후 생성됐고, 전체 왼쪽 경계가 X=1161~1165 범위에 연속 분포해 검정 행만의 별도 왼쪽 돌출 군집이 사라졌다. 육안과 픽셀 추적 모두 지정 돌출 제거를 확인했다.
+- 실물 검증 커밋: `61e25af` (`1.0.83 외곽선 실물 검증 기록`).
 
 ## 완료·실물 검증 대기: final bitmap 외곽 바깥 1dot overflow 제거 v1.0.82
 - v1.0.81 실물 `.tmp/IMG_20260809_0008.png`에서 v1.80의 안쪽 흰 세로선은 사라졌지만 제3·제9행 맨 왼쪽 외곽선의 바깥 돌출은 남았다. 로그 `.tmp/log/app_2026-08-09_13-49-20.log`는 version `1.0.81`, `stretchMode=softwareBLACKONWHITE`, `nativeBorderJunction=singleFinalDeviceBitmap`, border `225/225`를 확인해 단일 bitmap 경로는 정상 적용됐다.
