@@ -1,5 +1,13 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 외곽 가로 endpoint 1dot 오차 정렬 v1.0.77
+- v1.0.76 실물 `.tmp/IMG_20260809_0003.png`에도 세 번째 행 맨 왼쪽 외곽 세로선의 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_12-42-28.log`는 `nativeBorderJunctionTrims=31`과 border `225/225`를 확인해 overlap trim은 실행됐지만 지정 현상에는 효과가 없었다.
+- v1.74·75·76 동일 해상도 사진에서 각 Y의 표 왼쪽 첫 검정 픽셀을 추적했다. v1.74는 원근 기울기만 있는 매끄러운 X 궤적이고, v1.75·76은 행 경계에서 왼쪽으로 1 device dot에 해당하는 약 4~7 image px 급락이 반복됐다.
+- 원인 정정: v1.76의 overlap-only trim은 최종 mask OR 결과를 바꾸지 않으며, 지정 외곽 가로 endpoint는 세로선과 겹친 것이 아니라 device 양자화 후 왼쪽으로 1dot 어긋나 조건에도 잡히지 않았다. 해당 방식은 코드에 재사용 금지 코멘트를 남기고 제거했다.
+- 일반화 수정: 가로 endpoint와 해당 Y를 덮는 세로 boundary의 final device X 차이가 ±1dot이면 세로선 위치로 snap한다. 왼쪽 endpoint는 세로선 오른쪽부터 시작하고 오른쪽 endpoint는 세로선 왼쪽에서 끝난다. 세로선 X·1dot 두께는 변경하지 않으며, trim 후 최소 길이 조건도 유지한다.
+- diagnostics를 `nativeBorderJunction=snapToVertical`, `nativeBorderJunctionSnaps`로 변경했다. 버전 `1.0.77`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE `FileVersion/ProductVersion=1.0.77`, `get_errors` 0건, `git diff --check` 통과. 실물 출력에서 지정 외곽 돌출 제거와 나머지 세로선·1dot 유지 확인이 필요하다.
+- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 외곽 왼쪽 교차점 돌출 제거 v1.0.76
 - v1.0.75 실물 `.tmp/IMG_20260809_0002.png`: 다른 세로선의 행별 지그재그는 사라지고 전체 테두리 `1px == 1dot`은 충족했다. 다만 세 번째 행 맨 왼쪽 외곽 세로선은 가로 행 경계마다 바깥쪽 돌출이 다시 보인다.
 - 최신 로그 `.tmp/log/app_2026-08-09_12-35-07.log`: version `1.0.75`, `nativeBorderDescriptors=225`, `nativeBordersRequested=225`, `nativeBordersDrawn=225`, `nativeBorderThickness=oneDeviceDot`, `nativeBorderComposite=bitmapMask`로 외곽 포함 전체 border가 final device mask에 적용됐고 source raster 중복은 없다.

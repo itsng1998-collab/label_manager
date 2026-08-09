@@ -423,7 +423,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         device_borders.push_back(
             DeviceBorderRect{device_rect, descriptor.horizontal, 1});
       }
-      int native_border_junction_trims = 0;
+      int native_border_junction_snaps = 0;
       for (auto& horizontal_border : device_borders) {
         if (!horizontal_border.horizontal) continue;
         for (const auto& vertical_border : device_borders) {
@@ -432,17 +432,21 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               vertical_border.rect.bottom < horizontal_border.rect.bottom) {
             continue;
           }
-          if (horizontal_border.rect.left >= vertical_border.rect.left &&
-              horizontal_border.rect.left < vertical_border.rect.right &&
+          // v1.0.76의 overlap-only trim은 1dot 어긋난 외곽 endpoint를
+          // 잡지 못했으므로 재사용하지 않는다.
+          const LONG left_delta =
+              horizontal_border.rect.left - vertical_border.rect.left;
+          if (left_delta >= -1 && left_delta <= 1 &&
               vertical_border.rect.right < horizontal_border.rect.right) {
             horizontal_border.rect.left = vertical_border.rect.right;
-            ++native_border_junction_trims;
+            ++native_border_junction_snaps;
           }
-          if (horizontal_border.rect.right > vertical_border.rect.left &&
-              horizontal_border.rect.right <= vertical_border.rect.right &&
+          const LONG right_delta =
+              horizontal_border.rect.right - vertical_border.rect.left;
+          if (right_delta >= -1 && right_delta <= 1 &&
               vertical_border.rect.left > horizontal_border.rect.left) {
             horizontal_border.rect.right = vertical_border.rect.left;
-            ++native_border_junction_trims;
+            ++native_border_junction_snaps;
           }
         }
       }
@@ -665,9 +669,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
-                  << " nativeBorderJunction=verticalOwnsIntersection"
-                  << " nativeBorderJunctionTrims="
-                  << native_border_junction_trims
+                  << " nativeBorderJunction=snapToVertical"
+                  << " nativeBorderJunctionSnaps="
+                  << native_border_junction_snaps
                   << " nativeBorderComposite="
                   << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
                   << " nativeBorderMaskLines=" << native_border_mask_lines
