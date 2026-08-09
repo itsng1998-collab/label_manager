@@ -6,7 +6,7 @@
 - 원인: BLACKONWHITE는 source 영역 중 하나라도 검정이면 destination을 검정으로 만들어 검정 셀 배경 경계를 수평으로 팽창시킨다. 과거 COLORONCOLOR에서 유실되던 1px border는 현재 source raster에서 생략되고 final-device 1dot으로 별도 합성되므로 이 보존 필터를 유지할 이유가 없다.
 - 일반화 수정: v1.82의 외곽 강제 clear를 제거하고, source raster를 destination 픽셀 중심 기준 nearest sampling으로 축소한다. 셀 배경의 논리 경계를 팽창시키지 않은 최종 bitmap에 기존 final-device 1dot border를 합성한다. 특정 행·셀·색상·품목 분기 없음.
 - diagnostics를 `sourceRasterResample=nearestCenter`, `stretchMode=COLORONCOLOR_1TO1`로 변경한다. 기존 `nativeBorderJunction=singleFinalDeviceBitmap`, `nativeBorderComposite=finalDeviceBitmap`, native text 경로는 유지한다. 버전 `1.0.83`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 직후·버전 반영·1:1 출력 모드 정리 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.83`, `get_errors` 0건, `git diff --check` 통과. 강제 외곽 clear와 영역 AND 축소 코드가 없는 것도 확인했다. 실물에서 제3·제9행 왼쪽 돌출이 제거되고 다른 세로선·1dot 및 raster fallback 품질이 유지되는지 확인이 필요하다.
-- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `8a4bd2f` (`인쇄 래스터의 검정 팽창을 제거`).
 
 ## 완료·실물 검증 대기: final bitmap 외곽 바깥 1dot overflow 제거 v1.0.82
 - v1.0.81 실물 `.tmp/IMG_20260809_0008.png`에서 v1.80의 안쪽 흰 세로선은 사라졌지만 제3·제9행 맨 왼쪽 외곽선의 바깥 돌출은 남았다. 로그 `.tmp/log/app_2026-08-09_13-49-20.log`는 version `1.0.81`, `stretchMode=softwareBLACKONWHITE`, `nativeBorderJunction=singleFinalDeviceBitmap`, border `225/225`를 확인해 단일 bitmap 경로는 정상 적용됐다.
