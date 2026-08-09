@@ -415,6 +415,8 @@ bool RenderNativeTextIntoBitmap(
   GdiFlush();
   constexpr int sample_count =
       kNativeTextSupersample * kNativeTextSupersample;
+  // 4x4 box average → 그레이스케일 버퍼
+  std::vector<int> gray(target_width * target_height);
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
       int luminance_sum = 0;
@@ -432,10 +434,28 @@ bool RenderNativeTextIntoBitmap(
               8;
         }
       }
-      const uint8_t monochrome =
-          luminance_sum < kNativeTextMonochromeThreshold * sample_count
-              ? 0
-              : 255;
+      gray[y * target_width + x] = luminance_sum / sample_count;
+    }
+  }
+  // Floyd-Steinberg 오차 확산 – 흑/백 배경 모두 글리프 엣지 픽셀 균등 보존
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      const int old_val = gray[y * target_width + x];
+      const int new_val = old_val < kNativeTextMonochromeThreshold ? 0 : 255;
+      const int fs_error = old_val - new_val;
+      if (fs_error != 0) {
+        auto spread = [&](int nx, int ny, int num) {
+          if (nx >= 0 && nx < target_width && ny < target_height)
+            gray[ny * target_width + nx] = std::max(
+                0, std::min(255, gray[ny * target_width + nx] +
+                                     fs_error * num / 16));
+        };
+        spread(x + 1, y,     7);
+        spread(x - 1, y + 1, 3);
+        spread(x,     y + 1, 5);
+        spread(x + 1, y + 1, 1);
+      }
+      const uint8_t monochrome = static_cast<uint8_t>(new_val);
       const size_t target_offset =
           (static_cast<size_t>(y) * target_width + x) * 4;
       if (bitmap[target_offset] != monochrome ||
@@ -621,7 +641,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=ANTIALIASED_QUALITY"
               << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=supersample4xBoxMonochrome128"
+              << " nativeTextRaster=supersample4xFloydSteinberg"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
