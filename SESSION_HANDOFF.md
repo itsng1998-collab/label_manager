@@ -6,7 +6,7 @@
 - 원인 정정: v1.76의 overlap-only trim은 최종 mask OR 결과를 바꾸지 않으며, 지정 외곽 가로 endpoint는 세로선과 겹친 것이 아니라 device 양자화 후 왼쪽으로 1dot 어긋나 조건에도 잡히지 않았다. 해당 방식은 코드에 재사용 금지 코멘트를 남기고 제거했다.
 - 일반화 수정: 가로 endpoint와 해당 Y를 덮는 세로 boundary의 final device X 차이가 ±1dot이면 세로선 위치로 snap한다. 왼쪽 endpoint는 세로선 오른쪽부터 시작하고 오른쪽 endpoint는 세로선 왼쪽에서 끝난다. 세로선 X·1dot 두께는 변경하지 않으며, trim 후 최소 길이 조건도 유지한다.
 - diagnostics를 `nativeBorderJunction=snapToVertical`, `nativeBorderJunctionSnaps`로 변경했다. 버전 `1.0.77`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE `FileVersion/ProductVersion=1.0.77`, `get_errors` 0건, `git diff --check` 통과. 실물 출력에서 지정 외곽 돌출 제거와 나머지 세로선·1dot 유지 확인이 필요하다.
-- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `aed750d` (`외곽선 교차점 1도트 오차 정렬`).
 
 ## 완료·실물 검증 대기: 외곽 왼쪽 교차점 돌출 제거 v1.0.76
 - v1.0.75 실물 `.tmp/IMG_20260809_0002.png`: 다른 세로선의 행별 지그재그는 사라지고 전체 테두리 `1px == 1dot`은 충족했다. 다만 세 번째 행 맨 왼쪽 외곽 세로선은 가로 행 경계마다 바깥쪽 돌출이 다시 보인다.
