@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 굴림 overflow 장평 왜곡 제거 v1.0.87
+- v1.0.86 실물 `.tmp/IMG_20260809_0014.png`은 표와 모든 굴림 텍스트가 출력됐고 마지막 행 `반품 및 교환...`은 품질이 좋지만, 다른 한글 다수는 획이 뭉개지고 장평이 불균일하다. 로그 `.tmp/log/app_2026-08-09_15-36-07.log`는 `nativeTextDrawn=36`, `nativeTextFailed=0`, `nativeTextFitted=13`, `nativeTextBitmapChangedPixels=20044`, memory-DIB 합성 적용을 확인한다.
+- 마지막 행을 포함해 출력된 텍스트는 모두 v1.0.86 memory-DIB 경로다. 품질 차이의 제어 변수는 36개 중 13개 overflow descriptor에만 적용되는 `LOGFONT.lfWidth` 수평 장평 축소다. 과거 v1.0.64에서도 광범위한 `lfWidth` 보정이 셀별 장평·품질 회귀를 만들었으므로 같은 실패 방식을 재사용하지 않는다.
+- `windows/runner/label_bitmap_print_channel.cpp` 편집 완료: overflow 대상은 `lfWidth`를 바꾸지 않고 `lfHeight`를 줄여 폭·높이를 같은 비율로 축소한다. 최대 4회 실측 fit과 2dot 안전 폭은 유지하고, v1.0.86 helper 이동에서 누락된 `kNativeTextRightOverhangDots=1`도 복원했다. diagnostics에 `nativeTextFitMode=uniformScale`을 추가했다. 특정 셀·행·문구 분기 없음.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 출력 관련 5개 테스트 파일 18건 통과, 변경 파일 diagnostics 오류 0건. `fitted_width`와 실행 중 비영(非零) `lfWidth` 대입이 남지 않은 것을 확인했다.
+- 버전 편집 완료: `pubspec.yaml`을 `1.0.87`로 갱신했다.
+- 1.0.87 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.87`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 변경 대상은 출력 C++, 버전, 이 문서 3개뿐이며 별도 임시 파일은 만들지 않았다.
+- C++ 들여쓰기 정렬 후 최종 소스로 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. stage/commit 대상은 `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md` 3개다.
+- 실물 판별: 로그에 `nativeTextComposite=finalDeviceBitmap`, `nativeTextFitMode=uniformScale`, `nativeTextFailed=0`, `nativeTextBitmapChangedPixels>0`가 있어야 한다. 마지막 행과 다른 한글이 같은 굴림 원래 비율로 보여야 하며, overflow 13개는 필요하면 폭·높이가 함께 작아질 수 있지만 가로만 찌그러지면 안 된다. 표의 fixed-X·1dot border와 제3·제9행 외곽선은 v1.0.85 상태를 유지해야 한다.
+
 ## 완료·실물 검증 대기: G500 resident 굴림 대체로 사라지는 native text 수정 v1.0.86
 - v1.0.85 실물 `.tmp/IMG_20260809_0013.png`은 표·배경은 정상이나 글꼴을 모두 `굴림`으로 바꾼 뒤 텍스트가 전혀 출력되지 않았다. 로그 `.tmp/log/app_2026-08-09_15-15-31.log`는 `version=1.0.85`, `nativeTextRequested=36`, `nativeTextFonts=굴림`, `nativeTextDrawn=36`, `nativeTextFailed=0`, `nativeTextFitted=13`으로 앱과 `DrawTextW`는 성공 처리했다.
 - Windows에는 `gulim.ttc`와 굴림 family가 정상 설치돼 있고 메모리 bitmap GDI 렌더는 `Resolved=굴림`, `InkPixels=297`로 정상이다. 사용자는 G500 드라이버 프린터 설정에도 내장 굴림을 설치했다. 따라서 Seagull 11.6 드라이버가 printer DC의 `CreateFontW("굴림")`을 resident font로 대체한 뒤 Unicode `DrawTextW`를 성공 반환하면서 실제 spool glyph는 버리는 것이 현재 가설이다.

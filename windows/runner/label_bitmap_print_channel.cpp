@@ -18,6 +18,8 @@ using EncodableMap = flutter::EncodableMap;
 using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
+constexpr LONG kNativeTextRightOverhangDots = 1;
+
 std::wstring Utf8ToWide(const std::string& value);
 
 const std::string* StringArg(const EncodableMap& args, const char* key) {
@@ -342,16 +344,14 @@ bool RenderNativeTextIntoBitmap(
     const LONG measured_width = measured.right - measured.left;
     if (!descriptor.wrap && measured_width > available_width &&
         available_width > 0) {
-      TEXTMETRICW text_metrics{};
       LOGFONTW log_font{};
-      if (GetTextMetricsW(memory_dc, &text_metrics) != 0 &&
-          GetObjectW(font, sizeof(log_font), &log_font) != 0) {
+      if (GetObjectW(font, sizeof(log_font), &log_font) != 0) {
         const LONG desired_width = std::max(1L, available_width - 2);
-        int fitted_width = std::max(
-            1, MulDiv(text_metrics.tmAveCharWidth, desired_width,
-                      measured_width));
+        int fitted_height = std::max(
+            1, MulDiv(font_pixel_height, desired_width, measured_width));
         for (int attempt = 0; attempt < 4; ++attempt) {
-          log_font.lfWidth = fitted_width;
+          log_font.lfHeight = -fitted_height;
+          log_font.lfWidth = 0;
           HFONT next_fitted_font = CreateFontIndirectW(&log_font);
           if (next_fitted_font == nullptr) break;
           SelectObject(memory_dc, next_fitted_font);
@@ -363,11 +363,12 @@ bool RenderNativeTextIntoBitmap(
                     flags | DT_CALCRECT);
           const LONG fitted_measured_width = measured.right - measured.left;
           if (fitted_measured_width <= desired_width) break;
-          const int next_width = std::max(
-              1, MulDiv(fitted_width, desired_width, fitted_measured_width));
-          fitted_width = next_width < fitted_width
-                             ? next_width
-                             : std::max(1, fitted_width - 1);
+          const int next_height = std::max(
+              1, MulDiv(fitted_height, desired_width,
+                        fitted_measured_width));
+          fitted_height = next_height < fitted_height
+                              ? next_height
+                              : std::max(1, fitted_height - 1);
         }
         if (fitted_font != nullptr) ++stats.fitted;
       }
@@ -379,6 +380,7 @@ bool RenderNativeTextIntoBitmap(
       text_rect.top += std::max<LONG>(
           0, (text_rect.bottom - text_rect.top - text_height) / 2);
     }
+    text_rect.right += kNativeTextRightOverhangDots;
     const int draw_result = DrawTextW(
         memory_dc, descriptor.text.c_str(),
         static_cast<int>(descriptor.text.size()), &text_rect, flags);
@@ -575,6 +577,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << native_text_max_height
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
+              << " nativeTextFitMode=uniformScale"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
