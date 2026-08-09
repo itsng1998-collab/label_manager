@@ -9,6 +9,7 @@
 - 버전 `1.0.76`; 출력 job 전체 18건 통과. C++ 수정 직후와 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 모두 성공. Debug EXE FileVersion/ProductVersion 모두 `1.0.76`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
 - 실물 로그 판별: 기존 `nativeBorderThickness=oneDeviceDot`, `nativeBorderComposite=bitmapMask`, border 요청/출력 수 일치에 더해 `nativeBorderJunction=verticalOwnsIntersection`, `nativeBorderJunctionTrims` 양수가 기록되어야 한다. 다른 세로선의 동일 X·1dot을 유지하면서 왼쪽 외곽 행 교차점의 돌출만 없어야 한다.
 - 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `a2d84b3` (`외곽선 교차점 돌출을 제거`).
 
 ## 완료·실물 검증 대기: 외곽 개선 유지 + 전체 세로선 final device 1dot v1.0.75
 - v1.0.74 실물 `.tmp/IMG_20260809_0001.png`: 지정한 세 번째 행 맨 왼쪽 외곽 교차점 돌출은 개선됐지만, 모든 border를 source raster로 복원하면서 640→620 축소에 의해 다른 세로선의 X가 행별로 이동하는 지그재그와 1dot보다 두꺼운 선이 재현됐다.
