@@ -1,5 +1,12 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 외곽 endpoint 2dot clearance v1.0.79
+- v1.0.78 실물 `.tmp/IMG_20260809_0005.png`에서도 세 번째·아홉 번째 행 맨 왼쪽 외곽 세로선의 바깥 돌출 점선이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_12-54-08.log`는 version `1.0.78`, border `225/225`, `nativeBorderOuterEndpointGuards=28`을 확인해 병합 후 guard는 실제 적용됐다.
+- v1.0.77·78 동일 해상도 사진의 지정 경계 최초 검정 픽셀을 비교하면 일부 X 형상은 오른쪽으로 이동해 1dot guard가 mask에 영향을 줬지만 돌출 제거에는 부족했다. 코드 미적용이나 중복 segment 재채움이 아니라 1dot 흰 간격으로 교차부 열 누적을 상쇄하지 못한 결과다.
+- v1.0.78의 1dot guard는 재사용하지 않는다고 코드에 명시했다. 병합된 가로선의 외곽 endpoint에만 세로선과 2 device dot 흰 clearance를 두도록 확대했다. 내부 교차점은 endpoint가 아니므로 변경하지 않고, 세로선 X·1dot 두께와 native text는 그대로 유지한다.
+- diagnostics에 `nativeBorderOuterEndpointClearance=twoDeviceDots`를 추가했다. 버전 `1.0.79`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 직후와 버전 반영 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.79`, `get_errors` 0건, `git diff --check` 통과. 실물 출력에서 제3·제9행 왼쪽 돌출 제거와 나머지 세로선·1dot 유지 확인이 필요하다.
+- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 병합 후 외곽 endpoint 1dot guard v1.0.78
 - v1.0.77 실물 `.tmp/IMG_20260809_0004.png`에서 세 번째·아홉 번째 행 맨 왼쪽 외곽 세로선의 바깥 돌출 점선이 그대로 재현됐다. 로그 `.tmp/log/app_2026-08-09_12-47-58.log`는 version `1.0.77`, border `225/225`, `nativeBorderJunctionSnaps=62`를 확인해 코드 미적용 문제가 아니다.
 - 사진 픽셀 추적에서 외곽 세로선의 정상 X는 약 1159~1162지만 해당 행 경계에서만 1154~1157까지 왼쪽 검정 픽셀이 생겼다. 세로 segment 전체가 행별로 이동한 것이 아니라 가로선 endpoint 교차부 형상이다.
