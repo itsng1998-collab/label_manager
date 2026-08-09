@@ -20,6 +20,7 @@
 - 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.84`, 변경 파일 `get_errors` 0건, `git diff --check` 통과. 별도 임시 파일은 만들지 않았고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
 - 실물 검증 필요: v1.0.84로 동일 라벨을 출력해 제3·제9행 검정 띠의 맨 왼쪽 경계가 인접 흰 행 외곽선보다 1dot 왼쪽으로 나오지 않는지 확인한다. 다른 세로선의 fixed-X·1dot, native text, overflow-fit도 함께 유지돼야 한다.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `b151589` (`네이티브 테두리와 배경 경계를 일치`).
 
 ## 완료·실물 재검증 실패: source raster 검정 팽창 감소 v1.0.83
 - v1.0.82 실물 `.tmp/IMG_20260809_0009.png`에서도 제3·제9행 맨 왼쪽 외곽 세로선의 바깥 돌출이 남았다. 로그 `.tmp/log/app_2026-08-09_14-28-27.log`는 version `1.0.82`, `nativeBorderOuterClearPixels=73`을 확인해 바깥 1dot 강제 제거는 실행됐지만 효과가 없었다. 사용자 지적대로 증상 후처리이며 원인 해결이 아니므로 전부 제거했다.
