@@ -9,6 +9,7 @@
 - 1.0.87 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
 - 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.87`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 변경 대상은 출력 C++, 버전, 이 문서 3개뿐이며 별도 임시 파일은 만들지 않았다.
 - C++ 들여쓰기 정렬 후 최종 소스로 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. stage/commit 대상은 `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md` 3개다.
+- 기능 커밋: `9cd6514` (`굴림 텍스트 장평 왜곡 제거`).
 - 실물 판별: 로그에 `nativeTextComposite=finalDeviceBitmap`, `nativeTextFitMode=uniformScale`, `nativeTextFailed=0`, `nativeTextBitmapChangedPixels>0`가 있어야 한다. 마지막 행과 다른 한글이 같은 굴림 원래 비율로 보여야 하며, overflow 13개는 필요하면 폭·높이가 함께 작아질 수 있지만 가로만 찌그러지면 안 된다. 표의 fixed-X·1dot border와 제3·제9행 외곽선은 v1.0.85 상태를 유지해야 한다.
 
 ## 완료·실물 검증 대기: G500 resident 굴림 대체로 사라지는 native text 수정 v1.0.86
