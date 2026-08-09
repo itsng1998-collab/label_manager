@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 작은 한글·역상 한글 coverage 합성 v1.0.88
+- v1.0.87 실물 `.tmp/IMG_20260809_0015.png`은 표와 일반 크기 굴림은 안정적이나 제2행 주원료의 작은 한글과 검정 바탕인 제3·9행 흰색 한글의 획이 점처럼 끊기고 뭉개진다. 로그 `.tmp/log/app_2026-08-09_15-48-59.log`는 `version=1.0.87`, `nativeTextFitMode=uniformScale`, text 36개 모두 memory DIB에 합성, fit 13개, 실패 0을 확인한다.
+- `NONANTIALIASED_QUALITY`는 v1.0.53 실물에서 계단과 획 단절이 악화돼 폐기됐으므로 재사용하지 않는다. 현재 원인은 final bitmap의 회색 GDI edge가 203dpi 흑백 프린터 변환에서 디더링·탈락하는 것이다.
+- `windows/runner/label_bitmap_print_channel.cpp` 편집 완료: GDI anti-alias 결과를 각 descriptor의 coverage mask로 사용하되, 20% 이상 덮인 픽셀은 순수 전경색으로 확정하고 미만은 원래 배경으로 복원한다. 흰 배경 검정 글자와 검정 배경 흰 글자 모두 같은 수식이며 행·셀·색상·문구 분기 없음. font size, bold, 균일 overflow fit, 좌표, final 1dot border는 유지한다. diagnostics에 coverage mode와 kept/discarded pixel 수를 추가했다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 출력 관련 5개 테스트 파일 18건 통과, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 폐기한 `NONANTIALIASED_QUALITY`가 재도입되지 않은 것을 확인했다.
+- 버전 편집 완료: `pubspec.yaml`을 `1.0.88`로 갱신했다.
+- 1.0.88 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.88`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. stage/commit 대상은 `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md` 3개다.
+- 실물 판별: 로그에 `nativeTextCoverage=foregroundThreshold20`, `nativeTextCoverageKept>0`, `nativeTextCoverageDiscarded>0`, `nativeTextFailed=0`가 있어야 한다. 제2행 주원료의 작은 한글과 제3·9행 검정 바탕 흰 한글의 끊긴 획이 이어져야 하며, 일반 글자·uniformScale overflow·표의 fixed-X·1dot border는 v1.0.87 상태를 유지해야 한다.
+
 ## 완료·실물 검증 대기: 굴림 overflow 장평 왜곡 제거 v1.0.87
 - v1.0.86 실물 `.tmp/IMG_20260809_0014.png`은 표와 모든 굴림 텍스트가 출력됐고 마지막 행 `반품 및 교환...`은 품질이 좋지만, 다른 한글 다수는 획이 뭉개지고 장평이 불균일하다. 로그 `.tmp/log/app_2026-08-09_15-36-07.log`는 `nativeTextDrawn=36`, `nativeTextFailed=0`, `nativeTextFitted=13`, `nativeTextBitmapChangedPixels=20044`, memory-DIB 합성 적용을 확인한다.
 - 마지막 행을 포함해 출력된 텍스트는 모두 v1.0.86 memory-DIB 경로다. 품질 차이의 제어 변수는 36개 중 13개 overflow descriptor에만 적용되는 `LOGFONT.lfWidth` 수평 장평 축소다. 과거 v1.0.64에서도 광범위한 `lfWidth` 보정이 셀별 장평·품질 회귀를 만들었으므로 같은 실패 방식을 재사용하지 않는다.

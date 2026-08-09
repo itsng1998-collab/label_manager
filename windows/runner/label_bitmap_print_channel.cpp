@@ -19,6 +19,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
+constexpr int kNativeTextCoverageThreshold255 = 51;
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -257,8 +258,43 @@ struct NativeTextRenderStats {
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
+  size_t coverage_kept_pixels = 0;
+  size_t coverage_discarded_pixels = 0;
   size_t characters = 0;
 };
+
+void ResolveNativeTextCoverage(
+    uint8_t* rendered, const std::vector<uint8_t>& before,
+    COLORREF foreground, NativeTextRenderStats& stats) {
+  const int foreground_blue = GetBValue(foreground);
+  const int foreground_green = GetGValue(foreground);
+  const int foreground_red = GetRValue(foreground);
+  for (size_t offset = 0; offset < before.size(); offset += 4) {
+    const int changed =
+        std::abs(static_cast<int>(rendered[offset]) - before[offset]) +
+        std::abs(static_cast<int>(rendered[offset + 1]) - before[offset + 1]) +
+        std::abs(static_cast<int>(rendered[offset + 2]) - before[offset + 2]);
+    if (changed == 0) continue;
+    const int foreground_distance =
+        std::abs(foreground_blue - before[offset]) +
+        std::abs(foreground_green - before[offset + 1]) +
+        std::abs(foreground_red - before[offset + 2]);
+    const int coverage255 = foreground_distance == 0
+                                ? 0
+                                : changed * 255 / foreground_distance;
+    if (coverage255 >= kNativeTextCoverageThreshold255) {
+      rendered[offset] = static_cast<uint8_t>(foreground_blue);
+      rendered[offset + 1] = static_cast<uint8_t>(foreground_green);
+      rendered[offset + 2] = static_cast<uint8_t>(foreground_red);
+      ++stats.coverage_kept_pixels;
+    } else {
+      rendered[offset] = before[offset];
+      rendered[offset + 1] = before[offset + 1];
+      rendered[offset + 2] = before[offset + 2];
+      ++stats.coverage_discarded_pixels;
+    }
+  }
+}
 
 bool RenderNativeTextIntoBitmap(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
@@ -291,6 +327,7 @@ bool RenderNativeTextIntoBitmap(
   }
   HGDIOBJ previous_bitmap = SelectObject(memory_dc, dib);
   std::memcpy(dib_bits, bitmap.data(), bitmap.size());
+  std::vector<uint8_t> before_text(bitmap.size());
   SetMapMode(memory_dc, MM_ANISOTROPIC);
   SetWindowExtEx(memory_dc, source_width, source_height, nullptr);
   SetViewportExtEx(memory_dc, target_width, target_height, nullptr);
@@ -381,10 +418,15 @@ bool RenderNativeTextIntoBitmap(
           0, (text_rect.bottom - text_rect.top - text_height) / 2);
     }
     text_rect.right += kNativeTextRightOverhangDots;
+    GdiFlush();
+    std::memcpy(before_text.data(), dib_bits, before_text.size());
     const int draw_result = DrawTextW(
         memory_dc, descriptor.text.c_str(),
         static_cast<int>(descriptor.text.size()), &text_rect, flags);
     if (draw_result > 0) {
+      GdiFlush();
+      ResolveNativeTextCoverage(static_cast<uint8_t*>(dib_bits), before_text,
+                                descriptor.color, stats);
       ++stats.drawn;
       stats.characters += descriptor.text.size();
     } else {
@@ -578,6 +620,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
               << " nativeTextFitMode=uniformScale"
+              << " nativeTextCoverage=foregroundThreshold20"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -731,6 +774,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextBitmapChangedPixels="
                   << native_text_stats.bitmap_changed_pixels
+                  << " nativeTextCoverageKept="
+                  << native_text_stats.coverage_kept_pixels
+                  << " nativeTextCoverageDiscarded="
+                  << native_text_stats.coverage_discarded_pixels
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicMemoryDib"
                   << " nativeTextComposite=finalDeviceBitmap"
