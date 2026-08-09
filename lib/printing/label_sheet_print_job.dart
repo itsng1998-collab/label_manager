@@ -714,49 +714,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   );
   final descriptors = <LabelSheetWindowsTextDescriptor>[];
   final borderDescriptors = <LabelSheetWindowsBorderDescriptor>[];
-  final verticalBoundaryCenters = <int, int>{};
-  final horizontalBoundaryCenters = <int, int>{};
   final approvedTextCandidates = <String, FortuneNativeCandidate>{};
-  if (options.orientation == LabelSheetPrintOrientation.horizontal) {
-    for (final candidate in candidates) {
-      if (candidate.kind != FortuneNativeCandidateKind.cellBorder) continue;
-      final footprint = candidate.printerPaintedFootprint;
-      final edge = candidate.cellBorderEdgeKey!;
-      final horizontal = edge.axis == FortuneCellBorderEdgeAxis.horizontal;
-      final boundaryIndex = horizontal ? edge.row : edge.column;
-      const thicknessDots = 1;
-      final centerX = horizontal
-          ? footprint.center.dx.round()
-          : verticalBoundaryCenters.putIfAbsent(
-              boundaryIndex,
-              () => footprint.center.dx.round(),
-            );
-      final centerY = horizontal
-          ? horizontalBoundaryCenters.putIfAbsent(
-              boundaryIndex,
-              () => footprint.center.dy.round(),
-            )
-          : footprint.center.dy.round();
-      final left = horizontal ? footprint.left.round() : centerX;
-      final top = horizontal ? centerY : footprint.top.round();
-      final right = horizontal ? footprint.right.round() : centerX + 1;
-      final bottom = horizontal ? centerY + 1 : footprint.bottom.round();
-      if (right <= left || bottom <= top) continue;
-      borderDescriptors.add(
-        LabelSheetWindowsBorderDescriptor(
-          candidateToken: candidate.token,
-          horizontal: horizontal,
-          boundaryIndex: boundaryIndex,
-          thicknessDots: thicknessDots,
-          left: left,
-          top: top,
-          right: right,
-          bottom: bottom,
-          predictedPaintedFootprint: footprint,
-        ),
-      );
-    }
-  }
   if (options.orientation == LabelSheetPrintOrientation.horizontal) {
     for (final candidate in candidates) {
       if (candidate.kind != FortuneNativeCandidateKind.cellText ||

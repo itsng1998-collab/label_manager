@@ -287,7 +287,7 @@ void main() {
     );
   });
 
-  test('Windows hybrid moves solid black cell borders to native descriptors', () {
+  test('Windows hybrid keeps cell borders in one raster surface', () {
     final preparation = prepareLabelSheetWindowsHybridPrint(
       sheet: fs.FortuneSheet(
         id: 'sheet',
@@ -332,49 +332,8 @@ void main() {
       lineSpacingPercent: null,
     );
 
-    expect(preparation.borderDescriptors, isNotEmpty);
-    expect(
-      preparation.plan.approvedCellBorderEdgeKeys,
-      hasLength(preparation.borderDescriptors.length),
-    );
-    expect(
-      preparation.borderDescriptors.every(
-        (descriptor) => descriptor.horizontal
-            ? descriptor.bottom - descriptor.top == 1
-            : descriptor.right - descriptor.left == 1,
-      ),
-      isTrue,
-    );
-    expect(
-      preparation.borderDescriptors.map(
-        (descriptor) => descriptor.toChannelMap()['horizontal'],
-      ),
-      containsAll(<bool>[true, false]),
-    );
-    expect(
-      preparation.borderDescriptors.map(
-        (descriptor) => descriptor.thicknessDots,
-      ),
-      everyElement(1),
-    );
-    expect(
-      preparation.borderDescriptors.map(
-        (descriptor) => descriptor.toChannelMap()['thicknessDots'],
-      ),
-      everyElement(1),
-    );
-    for (final horizontal in <bool>[true, false]) {
-      final descriptors = preparation.borderDescriptors.where(
-        (descriptor) => descriptor.horizontal == horizontal,
-      );
-      final boundaries = <int, Set<int>>{};
-      for (final descriptor in descriptors) {
-        boundaries
-            .putIfAbsent(descriptor.boundaryIndex, () => <int>{})
-            .add(horizontal ? descriptor.top : descriptor.left);
-      }
-      expect(boundaries.values, everyElement(hasLength(1)));
-    }
+    expect(preparation.borderDescriptors, isEmpty);
+    expect(preparation.plan.approvedCellBorderEdgeKeys, isEmpty);
   });
 
   test('Windows hybrid output geometry ignores preview zoom', () {

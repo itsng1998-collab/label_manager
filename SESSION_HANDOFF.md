@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 외곽 세로선 교차점 돌출 제거 v1.0.74
+- 실물 재비교: `.tmp/IMG_v1.0.73.png`의 세 번째 행 맨 왼쪽 외곽 세로선에는 각 가로 행 경계 위치마다 바깥쪽 돌출 픽셀이 반복되지만, `.tmp/IMG_v1.0.44.png`의 같은 위치에는 없다. 따라서 이전의 `프린터 열전사 번짐으로 개선 불가` 결론은 이 현상에 대해서는 철회한다.
+- 원인: v1.0.44는 모든 cell border를 최종 FortuneSheet raster 한 장에서 함께 그렸다. v1.0.73은 clip 외곽의 왼쪽 세로선은 raster에 남고 승인된 가로선은 native border descriptor로 분리되어, 서로 다른 rasterization의 교차점에서 가로선 끝점이 외곽 세로선 바깥으로 반복 돌출됐다.
+- 일반화 수정: Windows hybrid의 cell border를 native 승인하지 않고 모두 FortuneSheet raster에 유지한다. 특정 행·셀·품목 분기 없이 표의 외곽선과 내부 가로·세로선을 하나의 painter/bitmap에서 함께 합성한다. native text와 overflow fit은 그대로 유지한다.
+- `label_sheet_print_job.dart`: Windows `borderDescriptors`와 `approvedCellBorderEdgeKeys`를 비워 v1.0.44와 같은 단일 raster border 소유권으로 복원했다.
+- `label_sheet_print_job_test.dart`: 계약을 `Windows hybrid keeps cell borders in one raster surface`로 변경해 native border descriptor와 승인 edge가 모두 비어 있는지 검증한다.
+- focused 계약 테스트 1건 통과. 출력 준비·dispatch·session·설정·pipeline과 FortuneSheet capture/plan 관련 7개 파일 79건 모두 통과. 변경 파일 diagnostics 오류 0건.
+- `pubspec.yaml`: 버전 `1.0.74`로 증가했다. Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.0.74`, `git diff --check` 통과, 변경 파일 diagnostics 오류 0건.
+- 커밋 대상: `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 실물에서는 v1.0.73과 같은 세 번째 행 맨 왼쪽 외곽 세로선에서 가로 행 경계마다 바깥쪽 돌출 픽셀이 사라졌는지 확인한다.
+
 ## 완료: FortuneSheet 기본 테두리 1px -> 1dot v1.0.73
 - 사용자 요청에 따라 FortuneSheet cell border의 기본 1px를 물리 DPI 환산하지 않고 Windows 최종 device 1dot으로 고정한다. 특정 셀·품목·양식 분기 없이 승인된 모든 가로/세로 cell border에 공통 적용한다.
 - `label_sheet_print_job.dart`: `thicknessDots`를 footprint 반올림 값에서 상수 1로 변경했다. boundary별 단일 좌표 양자화와 raster/native 중복 제거는 유지한다.
