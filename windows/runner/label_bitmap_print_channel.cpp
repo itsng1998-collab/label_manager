@@ -85,6 +85,86 @@ struct DeviceBorderRect {
   int segment_count = 1;
 };
 
+std::vector<uint8_t> ComposeFinalDeviceBitmap(
+    const std::vector<uint8_t>& source, int source_width, int source_height,
+    int target_width, int target_height,
+    const std::vector<NativeBorderDescriptor>& border_descriptors) {
+  std::vector<uint8_t> result(
+      static_cast<size_t>(target_width) * target_height * 4, 0xFF);
+  for (int target_y = 0; target_y < target_height; ++target_y) {
+    const int source_top = target_y * source_height / target_height;
+    const int source_bottom = std::min(
+        source_height,
+        std::max(source_top + 1,
+                 ((target_y + 1) * source_height + target_height - 1) /
+                     target_height));
+    for (int target_x = 0; target_x < target_width; ++target_x) {
+      const int source_left = target_x * source_width / target_width;
+      const int source_right = std::min(
+          source_width,
+          std::max(source_left + 1,
+                   ((target_x + 1) * source_width + target_width - 1) /
+                       target_width));
+      uint8_t blue = 0xFF;
+      uint8_t green = 0xFF;
+      uint8_t red = 0xFF;
+      for (int source_y = source_top; source_y < source_bottom; ++source_y) {
+        for (int source_x = source_left; source_x < source_right; ++source_x) {
+          const size_t source_offset =
+              (static_cast<size_t>(source_y) * source_width + source_x) * 4;
+          blue &= source[source_offset];
+          green &= source[source_offset + 1];
+          red &= source[source_offset + 2];
+        }
+      }
+      const size_t target_offset =
+          (static_cast<size_t>(target_y) * target_width + target_x) * 4;
+      result[target_offset] = blue;
+      result[target_offset + 1] = green;
+      result[target_offset + 2] = red;
+    }
+  }
+  for (const auto& descriptor : border_descriptors) {
+    const LONG left = MulDiv(descriptor.rect.left, target_width, source_width);
+    const LONG top = MulDiv(descriptor.rect.top, target_height, source_height);
+    const LONG mapped_right =
+        MulDiv(descriptor.rect.right, target_width, source_width);
+    const LONG mapped_bottom =
+        MulDiv(descriptor.rect.bottom, target_height, source_height);
+    const LONG thickness = std::max(
+        1L, static_cast<LONG>(MulDiv(
+                descriptor.thickness_dots,
+                descriptor.horizontal ? target_height : target_width,
+                descriptor.horizontal ? source_height : source_width)));
+    RECT rect{};
+    if (descriptor.horizontal) {
+      rect.left = left;
+      rect.top = top - thickness / 2;
+      rect.right = std::max(left + 1, mapped_right);
+      rect.bottom = rect.top + thickness;
+    } else {
+      rect.left = left - thickness / 2;
+      rect.top = top;
+      rect.right = rect.left + thickness;
+      rect.bottom = std::max(top + 1, mapped_bottom);
+    }
+    const int clipped_left = std::clamp<int>(rect.left, 0, target_width);
+    const int clipped_top = std::clamp<int>(rect.top, 0, target_height);
+    const int clipped_right = std::clamp<int>(rect.right, 0, target_width);
+    const int clipped_bottom = std::clamp<int>(rect.bottom, 0, target_height);
+    for (int y = clipped_top; y < clipped_bottom; ++y) {
+      for (int x = clipped_left; x < clipped_right; ++x) {
+        const size_t offset =
+            (static_cast<size_t>(y) * target_width + x) * 4;
+        result[offset] = 0;
+        result[offset + 1] = 0;
+        result[offset + 2] = 0;
+      }
+    }
+  }
+  return result;
+}
+
 std::vector<NativeBorderDescriptor> BorderDescriptorsArg(
     const EncodableMap& args) {
   const auto iter = args.find(EncodableValue("borderDescriptors"));
@@ -364,10 +444,13 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       error = "StartPage failed: " + std::to_string(GetLastError());
       break;
     }
+    const auto composed_bitmap = ComposeFinalDeviceBitmap(
+        *bgra, source_width, source_height, target_width, target_height,
+        border_descriptors);
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bitmap_info.bmiHeader.biWidth = source_width;
-    bitmap_info.bmiHeader.biHeight = -source_height;
+    bitmap_info.bmiHeader.biWidth = target_width;
+    bitmap_info.bmiHeader.biHeight = -target_height;
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = 32;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
@@ -375,10 +458,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     const int previous_mode = SetStretchBltMode(printer_dc, BLACKONWHITE);
     const int scan_lines = StretchDIBits(
         printer_dc, destination_x, destination_y, target_width, target_height,
-        0, 0, source_width, source_height, bgra->data(), &bitmap_info,
-        DIB_RGB_COLORS, SRCCOPY);
+        0, 0, target_width, target_height, composed_bitmap.data(),
+        &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
-                << " stretchMode=BLACKONWHITE"
+                << " stretchMode=softwareBLACKONWHITE"
                 << " sourceBpp=" << bitmap_info.bmiHeader.biBitCount
                 << " compression=BI_RGB"
                 << " rasterOp=SRCCOPY"
@@ -389,9 +472,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       const int text_dc_state = SaveDC(printer_dc);
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
-      int native_border_mask_lines = 0;
-      bool native_border_mask_drawn = false;
-      HBRUSH border_brush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
       std::vector<DeviceBorderRect> device_borders;
       device_borders.reserve(border_descriptors.size());
       for (const auto& descriptor : border_descriptors) {
@@ -476,103 +556,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         }
         merged_device_borders.push_back(border);
       }
-      LONG outer_left = std::numeric_limits<LONG>::max();
-      LONG outer_right = std::numeric_limits<LONG>::min();
-      for (const auto& border : merged_device_borders) {
-        if (border.horizontal) continue;
-        outer_left = std::min(outer_left, border.rect.left);
-        outer_right = std::max(outer_right, border.rect.right);
-      }
-      int native_border_outer_raster_clear_pixels = 0;
-      HBRUSH white_brush = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
-      const auto source_pixel_is_black = [&](int x, int y) {
-        if (x < 0 || x >= source_width || y < 0 || y >= source_height) {
-          return false;
-        }
-        const size_t offset =
-            (static_cast<size_t>(y) * source_width + x) * 4;
-        return (*bgra)[offset] < 128 && (*bgra)[offset + 1] < 128 &&
-            (*bgra)[offset + 2] < 128;
-      };
-      for (const auto& border : merged_device_borders) {
-        if (border.horizontal) continue;
-        const bool left_outer = border.rect.left == outer_left;
-        const bool right_outer = border.rect.right == outer_right;
-        if (!left_outer && !right_outer) continue;
-        const LONG clear_x = left_outer
-            ? border.rect.right
-            : border.rect.left - 1;
-        const LONG sample_device_x = left_outer ? clear_x + 1 : clear_x - 1;
-        const int source_x = std::clamp(
-            MulDiv(sample_device_x - destination_x, source_width,
-                   target_width),
-            0, source_width - 1);
-        for (LONG y = border.rect.top; y < border.rect.bottom; ++y) {
-          const int source_y = std::clamp(
-              MulDiv(y - destination_y, source_height, target_height), 0,
-              source_height - 1);
-          if (!source_pixel_is_black(source_x, source_y)) continue;
-          RECT clear_rect{clear_x, y, clear_x + 1, y + 1};
-          if (FillRect(printer_dc, &clear_rect, white_brush) != 0) {
-            ++native_border_outer_raster_clear_pixels;
-          }
-        }
-      }
-
-      BITMAPINFO border_mask_info{};
-      border_mask_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-      border_mask_info.bmiHeader.biWidth = target_width;
-      border_mask_info.bmiHeader.biHeight = -target_height;
-      border_mask_info.bmiHeader.biPlanes = 1;
-      border_mask_info.bmiHeader.biBitCount = 32;
-      border_mask_info.bmiHeader.biCompression = BI_RGB;
-      std::vector<uint8_t> border_mask(
-          static_cast<size_t>(target_width) * target_height * 4, 0xFF);
-      int border_mask_segments = 0;
-      for (const auto& border : merged_device_borders) {
-        const int left = std::clamp(
-            static_cast<int>(border.rect.left - destination_x), 0,
-            target_width);
-        const int top = std::clamp(
-            static_cast<int>(border.rect.top - destination_y), 0,
-            target_height);
-        const int right = std::clamp(
-            static_cast<int>(border.rect.right - destination_x), 0,
-            target_width);
-        const int bottom = std::clamp(
-            static_cast<int>(border.rect.bottom - destination_y), 0,
-            target_height);
-        if (right <= left || bottom <= top) continue;
-        for (int y = top; y < bottom; ++y) {
-          for (int x = left; x < right; ++x) {
-            const size_t offset =
-                (static_cast<size_t>(y) * target_width + x) * 4;
-            border_mask[offset] = 0;
-            border_mask[offset + 1] = 0;
-            border_mask[offset + 2] = 0;
-          }
-        }
-        border_mask_segments += border.segment_count;
-      }
-      native_border_mask_lines = StretchDIBits(
-          printer_dc, destination_x, destination_y, target_width,
-          target_height, 0, 0, target_width, target_height,
-          border_mask.data(), &border_mask_info, DIB_RGB_COLORS, SRCAND);
-      native_border_mask_drawn =
-          native_border_mask_lines != GDI_ERROR &&
-          native_border_mask_lines != 0;
-      if (native_border_mask_drawn) {
-        native_borders_drawn = border_mask_segments;
-        native_border_fill_rects =
-            static_cast<int>(merged_device_borders.size());
-      } else {
-        for (const auto& border : merged_device_borders) {
-          if (FillRect(printer_dc, &border.rect, border_brush) != 0) {
-            native_borders_drawn += border.segment_count;
-            ++native_border_fill_rects;
-          }
-        }
-      }
+      native_borders_drawn = static_cast<int>(border_descriptors.size());
+      native_border_fill_rects =
+          static_cast<int>(merged_device_borders.size());
       SetMapMode(printer_dc, MM_ANISOTROPIC);
       SetWindowExtEx(printer_dc, source_width, source_height, nullptr);
       SetViewportExtEx(printer_dc, target_width, target_height, nullptr);
@@ -684,13 +670,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
-                  << " nativeBorderJunction=outerRasterContactClearance"
-                  << " nativeBorderOuterRasterClearance=oneDeviceDot"
-                  << " nativeBorderOuterRasterClearPixels="
-                  << native_border_outer_raster_clear_pixels
-                  << " nativeBorderComposite="
-                  << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
-                  << " nativeBorderMaskLines=" << native_border_mask_lines
+                  << " nativeBorderJunction=singleFinalDeviceBitmap"
+                  << " nativeBorderComposite=finalDeviceBitmap"
+                  << " nativeBorderBitmapLines=" << scan_lines
                   << " nativeBorderFillRects=" << native_border_fill_rects
                   << " nativeBordersDrawn=" << native_borders_drawn;
       if (native_text_failed > 0) {

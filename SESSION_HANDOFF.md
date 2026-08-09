@@ -1,5 +1,13 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: raster와 1dot border 단일 final-device bitmap 합성 v1.0.81
+- v1.0.80 실물 `.tmp/IMG_20260809_0007.png`에서 제3·제9행 왼쪽 돌출은 남았고, 해당 검정 행의 앞·뒤에 이전에 없던 흰 세로선이 생겼다. 로그 `.tmp/log/app_2026-08-09_13-38-44.log`는 version `1.0.80`, `nativeBorderOuterRasterClearPixels=146`을 확인해 프린터 DC의 흰 덮기가 실제 회귀 원인이다.
+- v1.0.80의 `WHITE_BRUSH` 접촉부 제거와 v1.0.77~79의 endpoint 보정은 모두 제거했으며 재사용하지 않는다. 별도 native border `SRCAND` 합성도 제거했다.
+- 일반화 수정: 640×480 source raster를 소프트웨어 BLACKONWHITE 방식으로 최종 620×480 device bitmap에 먼저 축소한다. 모든 border descriptor를 같은 최종 bitmap 좌표에 정확히 1dot으로 직접 합성한 뒤 프린터에는 620×480 bitmap을 단일 `SRCCOPY`로 1:1 출력한다. native text는 기존 anisotropic `DrawTextW` 경로를 그대로 유지한다.
+- 이 구조는 v1.44처럼 배경과 border 교차 형상을 한 bitmap이 소유하면서, v1.75 이후의 고정-X final-device 1dot 좌표를 유지한다. 특정 행·셀·품목 분기와 흰 픽셀 보정이 없다.
+- diagnostics: `stretchMode=softwareBLACKONWHITE`, `nativeBorderJunction=singleFinalDeviceBitmap`, `nativeBorderComposite=finalDeviceBitmap`, `nativeBorderBitmapLines`. 버전 `1.0.81`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 중간과 버전 반영 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.81`, `get_errors` 0건, `git diff --check` 통과. 폐기한 `WHITE_BRUSH`, `SRCAND`, endpoint/outer-raster clearance 코드가 남지 않은 것도 확인했다. 실물에서 제3·제9행 왼쪽 돌출과 v1.80의 흰 세로선이 모두 없어지고 나머지 세로선·1dot이 유지되는지 확인이 필요하다.
+- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 검정 raster와 외곽 세로선 접촉 분리 v1.0.80
 - v1.0.79 실물 `.tmp/IMG_20260809_0006.png`에서도 세 번째·아홉 번째 행 맨 왼쪽 외곽 세로선의 바깥 돌출 점선이 남았다. 로그 `.tmp/log/app_2026-08-09_13-29-44.log`는 version `1.0.79`, border `225/225`, `nativeBorderOuterEndpointClearance=twoDeviceDots`, guard `28`건을 확인해 2dot 가로 endpoint 보정은 실제 적용됐다.
 - 사진에서 돌출 구간은 두 개의 검정 배경 행과 정확히 일치한다. 가로 endpoint를 1dot·2dot으로 줄여도 동일하므로 원인은 가로 border가 아니라 source raster의 검정 셀 배경과 final-device native 외곽 세로선이 맞닿는 혼합 교차부 열 밀도다. v1.0.77~79 endpoint 방식은 재사용하지 않도록 제거했다.
