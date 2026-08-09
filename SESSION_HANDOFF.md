@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 작은 한글 4배 supersampling 합성 v1.0.89
+- v1.0.88 실물 `.tmp/IMG_20260809_0016.png`은 20% coverage 이진화 후 제2행 작은 한글이 굵고 네모지며 제3·9행 역상 한글 내부가 크게 비어 품질 개선에 실패했다. 로그 `.tmp/log/app_2026-08-09_16-00-55.log`는 `nativeTextCoverageKept=15379`, `nativeTextCoverageDiscarded=862`, `nativeTextFailed=0`으로 변경 적용은 정상임을 확인한다.
+- 최종 11~17dot에서 먼저 rasterize한 glyph의 20% threshold를 바꾸는 접근은 원본 윤곽 정보가 부족해 재사용하지 않는다. v1.0.88 per-pixel coverage helper와 진단을 제거한다.
+- `windows/runner/label_bitmap_print_channel.cpp` 편집 완료: final bitmap을 nearest 4배로 복제한 2480×1920 memory DIB에서 모든 native text를 최소 44px 높이로 GDI rasterize하고, 각 final dot의 4×4 luminance 평균을 threshold 128로 흑백 결정한다. 배경·border는 같은 값 16개로 복제됐다가 동일 값으로 복원되므로 fixed-X·1dot 좌표/두께를 유지한다. 모든 font height·색상·행·셀에 동일 적용하며 uniform overflow fit도 유지한다. diagnostics를 `nativeTextRaster=supersample4xBoxMonochrome128`로 변경했다.
+- 최초 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`는 실행 중인 Debug EXE 잠금으로 `LNK1168` 실패했다.
+- Debug 앱 프로세스 종료 후 동일 `/WX` Windows build 재실행 성공. 출력 관련 5개 테스트 파일 18건 통과, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 실패한 v1.0.88 `foregroundThreshold20` 코드가 제거된 것을 확인했다.
+- 버전 편집 완료: `pubspec.yaml`을 `1.0.89`로 갱신했다.
+- 1.0.89 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.89`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. stage/commit 대상은 `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md` 3개다.
+- 실물 판별: 로그에 `nativeTextRaster=supersample4xBoxMonochrome128`, `nativeTextFailed=0`, `nativeTextBitmapChangedPixels>0`가 있어야 한다. 제2행 주원료의 작은 한글과 제3·9행 역상 한글의 내부 획·모서리가 v1.0.88보다 연속적이고 덜 네모져야 한다. 일반 글자·uniformScale overflow·표의 fixed-X·1dot border는 유지돼야 한다.
+
 ## 완료·실물 검증 대기: 작은 한글·역상 한글 coverage 합성 v1.0.88
 - v1.0.87 실물 `.tmp/IMG_20260809_0015.png`은 표와 일반 크기 굴림은 안정적이나 제2행 주원료의 작은 한글과 검정 바탕인 제3·9행 흰색 한글의 획이 점처럼 끊기고 뭉개진다. 로그 `.tmp/log/app_2026-08-09_15-48-59.log`는 `version=1.0.87`, `nativeTextFitMode=uniformScale`, text 36개 모두 memory DIB에 합성, fit 13개, 실패 0을 확인한다.
 - `NONANTIALIASED_QUALITY`는 v1.0.53 실물에서 계단과 획 단절이 악화돼 폐기됐으므로 재사용하지 않는다. 현재 원인은 final bitmap의 회색 GDI edge가 203dpi 흑백 프린터 변환에서 디더링·탈락하는 것이다.

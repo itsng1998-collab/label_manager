@@ -19,7 +19,8 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr int kNativeTextCoverageThreshold255 = 51;
+constexpr int kNativeTextSupersample = 4;
+constexpr int kNativeTextMonochromeThreshold = 128;
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -258,43 +259,8 @@ struct NativeTextRenderStats {
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
-  size_t coverage_kept_pixels = 0;
-  size_t coverage_discarded_pixels = 0;
   size_t characters = 0;
 };
-
-void ResolveNativeTextCoverage(
-    uint8_t* rendered, const std::vector<uint8_t>& before,
-    COLORREF foreground, NativeTextRenderStats& stats) {
-  const int foreground_blue = GetBValue(foreground);
-  const int foreground_green = GetGValue(foreground);
-  const int foreground_red = GetRValue(foreground);
-  for (size_t offset = 0; offset < before.size(); offset += 4) {
-    const int changed =
-        std::abs(static_cast<int>(rendered[offset]) - before[offset]) +
-        std::abs(static_cast<int>(rendered[offset + 1]) - before[offset + 1]) +
-        std::abs(static_cast<int>(rendered[offset + 2]) - before[offset + 2]);
-    if (changed == 0) continue;
-    const int foreground_distance =
-        std::abs(foreground_blue - before[offset]) +
-        std::abs(foreground_green - before[offset + 1]) +
-        std::abs(foreground_red - before[offset + 2]);
-    const int coverage255 = foreground_distance == 0
-                                ? 0
-                                : changed * 255 / foreground_distance;
-    if (coverage255 >= kNativeTextCoverageThreshold255) {
-      rendered[offset] = static_cast<uint8_t>(foreground_blue);
-      rendered[offset + 1] = static_cast<uint8_t>(foreground_green);
-      rendered[offset + 2] = static_cast<uint8_t>(foreground_red);
-      ++stats.coverage_kept_pixels;
-    } else {
-      rendered[offset] = before[offset];
-      rendered[offset + 1] = before[offset + 1];
-      rendered[offset + 2] = before[offset + 2];
-      ++stats.coverage_discarded_pixels;
-    }
-  }
-}
 
 bool RenderNativeTextIntoBitmap(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
@@ -302,10 +268,12 @@ bool RenderNativeTextIntoBitmap(
     const std::vector<NativeTextDescriptor>& text_descriptors,
     NativeTextRenderStats& stats, std::string& error) {
   if (text_descriptors.empty()) return true;
+  const int render_width = target_width * kNativeTextSupersample;
+  const int render_height = target_height * kNativeTextSupersample;
   BITMAPINFO bitmap_info{};
   bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-  bitmap_info.bmiHeader.biWidth = target_width;
-  bitmap_info.bmiHeader.biHeight = -target_height;
+  bitmap_info.bmiHeader.biWidth = render_width;
+  bitmap_info.bmiHeader.biHeight = -render_height;
   bitmap_info.bmiHeader.biPlanes = 1;
   bitmap_info.bmiHeader.biBitCount = 32;
   bitmap_info.bmiHeader.biCompression = BI_RGB;
@@ -326,11 +294,21 @@ bool RenderNativeTextIntoBitmap(
     return false;
   }
   HGDIOBJ previous_bitmap = SelectObject(memory_dc, dib);
-  std::memcpy(dib_bits, bitmap.data(), bitmap.size());
-  std::vector<uint8_t> before_text(bitmap.size());
+  auto* rendered = static_cast<uint8_t*>(dib_bits);
+  for (int y = 0; y < render_height; ++y) {
+    const int source_y = y / kNativeTextSupersample;
+    for (int x = 0; x < render_width; ++x) {
+      const int source_x = x / kNativeTextSupersample;
+      const size_t source_offset =
+          (static_cast<size_t>(source_y) * target_width + source_x) * 4;
+      const size_t render_offset =
+          (static_cast<size_t>(y) * render_width + x) * 4;
+      std::memcpy(rendered + render_offset, bitmap.data() + source_offset, 4);
+    }
+  }
   SetMapMode(memory_dc, MM_ANISOTROPIC);
   SetWindowExtEx(memory_dc, source_width, source_height, nullptr);
-  SetViewportExtEx(memory_dc, target_width, target_height, nullptr);
+  SetViewportExtEx(memory_dc, render_width, render_height, nullptr);
   SetViewportOrgEx(memory_dc, 0, 0, nullptr);
   const int previous_background_mode = SetBkMode(memory_dc, TRANSPARENT);
   for (const auto& descriptor : text_descriptors) {
@@ -418,15 +396,10 @@ bool RenderNativeTextIntoBitmap(
           0, (text_rect.bottom - text_rect.top - text_height) / 2);
     }
     text_rect.right += kNativeTextRightOverhangDots;
-    GdiFlush();
-    std::memcpy(before_text.data(), dib_bits, before_text.size());
     const int draw_result = DrawTextW(
         memory_dc, descriptor.text.c_str(),
         static_cast<int>(descriptor.text.size()), &text_rect, flags);
     if (draw_result > 0) {
-      GdiFlush();
-      ResolveNativeTextCoverage(static_cast<uint8_t*>(dib_bits), before_text,
-                                descriptor.color, stats);
       ++stats.drawn;
       stats.characters += descriptor.text.size();
     } else {
@@ -438,15 +411,41 @@ bool RenderNativeTextIntoBitmap(
     DeleteObject(font);
   }
   GdiFlush();
-  const auto* rendered = static_cast<const uint8_t*>(dib_bits);
-  for (size_t offset = 0; offset < bitmap.size(); offset += 4) {
-    if (bitmap[offset] != rendered[offset] ||
-        bitmap[offset + 1] != rendered[offset + 1] ||
-        bitmap[offset + 2] != rendered[offset + 2]) {
-      ++stats.bitmap_changed_pixels;
+  constexpr int sample_count =
+      kNativeTextSupersample * kNativeTextSupersample;
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      int luminance_sum = 0;
+      for (int sample_y = 0; sample_y < kNativeTextSupersample; ++sample_y) {
+        for (int sample_x = 0; sample_x < kNativeTextSupersample;
+             ++sample_x) {
+          const int render_x = x * kNativeTextSupersample + sample_x;
+          const int render_y = y * kNativeTextSupersample + sample_y;
+          const size_t render_offset =
+              (static_cast<size_t>(render_y) * render_width + render_x) * 4;
+          luminance_sum +=
+              (77 * rendered[render_offset + 2] +
+               150 * rendered[render_offset + 1] +
+               29 * rendered[render_offset]) >>
+              8;
+        }
+      }
+      const uint8_t monochrome =
+          luminance_sum < kNativeTextMonochromeThreshold * sample_count
+              ? 0
+              : 255;
+      const size_t target_offset =
+          (static_cast<size_t>(y) * target_width + x) * 4;
+      if (bitmap[target_offset] != monochrome ||
+          bitmap[target_offset + 1] != monochrome ||
+          bitmap[target_offset + 2] != monochrome) {
+        ++stats.bitmap_changed_pixels;
+      }
+      bitmap[target_offset] = monochrome;
+      bitmap[target_offset + 1] = monochrome;
+      bitmap[target_offset + 2] = monochrome;
     }
   }
-  std::memcpy(bitmap.data(), dib_bits, bitmap.size());
   SetBkMode(memory_dc, previous_background_mode);
   SelectObject(memory_dc, previous_bitmap);
   DeleteObject(dib);
@@ -620,7 +619,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextCoverage=foregroundThreshold20"
+              << " nativeTextRaster=supersample4xBoxMonochrome128"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -774,10 +773,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextBitmapChangedPixels="
                   << native_text_stats.bitmap_changed_pixels
-                  << " nativeTextCoverageKept="
-                  << native_text_stats.coverage_kept_pixels
-                  << " nativeTextCoverageDiscarded="
-                  << native_text_stats.coverage_discarded_pixels
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicMemoryDib"
                   << " nativeTextComposite=finalDeviceBitmap"
