@@ -16,6 +16,7 @@
 - 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.86`, 변경 파일 `get_errors` 0건, `git diff --check` 통과. 별도 임시 파일은 만들지 않았고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
 - 실물 검증 필요: 글꼴을 모두 `굴림`으로 둔 동일 라벨을 출력해 텍스트 36개가 다시 보이고 표의 fixed-X·1dot 및 오른쪽 빈줄 제거 상태가 유지되는지 확인한다. 로그는 `nativeTextDrawn=36`, `nativeTextFailed=0`, `nativeTextOutlineFonts=36`, `nativeTextNoOutlineFonts=0`, `nativeTextBitmapChangedPixels>0`, `nativeTextMapping=anisotropicMemoryDib`, `nativeTextComposite=finalDeviceBitmap`이어야 한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `a9af0d8` (`굴림 텍스트를 최종 비트맵에 합성`).
 
 ## 완료·실물 검증 대기: v1.0.84 native border footprint 과다 제외 회귀 수정 v1.0.85
 - v1.0.84 실물 `.tmp/IMG_20260809_0012.png`와 로그 `.tmp/log/app_2026-08-09_14-56-50.log`를 확인했다. 로그는 version `1.0.84`, native border `225/225`, `sourceRasterResample=nearestCenter` 적용을 확인한다.
