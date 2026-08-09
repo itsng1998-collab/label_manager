@@ -317,7 +317,7 @@ bool RenderNativeTextIntoBitmap(
         -font_pixel_height, 0, 0, 0,
         descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
         descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-        OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
     if (font == nullptr) {
       ++stats.failed;
@@ -616,7 +616,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << native_text_requested_characters
               << " nativeTextHeight=" << native_text_min_height << ".."
               << native_text_max_height
-              << " fontQuality=DEFAULT_QUALITY"
+              << " fontQuality=ANTIALIASED_QUALITY"
               << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=supersample4xBoxMonochrome128"
