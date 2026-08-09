@@ -9,6 +9,7 @@
 - 버전 편집 완료: `pubspec.yaml`을 `1.0.89`로 갱신했다.
 - 1.0.89 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
 - 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.89`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. stage/commit 대상은 `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md` 3개다.
+- 기능 커밋: `c30a074` (`작은 한글 고해상도 합성 적용`).
 - 실물 판별: 로그에 `nativeTextRaster=supersample4xBoxMonochrome128`, `nativeTextFailed=0`, `nativeTextBitmapChangedPixels>0`가 있어야 한다. 제2행 주원료의 작은 한글과 제3·9행 역상 한글의 내부 획·모서리가 v1.0.88보다 연속적이고 덜 네모져야 한다. 일반 글자·uniformScale overflow·표의 fixed-X·1dot border는 유지돼야 한다.
 
 ## 완료·실물 검증 대기: 작은 한글·역상 한글 coverage 합성 v1.0.88
