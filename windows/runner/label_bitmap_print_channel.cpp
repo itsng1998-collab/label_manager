@@ -476,33 +476,45 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         }
         merged_device_borders.push_back(border);
       }
-      int native_border_outer_endpoint_guards = 0;
-      for (auto& horizontal_border : merged_device_borders) {
-        if (!horizontal_border.horizontal) continue;
-        for (const auto& vertical_border : merged_device_borders) {
-          if (vertical_border.horizontal ||
-              vertical_border.rect.top > horizontal_border.rect.top ||
-              vertical_border.rect.bottom < horizontal_border.rect.bottom) {
-            continue;
-          }
-            // v1.0.78의 1dot guard는 실물에서 교차부 열 누적을 상쇄하지
-            // 못했으므로 재사용하지 않는다. 병합된 외곽 endpoint에만
-            // 2dot clearance를 두고 내부 교차점은 그대로 유지한다.
-          const LONG left_delta =
-              horizontal_border.rect.left - vertical_border.rect.left;
-            const LONG guarded_left = vertical_border.rect.right + 2;
-          if (left_delta >= -1 && left_delta <= 1 &&
-              guarded_left < horizontal_border.rect.right) {
-            horizontal_border.rect.left = guarded_left;
-            ++native_border_outer_endpoint_guards;
-          }
-          const LONG right_delta =
-              horizontal_border.rect.right - vertical_border.rect.left;
-            const LONG guarded_right = vertical_border.rect.left - 2;
-          if (right_delta >= -1 && right_delta <= 1 &&
-              guarded_right > horizontal_border.rect.left) {
-            horizontal_border.rect.right = guarded_right;
-            ++native_border_outer_endpoint_guards;
+      LONG outer_left = std::numeric_limits<LONG>::max();
+      LONG outer_right = std::numeric_limits<LONG>::min();
+      for (const auto& border : merged_device_borders) {
+        if (border.horizontal) continue;
+        outer_left = std::min(outer_left, border.rect.left);
+        outer_right = std::max(outer_right, border.rect.right);
+      }
+      int native_border_outer_raster_clear_pixels = 0;
+      HBRUSH white_brush = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
+      const auto source_pixel_is_black = [&](int x, int y) {
+        if (x < 0 || x >= source_width || y < 0 || y >= source_height) {
+          return false;
+        }
+        const size_t offset =
+            (static_cast<size_t>(y) * source_width + x) * 4;
+        return (*bgra)[offset] < 128 && (*bgra)[offset + 1] < 128 &&
+            (*bgra)[offset + 2] < 128;
+      };
+      for (const auto& border : merged_device_borders) {
+        if (border.horizontal) continue;
+        const bool left_outer = border.rect.left == outer_left;
+        const bool right_outer = border.rect.right == outer_right;
+        if (!left_outer && !right_outer) continue;
+        const LONG clear_x = left_outer
+            ? border.rect.right
+            : border.rect.left - 1;
+        const LONG sample_device_x = left_outer ? clear_x + 1 : clear_x - 1;
+        const int source_x = std::clamp(
+            MulDiv(sample_device_x - destination_x, source_width,
+                   target_width),
+            0, source_width - 1);
+        for (LONG y = border.rect.top; y < border.rect.bottom; ++y) {
+          const int source_y = std::clamp(
+              MulDiv(y - destination_y, source_height, target_height), 0,
+              source_height - 1);
+          if (!source_pixel_is_black(source_x, source_y)) continue;
+          RECT clear_rect{clear_x, y, clear_x + 1, y + 1};
+          if (FillRect(printer_dc, &clear_rect, white_brush) != 0) {
+            ++native_border_outer_raster_clear_pixels;
           }
         }
       }
@@ -672,10 +684,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
-                  << " nativeBorderJunction=mergedOuterEndpointGuard"
-                  << " nativeBorderOuterEndpointClearance=twoDeviceDots"
-                  << " nativeBorderOuterEndpointGuards="
-                  << native_border_outer_endpoint_guards
+                  << " nativeBorderJunction=outerRasterContactClearance"
+                  << " nativeBorderOuterRasterClearance=oneDeviceDot"
+                  << " nativeBorderOuterRasterClearPixels="
+                  << native_border_outer_raster_clear_pixels
                   << " nativeBorderComposite="
                   << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
                   << " nativeBorderMaskLines=" << native_border_mask_lines

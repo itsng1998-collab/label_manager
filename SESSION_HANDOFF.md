@@ -1,5 +1,13 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 검정 raster와 외곽 세로선 접촉 분리 v1.0.80
+- v1.0.79 실물 `.tmp/IMG_20260809_0006.png`에서도 세 번째·아홉 번째 행 맨 왼쪽 외곽 세로선의 바깥 돌출 점선이 남았다. 로그 `.tmp/log/app_2026-08-09_13-29-44.log`는 version `1.0.79`, border `225/225`, `nativeBorderOuterEndpointClearance=twoDeviceDots`, guard `28`건을 확인해 2dot 가로 endpoint 보정은 실제 적용됐다.
+- 사진에서 돌출 구간은 두 개의 검정 배경 행과 정확히 일치한다. 가로 endpoint를 1dot·2dot으로 줄여도 동일하므로 원인은 가로 border가 아니라 source raster의 검정 셀 배경과 final-device native 외곽 세로선이 맞닿는 혼합 교차부 열 밀도다. v1.0.77~79 endpoint 방식은 재사용하지 않도록 제거했다.
+- 일반화 수정: 최종 device border를 먼저 병합해 전체 vertical 중 최소 X와 최대 X를 외곽 boundary로 구한다. source raster를 출력한 뒤, 각 외곽 세로 segment의 안쪽 인접 source 픽셀이 실제 검정인 Y에서만 안쪽 1 device dot을 `WHITE_BRUSH`로 비운다. 이후 기존 native bitmap mask가 외곽 세로선 1dot을 다시 합성한다.
+- 특정 행·셀·품목 분기 없이 raster 검정 접촉 여부로만 동작한다. 흰 셀 행, 내부 세로선, native text는 변경하지 않는다. diagnostics: `nativeBorderJunction=outerRasterContactClearance`, `nativeBorderOuterRasterClearance=oneDeviceDot`, `nativeBorderOuterRasterClearPixels`.
+- 버전 `1.0.80`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 직후와 버전 반영 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.80`, `get_errors` 0건, `git diff --check` 통과. 실물 로그에서 `nativeBorderOuterRasterClearPixels`가 양수인지, 제3·제9행 왼쪽 돌출이 제거되고 나머지 세로선·1dot이 유지되는지 확인이 필요하다.
+- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 외곽 endpoint 2dot clearance v1.0.79
 - v1.0.78 실물 `.tmp/IMG_20260809_0005.png`에서도 세 번째·아홉 번째 행 맨 왼쪽 외곽 세로선의 바깥 돌출 점선이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_12-54-08.log`는 version `1.0.78`, border `225/225`, `nativeBorderOuterEndpointGuards=28`을 확인해 병합 후 guard는 실제 적용됐다.
 - v1.0.77·78 동일 해상도 사진의 지정 경계 최초 검정 픽셀을 비교하면 일부 X 형상은 오른쪽으로 이동해 1dot guard가 mask에 영향을 줬지만 돌출 제거에는 부족했다. 코드 미적용이나 중복 segment 재채움이 아니라 1dot 흰 간격으로 교차부 열 누적을 상쇄하지 못한 결과다.
