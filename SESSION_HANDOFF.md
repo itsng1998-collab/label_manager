@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 외곽 왼쪽 교차점 돌출 제거 v1.0.76
+- v1.0.75 실물 `.tmp/IMG_20260809_0002.png`: 다른 세로선의 행별 지그재그는 사라지고 전체 테두리 `1px == 1dot`은 충족했다. 다만 세 번째 행 맨 왼쪽 외곽 세로선은 가로 행 경계마다 바깥쪽 돌출이 다시 보인다.
+- 최신 로그 `.tmp/log/app_2026-08-09_12-35-07.log`: version `1.0.75`, `nativeBorderDescriptors=225`, `nativeBordersRequested=225`, `nativeBordersDrawn=225`, `nativeBorderThickness=oneDeviceDot`, `nativeBorderComposite=bitmapMask`로 외곽 포함 전체 border가 final device mask에 적용됐고 source raster 중복은 없다.
+- 원인: half-open device rect에서 각 가로 segment의 왼쪽 픽셀이 해당 세로선의 1dot 열과 겹친다. 내부 교차점은 양쪽 선 때문에 두드러지지 않지만, 왼쪽 외곽에서는 교차점의 인접 가열이 여백 쪽 반복 돌출로 보인다.
+- 일반화 수정: C++ final device mask 생성 전에 세로 rect가 해당 Y의 가로 rect를 실제 덮는 교차점만 찾고, 가로선 시작/끝이 세로선과 겹치면 세로선 바깥쪽으로 trim한다. 세로선이 교차점 픽셀을 소유하며 가로선은 바로 옆 1dot부터 이어진다. 세로선 좌표·두께와 내부 1dot 연속성은 변경하지 않으며 특정 셀·행 분기 없음.
+- 1dot 길이의 극단적인 가로 segment가 사라지지 않도록 trim 후 최소 1dot 길이가 남을 때만 적용한다. Windows diagnostics에 `nativeBorderJunction=verticalOwnsIntersection`, `nativeBorderJunctionTrims`를 추가했다.
+- 버전 `1.0.76`; 출력 job 전체 18건 통과. C++ 수정 직후와 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 모두 성공. Debug EXE FileVersion/ProductVersion 모두 `1.0.76`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 실물 로그 판별: 기존 `nativeBorderThickness=oneDeviceDot`, `nativeBorderComposite=bitmapMask`, border 요청/출력 수 일치에 더해 `nativeBorderJunction=verticalOwnsIntersection`, `nativeBorderJunctionTrims` 양수가 기록되어야 한다. 다른 세로선의 동일 X·1dot을 유지하면서 왼쪽 외곽 행 교차점의 돌출만 없어야 한다.
+- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 외곽 개선 유지 + 전체 세로선 final device 1dot v1.0.75
 - v1.0.74 실물 `.tmp/IMG_20260809_0001.png`: 지정한 세 번째 행 맨 왼쪽 외곽 교차점 돌출은 개선됐지만, 모든 border를 source raster로 복원하면서 640→620 축소에 의해 다른 세로선의 X가 행별로 이동하는 지그재그와 1dot보다 두꺼운 선이 재현됐다.
 - 원인: FortuneSheet cell border candidate는 1px stroke footprint가 printer clip 밖으로 0.5px라도 나가면 외곽선을 후보에서 제외했다. v1.0.73의 final device 1dot mask에는 내부선만 들어가고 외곽선은 source raster에 남아 혼합 교차점 돌출이 발생했다. v1.0.74는 혼합을 없앴지만 전체 source raster 축소 회귀를 만들었다.

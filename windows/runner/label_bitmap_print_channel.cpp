@@ -423,6 +423,29 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         device_borders.push_back(
             DeviceBorderRect{device_rect, descriptor.horizontal, 1});
       }
+      int native_border_junction_trims = 0;
+      for (auto& horizontal_border : device_borders) {
+        if (!horizontal_border.horizontal) continue;
+        for (const auto& vertical_border : device_borders) {
+          if (vertical_border.horizontal ||
+              vertical_border.rect.top > horizontal_border.rect.top ||
+              vertical_border.rect.bottom < horizontal_border.rect.bottom) {
+            continue;
+          }
+          if (horizontal_border.rect.left >= vertical_border.rect.left &&
+              horizontal_border.rect.left < vertical_border.rect.right &&
+              vertical_border.rect.right < horizontal_border.rect.right) {
+            horizontal_border.rect.left = vertical_border.rect.right;
+            ++native_border_junction_trims;
+          }
+          if (horizontal_border.rect.right > vertical_border.rect.left &&
+              horizontal_border.rect.right <= vertical_border.rect.right &&
+              vertical_border.rect.left > horizontal_border.rect.left) {
+            horizontal_border.rect.right = vertical_border.rect.left;
+            ++native_border_junction_trims;
+          }
+        }
+      }
       std::sort(
           device_borders.begin(), device_borders.end(),
           [](const DeviceBorderRect& left, const DeviceBorderRect& right) {
@@ -642,6 +665,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
+                  << " nativeBorderJunction=verticalOwnsIntersection"
+                  << " nativeBorderJunctionTrims="
+                  << native_border_junction_trims
                   << " nativeBorderComposite="
                   << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
                   << " nativeBorderMaskLines=" << native_border_mask_lines
