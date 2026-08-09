@@ -9,6 +9,7 @@
 - focused 계약 테스트 1건 통과. 출력 준비·dispatch·session·설정·pipeline과 FortuneSheet capture/plan 관련 7개 파일 79건 모두 통과. 변경 파일 diagnostics 오류 0건.
 - `pubspec.yaml`: 버전 `1.0.74`로 증가했다. Windows 검증 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.0.74`, `git diff --check` 통과, 변경 파일 diagnostics 오류 0건.
 - 커밋 대상: `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 실물에서는 v1.0.73과 같은 세 번째 행 맨 왼쪽 외곽 세로선에서 가로 행 경계마다 바깥쪽 돌출 픽셀이 사라졌는지 확인한다.
+- 기능 커밋: `0e2e8a6` (`표 외곽선의 교차점 돌출 제거`).
 
 ## 완료: FortuneSheet 기본 테두리 1px -> 1dot v1.0.73
 - 사용자 요청에 따라 FortuneSheet cell border의 기본 1px를 물리 DPI 환산하지 않고 Windows 최종 device 1dot으로 고정한다. 특정 셀·품목·양식 분기 없이 승인된 모든 가로/세로 cell border에 공통 적용한다.
