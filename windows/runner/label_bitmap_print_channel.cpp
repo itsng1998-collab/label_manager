@@ -266,6 +266,7 @@ bool RenderNativeTextIntoBitmap(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
     int source_width, int source_height,
     const std::vector<NativeTextDescriptor>& text_descriptors,
+    HDC printer_dc,
     NativeTextRenderStats& stats, std::string& error) {
   if (text_descriptors.empty()) return true;
   const int render_width = target_width * kNativeTextSupersample;
@@ -277,7 +278,8 @@ bool RenderNativeTextIntoBitmap(
   bitmap_info.bmiHeader.biPlanes = 1;
   bitmap_info.bmiHeader.biBitCount = 32;
   bitmap_info.bmiHeader.biCompression = BI_RGB;
-  HDC memory_dc = CreateCompatibleDC(nullptr);
+  // 프린터 DC 기반 생성으로 203dpi 폰트 메트릭 상속 (레거시와 동일)
+  HDC memory_dc = CreateCompatibleDC(printer_dc);
   if (memory_dc == nullptr) {
     error = "CreateCompatibleDC for native text failed: " +
             std::to_string(GetLastError());
@@ -650,7 +652,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     NativeTextRenderStats native_text_stats;
     if (!RenderNativeTextIntoBitmap(
             composed_bitmap, target_width, target_height, source_width,
-            source_height, text_descriptors, native_text_stats, error)) {
+            source_height, text_descriptors, printer_dc,
+            native_text_stats, error)) {
       break;
     }
     BITMAPINFO bitmap_info{};
