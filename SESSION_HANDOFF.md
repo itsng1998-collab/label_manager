@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: G500 resident 굴림 대체로 사라지는 native text 수정 v1.0.86
+- v1.0.85 실물 `.tmp/IMG_20260809_0013.png`은 표·배경은 정상이나 글꼴을 모두 `굴림`으로 바꾼 뒤 텍스트가 전혀 출력되지 않았다. 로그 `.tmp/log/app_2026-08-09_15-15-31.log`는 `version=1.0.85`, `nativeTextRequested=36`, `nativeTextFonts=굴림`, `nativeTextDrawn=36`, `nativeTextFailed=0`, `nativeTextFitted=13`으로 앱과 `DrawTextW`는 성공 처리했다.
+- Windows에는 `gulim.ttc`와 굴림 family가 정상 설치돼 있고 메모리 bitmap GDI 렌더는 `Resolved=굴림`, `InkPixels=297`로 정상이다. 사용자는 G500 드라이버 프린터 설정에도 내장 굴림을 설치했다. 따라서 Seagull 11.6 드라이버가 printer DC의 `CreateFontW("굴림")`을 resident font로 대체한 뒤 Unicode `DrawTextW`를 성공 반환하면서 실제 spool glyph는 버리는 것이 현재 가설이다.
+- 수정 예정: `windows/runner/label_bitmap_print_channel.cpp`의 native text font output precision을 `OUT_TT_ONLY_PRECIS`로 바꿔 resident/device font 대체를 막고 Windows TrueType 굴림 outline만 선택한다. 선택 후 `TEXTMETRICW.tmPitchAndFamily & TMPF_TRUETYPE`을 집계해 로그에 TrueType/비TrueType 수를 남긴다. 텍스트 좌표·장평·native overflow-fit·border bitmap은 변경하지 않는다.
+- `windows/runner/label_bitmap_print_channel.cpp` 편집 완료: `CreateFontW`를 `OUT_TT_ONLY_PRECIS`로 변경하고 `SelectObject` 실패를 native text 실패로 처리한다. 선택 직후 `GetTextMetricsW`로 `nativeTextTrueType`, `nativeTextDeviceOrRaster`, `nativeTextMetricsFailed`를 집계하고 `fontOutputPrecision=OUT_TT_ONLY_PRECIS`를 진단에 추가했다. `/WX` 빌드로 우선 검증 예정.
+- printer DC 직접 probe 결과 `OUT_DEFAULT_PRECIS`와 `OUT_TT_ONLY_PRECIS` 모두 `face=굴림`, `trueType=false`, `pitch=0x00`으로 같아 precision만으로 resident 치환을 막는 가설은 반증됐다. 해당 printer-DC font type 진단 방식은 폐기했다. memory/printer DC 모두 `GetFontData`로 Windows 굴림 outline 13,531,160 bytes를 읽을 수 있어 드라이버의 spool 후단 치환을 우회해야 한다.
+- `windows/runner/label_bitmap_print_channel.cpp` 재편집 완료: 기존 text 측정·장평 fitting·정렬 코드를 `RenderNativeTextIntoBitmap`으로 옮겼다. 최종 620×480 top-down memory DIB에 border/배경 bitmap을 복사하고 Windows 굴림 outline으로 텍스트를 그린 뒤 같은 BGRA bitmap을 단일 `SRCCOPY`로 출력한다. printer DC `DrawTextW`는 제거했으며 diagnostics는 `nativeTextMapping=anisotropicMemoryDib`, `nativeTextComposite=finalDeviceBitmap`, outline/no-outline count를 기록한다. `/WX` 빌드 예정.
+- 최초 `/WX` Windows debug build 성공. `DrawTextW` 반환값과 별개로 memory DIB 합성 전후 BGR이 실제 달라진 픽셀 수를 세는 `nativeTextBitmapChangedPixels` 진단을 추가했다. 이 값이 실물 로그에서 양수면 텍스트가 spool 전 최종 bitmap에 들어간 것이다. 재빌드 예정.
+- 변경 후 `/WX` Windows debug build 재성공, `test/label_sheet_print_job_test.dart` 전체 18건 통과, C++ `get_errors` 0건, `git diff --check` 통과. printer DC `DrawTextW`와 printer DC anisotropic text mapping 코드가 남지 않은 것도 확인했다.
+- 버전 편집 완료: `pubspec.yaml`을 `1.0.86`으로 갱신했다.
+- 최종 Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- 1.0.86 최종 Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 확인 예정: EXE FileVersion/ProductVersion, 변경 파일 오류, `git diff --check`, stage 대상 점검.
+- 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.86`, 변경 파일 `get_errors` 0건, `git diff --check` 통과. 별도 임시 파일은 만들지 않았고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
+- 실물 검증 필요: 글꼴을 모두 `굴림`으로 둔 동일 라벨을 출력해 텍스트 36개가 다시 보이고 표의 fixed-X·1dot 및 오른쪽 빈줄 제거 상태가 유지되는지 확인한다. 로그는 `nativeTextDrawn=36`, `nativeTextFailed=0`, `nativeTextOutlineFonts=36`, `nativeTextNoOutlineFonts=0`, `nativeTextBitmapChangedPixels>0`, `nativeTextMapping=anisotropicMemoryDib`, `nativeTextComposite=finalDeviceBitmap`이어야 한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료·실물 검증 대기: v1.0.84 native border footprint 과다 제외 회귀 수정 v1.0.85
 - v1.0.84 실물 `.tmp/IMG_20260809_0012.png`와 로그 `.tmp/log/app_2026-08-09_14-56-50.log`를 확인했다. 로그는 version `1.0.84`, native border `225/225`, `sourceRasterResample=nearestCenter` 적용을 확인한다.
 - 첫·두 번째 검정 띠의 왼쪽 경계는 인접 흰 행과 0~1 image px 차이로 v1.0.83의 약 3 image px 바깥 돌출은 사라졌지만, 사용자 지적대로 선이 안쪽으로 들어가 보인다. 오른쪽은 검정 배경 끝과 native 외곽선 사이에 약 4 image px(1 device dot)의 흰 세로 간격이 새로 생겼다.

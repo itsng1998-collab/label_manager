@@ -6,6 +6,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -247,6 +248,168 @@ std::wstring Utf8ToWide(const std::string& value) {
   return result;
 }
 
+struct NativeTextRenderStats {
+  int drawn = 0;
+  int failed = 0;
+  int fitted = 0;
+  int outline_fonts = 0;
+  int no_outline_fonts = 0;
+  size_t bitmap_changed_pixels = 0;
+  size_t characters = 0;
+};
+
+bool RenderNativeTextIntoBitmap(
+    std::vector<uint8_t>& bitmap, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    NativeTextRenderStats& stats, std::string& error) {
+  if (text_descriptors.empty()) return true;
+  BITMAPINFO bitmap_info{};
+  bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  bitmap_info.bmiHeader.biWidth = target_width;
+  bitmap_info.bmiHeader.biHeight = -target_height;
+  bitmap_info.bmiHeader.biPlanes = 1;
+  bitmap_info.bmiHeader.biBitCount = 32;
+  bitmap_info.bmiHeader.biCompression = BI_RGB;
+  HDC memory_dc = CreateCompatibleDC(nullptr);
+  if (memory_dc == nullptr) {
+    error = "CreateCompatibleDC for native text failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  void* dib_bits = nullptr;
+  HBITMAP dib = CreateDIBSection(memory_dc, &bitmap_info, DIB_RGB_COLORS,
+                                 &dib_bits, nullptr, 0);
+  if (dib == nullptr || dib_bits == nullptr) {
+    error = "CreateDIBSection for native text failed: " +
+            std::to_string(GetLastError());
+    if (dib != nullptr) DeleteObject(dib);
+    DeleteDC(memory_dc);
+    return false;
+  }
+  HGDIOBJ previous_bitmap = SelectObject(memory_dc, dib);
+  std::memcpy(dib_bits, bitmap.data(), bitmap.size());
+  SetMapMode(memory_dc, MM_ANISOTROPIC);
+  SetWindowExtEx(memory_dc, source_width, source_height, nullptr);
+  SetViewportExtEx(memory_dc, target_width, target_height, nullptr);
+  SetViewportOrgEx(memory_dc, 0, 0, nullptr);
+  const int previous_background_mode = SetBkMode(memory_dc, TRANSPARENT);
+  for (const auto& descriptor : text_descriptors) {
+    const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
+    HFONT font = CreateFontW(
+        -font_pixel_height, 0, 0, 0,
+        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+        descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
+        OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
+    if (font == nullptr) {
+      ++stats.failed;
+      continue;
+    }
+    HGDIOBJ previous_font = SelectObject(memory_dc, font);
+    if (previous_font == nullptr || previous_font == HGDI_ERROR) {
+      DeleteObject(font);
+      ++stats.failed;
+      continue;
+    }
+    if (GetFontData(memory_dc, 0, 0, nullptr, 0) == GDI_ERROR) {
+      ++stats.no_outline_fonts;
+    } else {
+      ++stats.outline_fonts;
+    }
+    const COLORREF previous_color = SetTextColor(memory_dc, descriptor.color);
+    RECT text_rect{
+        descriptor.rect.left,
+        descriptor.rect.top,
+        descriptor.rect.right,
+        descriptor.rect.bottom,
+    };
+    UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
+    if (descriptor.horizontal_align == "0") {
+      flags |= DT_CENTER;
+    } else if (descriptor.horizontal_align == "2") {
+      flags |= DT_RIGHT;
+    } else {
+      flags |= DT_LEFT;
+    }
+    flags |= descriptor.wrap ? DT_WORDBREAK : DT_SINGLELINE;
+    RECT measured = text_rect;
+    DrawTextW(memory_dc, descriptor.text.c_str(),
+              static_cast<int>(descriptor.text.size()), &measured,
+              flags | DT_CALCRECT);
+    HFONT fitted_font = nullptr;
+    const LONG available_width = text_rect.right - text_rect.left;
+    const LONG measured_width = measured.right - measured.left;
+    if (!descriptor.wrap && measured_width > available_width &&
+        available_width > 0) {
+      TEXTMETRICW text_metrics{};
+      LOGFONTW log_font{};
+      if (GetTextMetricsW(memory_dc, &text_metrics) != 0 &&
+          GetObjectW(font, sizeof(log_font), &log_font) != 0) {
+        const LONG desired_width = std::max(1L, available_width - 2);
+        int fitted_width = std::max(
+            1, MulDiv(text_metrics.tmAveCharWidth, desired_width,
+                      measured_width));
+        for (int attempt = 0; attempt < 4; ++attempt) {
+          log_font.lfWidth = fitted_width;
+          HFONT next_fitted_font = CreateFontIndirectW(&log_font);
+          if (next_fitted_font == nullptr) break;
+          SelectObject(memory_dc, next_fitted_font);
+          if (fitted_font != nullptr) DeleteObject(fitted_font);
+          fitted_font = next_fitted_font;
+          measured = text_rect;
+          DrawTextW(memory_dc, descriptor.text.c_str(),
+                    static_cast<int>(descriptor.text.size()), &measured,
+                    flags | DT_CALCRECT);
+          const LONG fitted_measured_width = measured.right - measured.left;
+          if (fitted_measured_width <= desired_width) break;
+          const int next_width = std::max(
+              1, MulDiv(fitted_width, desired_width, fitted_measured_width));
+          fitted_width = next_width < fitted_width
+                             ? next_width
+                             : std::max(1, fitted_width - 1);
+        }
+        if (fitted_font != nullptr) ++stats.fitted;
+      }
+    }
+    const LONG text_height = measured.bottom - measured.top;
+    if (descriptor.vertical_align == "2") {
+      text_rect.top = std::max(text_rect.top, text_rect.bottom - text_height);
+    } else if (descriptor.vertical_align != "1") {
+      text_rect.top += std::max<LONG>(
+          0, (text_rect.bottom - text_rect.top - text_height) / 2);
+    }
+    const int draw_result = DrawTextW(
+        memory_dc, descriptor.text.c_str(),
+        static_cast<int>(descriptor.text.size()), &text_rect, flags);
+    if (draw_result > 0) {
+      ++stats.drawn;
+      stats.characters += descriptor.text.size();
+    } else {
+      ++stats.failed;
+    }
+    SetTextColor(memory_dc, previous_color);
+    SelectObject(memory_dc, previous_font);
+    if (fitted_font != nullptr) DeleteObject(fitted_font);
+    DeleteObject(font);
+  }
+  GdiFlush();
+  const auto* rendered = static_cast<const uint8_t*>(dib_bits);
+  for (size_t offset = 0; offset < bitmap.size(); offset += 4) {
+    if (bitmap[offset] != rendered[offset] ||
+        bitmap[offset + 1] != rendered[offset + 1] ||
+        bitmap[offset + 2] != rendered[offset + 2]) {
+      ++stats.bitmap_changed_pixels;
+    }
+  }
+  std::memcpy(bitmap.data(), dib_bits, bitmap.size());
+  SetBkMode(memory_dc, previous_background_mode);
+  SelectObject(memory_dc, previous_bitmap);
+  DeleteObject(dib);
+  DeleteDC(memory_dc);
+  return true;
+}
+
 EncodableValue PrintResult(bool ok, const std::string& diagnostics,
                            const std::string& error = {}) {
   EncodableMap result{
@@ -410,7 +573,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << native_text_requested_characters
               << " nativeTextHeight=" << native_text_min_height << ".."
               << native_text_max_height
-              << " fontQuality=DEFAULT_QUALITY nativeTextFonts=";
+              << " fontQuality=DEFAULT_QUALITY"
+              << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
+              << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
     diagnostics << native_text_fonts[index];
@@ -434,9 +599,15 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       error = "StartPage failed: " + std::to_string(GetLastError());
       break;
     }
-    const auto composed_bitmap = ComposeFinalDeviceBitmap(
+    auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
+    NativeTextRenderStats native_text_stats;
+    if (!RenderNativeTextIntoBitmap(
+            composed_bitmap, target_width, target_height, source_width,
+            source_height, text_descriptors, native_text_stats, error)) {
+      break;
+    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -459,7 +630,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
-      const int text_dc_state = SaveDC(printer_dc);
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
@@ -549,115 +719,18 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       native_borders_drawn = static_cast<int>(border_descriptors.size());
       native_border_fill_rects =
           static_cast<int>(merged_device_borders.size());
-      SetMapMode(printer_dc, MM_ANISOTROPIC);
-      SetWindowExtEx(printer_dc, source_width, source_height, nullptr);
-      SetViewportExtEx(printer_dc, target_width, target_height, nullptr);
-      SetViewportOrgEx(printer_dc, destination_x, destination_y, nullptr);
-      const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
-      int native_text_drawn = 0;
-      int native_text_failed = 0;
-      int native_text_fitted = 0;
-      size_t native_text_characters = 0;
-      for (const auto& descriptor : text_descriptors) {
-        const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
-        HFONT font = CreateFontW(
-            -font_pixel_height, 0, 0, 0,
-            descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
-            descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-          // v1.0.53 실물에서 비안티앨리어싱은 작은 한글의 획 단절과 계단을 키웠다.
-          OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-            DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
-        if (font == nullptr) {
-          ++native_text_failed;
-          continue;
-        }
-        HGDIOBJ previous_font = SelectObject(printer_dc, font);
-        const COLORREF previous_color = SetTextColor(printer_dc, descriptor.color);
-        RECT text_rect{
-          descriptor.rect.left,
-          descriptor.rect.top,
-          descriptor.rect.right,
-          descriptor.rect.bottom,
-        };
-        UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
-        if (descriptor.horizontal_align == "0") {
-          flags |= DT_CENTER;
-        } else if (descriptor.horizontal_align == "2") {
-          flags |= DT_RIGHT;
-        } else {
-          flags |= DT_LEFT;
-        }
-        flags |= descriptor.wrap ? DT_WORDBREAK : DT_SINGLELINE;
-        RECT measured = text_rect;
-        DrawTextW(printer_dc, descriptor.text.c_str(),
-                  static_cast<int>(descriptor.text.size()), &measured,
-                  flags | DT_CALCRECT);
-        HFONT fitted_font = nullptr;
-        const LONG available_width = text_rect.right - text_rect.left;
-        const LONG measured_width = measured.right - measured.left;
-        if (!descriptor.wrap && measured_width > available_width &&
-            available_width > 0) {
-          TEXTMETRICW text_metrics{};
-          LOGFONTW log_font{};
-          if (GetTextMetricsW(printer_dc, &text_metrics) != 0 &&
-              GetObjectW(font, sizeof(log_font), &log_font) != 0) {
-            const LONG desired_width = std::max(1L, available_width - 2);
-            int fitted_width = std::max(
-                1, MulDiv(text_metrics.tmAveCharWidth, desired_width,
-                          measured_width));
-            for (int attempt = 0; attempt < 4; ++attempt) {
-              log_font.lfWidth = fitted_width;
-              HFONT next_fitted_font = CreateFontIndirectW(&log_font);
-              if (next_fitted_font == nullptr) break;
-              SelectObject(printer_dc, next_fitted_font);
-              if (fitted_font != nullptr) DeleteObject(fitted_font);
-              fitted_font = next_fitted_font;
-              measured = text_rect;
-              DrawTextW(printer_dc, descriptor.text.c_str(),
-                        static_cast<int>(descriptor.text.size()), &measured,
-                        flags | DT_CALCRECT);
-              const LONG fitted_measured_width =
-                  measured.right - measured.left;
-              if (fitted_measured_width <= desired_width) break;
-              const int next_width = std::max(
-                  1, MulDiv(fitted_width, desired_width,
-                            fitted_measured_width));
-              fitted_width = next_width < fitted_width
-                                 ? next_width
-                                 : std::max(1, fitted_width - 1);
-            }
-            if (fitted_font != nullptr) ++native_text_fitted;
-          }
-        }
-        const LONG text_height = measured.bottom - measured.top;
-        if (descriptor.vertical_align == "2") {
-          text_rect.top = std::max(text_rect.top,
-                                   text_rect.bottom - text_height);
-        } else if (descriptor.vertical_align != "1") {
-          text_rect.top += std::max<LONG>(
-              0, (text_rect.bottom - text_rect.top - text_height) / 2);
-        }
-        const int draw_result = DrawTextW(
-            printer_dc, descriptor.text.c_str(),
-            static_cast<int>(descriptor.text.size()), &text_rect, flags);
-        if (draw_result > 0) {
-          ++native_text_drawn;
-          native_text_characters += descriptor.text.size();
-        } else {
-          ++native_text_failed;
-        }
-        SetTextColor(printer_dc, previous_color);
-        SelectObject(printer_dc, previous_font);
-        if (fitted_font != nullptr) DeleteObject(fitted_font);
-        DeleteObject(font);
-      }
-      SetBkMode(printer_dc, previous_background_mode);
-      RestoreDC(printer_dc, text_dc_state);
-      diagnostics << " nativeTextDrawn=" << native_text_drawn
-                  << " nativeTextFailed=" << native_text_failed
-                  << " nativeTextFitted=" << native_text_fitted
-          << " nativeTextCharacters=" << native_text_characters
-                  << " nativeTextMapping=anisotropic"
+      diagnostics << " nativeTextDrawn=" << native_text_stats.drawn
+                  << " nativeTextFailed=" << native_text_stats.failed
+                  << " nativeTextFitted=" << native_text_stats.fitted
+                  << " nativeTextOutlineFonts="
+                  << native_text_stats.outline_fonts
+                  << " nativeTextNoOutlineFonts="
+                  << native_text_stats.no_outline_fonts
+                  << " nativeTextBitmapChangedPixels="
+                  << native_text_stats.bitmap_changed_pixels
+                  << " nativeTextCharacters=" << native_text_stats.characters
+                  << " nativeTextMapping=anisotropicMemoryDib"
+                  << " nativeTextComposite=finalDeviceBitmap"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
@@ -665,9 +738,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeBorderBitmapLines=" << scan_lines
                   << " nativeBorderFillRects=" << native_border_fill_rects
                   << " nativeBordersDrawn=" << native_borders_drawn;
-      if (native_text_failed > 0) {
+      if (native_text_stats.failed > 0) {
         error = "Native text rendering failed: " +
-                std::to_string(native_text_failed);
+                std::to_string(native_text_stats.failed);
       }
     }
     if (error.empty() && EndPage(printer_dc) <= 0) {
