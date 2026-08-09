@@ -423,33 +423,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         device_borders.push_back(
             DeviceBorderRect{device_rect, descriptor.horizontal, 1});
       }
-      int native_border_junction_snaps = 0;
-      for (auto& horizontal_border : device_borders) {
-        if (!horizontal_border.horizontal) continue;
-        for (const auto& vertical_border : device_borders) {
-          if (vertical_border.horizontal ||
-              vertical_border.rect.top > horizontal_border.rect.top ||
-              vertical_border.rect.bottom < horizontal_border.rect.bottom) {
-            continue;
-          }
-          // v1.0.76의 overlap-only trim은 1dot 어긋난 외곽 endpoint를
-          // 잡지 못했으므로 재사용하지 않는다.
-          const LONG left_delta =
-              horizontal_border.rect.left - vertical_border.rect.left;
-          if (left_delta >= -1 && left_delta <= 1 &&
-              vertical_border.rect.right < horizontal_border.rect.right) {
-            horizontal_border.rect.left = vertical_border.rect.right;
-            ++native_border_junction_snaps;
-          }
-          const LONG right_delta =
-              horizontal_border.rect.right - vertical_border.rect.left;
-          if (right_delta >= -1 && right_delta <= 1 &&
-              vertical_border.rect.left > horizontal_border.rect.left) {
-            horizontal_border.rect.right = vertical_border.rect.left;
-            ++native_border_junction_snaps;
-          }
-        }
-      }
       std::sort(
           device_borders.begin(), device_borders.end(),
           [](const DeviceBorderRect& left, const DeviceBorderRect& right) {
@@ -502,6 +475,36 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           }
         }
         merged_device_borders.push_back(border);
+      }
+      int native_border_outer_endpoint_guards = 0;
+      for (auto& horizontal_border : merged_device_borders) {
+        if (!horizontal_border.horizontal) continue;
+        for (const auto& vertical_border : merged_device_borders) {
+          if (vertical_border.horizontal ||
+              vertical_border.rect.top > horizontal_border.rect.top ||
+              vertical_border.rect.bottom < horizontal_border.rect.bottom) {
+            continue;
+          }
+          // v1.0.77의 병합 전 snap은 중복 segment가 최종 mask를 다시
+          // 채울 수 있으므로 재사용하지 않는다. 병합된 외곽 endpoint에만
+          // 1dot guard를 두고 내부 교차점은 그대로 유지한다.
+          const LONG left_delta =
+              horizontal_border.rect.left - vertical_border.rect.left;
+          const LONG guarded_left = vertical_border.rect.right + 1;
+          if (left_delta >= -1 && left_delta <= 1 &&
+              guarded_left < horizontal_border.rect.right) {
+            horizontal_border.rect.left = guarded_left;
+            ++native_border_outer_endpoint_guards;
+          }
+          const LONG right_delta =
+              horizontal_border.rect.right - vertical_border.rect.left;
+          const LONG guarded_right = vertical_border.rect.left - 1;
+          if (right_delta >= -1 && right_delta <= 1 &&
+              guarded_right > horizontal_border.rect.left) {
+            horizontal_border.rect.right = guarded_right;
+            ++native_border_outer_endpoint_guards;
+          }
+        }
       }
 
       BITMAPINFO border_mask_info{};
@@ -669,9 +672,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropic"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
-                  << " nativeBorderJunction=snapToVertical"
-                  << " nativeBorderJunctionSnaps="
-                  << native_border_junction_snaps
+                  << " nativeBorderJunction=mergedOuterEndpointGuard"
+                  << " nativeBorderOuterEndpointGuards="
+                  << native_border_outer_endpoint_guards
                   << " nativeBorderComposite="
                   << (native_border_mask_drawn ? "bitmapMask" : "fillRectFallback")
                   << " nativeBorderMaskLines=" << native_border_mask_lines

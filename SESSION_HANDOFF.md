@@ -1,5 +1,13 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: 병합 후 외곽 endpoint 1dot guard v1.0.78
+- v1.0.77 실물 `.tmp/IMG_20260809_0004.png`에서 세 번째·아홉 번째 행 맨 왼쪽 외곽 세로선의 바깥 돌출 점선이 그대로 재현됐다. 로그 `.tmp/log/app_2026-08-09_12-47-58.log`는 version `1.0.77`, border `225/225`, `nativeBorderJunctionSnaps=62`를 확인해 코드 미적용 문제가 아니다.
+- 사진 픽셀 추적에서 외곽 세로선의 정상 X는 약 1159~1162지만 해당 행 경계에서만 1154~1157까지 왼쪽 검정 픽셀이 생겼다. 세로 segment 전체가 행별로 이동한 것이 아니라 가로선 endpoint 교차부 형상이다.
+- v1.0.77의 병합 전 snap은 중복 border descriptor가 후속 merge에서 최종 mask endpoint를 다시 채울 수 있고, 세로선 바로 옆의 검정 dot도 남긴다. 해당 방식은 코드에 재사용 금지 코멘트를 남기고 제거했다.
+- 일반화 수정: 모든 border를 final device에서 먼저 병합한 뒤, 병합된 가로선의 왼쪽·오른쪽 외곽 endpoint가 해당 Y의 세로 boundary와 ±1dot 이내인 경우에만 세로선과 가로선 사이에 흰색 1 device dot guard를 둔다. 내부 세로 교차점은 병합된 가로선의 endpoint가 아니므로 변경하지 않고, 세로선 X·1dot 두께와 native text는 유지한다.
+- diagnostics: `nativeBorderJunction=mergedOuterEndpointGuard`, `nativeBorderOuterEndpointGuards`. 버전 `1.0.78`; `flutter test test/label_sheet_print_job_test.dart` 전체 18건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 수정 직후와 버전 반영 후 모두 성공, Debug EXE `FileVersion/ProductVersion=1.0.78`, `get_errors` 0건, `git diff --check` 통과. 실물 출력에서 제3·제9행 왼쪽 돌출 제거와 나머지 세로선·1dot 유지 확인이 필요하다.
+- 커밋 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료·실물 검증 대기: 외곽 가로 endpoint 1dot 오차 정렬 v1.0.77
 - v1.0.76 실물 `.tmp/IMG_20260809_0003.png`에도 세 번째 행 맨 왼쪽 외곽 세로선의 반복 돌출이 남았다. 최신 로그 `.tmp/log/app_2026-08-09_12-42-28.log`는 `nativeBorderJunctionTrims=31`과 border `225/225`를 확인해 overlap trim은 실행됐지만 지정 현상에는 효과가 없었다.
 - v1.74·75·76 동일 해상도 사진에서 각 Y의 표 왼쪽 첫 검정 픽셀을 추적했다. v1.74는 원근 기울기만 있는 매끄러운 X 궤적이고, v1.75·76은 행 경계에서 왼쪽으로 1 device dot에 해당하는 약 4~7 image px 급락이 반복됐다.
