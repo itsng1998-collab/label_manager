@@ -1,5 +1,29 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: v1.0.84 native border footprint 과다 제외 회귀 수정 v1.0.85
+- v1.0.84 실물 `.tmp/IMG_20260809_0012.png`와 로그 `.tmp/log/app_2026-08-09_14-56-50.log`를 확인했다. 로그는 version `1.0.84`, native border `225/225`, `sourceRasterResample=nearestCenter` 적용을 확인한다.
+- 첫·두 번째 검정 띠의 왼쪽 경계는 인접 흰 행과 0~1 image px 차이로 v1.0.83의 약 3 image px 바깥 돌출은 사라졌지만, 사용자 지적대로 선이 안쪽으로 들어가 보인다. 오른쪽은 검정 배경 끝과 native 외곽선 사이에 약 4 image px(1 device dot)의 흰 세로 간격이 새로 생겼다.
+- v1.0.83 raster ink `44749` 대비 v1.0.84는 `41414`로 3335px 감소했다. 원인은 화면용 border `logicalPaintedFootprint` 전체 폭(203.2dpi에서 약 2.12 source px)을 모든 인접 셀 배경에서 제외했지만 최종 native border는 1 device dot뿐인 폭 불일치다.
+- 수정 예정: 승인된 border의 오른쪽/아래쪽 셀 배경에서 경계 첫 source raster pixel 1개만 제외한다. 왼쪽/위쪽 셀의 오른쪽·아래 경계 배경은 제외하지 않아 native 선 바로 안쪽까지 배경이 이어지게 한다. 특정 행·셀 분기 및 C++ 출력 후 clear는 사용하지 않는다.
+- 테스트 편집 완료: 기존 테스트에 실제 approved border candidate를 넣고 경계 첫 pixel은 white, 바로 다음 pixel은 black이어야 하는 `hybrid capture reserves one raster dot for native border` 계약으로 강화했다. 구현 전 실패 확인 예정.
+- 구현 전 검증: 강화 테스트는 바로 다음 pixel black 기대가 false로 실패해 v1.0.84의 전체 footprint 과다 제외를 재현했다.
+- 1 source pixel difference clip 시도는 테스트 RGBA에서 X=42·43 white, X=44 gray, X=45 black으로 실제 2px 공백을 만들어 폐기했다. hard-edge difference clip 자체가 경계를 바깥으로 확장하므로 재사용하지 않는다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 편집 완료: footprint/strip 제외를 모두 제거하고, 승인된 native cell border가 있는 hybrid capture에서 셀 배경 `drawRect`를 `isAntiAlias=false`로 그린다. 배경 시작·끝이 동일 pixel grid의 nearest boundary에 맞으므로 왼쪽 바깥 AA coverage와 오른쪽 내부 빈줄을 동시에 만들지 않는다. 일반 screenshot과 raster fallback-only capture는 기존 anti-alias 경로를 유지한다. 집중 테스트 재실행 예정.
+- no-AA capture 진단은 왼쪽 배경에서 X=42 outside white, X=43 native line slot white, X=44부터 solid black을 확인했다. 전체-footprint 방식의 X=44 gray/X=45 black보다 배경이 정확히 1px 선에 붙는다. 테스트를 오른쪽 셀의 left edge와 왼쪽 셀의 right edge 양방향으로 확장했으며 임시 RGBA 출력은 제거했다.
+- 반대 방향 진단에서 왼쪽 검정 셀의 right edge는 X=42와 native line slot X=43까지 solid black이었다. native 선이 동일 픽셀을 검정으로 덮으므로 공백 없는 올바른 합성이며, 테스트 기대도 line slot underpaint를 허용하도록 수정했다.
+- 집중 검증 완료: FortuneSheet 패키지에서 `C:/Flutter/bin/flutter.bat test test/fortune_print_capture_test.dart --plain-name "hybrid capture pixel-aligns backgrounds to native borders"` 통과.
+- 다음 검증 예정: 수정 Dart 파일 포맷, FortuneSheet 캡처 테스트 전체, 루트 `test/label_sheet_print_job_test.dart`, `/WX` Windows debug build.
+- 포맷 및 패키지 검증 완료: 수정 Dart 2개 파일 `dart format` 적용, FortuneSheet `test/fortune_print_capture_test.dart` 전체 10건 통과.
+- 앱 레벨 검증 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_print_job_test.dart`.
+- 앱 레벨 검증 완료: `test/label_sheet_print_job_test.dart` 전체 18건 통과. 수정 파일 `get_errors` 0건, `git diff --check` 통과, 폐기한 footprint/strip 및 임시 RGBA 진단 코드 없음.
+- 버전 편집 완료: `pubspec.yaml`을 `1.0.85`로 갱신했다.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 확인 예정: EXE FileVersion/ProductVersion, 변경 파일 `get_errors`, `git diff --check`, stage 대상 점검.
+- 최종 자동 검증 완료: Debug EXE `FileVersion/ProductVersion=1.0.85`, 변경 파일 `get_errors` 0건, `git diff --check` 통과. 별도 임시 파일은 만들지 않았고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
+- 실물 검증 필요: v1.0.85로 동일 라벨을 출력해 제3·제9행 왼쪽 외곽선이 인접 흰 행보다 바깥/안쪽으로 1dot 이동하지 않는지, 같은 검정 행 오른쪽 외곽선 안쪽의 흰 세로줄이 사라졌는지 확인한다. 다른 세로선 fixed-X·1dot, native text, overflow-fit도 함께 유지돼야 한다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료·실물 검증 대기: native border와 source raster 배경의 경계 소유권 통일 v1.0.84
 - v1.0.83 실물 완료 판정을 철회한다. `.tmp/IMG_20260809_0011.png`에서 첫 검정 띠의 왼쪽 경계는 인접 흰 행 X=1167 대비 X=1164, 두 번째는 X=1166 대비 X=1163으로 약 3 image px(약 1 device dot) 왼쪽이다. `.tmp/IMG_20260809_0010.png`도 같은 상대 이동이 있었으나 전체 X 분포만 보고 완료로 잘못 판정했다.
 - 정상 기준 `.tmp/IMG_v1.0.44.png`는 동일한 3000×2102 사진에서 검정 띠와 앞뒤 흰 행의 왼쪽 경계가 모두 X=1176으로 일치한다. 따라서 남은 돌출은 촬영 원근이나 프린터 번짐이 아니라 v1.0.83 렌더 경로의 행별 차이다.

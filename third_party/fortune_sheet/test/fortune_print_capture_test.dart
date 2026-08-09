@@ -682,7 +682,7 @@ void main() {
     );
   });
 
-  testWidgets('hybrid capture reserves approved native border footprint', (
+  testWidgets('hybrid capture pixel-aligns backgrounds to native borders', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(240, 180);
@@ -700,12 +700,15 @@ void main() {
     final sheet = FortuneSheet(
       id: 's1',
       name: 'Sheet1',
-      rowCount: 1,
+      rowCount: 2,
       columnCount: 2,
       defaultRowHeight: 20,
       defaultColWidth: 20.2,
       cells: {
         const FortuneCellCoord(0, 1): const FortuneCell(
+          background: ui.Color(0xff000000),
+        ),
+        const FortuneCellCoord(1, 0): const FortuneCell(
           background: ui.Color(0xff000000),
         ),
       },
@@ -721,6 +724,20 @@ void main() {
               rowEnd: 0,
               columnStart: 1,
               columnEnd: 1,
+            ),
+          ],
+        ),
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-right',
+          color: ui.Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 1,
+              rowEnd: 1,
+              columnStart: 0,
+              columnEnd: 0,
             ),
           ],
         ),
@@ -748,12 +765,12 @@ void main() {
       sheet: sheet,
       range: const FortuneRange(
         rowStart: 0,
-        rowEnd: 0,
+        rowEnd: 1,
         columnStart: 0,
         columnEnd: 1,
       ),
       transform: const FortunePrintTransform(
-        sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 40.4, 20),
+        sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 40.4, 40),
         dpi: 203.2,
         contentLeftMm: 0,
         contentTopMm: 0,
@@ -761,13 +778,46 @@ void main() {
         clipBottomMm: 20,
         nativeAllowed: true,
       ),
-      candidates: const [],
-      approvedCandidateTokens: const [],
+      candidates: const [
+        FortuneNativeCandidate(
+          token: 'left-border',
+          kind: FortuneNativeCandidateKind.cellBorder,
+          cellBorderEdgeKey: FortuneCellBorderEdgeKey(
+            axis: FortuneCellBorderEdgeAxis.vertical,
+            row: 0,
+            column: 1,
+          ),
+          logicalPaintedFootprint: ui.Rect.fromLTRB(19.7, 0, 20.7, 20),
+          printerPaintedFootprint: ui.Rect.fromLTRB(41.7, 0, 43.82, 42.34),
+        ),
+        FortuneNativeCandidate(
+          token: 'right-border',
+          kind: FortuneNativeCandidateKind.cellBorder,
+          cellBorderEdgeKey: FortuneCellBorderEdgeKey(
+            axis: FortuneCellBorderEdgeAxis.vertical,
+            row: 1,
+            column: 1,
+          ),
+          logicalPaintedFootprint: ui.Rect.fromLTRB(19.7, 20, 20.7, 40),
+          printerPaintedFootprint: ui.Rect.fromLTRB(
+            41.7,
+            42.34,
+            43.82,
+            84.67,
+          ),
+        ),
+      ],
+      approvedCandidateTokens: const ['left-border', 'right-border'],
       approvedObjectKeys: const [],
       approvedCellBorderEdgeKeys: {
         const FortuneCellBorderEdgeKey(
           axis: FortuneCellBorderEdgeAxis.vertical,
           row: 0,
+          column: 1,
+        ),
+        const FortuneCellBorderEdgeKey(
+          axis: FortuneCellBorderEdgeAxis.vertical,
+          row: 1,
           column: 1,
         ),
       },
@@ -786,9 +836,14 @@ void main() {
     final width = capture!.pixelSize.width.toInt();
     final scale = 203.2 / fortuneSheetLogicalPixelsPerInch;
     final boundaryX = (20.2 * scale).floor();
-    final centerY = (10 * scale).round();
-    expect(_isWhite(pixels!, width, boundaryX, centerY), isTrue);
-    expect(_isBlack(pixels, width, boundaryX + 3, centerY), isTrue);
+    final firstRowCenterY = (10 * scale).round();
+    final secondRowCenterY = (30 * scale).round();
+    final pixelData = pixels!;
+    expect(_isWhite(pixelData, width, boundaryX, firstRowCenterY), isTrue);
+    expect(_isWhite(pixelData, width, boundaryX + 1, firstRowCenterY), isTrue);
+    expect(_isBlack(pixelData, width, boundaryX + 2, firstRowCenterY), isTrue);
+    expect(_isBlack(pixelData, width, boundaryX, secondRowCenterY), isTrue);
+    expect(_isBlack(pixelData, width, boundaryX + 1, secondRowCenterY), isTrue);
   });
 
   testWidgets('print capture includes typed lines and shapes', (tester) async {

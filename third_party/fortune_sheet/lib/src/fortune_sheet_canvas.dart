@@ -16041,7 +16041,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSettings? settingsOverride,
     Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
     Set<FortuneCellBorderEdgeKey> omittedCellBorderEdgeKeys = const {},
-    Map<FortuneCellBorderEdgeKey, Rect> omittedCellBorderFootprints = const {},
+    bool pixelAlignCellBackgrounds = false,
     Set<FortuneCellCoord> omittedCellTextCoords = const {},
     Size? logicalClipSize,
   }) async {
@@ -16134,9 +16134,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               canvas,
               rect,
               background,
-              originX: originX,
-              originY: originY,
-              omittedBorderFootprints: omittedCellBorderFootprints.values,
+              pixelAligned: pixelAlignCellBackgrounds,
             );
           }
           if (conditionStyle?.dataBar case final dataBar?) {
@@ -16456,9 +16454,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required bool includeCellBorders,
     double? outputLineHeightMultiplier,
   }) async {
+    final capturePixelRatio = math.max(0.01, pixelRatio);
     final capture = await _generateScreenshotCapture(
       plan.range,
-      pixelRatio: math.max(0.01, pixelRatio),
+      pixelRatio: capturePixelRatio,
       includeGridLines: false,
       includeCellBorders: includeCellBorders,
       includeRulerGuides: false,
@@ -16468,12 +16467,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       settingsOverride: plan.settings,
       omittedObjectKeys: plan.approvedObjectKeys,
       omittedCellBorderEdgeKeys: plan.approvedCellBorderEdgeKeys,
-      omittedCellBorderFootprints: {
-        for (final candidate in plan.candidates)
-          if (candidate.cellBorderEdgeKey case final edgeKey?
-              when plan.approvedCellBorderEdgeKeys.contains(edgeKey))
-            edgeKey: candidate.logicalPaintedFootprint,
-      },
+        pixelAlignCellBackgrounds:
+          plan.approvedCellBorderEdgeKeys.isNotEmpty,
       omittedCellTextCoords: plan.approvedCellTextCoords,
       logicalClipSize: plan.transform.sourceLogicalBounds.size,
     );
@@ -19145,28 +19140,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Canvas canvas,
     Rect rect,
     Color background, {
-    required double originX,
-    required double originY,
-    required Iterable<Rect> omittedBorderFootprints,
+    required bool pixelAligned,
   }) {
-    final paint = Paint()..color = background;
-    if (omittedBorderFootprints.isEmpty) {
-      canvas.drawRect(rect, paint);
-      return;
-    }
-
-    canvas.save();
-    for (final logicalFootprint in omittedBorderFootprints) {
-      final footprint = logicalFootprint.translate(-originX, -originY);
-      if (!footprint.overlaps(rect)) continue;
-      canvas.clipRect(
-        footprint,
-        clipOp: ui.ClipOp.difference,
-        doAntiAlias: false,
-      );
-    }
-    canvas.drawRect(rect, paint);
-    canvas.restore();
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = background
+        ..isAntiAlias = !pixelAligned,
+    );
   }
 
   FortuneCellBorders? _screenshotRenderedCellBorders({
