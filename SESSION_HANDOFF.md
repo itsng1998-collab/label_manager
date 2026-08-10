@@ -30,6 +30,7 @@
 - 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.2.0`, 변경 파일 diagnostics 오류 0건, 마지막 테스트 파일 analyzer 오류·경고 0건, `git diff --check` 통과.
 - 동작 기준: 저장 후 편집 품목 선택 유지, 순서 저장 완료, 최소표시/클라이언트 편집 권한의 품목 저장 일괄 반영, 전체 새로 고침 선택 복원, 공용 Enter/Tab 이동 및 경계 autoscroll 선택, 플로팅 8방향 resize·화면 내 이동, 읽기 전용 출력 미리보기 우클릭 완전 차단을 적용한다.
 - stage/commit 대상: 품목 data/domain/presentation 5개, `home_page_manager.dart`, label sheet 설정/workbench 2개, preview widget 2개, FortuneTable, 관련 테스트 6개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 구현 커밋: `f8bfa63` (`품목관리 편집 흐름과 공용 테이블 동작 개선`).
 
 ## 완료: 품목관리 빈 품명·주원료 저장 허용 v1.1.1
 - 요청: 품목관리 저장 시 빈 품명과 빈 주원료를 허용하고, 신규 저장과 기존 품목 수정 모두 DB에 빈 문자열이 반영되게 한다.
