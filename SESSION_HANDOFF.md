@@ -12,6 +12,7 @@
 - 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.1.1`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
 - 동작 기준: 품명과 주원료는 공백 문자열을 포함해 빈값 저장을 허용하며, 신규 품목 INSERT와 기존 품목 UPDATE 모두 XML 입력의 빈 문자열을 `BM_RICH_ITEM.RICH_ITEM_NAME`·`RICH_ELEMENT`에 그대로 반영한다.
 - stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `test/item_manager_draft_test.dart`, `test/item_manager_save_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `62cac72` (`빈 품명과 주원료 저장 허용`).
 
 ## 완료: 로그인 PC 시리얼 인증 포팅 v1.1.0
 - 요청: 일반 비밀번호 로그인에서 이전 접속 PC와 서버의 사용자 접속 정보가 다르면 8자리 임시번호를 표시하고 대응 시리얼 번호가 일치할 때만 현재 PC 정보를 서버에 저장한 뒤 로그인한다. 마스터키 로그인은 이 검사를 제외한다.
