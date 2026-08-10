@@ -77,6 +77,7 @@ class ItemManage extends StatefulWidget {
   final Future<void> Function()? onExcelExport;
   final Future<void> Function(ItemManagerDraftRow row)? onQrDataView;
   final Future<void> Function()? onItemOrderChange;
+  final Future<void> Function()? onRefresh;
   final String? itemOrderDisabledReason;
   final Future<void> Function()? onCancelDraft;
   final Future<void> Function()? onSaveDraft;
@@ -113,6 +114,7 @@ class ItemManage extends StatefulWidget {
     this.onExcelExport,
     this.onQrDataView,
     this.onItemOrderChange,
+    this.onRefresh,
     this.itemOrderDisabledReason,
     this.onCancelDraft,
     this.onSaveDraft,
@@ -143,6 +145,9 @@ class _ItemManageState extends State<ItemManage> {
   static const String _menuDelete = 'delete';
   static const String _menuItemOrder = 'itemOrder';
   static const String _menuQrDataView = 'qrDataView';
+  static const String _menuClientEditable = 'clientEditable';
+  static const String _menuClientNotEditable = 'clientNotEditable';
+  static const String _menuRefresh = 'refresh';
   static const String _menuClearSelection = 'clearSelection';
   static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
   static const String _menuUncheckSelectedPublish = 'uncheckSelectedPublish';
@@ -179,6 +184,7 @@ class _ItemManageState extends State<ItemManage> {
   List<ItemOfMarket> _displayItems = const [];
   final Set<int> _publishCheckedItemIds = <int>{};
   ItemManagerDraftRow? _contextMenuDraftRow;
+  int? _contextMenuDynamicColumnId;
   int _lastFocusRequestId = 0;
   bool _projectingPublishChecks = false;
   bool _projectingSelection = false;
@@ -409,7 +415,7 @@ class _ItemManageState extends State<ItemManage> {
                 }
                 _activeSearchColumnId = columnId;
               },
-              onRowSecondaryTapDown: _showTableContextMenu,
+              onCellSecondaryTapDown: _showTableCellContextMenu,
               onRectChanged: widget.onTableRectChanged,
               rowColorBuilder: _rowColor,
             ),
@@ -598,11 +604,15 @@ class _ItemManageState extends State<ItemManage> {
         : null;
   }
 
-  Future<void> _showTableContextMenu(
+  Future<void> _showTableCellContextMenu(
     ItemOfMarket row,
     int rowIndex,
+    String columnId,
     TapDownDetails details,
   ) async {
+    _contextMenuDynamicColumnId = columnId.startsWith('dyn_')
+        ? int.tryParse(columnId.substring(4))
+        : null;
     await _showContextMenu(details, draftRow: _draftAtDisplayIndex(rowIndex));
   }
 
@@ -631,6 +641,7 @@ class _ItemManageState extends State<ItemManage> {
       await _showContextMenuRoute(details);
     } finally {
       _contextMenuOpen = false;
+      _contextMenuDynamicColumnId = null;
     }
   }
 
@@ -650,6 +661,10 @@ class _ItemManageState extends State<ItemManage> {
       },
     );
     final mutationEnabled = widget.canEdit && !widget.commandBusy;
+    final clientEditEnabled =
+      mutationEnabled &&
+      _contextMenuDraftRow != null &&
+      _contextMenuDynamicColumnId != null;
     final publishSelectionEnabled =
       !widget.commandBusy && widget.draftController?.isDirty != true;
     final orderDisabledReason = widget.draftController?.isDirty == true
@@ -746,6 +761,21 @@ class _ItemManageState extends State<ItemManage> {
         ),
         const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         PopupMenuItem<String>(
+          value: _menuClientEditable,
+          enabled: clientEditEnabled,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
+          child: const Text('클라이언트 편집 허용'),
+        ),
+        PopupMenuItem<String>(
+          value: _menuClientNotEditable,
+          enabled: clientEditEnabled,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
+          child: const Text('클라이언트 편집 불가'),
+        ),
+        const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
+        PopupMenuItem<String>(
           value: _menuSelectAll,
           enabled: mutationEnabled,
           height: fortuneContextMenuRowHeight,
@@ -768,12 +798,23 @@ class _ItemManageState extends State<ItemManage> {
           child: const Text('블럭 선택 발행 체크'),
         ),
         PopupMenuItem<String>(
-          key: menuRouteEndKey,
           value: _menuUncheckSelectedPublish,
           enabled: publishSelectionEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크 해제'),
+        ),
+        const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
+        PopupMenuItem<String>(
+          key: menuRouteEndKey,
+          value: _menuRefresh,
+          enabled:
+              widget.onRefresh != null &&
+              !widget.commandBusy &&
+              widget.draftController?.isDirty != true,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
+          child: const Text('새로 고침'),
         ),
       ],
     );
@@ -955,6 +996,10 @@ class _ItemManageState extends State<ItemManage> {
                 ) ??
                 false);
         if (targetExists) await widget.onQrDataView?.call(row);
+      case _menuClientEditable:
+        _setContextCellEditable(true);
+      case _menuClientNotEditable:
+        _setContextCellEditable(false);
       case _menuSelectAll:
         _selectionController.selectAll(
           widget.draftController?.rows.length ?? widget.items.length,
@@ -966,7 +1011,22 @@ class _ItemManageState extends State<ItemManage> {
         _setSelectedPublishChecked(true);
       case _menuUncheckSelectedPublish:
         _setSelectedPublishChecked(false);
+      case _menuRefresh:
+        await widget.onRefresh?.call();
     }
+  }
+
+  void _setContextCellEditable(bool editable) {
+    final row = _contextMenuDraftRow;
+    final columnId = _contextMenuDynamicColumnId;
+    final controller = widget.draftController;
+    if (row == null || columnId == null || controller == null) return;
+    controller.updateColumnValue(
+      row.rowKey,
+      columnId: columnId,
+      editable: editable,
+      dataString: controller.columnValue(row, columnId),
+    );
   }
 
   Future<void> _addDraftRows(String rawCount) async {
@@ -1299,12 +1359,21 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   double _dynamicColumnWidth(TColumn column) =>
-    column.useMinColumnCheck ? _minimizedHeaderColumnWidth : 70;
+    _minColumnChecked(column) ? _minimizedHeaderColumnWidth : 70;
 
   double _elementColumnWidth(TColumnBase? column) =>
-      column?.useMinColumnCheck == true
+      column != null && _minColumnChecked(column)
       ? _minimizedHeaderColumnWidth
       : itemManagerExpandedElementColumnWidth;
+
+  bool _minColumnChecked(TColumnBase column) {
+    final columnId = column is TColumn ? column.columnId : 0;
+    return widget.draftController?.minColumnCheckValue(
+          columnId,
+          column.useMinColumnCheck,
+        ) ??
+        column.useMinColumnCheck;
+  }
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final publishSelectionEnabled =
@@ -1318,8 +1387,8 @@ class _ItemManageState extends State<ItemManage> {
             header: c.columnName,
             initialWidth: _dynamicColumnWidth(c),
             minWidth: _minimizedHeaderColumnWidth,
-            autoFit: !c.useMinColumnCheck,
-            headerCheckboxValue: c.useMinColumnCheck,
+            autoFit: !_minColumnChecked(c),
+            headerCheckboxValue: _minColumnChecked(c),
             headerCheckboxEnabled: !_headerMinCheckBusy && !widget.commandBusy,
             onHeaderCheckboxChanged:
                 (checked) => _toggleMinColumnCheck(c, checked),
@@ -1449,7 +1518,9 @@ class _ItemManageState extends State<ItemManage> {
         initialWidth: _elementColumnWidth(elementColumn),
         minWidth: _minimizedHeaderColumnWidth,
         autoFit: false,
-        headerCheckboxValue: elementColumn?.useMinColumnCheck,
+        headerCheckboxValue: elementColumn == null
+          ? null
+          : _minColumnChecked(elementColumn),
         headerCheckboxEnabled: !_headerMinCheckBusy && !widget.commandBusy,
         onHeaderCheckboxChanged: elementColumn == null
             ? null

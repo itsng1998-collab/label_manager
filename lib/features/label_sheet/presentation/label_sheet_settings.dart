@@ -110,6 +110,7 @@ FortuneSettings labelSheetSettings(
   bool disableSheetRulerGuideInteraction = false,
   bool hideStatisticBar = false,
   bool copyOnlyContextMenu = false,
+  bool disableContextMenu = false,
   bool limitCellActionsToClipboardAndClear = false,
   bool? canEditObjects,
 }) {
@@ -161,12 +162,16 @@ FortuneSettings labelSheetSettings(
           },
         ),
     ],
-    cellContextMenu: copyOnlyContextMenu
+    cellContextMenu: disableContextMenu
+      ? const []
+      : copyOnlyContextMenu
         ? const [fortuneContextCopyCommand]
         : limitCellActionsToClipboardAndClear
         ? labelSheetClipboardClearContextMenuItems
         : labelSheetContextMenuItems(base.cellContextMenu),
-    headerContextMenu: copyOnlyContextMenu
+    headerContextMenu: disableContextMenu
+      ? const []
+      : copyOnlyContextMenu
         ? const [fortuneContextCopyCommand]
         : limitCellActionsToClipboardAndClear
         ? labelSheetClipboardClearContextMenuItems

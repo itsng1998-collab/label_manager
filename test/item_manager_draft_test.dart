@@ -129,6 +129,86 @@ void main() {
       expect(controller.contentRevision, 2);
     });
 
+    test('minimum column check participates in draft save and revert', () {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+      ]);
+      const changed = ItemManagerMinColumnCheckSave(
+        labelSizeId: 4,
+        columnId: 7,
+        keyword: '{{가격}}',
+        columnName: '가격',
+        columnOrder: 2,
+        checked: true,
+      );
+
+      controller.updateMinColumnCheck(
+        value: changed,
+        baselineChecked: false,
+      );
+
+      expect(controller.isDirty, isTrue);
+      expect(controller.minColumnCheckValue(7, false), isTrue);
+      expect(
+        controller
+            .toSaveCommand(labelSizeId: 4, targetMarketIds: const [3])
+            .minColumnChecks,
+        [changed],
+      );
+
+      controller.updateMinColumnCheck(
+        value: const ItemManagerMinColumnCheckSave(
+          labelSizeId: 4,
+          columnId: 7,
+          keyword: '{{가격}}',
+          columnName: '가격',
+          columnOrder: 2,
+          checked: false,
+        ),
+        baselineChecked: false,
+      );
+      expect(controller.isDirty, isFalse);
+      expect(controller.minColumnCheckValue(7, false), isFalse);
+    });
+
+    test('client editable change is saved without changing cell data', () {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket(itemId: 10, order: 1, name: '첫 품목')],
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: false,
+            dataString: '원래 값',
+          ),
+        }),
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '원래 값',
+      );
+
+      expect(controller.isDirty, isTrue);
+      final value = controller
+          .toSaveCommand(labelSizeId: 4, targetMarketIds: const [3])
+          .columnValues
+          .single;
+      expect(value.editable, isTrue);
+      expect(value.dataString, '원래 값');
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: false,
+        dataString: '원래 값',
+      );
+      expect(controller.isDirty, isFalse);
+    });
+
     test('builds existing rows without mutating display models', () {
       final first = _itemOfMarket(itemId: 10, order: 1, name: '첫 품목');
       final second = _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목');

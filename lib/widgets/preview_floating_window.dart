@@ -10,6 +10,39 @@ typedef PreviewFloatingRectChanged =
     void Function(Rect rect, {required bool isResizing});
 typedef PreviewFloatingMoved = void Function(Rect rect);
 
+Rect previewFloatingClampedRect(Rect rect, Size bounds) {
+    final left = rect.left
+      .clamp(0.0, max(0.0, bounds.width - rect.width))
+      .toDouble();
+    final top = rect.top
+      .clamp(0.0, max(0.0, bounds.height - rect.height))
+      .toDouble();
+  return Rect.fromLTWH(left, top, rect.width, rect.height);
+}
+
+Rect previewFloatingEdgeResizedRect(
+  Rect base,
+  Size minSize, {
+  double left = 0,
+  double top = 0,
+  double right = 0,
+  double bottom = 0,
+}) {
+  final nextLeft = left == 0
+      ? base.left
+      : min(base.left + left, base.right - minSize.width);
+  final nextTop = top == 0
+      ? base.top
+      : min(base.top + top, base.bottom - minSize.height);
+  final nextRight = right == 0
+      ? base.right
+      : max(base.right + right, base.left + minSize.width);
+  final nextBottom = bottom == 0
+      ? base.bottom
+      : max(base.bottom + bottom, base.top + minSize.height);
+  return Rect.fromLTRB(nextLeft, nextTop, nextRight, nextBottom);
+}
+
 bool previewFloatingWindowDebugLogEnabled = const bool.fromEnvironment(
   'LABEL_MANAGER_PREVIEW_FLOATING_DEBUG',
 );
@@ -64,6 +97,7 @@ class PreviewFloatingWindow {
   Rect? _hideTargetRect;
   _PreviewFloatingRoute? _route;
   bool _positionInitialized = false;
+  Size? _overlaySize;
   bool get isVisible =>
       (_route != null || _portalController.isShowing) && _visible.value;
   Rect get rect => _rect.value;
@@ -174,8 +208,10 @@ class PreviewFloatingWindow {
       _log('show ignored existingRouteId=${_route!.debugId}');
       return;
     }
+    final overlaySize = MediaQuery.of(context).size;
+    _overlaySize = overlaySize;
     if (!_positionInitialized) {
-      final size = MediaQuery.of(context).size;
+      final size = overlaySize;
       final rect = _rect.value;
       const double margin = 24;
       final availableWidth = max(minSize.width, size.width - margin * 2);
@@ -346,6 +382,7 @@ class PreviewFloatingWindow {
 
   void setSize(BuildContext context, Size size, {bool center = false}) {
     final overlaySize = MediaQuery.of(context).size;
+    _overlaySize = overlaySize;
     const double margin = 24;
     final width = min(
       max(size.width, minSize.width),
@@ -374,6 +411,7 @@ class PreviewFloatingWindow {
 
   void alignBottomRightTo(BuildContext context, Offset bottomRight) {
     final overlaySize = MediaQuery.of(context).size;
+    _overlaySize = overlaySize;
     final current = _rect.value;
     final left = min(
       max(0.0, bottomRight.dx - current.width),
@@ -397,7 +435,10 @@ class PreviewFloatingWindow {
     if (_isResizing.value) {
       return;
     }
-    _rect.value = _rect.value.shift(delta);
+    final shifted = _rect.value.shift(delta);
+    _rect.value = _overlaySize == null
+      ? shifted
+      : previewFloatingClampedRect(shifted, _overlaySize!);
     _notifyRectChanged(isResizing: false);
     onMoved?.call(_rect.value);
   }
@@ -716,12 +757,14 @@ class _FloatingCard extends StatelessWidget {
     double right = 0,
     double bottom = 0,
   }) {
-    final widthDelta = right != 0 ? right : -left;
-    final heightDelta = bottom != 0 ? bottom : -top;
-    final width = max(base.width + widthDelta, minSize.width);
-    final height = max(base.height + heightDelta, minSize.height);
-
-    return Rect.fromLTWH(base.left, base.top, width, height);
+    return previewFloatingEdgeResizedRect(
+      base,
+      minSize,
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom,
+    );
   }
 
   Rect _buildProportionalCornerRect(

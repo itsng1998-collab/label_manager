@@ -26,6 +26,9 @@ Map<String, dynamic> itemManagerSaveSqlParams(ItemManagerSaveCommand command) {
     'existingRowsXml': _itemManagerExistingRowsXml(command.existingRows),
     'newRowsXml': _itemManagerNewRowsXml(command.newRows),
     'columnValuesXml': _itemManagerColumnValuesXml(command.columnValues),
+    'minColumnChecksXml': _itemManagerMinColumnChecksXml(
+      command.minColumnChecks,
+    ),
   };
 }
 
@@ -131,6 +134,25 @@ String _itemManagerColumnValuesXml(
   return (xml..write('</values>')).toString();
 }
 
+String _itemManagerMinColumnChecksXml(
+  Iterable<ItemManagerMinColumnCheckSave> values,
+) {
+  final xml = StringBuffer('<checks>');
+  for (final value in values) {
+    xml
+      ..write('<check labelSizeId="${value.labelSizeId}" ')
+      ..write('columnId="${value.columnId}" ')
+      ..write('columnOrder="${value.columnOrder}" ')
+      ..write('checked="${value.checked ? 1 : 0}">')
+      ..write('<keyword>${_itemManagerXmlText(value.keyword)}</keyword>')
+      ..write(
+        '<columnName>${_itemManagerXmlText(value.columnName)}</columnName>',
+      )
+      ..write('</check>');
+  }
+  return (xml..write('</checks>')).toString();
+}
+
 String _itemManagerXmlText(Object? value) => const HtmlEscape(
   HtmlEscapeMode.element,
 ).convert(value?.toString() ?? '');
@@ -144,6 +166,7 @@ class ItemManagerSaveDAO extends DAO {
     DECLARE @ExistingRowsDocument XML = CONVERT(XML, @existingRowsXml);
     DECLARE @NewRowsDocument XML = CONVERT(XML, @newRowsXml);
     DECLARE @ColumnValuesDocument XML = CONVERT(XML, @columnValuesXml);
+    DECLARE @MinColumnChecksDocument XML = CONVERT(XML, @minColumnChecksXml);
     DECLARE @TargetMarkets TABLE (MARKET_ID INT NOT NULL PRIMARY KEY);
     DECLARE @DeletedItems TABLE (ITEM_ID INT NOT NULL PRIMARY KEY);
     DECLARE @ExistingInput TABLE (
@@ -361,6 +384,36 @@ class ItemManagerSaveDAO extends DAO {
       SOURCE.COLUMN_ID, SOURCE.ITEM_ID, SOURCE.EDITABLE, SOURCE.DATA_STRING
     );
 
+    MERGE BM_RICH_COL_MIN AS TARGET
+    USING (
+      SELECT
+        N.value('@labelSizeId', 'INT') AS LABELSIZE_ID,
+        N.value('@columnId', 'INT') AS COLUMN_ID,
+        N.value('string((keyword/text())[1])', 'NVARCHAR(100)') AS KEYWORD,
+        N.value('string((columnName/text())[1])', 'NVARCHAR(100)') AS COLUMN_NAME,
+        N.value('@columnOrder', 'INT') AS COLUMN_ORDER,
+        N.value('@checked', 'BIT') AS MIN_CHECK
+      FROM @MinColumnChecksDocument.nodes('/checks/check') X(N)
+    ) AS SOURCE
+    ON TARGET.RICH_LABELSIZE_ID=SOURCE.LABELSIZE_ID
+      AND (
+        TARGET.RICH_COLUMN_ID=SOURCE.COLUMN_ID
+        OR (SOURCE.COLUMN_ID=0 AND TARGET.RICH_KEYWORD=SOURCE.KEYWORD)
+      )
+    WHEN MATCHED THEN UPDATE SET
+      RICH_COLUMN_ID=SOURCE.COLUMN_ID,
+      RICH_KEYWORD=SOURCE.KEYWORD,
+      RICH_COLUMN_NAME=SOURCE.COLUMN_NAME,
+      RICH_COLUMN_ORDER=SOURCE.COLUMN_ORDER,
+      RICH_MIN_CHECK=SOURCE.MIN_CHECK
+    WHEN NOT MATCHED THEN INSERT (
+      RICH_COLUMN_ID, RICH_LABELSIZE_ID, RICH_KEYWORD, RICH_COLUMN_NAME,
+      RICH_COLUMN_ORDER, RICH_MIN_CHECK
+    ) VALUES (
+      SOURCE.COLUMN_ID, SOURCE.LABELSIZE_ID, SOURCE.KEYWORD, SOURCE.COLUMN_NAME,
+      SOURCE.COLUMN_ORDER, SOURCE.MIN_CHECK
+    );
+
     SELECT DRAFT_ROW_KEY, ITEM_ID FROM @InsertedRows ORDER BY DRAFT_ROW_KEY;
   ''';
 
@@ -378,13 +431,15 @@ class ItemManagerSaveDAO extends DAO {
         'new': command.newRows.length,
         'deleted': command.deletedSourceItemIds.length,
         'columns': command.columnValues.length,
+        'minColumnChecks': command.minColumnChecks.length,
         'targetMarkets': command.targetMarketIds.length,
       },
     );
     debugLog(
       '$START, existing:${command.existingRows.length}, '
       'new:${command.newRows.length}, deleted:${command.deletedSourceItemIds.length}, '
-      'columns:${command.columnValues.length}',
+      'columns:${command.columnValues.length}, '
+      'minColumnChecks:${command.minColumnChecks.length}',
     );
     try {
       final results = await DbClient.instance.transaction([

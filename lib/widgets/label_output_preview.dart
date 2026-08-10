@@ -111,6 +111,7 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
                 disableSheetRulerGuideInteraction: true,
                 hideStatisticBar: true,
                 copyOnlyContextMenu: true,
+                disableContextMenu: true,
                 canEditObjects: false,
                 allowObjectPanel: false,
                 showObjectPanelOpenButton: false,

@@ -3024,6 +3024,14 @@ void main() {
     expect(settings.cellContextMenu, const [fortuneContextCopyCommand]);
     expect(settings.headerContextMenu, const [fortuneContextCopyCommand]);
 
+    final disabledSettings = labelSheetSettings(
+      const FortuneSettings(),
+      copyOnlyContextMenu: true,
+      disableContextMenu: true,
+    );
+    expect(disabledSettings.cellContextMenu, isEmpty);
+    expect(disabledSettings.headerContextMenu, isEmpty);
+
     final defaultSettings = labelSheetSettings(const FortuneSettings());
     expect(defaultSettings.showToolbar, isTrue);
     expect(defaultSettings.copyOnlyContextMenu, isFalse);

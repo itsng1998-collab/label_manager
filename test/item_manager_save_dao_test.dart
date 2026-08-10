@@ -27,6 +27,7 @@ void main() {
       expect(ItemDAO.updateOrdersSql, contains('CONVERT(XML, @updatesXml)'));
       expect(ItemDAO.updateOrdersSql, contains("nodes('/updates/update')"));
       expect(ItemDAO.updateOrdersSql, isNot(contains('OPENJSON')));
+      expect(ItemDAO.updateOrdersSql, contains('SET NOCOUNT ON'));
       expect(ItemDAO.updateOrdersSql, contains('IF @@ROWCOUNT <>'));
       expect(ItemDAO.updateOrdersSql, contains('THROW 51002'));
     });
@@ -52,6 +53,16 @@ void main() {
             dataString: '00123',
           ),
         ],
+        minColumnChecks: const [
+          ItemManagerMinColumnCheckSave(
+            labelSizeId: 4,
+            columnId: 7,
+            keyword: '{{가격}}',
+            columnName: '가격 & 표시',
+            columnOrder: 2,
+            checked: true,
+          ),
+        ],
       );
 
       final params = itemManagerSaveSqlParams(command);
@@ -62,6 +73,7 @@ void main() {
         'existingRowsXml',
         'newRowsXml',
         'columnValuesXml',
+        'minColumnChecksXml',
       ]);
       expect(
         params['targetMarketIdsXml'],
@@ -76,6 +88,20 @@ void main() {
       expect(newRows, contains('<dateEndDiscount></dateEndDiscount>'));
       expect(newRows, contains('<itemName>신규 &amp; 품목</itemName>'));
       expect(newRows, contains('<elementPlain>&lt;원문&gt;</elementPlain>'));
+      expect(
+        params['minColumnChecksXml'],
+        contains(
+          '<check labelSizeId="4" columnId="7" columnOrder="2" checked="1">',
+        ),
+      );
+      expect(
+        params['minColumnChecksXml'],
+        contains('<columnName>가격 &amp; 표시</columnName>'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains("nodes('/checks/check')"),
+      );
     });
 
     test('save command keeps empty item names and elements for update and insert', () {

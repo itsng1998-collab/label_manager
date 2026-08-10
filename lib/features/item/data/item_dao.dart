@@ -22,6 +22,8 @@ class ItemDAO extends DAO {
   ''';
 
   static const String updateOrdersSql = r'''
+    SET NOCOUNT ON;
+
     DECLARE @UpdatesDocument XML = CONVERT(XML, @updatesXml);
     DECLARE @OrderUpdates TABLE (
       ITEM_ID INT NOT NULL PRIMARY KEY,

@@ -255,6 +255,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.onSelectionFocusChanged,
     this.onCellActivated,
     this.onRowSecondaryTapDown,
+    this.onCellSecondaryTapDown,
     this.onRectChanged,
     this.rowColorBuilder,
     this.rowNumberWidth = 40,
@@ -292,6 +293,12 @@ class FortuneTable<T> extends StatefulWidget {
   final void Function(T row, int rowIndex, String columnId)? onCellActivated;
   final void Function(T row, int index, TapDownDetails details)?
   onRowSecondaryTapDown;
+  final void Function(
+    T row,
+    int rowIndex,
+    String columnId,
+    TapDownDetails details,
+  )? onCellSecondaryTapDown;
   final ValueChanged<Rect>? onRectChanged;
   final Color? Function(T row, int rowIndex, bool selected)? rowColorBuilder;
   final double rowNumberWidth;
@@ -347,6 +354,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   final ScrollController _hScrollHeader = ScrollController();
   final ScrollController _hScrollBody = ScrollController();
   final ScrollController _vScrollBody = ScrollController();
+  final GlobalKey _bodyViewportKey = GlobalKey();
   final FocusNode _focusNode = FocusNode(debugLabel: 'FortuneTable');
   bool _syncingHorizontal = false;
   late List<double> _widths;
@@ -357,6 +365,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   int? _selectedIndex;
   int? _selectionAnchorIndex;
   int? _dragSelectionStartIndex;
+  Offset? _dragSelectionGlobalPosition;
+  Timer? _dragSelectionAutoScrollTimer;
   Rect? _lastReportedRect;
   Object? _autoFitCacheKey;
   int? _focusedColumnIndex;
@@ -473,6 +483,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       _handleSelectionControllerChanged,
     );
     widget.focusController?.removeListener(_handleFocusControllerChanged);
+    _dragSelectionAutoScrollTimer?.cancel();
     _focusNode.dispose();
     _hScrollHeader.dispose();
     _hScrollBody.dispose();
@@ -571,11 +582,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                           ),
                         ),
                         Expanded(
-                          child: ScrollConfiguration(
-                            behavior: _FortuneTableScrollBehavior(
-                              dragScrollEnabled: widget.dragScrollEnabled,
-                            ),
-                            child: RawScrollbar(
+                          child: KeyedSubtree(
+                            key: _bodyViewportKey,
+                            child: ScrollConfiguration(
+                              behavior: _FortuneTableScrollBehavior(
+                                dragScrollEnabled:
+                                    widget.dragScrollEnabled &&
+                                    !widget.multiSelectionEnabled,
+                              ),
+                              child: RawScrollbar(
                               controller: _vScrollBody,
                               thumbVisibility: hasVerticalOverflow,
                               thickness: 8,
@@ -610,6 +625,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                                     ),
                                   ),
                                 ),
+                              ),
                               ),
                             ),
                           ),
@@ -1072,6 +1088,12 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        onSecondaryTapDown: (details) => widget.onCellSecondaryTapDown?.call(
+          row,
+          rowIndex,
+          column.id,
+          details,
+        ),
         onDoubleTap: widget.onRowDoubleTap == null
             ? null
             : () {
@@ -1145,8 +1167,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             return KeyEventResult.handled;
           }
           if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.enter) {
-            _queueTextEditingCommit();
+              (event.logicalKey == LogicalKeyboardKey.enter ||
+                  event.logicalKey == LogicalKeyboardKey.tab)) {
+            unawaited(
+              _commitAndMoveToEditableCell(
+                reverse:
+                    event.logicalKey == LogicalKeyboardKey.tab &&
+                    HardwareKeyboard.instance.isShiftPressed,
+              ),
+            );
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -1295,6 +1324,29 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     await _pendingTextCommit;
   }
 
+  Future<void> _commitAndMoveToEditableCell({required bool reverse}) async {
+    final rowIndex = _editingRowIndex;
+    final columnIndex = _editingColumnIndex;
+    if (rowIndex == null || columnIndex == null) return;
+    await _queueTextEditingCommit();
+    if (!mounted || widget.rows.isEmpty || widget.columns.isEmpty) return;
+    final cellCount = widget.rows.length * widget.columns.length;
+    final start = rowIndex * widget.columns.length + columnIndex;
+    final step = reverse ? -1 : 1;
+    for (var offset = start + step;
+        offset >= 0 && offset < cellCount;
+        offset += step) {
+      final nextRowIndex = offset ~/ widget.columns.length;
+      final nextColumnIndex = offset % widget.columns.length;
+      final row = widget.rows[nextRowIndex];
+      final column = widget.columns[nextColumnIndex];
+      if (!_isTextEditable(column, row, nextRowIndex)) continue;
+      _revealCell(nextRowIndex, nextColumnIndex);
+      _startTextEditing(row, nextRowIndex, nextColumnIndex, column);
+      return;
+    }
+  }
+
   void _cancelTextEditing() {
     if (_editingRowIndex == null) return;
     setState(_clearTextEditingState);
@@ -1399,14 +1451,61 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     final dragStartIndex = _dragSelectionStartIndex;
     final controller = widget.selectionController;
     if (dragStartIndex == null || controller == null) return;
-    final deltaRows = (event.localPosition.dy / widget.rowHeight).floor();
-    final targetIndex = (rowIndex + deltaRows).clamp(0, widget.rows.length - 1);
-    controller.selectRange(dragStartIndex, targetIndex);
-    widget.onSelectionFocusChanged?.call(widget.rows[targetIndex], targetIndex);
+    _dragSelectionGlobalPosition = event.position;
+    _updateDragSelectionAt(event.position);
   }
 
   void _endDragSelection() {
     _dragSelectionStartIndex = null;
+    _dragSelectionGlobalPosition = null;
+    _dragSelectionAutoScrollTimer?.cancel();
+    _dragSelectionAutoScrollTimer = null;
+  }
+
+  void _updateDragSelectionAt(Offset globalPosition) {
+    final dragStartIndex = _dragSelectionStartIndex;
+    final controller = widget.selectionController;
+    final renderBox =
+        _bodyViewportKey.currentContext?.findRenderObject() as RenderBox?;
+    if (dragStartIndex == null || controller == null || renderBox == null) {
+      return;
+    }
+    final local = renderBox.globalToLocal(globalPosition);
+    final viewportHeight = renderBox.size.height;
+    final outsideDirection = local.dy < 0
+        ? -1
+        : local.dy > viewportHeight
+        ? 1
+        : 0;
+    if (outsideDirection == 0) {
+      _dragSelectionAutoScrollTimer?.cancel();
+      _dragSelectionAutoScrollTimer = null;
+    } else {
+      _ensureDragSelectionAutoScroll();
+      _jumpBy(_vScrollBody, outsideDirection * widget.rowHeight);
+    }
+    final contentY = (_vScrollBody.hasClients ? _vScrollBody.offset : 0) +
+        local.dy.clamp(0.0, math.max(0.0, viewportHeight - 1));
+    final targetIndex = (contentY / widget.rowHeight)
+        .floor()
+        .clamp(0, widget.rows.length - 1);
+    controller.selectRange(dragStartIndex, targetIndex);
+    widget.onSelectionFocusChanged?.call(widget.rows[targetIndex], targetIndex);
+  }
+
+  void _ensureDragSelectionAutoScroll() {
+    if (_dragSelectionAutoScrollTimer != null) return;
+    _dragSelectionAutoScrollTimer = Timer.periodic(
+      const Duration(milliseconds: 80),
+      (_) {
+        final position = _dragSelectionGlobalPosition;
+        if (!mounted || position == null) {
+          _endDragSelection();
+          return;
+        }
+        _updateDragSelectionAt(position);
+      },
+    );
   }
 
   void _syncCheckboxControllerListeners(

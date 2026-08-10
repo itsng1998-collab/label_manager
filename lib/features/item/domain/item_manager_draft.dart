@@ -325,6 +325,8 @@ class ItemManagerDraftController extends ChangeNotifier {
   final Set<int> _deletedSourceItemIds = {};
   final Map<int, ItemManagerDraftRow> _deletedRowsBySourceItemId = {};
   final Set<String> _selectedRowKeys = {};
+  final Map<int, ItemManagerMinColumnCheckSave> _minColumnChecks = {};
+  final Map<int, bool> _baselineMinColumnCheckValues = {};
   final DateTime Function() _now;
   int _draftSequence = 0;
   String? _anchorRowKey;
@@ -391,6 +393,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   int get contentRevision => _contentRevision;
   bool get isDirty =>
       _deletedSourceItemIds.isNotEmpty ||
+      _minColumnChecks.isNotEmpty ||
       _rows.any((row) => row.rowState != ItemManagerDraftRowState.existing);
   bool get hasImportedRows =>
       _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
@@ -418,6 +421,8 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..addAll(_baselineRows);
     _deletedSourceItemIds.clear();
     _deletedRowsBySourceItemId.clear();
+    _minColumnChecks.clear();
+    _baselineMinColumnCheckValues.clear();
     ItemManagerDraftRow? selectedRow;
     for (final row in _rows) {
       if (row.sourceItemId == selectedItemId) {
@@ -480,6 +485,8 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..addAll(_baselineRows);
     _deletedSourceItemIds.clear();
     _deletedRowsBySourceItemId.clear();
+    _minColumnChecks.clear();
+    _baselineMinColumnCheckValues.clear();
     final validKeys = _rows.map((row) => row.rowKey).toSet();
     _selectedRowKeys
       ..clear()
@@ -502,6 +509,27 @@ class ItemManagerDraftController extends ChangeNotifier {
     if (draft != null) return draft.dataString;
     final itemId = row.sourceItemId;
     return itemId == null ? '' : scopedColumnContents.value(columnId, itemId);
+  }
+
+  bool minColumnCheckValue(int columnId, bool fallback) =>
+      _minColumnChecks[columnId]?.checked ??
+      _baselineMinColumnCheckValues[columnId] ??
+      fallback;
+
+  void updateMinColumnCheck({
+    required ItemManagerMinColumnCheckSave value,
+    required bool baselineChecked,
+  }) {
+    _baselineMinColumnCheckValues.putIfAbsent(
+      value.columnId,
+      () => baselineChecked,
+    );
+    if (value.checked == _baselineMinColumnCheckValues[value.columnId]) {
+      _minColumnChecks.remove(value.columnId);
+    } else {
+      _minColumnChecks[value.columnId] = value;
+    }
+    _notifyContentChanged();
   }
 
   Set<int> affectedColumnIds(int changedColumnId) {
@@ -584,10 +612,12 @@ class ItemManagerDraftController extends ChangeNotifier {
     }
     _updateRow(rowKey, (row) {
       final original = row.sourceItemId == null
-          ? ''
-          : scopedColumnContents.value(columnId, row.sourceItemId!);
+          ? null
+          : scopedColumnContents.get(columnId, row.sourceItemId!);
       final drafts = Map<int, ItemManagerColumnDraft>.of(row.columnDrafts);
-      if (!row.isNew && normalizedValue == original) {
+      if (!row.isNew &&
+          normalizedValue == (original?.dataString ?? '') &&
+          editable == (original?.editable ?? true)) {
         drafts.remove(columnId);
       } else {
         drafts[columnId] = ItemManagerColumnDraft(
@@ -662,6 +692,7 @@ class ItemManagerDraftController extends ChangeNotifier {
       existingRows: existingRows,
       newRows: newRows,
       columnValues: columnValues,
+      minColumnChecks: _minColumnChecks.values.toList(growable: false),
     );
     command.validate();
     return command;

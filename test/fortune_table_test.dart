@@ -2213,6 +2213,7 @@ void main() {
   testWidgets('ItemManage context menu controls selection and publish checks', (
     tester,
   ) async {
+    var refreshCount = 0;
     final items = [
       _testItemOfMarket(itemName: '첫째 품목', marketId: 1),
       _testItemOfMarket(itemName: '둘째 품목', marketId: 2),
@@ -2225,7 +2226,10 @@ void main() {
           body: SizedBox(
             width: 600,
             height: 220,
-            child: ItemManage(items: items),
+            child: ItemManage(
+              items: items,
+              onRefresh: () async => refreshCount += 1,
+            ),
           ),
         ),
       ),
@@ -2248,6 +2252,9 @@ void main() {
           .map((divider) => divider.height),
       everyElement(fortuneContextMenuDividerHeight),
     );
+    expect(find.text('클라이언트 편집 허용'), findsOneWidget);
+    expect(find.text('클라이언트 편집 불가'), findsOneWidget);
+    expect(find.text('새로 고침'), findsOneWidget);
     await tester.tap(find.text('전체 선택'));
     await tester.pumpAndSettle();
 
@@ -2278,6 +2285,11 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     expect(table.selectionController!.selectedRows, isEmpty);
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('새로 고침'));
+    await tester.pumpAndSettle();
+    expect(refreshCount, 1);
   });
 
   testWidgets('ItemManage order command follows delete and invokes callback', (
@@ -2821,6 +2833,69 @@ void main() {
     expect(controller.columnValue(controller.rows.single, 101), '2500');
     expect(find.text('2500'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('ItemManage changes client edit permission on right-clicked cell', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = originalColumns);
+    TColumn.datas = [_testColumn(columnId: 101, columnName: '판매가격')];
+    final item = _testItemOfMarket(itemName: '대상 품목');
+    final controller = ItemManagerDraftController.fromItems(
+      items: [item],
+      scopedColumnContents: TColumnContentScopedView({
+        const ColumnItemKey(columnId: 101, itemId: 10): TColumnContent(
+          colContentId: 1,
+          columnId: 101,
+          itemId: 10,
+          editable: false,
+          dataString: '1000',
+        ),
+      }),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: [item],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('1000')),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('클라이언트 편집 허용'));
+    await tester.pumpAndSettle();
+
+    final saved = controller
+        .toSaveCommand(labelSizeId: 20, targetMarketIds: const [1])
+        .columnValues
+        .single;
+    expect(saved.columnId, 101);
+    expect(saved.dataString, '1000');
+    expect(saved.editable, isTrue);
   });
 
   testWidgets('ItemManage opens an editor for an empty added-row cell', (

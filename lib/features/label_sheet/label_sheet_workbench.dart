@@ -697,6 +697,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.disableSheetRulerGuideInteraction = false,
     this.hideStatisticBar = false,
     this.copyOnlyContextMenu = false,
+    this.disableContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.canEditObjects = true,
     this.allowObjectPanel = true,
@@ -744,6 +745,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool disableSheetRulerGuideInteraction;
   final bool hideStatisticBar;
   final bool copyOnlyContextMenu;
+  final bool disableContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final bool canEditObjects;
   final bool allowObjectPanel;
@@ -1144,6 +1146,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     disableSheetRulerGuideInteraction: widget.disableSheetRulerGuideInteraction,
     hideStatisticBar: widget.hideStatisticBar,
     copyOnlyContextMenu: widget.copyOnlyContextMenu,
+    disableContextMenu: widget.disableContextMenu,
     limitCellActionsToClipboardAndClear:
         widget.limitCellActionsToClipboardAndClear,
     canEditObjects: widget.canEditObjects,

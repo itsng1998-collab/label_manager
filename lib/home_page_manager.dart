@@ -30,6 +30,7 @@ import 'package:label_manager/features/item/application/item_manager_order_servi
 import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
+import 'package:label_manager/features/item/domain/item_manager_save_command.dart';
 import 'package:label_manager/features/item/presentation/item_manage.dart';
 import 'package:label_manager/features/item/presentation/item_manager_import_transform_dialog.dart';
 import 'package:label_manager/features/item/presentation/item_order_dialog.dart';
@@ -2188,7 +2189,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         },
       );
       final reloaded = await _reloadItemDraftFromDatabase(
-        keepInitialFirstSelection: true,
+        selectedItemId: execution.selectedItemId,
+        fallbackIndex: execution.selectedRowIndex,
       );
       if (!reloaded) {
         _disposeItemDraftController();
@@ -2642,6 +2644,29 @@ class _HomePageManagerState extends State<HomePageManager> {
         fields: {'error': error.runtimeType},
       );
       if (mounted) _showItemDraftError('품목 순서 변경 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
+  Future<void> _refreshItemManager() async {
+    final controller = _itemDraftController;
+    if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
+      return;
+    }
+    final selectedItemId = _selectedItemOfMarket?.item.itemId;
+    final selectedItemIndex = _selectedItemIndex;
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final reloaded = await _reloadItemDraftFromDatabase(
+        selectedItemId: selectedItemId,
+        fallbackIndex: selectedItemIndex,
+      );
+      if (!reloaded) {
+        throw StateError('품목 목록을 다시 불러오지 못했습니다.');
+      }
+    } catch (error) {
+      if (mounted) _showItemDraftError('품목 새로 고침 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
     }
@@ -4279,22 +4304,29 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSizeId == null) {
       throw StateError('현재 라벨이 선택되지 않아 최소표시 설정을 저장할 수 없습니다.');
     }
-    if (column is TColumn) {
-      await TColumnDAO.updateMinColumnCheck(
-        labelSizeId: labelSizeId,
-        column: column,
-        checked: checked,
-      );
-      return;
+    final columnId = column is TColumn
+        ? column.columnId
+        : column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword
+        ? 0
+        : null;
+    if (columnId == null) {
+      throw StateError('지원하지 않는 최소표시 컬럼입니다: ${column.keyword}');
     }
-    if (column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword) {
-      await TColumnSpecial.updateElementMinColumnCheck(
-        labelSizeId: labelSizeId,
-        checked: checked,
-      );
-      return;
+    final controller = _itemDraftController;
+    if (controller == null) {
+      throw StateError('품목 draft가 없어 최소표시 설정을 변경할 수 없습니다.');
     }
-    throw StateError('지원하지 않는 최소표시 컬럼입니다: ${column.keyword}');
+    controller.updateMinColumnCheck(
+      value: ItemManagerMinColumnCheckSave(
+        labelSizeId: labelSizeId,
+        columnId: columnId,
+        keyword: column.keyword,
+        columnName: column.columnName,
+        columnOrder: column is TColumn ? column.order : 0,
+        checked: checked,
+      ),
+      baselineChecked: column.useMinColumnCheck,
+    );
   }
 
   void _syncLabelPrintRows() {
@@ -4441,6 +4473,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                   (ItemOfMarket.datas?.length ?? 0) >= 2
               ? _changeItemOrder
               : null,
+              onRefresh: _effectiveLabelSize == null ? null : _refreshItemManager,
           itemOrderDisabledReason: User.instance?.canEdit != true
               ? '편집 권한이 없습니다.'
               : (ItemOfMarket.datas?.length ?? 0) < 2

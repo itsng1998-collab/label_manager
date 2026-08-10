@@ -100,12 +100,31 @@ class ItemManagerColumnValueSave {
   });
 }
 
+class ItemManagerMinColumnCheckSave {
+  final int labelSizeId;
+  final int columnId;
+  final String keyword;
+  final String columnName;
+  final int columnOrder;
+  final bool checked;
+
+  const ItemManagerMinColumnCheckSave({
+    required this.labelSizeId,
+    required this.columnId,
+    required this.keyword,
+    required this.columnName,
+    required this.columnOrder,
+    required this.checked,
+  });
+}
+
 class ItemManagerSaveCommand {
   final List<int> targetMarketIds;
   final List<int> deletedSourceItemIds;
   final List<ItemManagerExistingRowSave> existingRows;
   final List<ItemManagerNewRowSave> newRows;
   final List<ItemManagerColumnValueSave> columnValues;
+  final List<ItemManagerMinColumnCheckSave> minColumnChecks;
 
   const ItemManagerSaveCommand({
     required this.targetMarketIds,
@@ -113,6 +132,7 @@ class ItemManagerSaveCommand {
     this.existingRows = const [],
     this.newRows = const [],
     this.columnValues = const [],
+    this.minColumnChecks = const [],
   });
 
   void validate() {
@@ -145,6 +165,17 @@ class ItemManagerSaveCommand {
         throw ArgumentError(
           'Column values require one row identity and a positive column id.',
         );
+      }
+    }
+    final minColumnKeys = <(int, int)>{};
+    for (final value in minColumnChecks) {
+      if (value.labelSizeId <= 0 || value.columnId < 0) {
+        throw ArgumentError(
+          'Minimum column checks require a positive label size id and a non-negative column id.',
+        );
+      }
+      if (!minColumnKeys.add((value.labelSizeId, value.columnId))) {
+        throw ArgumentError('Minimum column checks require unique columns.');
       }
     }
   }

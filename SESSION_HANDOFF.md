@@ -1,5 +1,36 @@
 # 현재 작업 상태
 
+## 완료: 품목관리·공용 테이블·플로팅 미리보기 개선 v1.2.0
+- 사용자 확인 완료: 최소표시 헤더 체크는 품목 draft에 포함해 저장 버튼으로 일괄 저장하고, 새로 고침은 현재 라벨 전체 품목을 DB에서 다시 읽으며 현재 선택 품목을 복원한다. 우클릭 완전 차단은 `LabelOutputPreview` 기반 읽기 전용 출력 미리보기에만 적용한다.
+- 레거시 확인: `IDR_ITEMMENU`의 클라이언트 편집 허용/불가는 관리자 편집 권한이 있고 우클릭 지점이 품목 행의 동적 컬럼일 때만 활성화하며, 단일 셀의 `RICH_EDITABLE`을 변경해 품목 저장 시 함께 반영한다. 새로 고침은 현재 라벨 전체 테이블을 DB에서 다시 읽는다.
+- 원인 확인: 품목 저장 호출부가 `executeItemManagerSave()`의 `selectedItemId`/`selectedRowIndex`를 버리고 첫 행 선택 재조회를 요청한다. `ItemDAO.updateOrdersSql`은 복합 DML SQL인데 `SET NOCOUNT ON`이 없어 ODBC가 중간 rowcount 응답에서 대기할 위험이 있다.
+- 원인 확인: 공용 `FortuneTable`은 Enter 편집 종료 후 다음 편집 셀 이동이 없고 Tab을 처리하지 않는다. mouse drag scrolling과 행 drag selection이 동시에 활성화되며 테이블 경계 밖 선택 autoscroll은 없다.
+- 원인 확인: `PreviewFloatingWindow`의 상단·좌측 edge resize는 반대 변을 고정하지 않고, 이동은 overlay 경계 clamp가 없다. 읽기 전용 출력 미리보기는 현재 copy-only 우클릭 메뉴를 표시한다.
+- 수정 예정: `home_page_manager.dart`, item draft/save/order/menu 관련 파일과 테스트, 공용 `fortune_table.dart`와 테스트, `preview_floating_window.dart`와 테스트, `label_output_preview.dart`/label sheet settings와 테스트를 순차 편집한다. 상태: 미검증.
+- 첫 focused 검증 예정: 선택 복원 및 순서 SQL 변경 직후 관련 item manager save/order/DAO 테스트를 실행한다.
+- `home_page_manager.dart` 편집 완료: 품목 저장 후 `executeItemManagerSave()`가 반환한 최종 선택 item ID와 저장 전 행 index를 강제 재조회 선택 복원에 전달한다.
+- `item_dao.dart` 편집 완료: 순서 갱신 복합 SQL 첫 줄에 `SET NOCOUNT ON`을 추가해 ODBC 중간 rowcount 응답을 제거했다.
+- 첫 focused 검증 완료: `item_manager_draft_test.dart`, `item_manager_save_dao_test.dart`, `item_order_dialog_test.dart` 전체 37건 통과.
+- 최소표시 draft/save 편집 완료: 주원료·동적 컬럼 최소표시 체크를 즉시 별도 저장하지 않고 품목 draft dirty에 포함하며, 품목 저장 XML과 같은 SQL transaction에서 `BM_RICH_COL_MIN`에 MERGE한다. 취소·저널 복원 시 임시 설정을 제거한다.
+- 품목 우클릭 메뉴 편집 완료: QR 데이터 보기 아래에 레거시와 같은 단일 동적 셀 대상 `클라이언트 편집 허용/불가`를 추가하고, 마지막에 현재 라벨 전체를 재조회하는 `새로 고침`을 추가했다. 새로 고침은 dirty/busy일 때 비활성이고 선택 item ID/index를 복원한다.
+- 공용 `FortuneTable` 편집 완료: Enter/Tab은 commit 완료 후 다음 편집 가능 셀로 이동하고 마지막 편집 컬럼에서는 다음 행 첫 편집 셀로 이어진다. Shift+Tab 역방향도 지원한다. 멀티 선택 중 mouse drag scroll 충돌을 제거하고 body 상·하단 경계 밖에서만 autoscroll하며 선택을 연장한다.
+- `PreviewFloatingWindow` 편집 완료: 상단·좌측 edge resize가 반대 변을 고정하도록 수정하고 최소 크기에서도 anchor를 유지한다. 이동 rect를 overlay에 clamp해 이동 핸들과 창이 화면 밖으로 벗어나지 않는다.
+- 출력 미리보기 편집 완료: `LabelOutputPreview` 기반 읽기 전용 시트는 cell/header context menu 목록을 모두 비운다. 편집 가능한 주원료/공용라벨 시트의 우클릭은 유지한다.
+- focused 검증 완료: 최소표시·editable·저장·순서 관련 39건, FortuneTable 키 이동/autoscroll 2건, 플로팅 rect 3건, 미리보기 메뉴 설정 1건, 품목 context menu 1건 통과.
+- 다음 검증 예정: 변경 Dart 포맷 후 관련 테스트 묶음과 strict analyzer를 실행한다.
+- 변경 Dart 파일 포맷 완료.
+- 관련 테스트 실행 예정: `flutter test test/item_manager_draft_test.dart test/item_manager_save_dao_test.dart test/item_order_dialog_test.dart test/fortune_table_test.dart test/preview_floating_window_test.dart test/label_sheet_toolbar_test.dart` 및 FortuneSheet 패키지 `flutter test test/fortune_table_navigation_test.dart`.
+- 관련 통합 테스트 완료: 루트 6개 파일 전체 290건, FortuneSheet `fortune_table_navigation_test.dart` 2건 통과.
+- strict analyzer 실행 예정: 변경 production/test Dart 파일 전체를 대상으로 `flutter analyze` 실행.
+- strict analyzer 완료: 변경 production/test Dart 17개 파일 오류·경고 0건.
+- 버전 편집 완료: 사용자에게 보이는 품목관리 메뉴·키보드·드래그·플로팅 동작을 추가하므로 MINOR 증가로 `1.1.1`에서 `1.2.0`으로 갱신했다. 설치 패키지용 `version.txt`는 기존 별도 버전 상태를 유지한다.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 UI 경로 검증 완료: 우클릭한 단일 동적 셀의 `클라이언트 편집 허용`이 셀 데이터는 유지하고 `editable`만 draft 저장값으로 변경하는 widget 테스트 통과.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.2.0`, 변경 파일 diagnostics 오류 0건, 마지막 테스트 파일 analyzer 오류·경고 0건, `git diff --check` 통과.
+- 동작 기준: 저장 후 편집 품목 선택 유지, 순서 저장 완료, 최소표시/클라이언트 편집 권한의 품목 저장 일괄 반영, 전체 새로 고침 선택 복원, 공용 Enter/Tab 이동 및 경계 autoscroll 선택, 플로팅 8방향 resize·화면 내 이동, 읽기 전용 출력 미리보기 우클릭 완전 차단을 적용한다.
+- stage/commit 대상: 품목 data/domain/presentation 5개, `home_page_manager.dart`, label sheet 설정/workbench 2개, preview widget 2개, FortuneTable, 관련 테스트 6개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 품목관리 빈 품명·주원료 저장 허용 v1.1.1
 - 요청: 품목관리 저장 시 빈 품명과 빈 주원료를 허용하고, 신규 저장과 기존 품목 수정 모두 DB에 빈 문자열이 반영되게 한다.
 - 원인 확인: `ItemManagerDraftController.validateForSave()`가 모든 빈 품명을 차단하고 `requireElement`일 때 빈 주원료를 차단한다. `ItemManagerSaveDAO.saveSql`은 XML의 `ITEM_NAME`·`ELEMENT_PLAIN`을 별도 대체 없이 `BM_RICH_ITEM.RICH_ITEM_NAME`·`RICH_ELEMENT`에 직접 INSERT/UPDATE하므로 DB 경로는 이미 빈 문자열 저장을 지원한다.
