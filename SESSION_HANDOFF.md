@@ -19,6 +19,7 @@
 - 마스터키 수정 후 인증 관련 6개 테스트 파일 15건 통과, 변경 파일 diagnostics 오류 0건.
 - 최종 재검증 완료: `C:/Flutter/bin/flutter.bat analyze lib/core/admin_connect_session.dart lib/features/login test/admin_connect_session_test.dart test/startup_login_service_test.dart test/user_access_serial_test.dart test/user_access_service_test.dart test/user_access_dao_test.dart test/user_access_serial_dialog_test.dart` 오류·경고 0건, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
 - 후속 stage/commit 대상: `lib/core/admin_connect_session.dart`, `test/admin_connect_session_test.dart`, `SESSION_HANDOFF.md`만 포함한다. 같은 사용자 요청의 보완이므로 버전은 `1.1.0`을 유지한다.
+- 마스터키 후속 커밋: `666f094` (`00xx 마스터키 인증 분류 수정`).
 
 ## 완료·실물 검증 대기: 작은 한글 4배 supersampling 합성 v1.0.89
 - v1.0.88 실물 `.tmp/IMG_20260809_0016.png`은 20% coverage 이진화 후 제2행 작은 한글이 굵고 네모지며 제3·9행 역상 한글 내부가 크게 비어 품질 개선에 실패했다. 로그 `.tmp/log/app_2026-08-09_16-00-55.log`는 `nativeTextCoverageKept=15379`, `nativeTextCoverageDiscarded=862`, `nativeTextFailed=0`으로 변경 적용은 정상임을 확인한다.
