@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료: 품목관리 빈 품명·주원료 저장 허용 v1.1.1
+- 요청: 품목관리 저장 시 빈 품명과 빈 주원료를 허용하고, 신규 저장과 기존 품목 수정 모두 DB에 빈 문자열이 반영되게 한다.
+- 원인 확인: `ItemManagerDraftController.validateForSave()`가 모든 빈 품명을 차단하고 `requireElement`일 때 빈 주원료를 차단한다. `ItemManagerSaveDAO.saveSql`은 XML의 `ITEM_NAME`·`ELEMENT_PLAIN`을 별도 대체 없이 `BM_RICH_ITEM.RICH_ITEM_NAME`·`RICH_ELEMENT`에 직접 INSERT/UPDATE하므로 DB 경로는 이미 빈 문자열 저장을 지원한다.
+- `item_manager_draft.dart` 편집 완료: 빈 품명과 `requireElement` 상태의 빈 주원료 validation만 제거했다. 품명 최대 길이, 동적 필수 컬럼, 바코드·이미지 등 기존 검증은 유지한다.
+- 테스트 편집 완료: 기존 행 수정과 신규 행 모두 빈 품명·빈 주원료 save command 생성을 허용하고, `existingRowsXml`/`newRowsXml`의 빈 요소와 SQL의 직접 UPDATE/INSERT 계약을 고정했다.
+- focused 검증 완료: `test/item_manager_draft_test.dart`, `test/item_manager_save_dao_test.dart` 전체 34건 통과.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/features/item/domain/item_manager_draft.dart lib/features/item/application/item_manager_save_service.dart lib/features/item/data/item_manager_save.dart test/item_manager_draft_test.dart test/item_manager_save_dao_test.dart` 오류·경고 0건.
+- 버전 편집 완료: 호환 가능한 품목 저장 동작 수정이므로 PATCH 증가로 `1.1.0`에서 `1.1.1`로 갱신했다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.1.1`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 동작 기준: 품명과 주원료는 공백 문자열을 포함해 빈값 저장을 허용하며, 신규 품목 INSERT와 기존 품목 UPDATE 모두 XML 입력의 빈 문자열을 `BM_RICH_ITEM.RICH_ITEM_NAME`·`RICH_ELEMENT`에 그대로 반영한다.
+- stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `test/item_manager_draft_test.dart`, `test/item_manager_save_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 로그인 PC 시리얼 인증 포팅 v1.1.0
 - 요청: 일반 비밀번호 로그인에서 이전 접속 PC와 서버의 사용자 접속 정보가 다르면 8자리 임시번호를 표시하고 대응 시리얼 번호가 일치할 때만 현재 PC 정보를 서버에 저장한 뒤 로그인한다. 마스터키 로그인은 이 검사를 제외한다.
 - 레거시 확인: `LoginDlg::CheckUserAccess`는 `BM_USER_ACCESS.ACCESS_DATA` 17자리 값을 앞 8자리/뒤 9자리로 나눠 `CRandSerialDlg::Encoding`한 로컬 `C:\ITS\labelmanager_user_access.ini`의 `[USER_ACCESS_LOG] ACCESS_DATA`와 비교한다. 불일치 시 `CRandSerialDlg`의 8자리 임시번호와 시리얼 입력을 검증하고, 성공 시 서버 토큰 갱신·`BM_USER_ACCESS_LOG` 기록·로컬 값 저장을 수행한다.

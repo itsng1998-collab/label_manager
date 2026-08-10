@@ -671,18 +671,6 @@ class ItemManagerDraftController extends ChangeNotifier {
     if (_rows.length > ItemManagerLimits.maxRows) {
       throw StateError('품목은 최대 ${ItemManagerLimits.maxRows}개까지 저장할 수 있습니다.');
     }
-    final emptyNameIndex = _rows.indexWhere(
-      (row) => row.itemName.trim().isEmpty,
-    );
-    if (emptyNameIndex >= 0) {
-      final row = _rows[emptyNameIndex];
-      throw ItemManagerDraftValidationError(
-        rowKey: row.rowKey,
-        rowIndex: emptyNameIndex,
-        columnId: ItemManagerFixedColumnIds.itemName,
-        message: '${emptyNameIndex + 1}행의 품명을 입력해 주세요.',
-      );
-    }
     final longNameIndex = _rows.indexWhere(
       (row) => row.itemName.length > ItemManagerLimits.maxItemNameLength,
     );
@@ -696,20 +684,6 @@ class ItemManagerDraftController extends ChangeNotifier {
             '${longNameIndex + 1}행의 품명은 '
             '${ItemManagerLimits.maxItemNameLength}자 이하로 입력해 주세요.',
       );
-    }
-    if (requireElement) {
-      final emptyElementIndex = _rows.indexWhere(
-        (row) => row.elementPlain.trim().isEmpty,
-      );
-      if (emptyElementIndex >= 0) {
-        final row = _rows[emptyElementIndex];
-        throw ItemManagerDraftValidationError(
-          rowKey: row.rowKey,
-          rowIndex: emptyElementIndex,
-          columnId: ItemManagerFixedColumnIds.element,
-          message: '${emptyElementIndex + 1}행의 주원료 값을 입력해 주세요.',
-        );
-      }
     }
     for (var rowIndex = 0; rowIndex < _rows.length; rowIndex += 1) {
       final row = _rows[rowIndex];

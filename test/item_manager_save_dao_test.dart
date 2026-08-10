@@ -78,6 +78,49 @@ void main() {
       expect(newRows, contains('<elementPlain>&lt;원문&gt;</elementPlain>'));
     });
 
+    test('save command keeps empty item names and elements for update and insert', () {
+      const command = ItemManagerSaveCommand(
+        targetMarketIds: [9],
+        existingRows: [
+          ItemManagerExistingRowSave(
+            sourceItemId: 3,
+            itemName: '',
+            elementPlain: '',
+            elementSheet: '{}',
+            order: 1,
+          ),
+        ],
+        newRows: [
+          ItemManagerNewRowSave(
+            draftRowKey: 'draft-1',
+            labelSizeId: 4,
+            itemName: '',
+            elementPlain: '',
+            elementSheet: '{}',
+            order: 2,
+          ),
+        ],
+      );
+
+      final params = itemManagerSaveSqlParams(command);
+      expect(
+        params['existingRowsXml'],
+        contains('<itemName></itemName><elementPlain></elementPlain>'),
+      );
+      expect(
+        params['newRowsXml'],
+        contains('<itemName></itemName><elementPlain></elementPlain>'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('RICH_ITEM_NAME=E.ITEM_NAME'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('SELECT LABELSIZE_ID, ITEM_NAME, ELEMENT_PLAIN'),
+      );
+    });
+
     test('save command validates row identities before DB access', () {
       expect(
         () => itemManagerSaveSqlParams(

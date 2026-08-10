@@ -492,28 +492,31 @@ void main() {
       expect(command.validate, returnsNormally);
     });
 
-    test('rejects save while a working row has an empty item name', () {
-      final controller = ItemManagerDraftController(
-        rows: [
-          ItemManagerDraftRow.newRow(
-            draftRowKey: 'draft-1',
-            order: 1,
-            originalIndex: 0,
-            insertAnchorItemId: null,
-            rowState: ItemManagerDraftRowState.added,
-            emptyElementPayload: 'UEsDempty',
-          ),
-        ],
+    test('allows empty item names and elements for existing and new rows', () {
+      final existing = _itemOfMarket(itemId: 10, order: 1, name: '기존');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [existing],
         scopedColumnContents: TColumnContentScopedView(const {}),
+        requireElement: true,
+      );
+      controller.addRows(1, emptyElementPayload: 'UEsDempty');
+      controller.updateItemName('item:10', '');
+      controller.updateElement(
+        'item:10',
+        elementPlain: '',
+        elementPayload: 'UEsDempty-existing',
       );
 
-      expect(
-        () => controller.toSaveCommand(
-          labelSizeId: 4,
-          targetMarketIds: const [3],
-        ),
-        throwsStateError,
+      final command = controller.toSaveCommand(
+        labelSizeId: 4,
+        targetMarketIds: const [3],
       );
+
+      expect(command.existingRows.single.itemName, '');
+      expect(command.existingRows.single.elementPlain, '');
+      expect(command.newRows.single.itemName, '');
+      expect(command.newRows.single.elementPlain, '');
+      expect(command.validate, returnsNormally);
     });
 
     test('rejects missing required and unsupported image column values', () {
@@ -583,7 +586,7 @@ void main() {
       expect(controller.validateForSave, returnsNormally);
     });
 
-    test('rejects an empty element when the special column is required', () {
+    test('allows an empty element when the special column is required', () {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
@@ -591,22 +594,6 @@ void main() {
         requireElement: true,
       );
 
-      expect(
-        controller.validateForSave,
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('1행의 주원료'),
-          ),
-        ),
-      );
-
-      controller.updateElement(
-        'item:10',
-        elementPlain: '원재료',
-        elementPayload: 'UEsDelement',
-      );
       expect(controller.validateForSave, returnsNormally);
     });
 
