@@ -14,6 +14,8 @@ import 'package:label_manager/database/db_connection_status.dart';
 import 'package:label_manager/database/db_result_utils.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/login/application/startup_login_service.dart';
+import 'package:label_manager/features/login/application/user_access_service.dart';
+import 'package:label_manager/features/login/presentation/user_access_serial_dialog.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 
@@ -340,6 +342,7 @@ class _LoginPanel extends StatefulWidget {
 
 class _LoginPanelState extends State<_LoginPanel> {
   final StartupLoginService _loginService = StartupLoginService();
+  final UserAccessService _userAccessService = UserAccessService();
   String _infoText = '';
   final FocusNode _userIdFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
@@ -499,6 +502,20 @@ class _LoginPanelState extends State<_LoginPanel> {
     }
 
     try {
+      if (userAccessAuthorizationRequired(authenticationMode)) {
+        final authorized = await _userAccessService.authorize(
+          user: _userInfo!,
+          promptSerial: (temporaryNumber) => showUserAccessSerialDialog(
+            context,
+            temporaryNumber,
+          ),
+        );
+        if (!authorized) {
+          debugLog(END);
+          return;
+        }
+      }
+
       await _loginService.login(
         user: _userInfo!,
         authenticationMode: authenticationMode,

@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 완료: 로그인 PC 시리얼 인증 포팅 v1.1.0
+- 요청: 일반 비밀번호 로그인에서 이전 접속 PC와 서버의 사용자 접속 정보가 다르면 8자리 임시번호를 표시하고 대응 시리얼 번호가 일치할 때만 현재 PC 정보를 서버에 저장한 뒤 로그인한다. 마스터키 로그인은 이 검사를 제외한다.
+- 레거시 확인: `LoginDlg::CheckUserAccess`는 `BM_USER_ACCESS.ACCESS_DATA` 17자리 값을 앞 8자리/뒤 9자리로 나눠 `CRandSerialDlg::Encoding`한 로컬 `C:\ITS\labelmanager_user_access.ini`의 `[USER_ACCESS_LOG] ACCESS_DATA`와 비교한다. 불일치 시 `CRandSerialDlg`의 8자리 임시번호와 시리얼 입력을 검증하고, 성공 시 서버 토큰 갱신·`BM_USER_ACCESS_LOG` 기록·로컬 값 저장을 수행한다.
+- 적용 원칙: 레거시의 시장 ID 예외는 현재 요구에 없으므로 포팅하지 않는다. 일반 로그인에만 검사하고 `LoginAuthenticationMode.masterKey`는 제외한다. SQL Server compatibility 100을 유지해 `FORMAT`은 사용하지 않는다.
+- `user_access_serial.dart` 편집 완료: 레거시 8자리 임시번호, 시리얼 인코딩, 17자리 서버 토큰의 로컬 PC 값 변환을 순수 함수로 포팅했다.
+- `user_access_dao.dart`, `user_access_local_store.dart`, `user_access_service.dart` 편집 완료: 서버 접속 토큰 조회, compatibility 100 저장·이력 트랜잭션, 레거시 INI 읽기/쓰기, 일치·최초 등록·불일치 인증 흐름을 구현했다.
+- `user_access_serial_dialog.dart`, `startup_dialog.dart` 편집 완료: PC 정보 불일치 시 임시번호/시리얼 입력 dialog를 표시하고, 마스터키가 아닌 로그인에서 성공해야 기존 로그인 세션 구성을 진행한다.
+- 테스트 추가 및 focused 검증 완료: 산식·토큰 변환, 서비스 일치·최초 등록·인증 성공·취소, 마스터키 제외, SQL compatibility, dialog 오답/정답과 기존 startup login service를 포함한 12건 통과. 변경 파일 diagnostics 오류 0건.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/features/login/domain/user_access_serial.dart lib/features/login/data/user_access_dao.dart lib/features/login/data/user_access_local_store.dart lib/features/login/application/user_access_service.dart lib/features/login/presentation/user_access_serial_dialog.dart lib/features/login/presentation/startup_dialog.dart test/user_access_serial_test.dart test/user_access_service_test.dart test/user_access_dao_test.dart test/user_access_serial_dialog_test.dart` 오류·경고 0건.
+- 버전 편집 완료: 사용자에게 보이는 신규 로그인 인증 흐름이므로 MINOR 증가로 `1.0.93`에서 `1.1.0`으로 갱신했다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, Debug EXE 생성.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.1.0`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 동작 기준: 올바른 비밀번호 확인 후 마스터키가 아니면 서버 `BM_USER_ACCESS`와 로컬 `C:\ITS\labelmanager_user_access.ini` 값을 비교한다. 양쪽 최초 상태는 자동 등록하며, 기존 값이 다르면 임시번호/시리얼 인증 성공 후에만 서버 토큰·접속 이력·로컬 값을 갱신하고 로그인을 계속한다. 취소 또는 오답은 로그인과 저장을 진행하지 않는다.
+- stage/commit 대상: 로그인 user-access 신규 production 5개, `startup_dialog.dart`, 회귀 테스트 4개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료·실물 검증 대기: 작은 한글 4배 supersampling 합성 v1.0.89
 - v1.0.88 실물 `.tmp/IMG_20260809_0016.png`은 20% coverage 이진화 후 제2행 작은 한글이 굵고 네모지며 제3·9행 역상 한글 내부가 크게 비어 품질 개선에 실패했다. 로그 `.tmp/log/app_2026-08-09_16-00-55.log`는 `nativeTextCoverageKept=15379`, `nativeTextCoverageDiscarded=862`, `nativeTextFailed=0`으로 변경 적용은 정상임을 확인한다.
 - 최종 11~17dot에서 먼저 rasterize한 glyph의 20% threshold를 바꾸는 접근은 원본 윤곽 정보가 부족해 재사용하지 않는다. v1.0.88 per-pixel coverage helper와 진단을 제거한다.
