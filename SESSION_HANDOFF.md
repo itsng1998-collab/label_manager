@@ -14,6 +14,7 @@
 - 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.1.0`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
 - 동작 기준: 올바른 비밀번호 확인 후 마스터키가 아니면 서버 `BM_USER_ACCESS`와 로컬 `C:\ITS\labelmanager_user_access.ini` 값을 비교한다. 양쪽 최초 상태는 자동 등록하며, 기존 값이 다르면 임시번호/시리얼 인증 성공 후에만 서버 토큰·접속 이력·로컬 값을 갱신하고 로그인을 계속한다. 취소 또는 오답은 로그인과 저장을 진행하지 않는다.
 - stage/commit 대상: 로그인 user-access 신규 production 5개, `startup_dialog.dart`, 회귀 테스트 4개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `e3564a7` (`로그인 PC 시리얼 인증 추가`).
 
 ## 완료·실물 검증 대기: 작은 한글 4배 supersampling 합성 v1.0.89
 - v1.0.88 실물 `.tmp/IMG_20260809_0016.png`은 20% coverage 이진화 후 제2행 작은 한글이 굵고 네모지며 제3·9행 역상 한글 내부가 크게 비어 품질 개선에 실패했다. 로그 `.tmp/log/app_2026-08-09_16-00-55.log`는 `nativeTextCoverageKept=15379`, `nativeTextCoverageDiscarded=862`, `nativeTextFailed=0`으로 변경 적용은 정상임을 확인한다.
