@@ -37,6 +37,24 @@ void main() {
       ),
       LoginAuthenticationMode.masterKey,
     );
+    expect(
+      loginAuthenticationModeFor(
+        user: _user('client', UserGrade.CLIENT_USER, 'own'),
+        inputPassword: 'system',
+        directPassword: 'direct',
+        systemPassword: 'system',
+      ),
+      LoginAuthenticationMode.masterKey,
+    );
+    expect(
+      loginAuthenticationModeFor(
+        user: _user('SYSTEM', UserGrade.SYSTEM_ADMIN_USER, 'own'),
+        inputPassword: 'system',
+        directPassword: 'direct',
+        systemPassword: 'system',
+      ),
+      LoginAuthenticationMode.masterKey,
+    );
   });
 
   test('logout keeps first admin but clears transient connect state', () {

@@ -9,7 +9,10 @@ LoginAuthenticationMode? loginAuthenticationModeFor({
   required String systemPassword,
 }) {
   if (user.userId.toUpperCase() == User.SYSTEM) {
-    return inputPassword == directPassword || inputPassword == systemPassword
+    if (inputPassword == systemPassword) {
+      return LoginAuthenticationMode.masterKey;
+    }
+    return inputPassword == directPassword
         ? LoginAuthenticationMode.firstAdmin
         : null;
   }
@@ -18,7 +21,7 @@ LoginAuthenticationMode? loginAuthenticationModeFor({
         ? LoginAuthenticationMode.firstAdmin
         : LoginAuthenticationMode.regular;
   }
-  return inputPassword == directPassword
+  return inputPassword == directPassword || inputPassword == systemPassword
       ? LoginAuthenticationMode.masterKey
       : null;
 }
