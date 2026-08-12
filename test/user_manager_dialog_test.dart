@@ -7,6 +7,7 @@ import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/managed_user/presentation/user_manager_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
 
 void main() {
   test('manager lifecycle blocks child and write work', () {
@@ -172,6 +173,51 @@ void main() {
       isNotNull,
     );
     expect(find.byKey(const ValueKey('userConnectButton')), findsNothing);
+  });
+
+  testWidgets('name search centers the matched row in the table viewport', (
+    tester,
+  ) async {
+    final users = [
+      for (var index = 0; index < 100; index += 1)
+        _user('user-$index', index == 80 ? '검색 대상' : '사용자 $index'),
+    ];
+    await _pumpManager(tester, initialUsers: users);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('userSearchField')),
+      '검색 대상',
+    );
+    await tester.tap(find.byKey(const ValueKey('userSearchButton')));
+    await tester.pump();
+    await tester.pump();
+
+    final table = tester.widget<FortuneTable<ManagedUser>>(
+      find.byKey(const ValueKey('userTable')),
+    );
+    final verticalPosition = tester
+        .widgetList<ListView>(
+          find.descendant(
+            of: find.byKey(const ValueKey('userTable')),
+            matching: find.byType(ListView),
+          ),
+        )
+        .map((list) => list.controller)
+        .whereType<ScrollController>()
+        .where((controller) => controller.hasClients)
+        .map((controller) => controller.position)
+        .firstWhere((position) => position.maxScrollExtent > 0);
+    final expectedOffset = ((80.5 * table.rowHeight) -
+            verticalPosition.viewportDimension / 2)
+        .clamp(0.0, verticalPosition.maxScrollExtent);
+    expect(verticalPosition.pixels, closeTo(expectedOffset, 1));
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('userTable')),
+        matching: find.text('검색 대상'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

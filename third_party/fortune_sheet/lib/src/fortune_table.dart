@@ -169,21 +169,33 @@ class FortuneTableEditingController extends ChangeNotifier {
 class FortuneTableScrollController {
   Object? _owner;
   void Function(int rowIndex)? _revealRow;
+  void Function(int rowIndex)? _revealRowCentered;
 
   void revealRow(int rowIndex) {
     if (rowIndex < 0) return;
     _revealRow?.call(rowIndex);
   }
 
-  void _attach({required Object owner, required void Function(int) revealRow}) {
+  void revealRowCentered(int rowIndex) {
+    if (rowIndex < 0) return;
+    _revealRowCentered?.call(rowIndex);
+  }
+
+  void _attach({
+    required Object owner,
+    required void Function(int) revealRow,
+    required void Function(int) revealRowCentered,
+  }) {
     _owner = owner;
     _revealRow = revealRow;
+    _revealRowCentered = revealRowCentered;
   }
 
   void _detach(Object owner) {
     if (!identical(_owner, owner)) return;
     _owner = null;
     _revealRow = null;
+    _revealRowCentered = null;
   }
 }
 
@@ -395,7 +407,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       hasActiveEditing: () =>
           _editingRowIndex != null || _pendingTextCommit != null,
     );
-    widget.scrollController?._attach(owner: this, revealRow: _revealRow);
+    widget.scrollController?._attach(
+      owner: this,
+      revealRow: _revealRow,
+      revealRowCentered: _revealRowCentered,
+    );
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
@@ -465,7 +481,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     }
     if (oldWidget.scrollController != widget.scrollController) {
       oldWidget.scrollController?._detach(this);
-      widget.scrollController?._attach(owner: this, revealRow: _revealRow);
+      widget.scrollController?._attach(
+        owner: this,
+        revealRow: _revealRow,
+        revealRowCentered: _revealRowCentered,
+      );
     }
     widget.selectionController?.setSelectedRows(
       widget.selectionController!.selectedRows.where(
@@ -1611,6 +1631,21 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           _vScrollBody,
           rowIndex * widget.rowHeight,
           (rowIndex + 1) * widget.rowHeight,
+        );
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _revealRowCentered(int rowIndex) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || rowIndex >= widget.rows.length) return;
+      if (_vScrollBody.hasClients) {
+        final position = _vScrollBody.position;
+        final rowCenter = (rowIndex + 0.5) * widget.rowHeight;
+        final target = rowCenter - position.viewportDimension / 2;
+        position.jumpTo(
+          target.clamp(0.0, position.maxScrollExtent).toDouble(),
         );
       }
     });

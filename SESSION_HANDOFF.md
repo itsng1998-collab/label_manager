@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료: 사용자 관리 검색 결과 행 중앙 스크롤 v1.3.2
+- 원인/수정: `_searchNext()`가 선택만 갱신하던 경로에 `FortuneTableScrollController`를 연결하고, 새 공용 API `revealRowCentered()`로 검색 결과 행 중심을 테이블 viewport 중심에 맞춘다. 기존 `revealRow()` 의미와 일반 행 선택 동작은 유지한다.
+- 경계 동작: 첫/마지막 근처 결과는 유효 scroll extent로 제한하며, 검색 결과가 없을 때 기존 안내 동작을 유지한다.
+- 테스트: `test/user_manager_dialog_test.dart` 전체 10 passed. 100행 중 80번째 검색 결과의 행/viewport 중심 offset 1px 이내를 검증했다. FortuneTable 기존 offscreen reveal 테스트도 1 passed.
+- analyzer: 변경 Dart 파일 strict analyzer `No issues found`.
+- 빌드: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.2`.
+- 정리: 추가 임시 산출물 없음. `version.txt`와 배포 산출물은 변경하지 않았다.
+- stage 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/managed_user/presentation/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 커밋: 진행 예정.
+
 ## 완료: 품목관리 주원료 플로팅 preview 단일 셀 크기 복원 v1.3.1
 - 원인/수정: `_ItemElementPreviewTab`의 누락된 `fitSingleCellToViewport`를 활성화해 1×1 셀이 플로팅 viewport를 채우도록 했다.
 - 저장 경계: viewport 행·열 크기는 view state로 제외하고 `_itemElementWorkbookWithLabelSize()`가 자동 commit·명시 저장 payload를 실제 라벨 물리 크기로 정규화한다. 초기 표시와 창 resize는 초안을 commit하지 않는다.

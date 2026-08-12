@@ -109,6 +109,7 @@ class UserManagerDialogContent extends StatefulWidget {
 
 class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
   final _searchController = TextEditingController();
+  final _tableScrollController = FortuneTableScrollController();
   List<Cooperator> _cooperators = const [];
   List<Customer> _customers = const [];
   List<Market> _markets = const [];
@@ -327,6 +328,7 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
       _showMessage('검색 결과가 없습니다.');
     } else {
       setState(() => _selectedIndex = found);
+      _tableScrollController.revealRowCentered(found);
     }
   }
 
@@ -579,8 +581,10 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
           const SizedBox(height: 8),
           Expanded(
             child: FortuneTable<ManagedUser>(
+              key: const ValueKey('userTable'),
               rows: _rows,
               columns: _columns,
+              scrollController: _tableScrollController,
               selectedIndex: _selectedIndex,
               onRowSelected: (row, index) =>
                   setState(() => _selectedIndex = index),
