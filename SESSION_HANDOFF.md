@@ -14,6 +14,7 @@
 - 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.2.1`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
 - 동작 기준: 사용 항목 삭제 저장 시 중간 DML rowcount를 ODBC 결과로 내보내지 않고 마지막 신규 컬럼 mapping 결과만 반환해 저장 transaction과 화면 재조회가 완료되어야 한다.
 - stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `50a9969` (`라벨 항목 삭제 저장 무한 대기 수정`).
 
 ## 완료: 품목관리·공용 테이블·플로팅 미리보기 개선 v1.2.0
 - 사용자 확인 완료: 최소표시 헤더 체크는 품목 draft에 포함해 저장 버튼으로 일괄 저장하고, 새로 고침은 현재 라벨 전체 품목을 DB에서 다시 읽으며 현재 선택 품목을 복원한다. 우클릭 완전 차단은 `LabelOutputPreview` 기반 읽기 전용 출력 미리보기에만 적용한다.
