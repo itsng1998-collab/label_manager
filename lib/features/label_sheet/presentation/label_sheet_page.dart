@@ -117,6 +117,7 @@ class LabelSheetPage extends StatelessWidget {
     this.onSheetDialogClosed,
     this.imageImportController,
     this.editingLifecycleController,
+    this.keywordInsertController,
     this.onDirtyChanged,
     this.onSaved,
   });
@@ -133,6 +134,7 @@ class LabelSheetPage extends StatelessWidget {
   final VoidCallback? onSheetDialogClosed;
   final LabelSheetImageImportController? imageImportController;
   final LabelSheetEditingLifecycleController? editingLifecycleController;
+  final LabelSheetKeywordInsertController? keywordInsertController;
   final ValueChanged<bool>? onDirtyChanged;
   final ValueChanged<LabelSize>? onSaved;
 
@@ -170,6 +172,7 @@ class LabelSheetPage extends StatelessWidget {
         onSheetDialogClosed: onSheetDialogClosed,
         imageImportController: imageImportController,
         editingLifecycleController: editingLifecycleController,
+        keywordInsertController: keywordInsertController,
         onDirtyChanged: onDirtyChanged,
         hideStatisticBar: true,
         onSave: (width, height, encodedWorkbook) =>

@@ -6,6 +6,7 @@ import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
 
 TColumnBase _column(
@@ -227,5 +228,44 @@ void main() {
     expect(columns.single.useMissingKeywordCheck, isFalse);
     expect(changedCount, 1);
     expect(commonLabelRequiredKeywordsFromColumns(columns), isEmpty);
+  });
+
+  testWidgets('keyword column exposes double tap and drag token', (
+    tester,
+  ) async {
+    final keywordController = LabelSheetKeywordInsertController();
+    final columns = [_column('SWEIGHT', columnName: '저울중량')];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 350,
+            height: 120,
+            child: commonLabelRequiredTableForTesting(
+              columns: columns,
+              keywordInsertController: keywordController,
+              onRequiredChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<TColumnBase>>(
+      find.byType(FortuneTable<TColumnBase>),
+    );
+    final keywordColumn = table.columns.first;
+    expect(keywordColumn.onDoubleTap, isNotNull);
+    final dragData = keywordColumn.dragData!(columns.single, 0);
+    expect(
+      dragData,
+      isA<LabelSheetKeywordDragData>().having(
+        (data) => data.text,
+        'text',
+        '{#SWEIGHT}',
+      ),
+    );
+    expect(table.columns[1].onDoubleTap, isNull);
+    expect(table.columns[1].dragData, isNull);
   });
 }

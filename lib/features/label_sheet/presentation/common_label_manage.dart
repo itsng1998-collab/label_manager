@@ -118,8 +118,11 @@ List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
 Widget commonLabelRequiredTableForTesting({
   required List<TColumnBase> columns,
   required VoidCallback onRequiredChanged,
+  LabelSheetKeywordInsertController? keywordInsertController,
 }) => _CommonLabelTable(
   columns: columns,
+  keywordInsertController:
+      keywordInsertController ?? LabelSheetKeywordInsertController(),
   onRequiredChanged: onRequiredChanged,
 );
 
@@ -158,6 +161,8 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
   double _rightFraction = 0;
   bool _rightWidthChangedByUser = false;
   static const double _handleWidth = 8;
+  final LabelSheetKeywordInsertController _keywordInsertController =
+      LabelSheetKeywordInsertController();
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +235,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     imageImportController: widget.imageImportController,
                     editingLifecycleController:
                       widget.editingLifecycleController,
+                    keywordInsertController: _keywordInsertController,
                     onDirtyChanged: widget.onSheetDirtyChanged,
                     onSaved: widget.onLabelSaved,
                   ),
@@ -257,6 +263,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
               child: _RightPane(
                 title: '${widget.title} - 우측',
                 columns: specialColumns,
+                keywordInsertController: _keywordInsertController,
                 onColumnEditRequested: widget.onColumnEditRequested,
                 onRequiredChanged: () {
                   setState(() {});
@@ -273,11 +280,13 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
 class _RightPane extends StatefulWidget {
   final String title;
   final List<TColumnBase> columns;
+  final LabelSheetKeywordInsertController keywordInsertController;
   final VoidCallback? onColumnEditRequested;
   final VoidCallback onRequiredChanged;
   const _RightPane({
     required this.title,
     required this.columns,
+    required this.keywordInsertController,
     required this.onRequiredChanged,
     this.onColumnEditRequested,
   });
@@ -314,6 +323,7 @@ class _RightPaneState extends State<_RightPane> {
               height: topHeight,
               child: _CommonLabelTable(
                 columns: widget.columns,
+                keywordInsertController: widget.keywordInsertController,
                 onRequiredChanged: widget.onRequiredChanged,
               ),
             ),
@@ -349,6 +359,7 @@ class _RightPaneState extends State<_RightPane> {
               ),
               child: _CommonLabelTable(
                 columns: columns,
+                keywordInsertController: widget.keywordInsertController,
                 onRequiredChanged: widget.onRequiredChanged,
               ),
             ),
@@ -361,9 +372,11 @@ class _RightPaneState extends State<_RightPane> {
 
 class _CommonLabelTable extends StatefulWidget {
   final List<TColumnBase> columns;
+  final LabelSheetKeywordInsertController keywordInsertController;
   final VoidCallback onRequiredChanged;
   const _CommonLabelTable({
     required this.columns,
+    required this.keywordInsertController,
     required this.onRequiredChanged,
   });
 
@@ -429,6 +442,27 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                 initialWidth: columnWidths[index],
                 minWidth: _CommonLabelTable._minWidth(index),
                 text: (row) => _CommonLabelTable._cellText(row, index),
+                onDoubleTap: index == 0
+                    ? (row, rowIndex) => widget.keywordInsertController
+                          .insertAtCurrentContext('{#${row.keyword}}')
+                    : null,
+                dragData: index == 0
+                    ? (row, rowIndex) =>
+                          LabelSheetKeywordDragData('{#${row.keyword}}')
+                    : null,
+                dragFeedbackBuilder: index == 0
+                    ? (context, row, rowIndex) => Material(
+                        elevation: 4,
+                        color: Theme.of(context).colorScheme.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          child: Text('{#${row.keyword}}'),
+                        ),
+                      )
+                    : null,
                 checkboxController:
                     index == 2 ? _missingKeywordCheckController : null,
                 onCheckboxChangedAt: index == 2

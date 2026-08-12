@@ -1,5 +1,26 @@
 # 현재 작업 상태
 
+## 완료: 공용라벨 키워드 더블클릭·드래그 삽입 v1.3.0
+- 요청: 특별 항목/사용 항목의 키워드 셀을 더블클릭하면 현재 편집 커서 또는 마지막 선택 셀에 `{#키워드}`를 삽입하고, 키워드를 라벨 시트로 드래그하면 정확한 드롭 caret에 삽입한 뒤 편집 상태와 저장 활성화를 유지한다.
+- 사용자 확인 완료: 편집 문자열 선택 시 선택을 유지하고 선택 끝에 삽입, `third_party/fortune_sheet` 공용 API 최소 확장, 데스크톱 즉시 마우스 드래그를 적용한다.
+- `third_party/fortune_sheet/lib/src/fortune_table.dart` 편집 완료: `FortuneTableColumn.dragData`/`dragFeedbackBuilder`로 컬럼별 즉시 `Draggable` 소스를 제공한다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 편집 완료: `FortuneSheetController.insertTextAtCurrentContext()`와 `insertTextAtGlobalPosition()`이 편집 cursor, 마지막 선택 셀, 첫 셀 fallback, 글로벌 드롭 caret 삽입을 기존 editor/undo/selection 경로로 처리한다.
+- `label_sheet_workbench.dart` 편집 완료: `LabelSheetKeywordInsertController`와 키워드 전용 `DragTarget`을 추가하고 삽입 성공 시 dirty/save 활성 상태를 즉시 반영한다.
+- `label_sheet_page.dart` 편집 완료: 키워드 삽입 controller를 Workbench로 전달한다.
+- `common_label_manage.dart` 편집 완료: 특별/사용 항목 키워드 컬럼의 기존 `onDoubleTap`과 새 drag source를 하나의 시트 controller에 연결한다.
+- 테스트 편집 진행: FortuneTable drag source, 마지막 선택 셀 append/선택 복원, 편집 선택 끝 삽입, 첫 셀 fallback, 정확한 드롭 caret, 즉시 dirty 전환 테스트를 추가했다. 신규 테스트 6건 개별 통과.
+- 공용 API 5개 파일 analyzer 신규 오류 0건. fortune_sheet 기존 미사용 코드 경고 10건은 범위 밖으로 유지한다. 중첩 package FortuneTable navigation 테스트 2건 통과.
+- 포커스 회귀 수정 완료: FortuneTable의 pointer-up focus 요청 이후 다음 frame에 시트 editor focus를 복원해 더블클릭·드롭 후 편집 상태와 삽입 caret을 유지한다.
+- 테스트 편집 완료: 실제 공용라벨 키워드 컬럼 wiring, 즉시 drag payload 전달, 편집/선택/첫 셀/drop/dirty/focus 복원 분기를 추가했다.
+- 변경 Dart 8개 포맷 완료. 앱 변경 범위 strict analyzer·diagnostics 오류 0건, focused 테스트 3개 파일 268건 통과, 중첩 package 테스트 2건 통과. fortune_sheet analyzer는 신규 오류 0건이며 기존 미사용 경고 10건만 유지한다.
+- 버전 편집 완료: 사용자 상호작용 기능 추가이므로 MINOR 증가로 `1.2.3`에서 `1.3.0`으로 갱신했다.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 커밋 전 요구사항 대조 검토 완료: 편집/선택/A1 fallback, 정확한 drop caret, focus·selection 복원, dirty 전환, controller lifecycle, undo/onOp 경로에서 누락·회귀 없음.
+- 잔여 수동 확인: 실제 scroll/zoom 및 병합 셀 상태에서 드롭 위치 체감만 확인하면 된다. 좌표 계산은 fortune_sheet 기존 scroll/transform 및 `RenderEditable.getPositionForPoint` 경로를 사용한다.
+- 최종 자동 검증 완료: EXE FileVersion/ProductVersion `1.3.0`, `git diff --check` 통과. formatter 디스크 정렬 확인 후 canvas 관련 테스트 2건 재통과, 신규 analyzer 오류 0건.
+- stage/commit 대상: fortune_sheet 공용 API 2개, 라벨 시트 Workbench/Page/CommonLabelManage 3개, 관련 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 공용라벨 편집 모드에서 항목 편집 허용 v1.2.3
 - 요청: 공용라벨관리의 라벨 시트 편집 모드에서도 사용 항목의 `항목 편집` 다이얼로그에 진입하고 저장할 수 있어야 한다.
 - 원인: `HomePageManager._openLabelColumnEditDialog()`와 저장 가능/실행 조건이 `_commonLabelSheetDirty`를 미저장 충돌로 간주해 다이얼로그 진입과 저장을 모두 차단한다.

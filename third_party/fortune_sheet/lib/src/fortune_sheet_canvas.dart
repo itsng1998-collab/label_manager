@@ -2962,6 +2962,20 @@ class FortuneSheetController extends ChangeNotifier {
     _state?._setControllerSelection(ranges, id: id, index: index);
   }
 
+  bool insertTextAtCurrentContext(String text) {
+    final state = _state;
+    return state != null && state._insertTextAtCurrentContext(text);
+  }
+
+  Future<bool> insertTextAtGlobalPosition(
+    String text,
+    Offset globalPosition,
+  ) async {
+    final state = _state;
+    return state != null &&
+        await state._insertTextAtGlobalPosition(text, globalPosition);
+  }
+
   void clearHoverState() {
     _state?._clearControllerHoverState();
   }
@@ -43906,6 +43920,99 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _editorImeStuckResiduals = <(int, String, String)>[];
       _resetEditorInlineHistory();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _editingCoord != null) {
+        _editorFocusNode.requestFocus();
+      }
+    });
+  }
+
+  bool _insertTextAtCurrentContext(String text) {
+    if (text.isEmpty || !_workbook.settings.allowEdit) {
+      return false;
+    }
+    if (_editingCoord != null) {
+      final selection = _editorController.selection;
+      final offset = selection.isValid
+          ? math.max(selection.start, selection.end)
+          : _editorController.text.length;
+      _replaceEditorRange(TextRange(start: offset, end: offset), text);
+      _restoreEditorFocusAfterFrame();
+      return true;
+    }
+
+    final sheet = _workbook.activeSheet;
+    final ranges = _selectedObjectKeys.isEmpty
+        ? _getSelection()
+        : const <FortuneRange>[];
+    final targetRange = ranges.isEmpty ? null : ranges.last;
+    final coord = sheet.mergeAnchorFor(
+      FortuneCellCoord(
+        targetRange?.rowFocus ?? targetRange?.rowEnd ?? 0,
+        targetRange?.columnFocus ?? targetRange?.columnEnd ?? 0,
+      ),
+    );
+    if (!_canEditCell(sheet, coord)) {
+      return false;
+    }
+    final previousText = sheet.cells[coord]?.renderedText ?? '';
+    _setControllerCellValue(
+      coord.row,
+      coord.column,
+      '$previousText$text',
+    );
+    if (ranges.isEmpty) {
+      _setControllerSelection([
+        FortuneRange(
+          rowStart: coord.row,
+          rowEnd: coord.row,
+          columnStart: coord.column,
+          columnEnd: coord.column,
+          rowFocus: coord.row,
+          columnFocus: coord.column,
+        ),
+      ]);
+    } else {
+      _setControllerSelection(ranges);
+    }
+    return true;
+  }
+
+  Future<bool> _insertTextAtGlobalPosition(
+    String text,
+    Offset globalPosition,
+  ) async {
+    if (text.isEmpty || !_workbook.settings.allowEdit) {
+      return false;
+    }
+    final localPosition = _canvasLocalPositionForGlobal(globalPosition);
+    final coord = _cellCoordAtLocal(
+      localPosition,
+      _workbook.settings,
+      _workbook.activeSheet.metrics(_workbook.settings),
+    );
+    if (coord == null || !_canEditCell(_workbook.activeSheet, coord)) {
+      return false;
+    }
+    if (_editingCoord != null && _editingCoord != coord) {
+      _commitActiveCellEditing();
+    }
+    if (_editingCoord == null) {
+      _startEditing(coord);
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    if (!mounted || _editingCoord != coord) {
+      return false;
+    }
+    final offset =
+        _editorTextOffsetForGlobalPosition(globalPosition) ??
+        _editorController.text.length;
+    _replaceEditorRange(TextRange(start: offset, end: offset), text);
+    _restoreEditorFocusAfterFrame();
+    return true;
+  }
+
+  void _restoreEditorFocusAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _editingCoord != null) {
         _editorFocusNode.requestFocus();

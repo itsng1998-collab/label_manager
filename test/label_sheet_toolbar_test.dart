@@ -6,6 +6,7 @@ import 'dart:ui' as ui show PointerDeviceKind, Rect;
 import 'package:archive/archive.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderEditable;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
@@ -3140,6 +3141,352 @@ void main() {
       ((sheet.rowHeights[0]! + 1) * sheet.zoomRatio).round(),
       initialVisibleHeight,
     );
+  });
+
+  testWidgets('keyword insert appends to the focused cell and restores ranges', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 320,
+          height: 220,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  rowCount: 2,
+                  columnCount: 2,
+                  cells: {
+                    const FortuneCellCoord(1, 1):
+                        const FortuneCell(value: '가격 '),
+                  },
+                ),
+              ],
+            ),
+            settings: const FortuneSettings(
+              toolbarItems: [],
+              rowHeaderWidth: 0,
+              columnHeaderHeight: 0,
+            ),
+            showFormulaBar: false,
+            showSheetTabs: false,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    const ranges = [
+      FortuneRange(
+        rowStart: 0,
+        rowEnd: 1,
+        columnStart: 0,
+        columnEnd: 1,
+        rowFocus: 1,
+        columnFocus: 1,
+      ),
+    ];
+    controller.setSelection(ranges);
+
+    expect(controller.insertTextAtCurrentContext('{#PRICE}'), isTrue);
+    await tester.pump();
+
+    expect(controller.getCellValue(1, 1), '가격 {#PRICE}');
+    final restored = controller.getSelection()!;
+    expect(restored, hasLength(1));
+    expect(restored.single.rowStart, 0);
+    expect(restored.single.rowEnd, 1);
+    expect(restored.single.columnStart, 0);
+    expect(restored.single.columnEnd, 1);
+    expect(restored.single.rowFocus, 1);
+    expect(restored.single.columnFocus, 1);
+  });
+
+  testWidgets('keyword insert keeps editing and inserts at selection end', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 320,
+          height: 220,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  rowCount: 1,
+                  columnCount: 1,
+                  cells: {
+                    const FortuneCellCoord(0, 0):
+                        const FortuneCell(value: 'ABCD'),
+                  },
+                ),
+              ],
+            ),
+            settings: const FortuneSettings(
+              toolbarItems: [],
+              rowHeaderWidth: 0,
+              columnHeaderHeight: 0,
+              singleClickCellEdit: true,
+            ),
+            showFormulaBar: false,
+            showSheetTabs: false,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(tester.getCenter(find.byType(FortuneSheetCanvas)));
+    await tester.pump();
+    final editor = tester.widget<EditableText>(find.byType(EditableText).last);
+    editor.controller.selection = const TextSelection(
+      baseOffset: 1,
+      extentOffset: 3,
+    );
+
+    expect(controller.insertTextAtCurrentContext('{#PRICE}'), isTrue);
+    await tester.pump();
+
+    expect(editor.controller.text, 'ABC{#PRICE}D');
+    expect(editor.controller.selection, const TextSelection.collapsed(offset: 11));
+    expect(find.byType(EditableText), findsWidgets);
+  });
+
+  testWidgets('keyword insert uses the first cell without a cell selection', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 320,
+          height: 220,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  rowCount: 2,
+                  columnCount: 2,
+                  cells: {
+                    const FortuneCellCoord(0, 0):
+                        const FortuneCell(value: '첫 셀 '),
+                  },
+                ),
+              ],
+            ),
+            settings: const FortuneSettings(
+              toolbarItems: [],
+              rowHeaderWidth: 0,
+              columnHeaderHeight: 0,
+            ),
+            showFormulaBar: false,
+            showSheetTabs: false,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    controller.setSelection(const []);
+
+    expect(controller.insertTextAtCurrentContext('{#PRICE}'), isTrue);
+    await tester.pump();
+
+    expect(controller.getCellValue(0, 0), '첫 셀 {#PRICE}');
+    final selection = controller.getSelection()!.single;
+    expect(selection.rowFocus, 0);
+    expect(selection.columnFocus, 0);
+  });
+
+  testWidgets('keyword drop inserts at the exact editor position', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 320,
+          height: 220,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  rowCount: 1,
+                  columnCount: 1,
+                  cells: {
+                    const FortuneCellCoord(0, 0):
+                        const FortuneCell(value: 'ABCD'),
+                  },
+                ),
+              ],
+            ),
+            settings: const FortuneSettings(
+              toolbarItems: [],
+              rowHeaderWidth: 0,
+              columnHeaderHeight: 0,
+              singleClickCellEdit: true,
+            ),
+            showFormulaBar: false,
+            showSheetTabs: false,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(tester.getCenter(find.byType(FortuneSheetCanvas)));
+    await tester.pump();
+    final editorFinder = find.byType(EditableText).last;
+    RenderEditable? renderEditable;
+    void findRenderEditable(RenderObject child) {
+      if (child is RenderEditable) {
+        renderEditable = child;
+        return;
+      }
+      child.visitChildren(findRenderEditable);
+    }
+    tester.renderObject(editorFinder).visitChildren(findRenderEditable);
+    expect(renderEditable, isNotNull);
+    final resolvedRenderEditable = renderEditable!;
+    final caretRect = resolvedRenderEditable.getLocalRectForCaret(
+      const TextPosition(offset: 2),
+    );
+    final dropPosition = resolvedRenderEditable.localToGlobal(caretRect.center);
+
+    expect(
+      await controller.insertTextAtGlobalPosition('{#PRICE}', dropPosition),
+      isTrue,
+    );
+    await tester.pump();
+
+    final editor = tester.widget<EditableText>(editorFinder);
+    expect(editor.controller.text, 'AB{#PRICE}CD');
+    expect(editor.controller.selection, const TextSelection.collapsed(offset: 10));
+  });
+
+  testWidgets('keyword insert immediately marks the workbench dirty', (
+    tester,
+  ) async {
+    final keywordController = LabelSheetKeywordInsertController();
+    final dirtyValues = <bool>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 640,
+            height: 480,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [
+                  FortuneSheet(
+                    id: 's1',
+                    name: 'Sheet1',
+                    rowCount: 1,
+                    columnCount: 1,
+                  ),
+                ],
+              ),
+              keywordInsertController: keywordController,
+              onDirtyChanged: dirtyValues.add,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(keywordController.insertAtCurrentContext('{#PRICE}'), isTrue);
+    await tester.pump();
+
+    expect(dirtyValues, [isTrue]);
+  });
+
+  testWidgets('table double tap restores the active sheet editor caret', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: 320,
+                height: 220,
+                child: FortuneSheetCanvas(
+                  workbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Sheet1',
+                        rowCount: 1,
+                        columnCount: 1,
+                        cells: {
+                          const FortuneCellCoord(0, 0):
+                              const FortuneCell(value: 'ABCD'),
+                        },
+                      ),
+                    ],
+                  ),
+                  settings: const FortuneSettings(
+                    toolbarItems: [],
+                    rowHeaderWidth: 0,
+                    columnHeaderHeight: 0,
+                    singleClickCellEdit: true,
+                  ),
+                  showFormulaBar: false,
+                  showSheetTabs: false,
+                  controller: controller,
+                ),
+              ),
+              SizedBox(
+                width: 240,
+                height: 120,
+                child: FortuneTable<String>(
+                  rows: const ['PRICE'],
+                  columns: [
+                    FortuneTableColumn<String>(
+                      id: 'keyword',
+                      header: '키워드',
+                      text: (value) => value,
+                      onDoubleTap: (value, index) =>
+                          controller.insertTextAtCurrentContext('{#$value}'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byType(FortuneSheetCanvas)),
+    );
+    await tester.pump();
+    final editor = tester.widget<EditableText>(find.byType(EditableText).last);
+    editor.controller.selection = const TextSelection.collapsed(offset: 2);
+
+    await tester.tap(find.text('PRICE'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('PRICE'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(editor.controller.text, 'AB{#PRICE}CD');
+    expect(editor.controller.selection, const TextSelection.collapsed(offset: 10));
+    expect(editor.focusNode.hasFocus, isTrue);
   });
 
   test('label sheet context menu exposes AI image import', () {

@@ -715,6 +715,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageImportController,
     this.imageImportUseRootOverlay = false,
     this.editingLifecycleController,
+    this.keywordInsertController,
     this.outputCaptureController,
     this.outputCaptureOwnerToken,
     this.onWorkbookChanged,
@@ -763,6 +764,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final LabelSheetImageImportController? imageImportController;
   final bool imageImportUseRootOverlay;
   final LabelSheetEditingLifecycleController? editingLifecycleController;
+  final LabelSheetKeywordInsertController? keywordInsertController;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final Object? outputCaptureOwnerToken;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
@@ -809,6 +811,28 @@ class LabelSheetEditingLifecycleController {
     if (_state == state) _state = null;
   }
 }
+
+class LabelSheetKeywordDragData {
+  const LabelSheetKeywordDragData(this.text);
+
+  final String text;
+}
+
+class LabelSheetKeywordInsertController {
+  _LabelSheetWorkbenchState? _state;
+
+  bool insertAtCurrentContext(String text) =>
+      _state?._insertKeywordAtCurrentContext(text) ?? false;
+
+  void _attach(_LabelSheetWorkbenchState state) {
+    _state = state;
+  }
+
+  void _detach(_LabelSheetWorkbenchState state) {
+    if (_state == state) _state = null;
+  }
+}
+
 class LabelSheetImageImportController {
   _LabelSheetWorkbenchState? _state;
 
@@ -1491,6 +1515,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     widget.zoomController?.bindZoomSetter(_setLabelSheetZoomPercent);
     widget.imageImportController?._attach(this);
     widget.editingLifecycleController?._attach(this);
+    widget.keywordInsertController?._attach(this);
     widget.outputCaptureController?._attach(
       this,
       widget.outputCaptureOwnerToken ?? this,
@@ -1505,6 +1530,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void deactivate() {
     widget.editingLifecycleController?._detach(this);
+    widget.keywordInsertController?._detach(this);
     super.deactivate();
   }
 
@@ -1512,6 +1538,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void activate() {
     super.activate();
     widget.editingLifecycleController?._attach(this);
+    widget.keywordInsertController?._attach(this);
   }
 
   @override
@@ -1530,6 +1557,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     widget.zoomController?.unbindZoomSetter(_setLabelSheetZoomPercent);
     widget.imageImportController?._detach(this);
     widget.editingLifecycleController?._detach(this);
+    widget.keywordInsertController?._detach(this);
     widget.outputCaptureController?._detach(this);
     _removeZoomToolbarFloatingOverlay();
     if (_rtfSnackBarVisible) {
@@ -1566,6 +1594,29 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     });
   }
 
+  bool _insertKeywordAtCurrentContext(String text) {
+    final inserted = _controller.insertTextAtCurrentContext(text);
+    if (inserted) _markKeywordInsertDirty();
+    return inserted;
+  }
+
+  Future<void> _insertKeywordAtDrop(
+    LabelSheetKeywordDragData data,
+    Offset globalPosition,
+  ) async {
+    final inserted = await _controller.insertTextAtGlobalPosition(
+      data.text,
+      globalPosition,
+    );
+    if (inserted) _markKeywordInsertDirty();
+  }
+
+  void _markKeywordInsertDirty() {
+    if (_isDirty) return;
+    setState(() => _isDirty = true);
+    widget.onDirtyChanged?.call(true);
+  }
+
   @override
   void didUpdateWidget(covariant LabelSheetWorkbench oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1586,6 +1637,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         widget.editingLifecycleController) {
       oldWidget.editingLifecycleController?._detach(this);
       widget.editingLifecycleController?._attach(this);
+    }
+    if (oldWidget.keywordInsertController != widget.keywordInsertController) {
+      oldWidget.keywordInsertController?._detach(this);
+      widget.keywordInsertController?._attach(this);
     }
     if (outputCaptureOwnerChanged) {
       oldWidget.outputCaptureController?._detach(this);
@@ -3117,7 +3172,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  sheet,
+                  DragTarget<LabelSheetKeywordDragData>(
+                    onAcceptWithDetails: (details) {
+                      unawaited(
+                        _insertKeywordAtDrop(details.data, details.offset),
+                      );
+                    },
+                    builder: (context, candidateData, rejectedData) => sheet,
+                  ),
                   _buildZoomToolbarOverlay(),
                   if (convertingRtf)
                     Positioned.fill(

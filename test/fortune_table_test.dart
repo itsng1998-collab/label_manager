@@ -60,6 +60,60 @@ void main() {
     expect(activated, ['0:협력업체 A']);
   });
 
+  testWidgets('column drag data renders an immediate drag source', (
+    tester,
+  ) async {
+    Object? acceptedData;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: 300,
+                height: 240,
+                child: FortuneTable<String>(
+                  rows: const ['PRICE'],
+                  columns: [
+                    FortuneTableColumn<String>(
+                      id: 'keyword',
+                      header: '키워드',
+                      text: (value) => value,
+                      dragData: (value, index) => '{#$value}',
+                      dragFeedbackBuilder: (context, value, index) =>
+                          Material(child: Text('{#$value}')),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 100,
+                height: 100,
+                child: DragTarget<Object>(
+                  onAcceptWithDetails: (details) {
+                    acceptedData = details.data;
+                  },
+                  builder: (context, candidateData, rejectedData) =>
+                      const ColoredBox(color: Colors.blue),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byWidgetPredicate((widget) => widget is Draggable<Object>),
+      findsOneWidget,
+    );
+    final source = tester.getCenter(find.text('PRICE'));
+    final target = tester.getCenter(find.byType(DragTarget<Object>));
+    await tester.dragFrom(source, target - source);
+    await tester.pumpAndSettle();
+    expect(acceptedData, '{#PRICE}');
+  });
+
   test('settings operation gate ignores concurrent operations', () async {
     final gate = SettingsOperationGate();
     final completer = Completer<void>();

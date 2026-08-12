@@ -205,6 +205,8 @@ class FortuneTableColumn<T> {
     this.isTextEditable,
     this.onTextCommitted,
     this.onDoubleTap,
+    this.dragData,
+    this.dragFeedbackBuilder,
     this.autoFit = true,
     this.fillRemaining = false,
   });
@@ -226,6 +228,9 @@ class FortuneTableColumn<T> {
   final FutureOr<void> Function(T row, int rowIndex, String value)?
   onTextCommitted;
   final FutureOr<void> Function(T row, int rowIndex)? onDoubleTap;
+  final Object? Function(T row, int rowIndex)? dragData;
+  final Widget Function(BuildContext context, T row, int rowIndex)?
+  dragFeedbackBuilder;
   final bool autoFit;
   final bool fillRemaining;
 
@@ -1213,7 +1218,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         ),
       );
     }
-    return SizedBox.expand(
+    final cell = SizedBox.expand(
       child: Listener(
         onPointerDown: (event) {
           if (event.buttons == kPrimaryMouseButton) {
@@ -1237,6 +1242,17 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           ),
         ),
       ),
+    );
+    final dragData = column.dragData?.call(row, rowIndex);
+    final dragFeedbackBuilder = column.dragFeedbackBuilder;
+    if (dragData == null || dragFeedbackBuilder == null) {
+      return cell;
+    }
+    return Draggable<Object>(
+      data: dragData,
+      feedback: dragFeedbackBuilder(context, row, rowIndex),
+      childWhenDragging: Opacity(opacity: 0.45, child: cell),
+      child: cell,
     );
   }
 
