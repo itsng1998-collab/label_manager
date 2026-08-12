@@ -8480,11 +8480,18 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
 
   void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
     if (!widget.canEdit) return;
-    if (_itemElementWorkbookContentEquals(_elementForm.workbook, workbook)) {
+    final normalizedWorkbook = _itemElementWorkbookWithLabelSize(
+      workbook,
+      widget.labelSize,
+    );
+    if (_itemElementWorkbookContentEquals(
+      _elementForm.workbook,
+      normalizedWorkbook,
+    )) {
       return;
     }
-    final next = _itemElementTextFromWorkbook(workbook);
-    final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
+    final next = _itemElementTextFromWorkbook(normalizedWorkbook);
+    final encodedWorkbook = labelSheetEncodeWorkbookSave(normalizedWorkbook);
     if (next == _elementText &&
         encodedWorkbook == _elementForm.encodedWorkbook) {
       return;
@@ -8492,7 +8499,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     setState(() {
       _elementText = next;
       _elementForm = _elementForm.copyWith(
-        workbook: workbook,
+        workbook: normalizedWorkbook,
         encodedWorkbook: encodedWorkbook,
         text: next,
         convertedFromRtf: false,
@@ -8543,16 +8550,25 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       return;
     }
 
-    final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
+    final decodedWorkbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
+    final workbook = decodedWorkbook == null
+        ? null
+        : _itemElementWorkbookWithLabelSize(
+            decodedWorkbook,
+            widget.labelSize,
+          );
     final elementText = workbook == null
         ? _elementText
         : _itemElementTextFromWorkbook(workbook);
+    final normalizedEncodedWorkbook = workbook == null
+        ? encodedWorkbook
+        : labelSheetEncodeWorkbookSave(workbook);
 
     try {
       await widget.onElementCommitted(
         widget.rowIdentity,
         elementText,
-        encodedWorkbook,
+        normalizedEncodedWorkbook,
       );
       if (mounted && workbook != null) {
         setState(() {
@@ -8784,6 +8800,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
           hideToolbar: !canEdit,
           hideRowColumnHeaderLabels: true,
           hideSelectionHighlight: true,
+          fitSingleCellToViewport: true,
           rulerCornerSizeLabelUsesAsterisk: true,
           disableSheetRulerGuideInteraction: true,
           hideStatisticBar: true,
@@ -8829,6 +8846,12 @@ const List<String> _itemElementToolbarItems = [
 ];
 
 const Set<String> _itemElementViewStateKeys = {
+  'defaultColWidth',
+  'defaultRowHeight',
+  'columnlen',
+  'rowlen',
+  'customWidth',
+  'customHeight',
   'm',
   'status',
   'luckysheet_select_save',
@@ -9462,6 +9485,8 @@ fs.FortuneWorkbook _itemElementWorkbook(
         name: '주원료 및 함량',
         rowCount: 1,
         columnCount: 1,
+        defaultRowHeight: rowHeight,
+        defaultColWidth: columnWidth,
         rowHeights: {0: rowHeight},
         columnWidths: {0: columnWidth},
         customHeight: const {0: 1},
@@ -9474,6 +9499,30 @@ fs.FortuneWorkbook _itemElementWorkbook(
         },
         showGridLines: false,
       ),
+    ],
+  );
+}
+
+fs.FortuneWorkbook _itemElementWorkbookWithLabelSize(
+  fs.FortuneWorkbook workbook,
+  LabelSize? labelSize,
+) {
+  final printAreaSize = _itemElementPrintAreaSize(labelSize);
+  final columnWidth = max(1.0, printAreaSize.width - 1.0);
+  final rowHeight = max(1.0, printAreaSize.height - 1.0);
+  return workbook.copyWith(
+    sheets: [
+      for (final sheet in workbook.sheets)
+        sheet.copyWith(
+          rowCount: 1,
+          columnCount: 1,
+          defaultRowHeight: rowHeight,
+          defaultColWidth: columnWidth,
+          rowHeights: {0: rowHeight},
+          columnWidths: {0: columnWidth},
+          customHeight: const {0: 1},
+          customWidth: const {0: 1},
+        ),
     ],
   );
 }

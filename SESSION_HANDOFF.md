@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 완료: 품목관리 주원료 플로팅 preview 단일 셀 크기 복원 v1.3.1
+- 원인/수정: `_ItemElementPreviewTab`의 누락된 `fitSingleCellToViewport`를 활성화해 1×1 셀이 플로팅 viewport를 채우도록 했다.
+- 저장 경계: viewport 행·열 크기는 view state로 제외하고 `_itemElementWorkbookWithLabelSize()`가 자동 commit·명시 저장 payload를 실제 라벨 물리 크기로 정규화한다. 초기 표시와 창 resize는 초안을 commit하지 않는다.
+- 테스트: `test/label_sheet_toolbar_test.dart` 전체 190 passed. 실제 preview 설정, 줌 유지, resize 무commit, 100×80mm 테스트 라벨 저장 크기를 검증한다.
+- analyzer: 변경 파일 strict analyzer `No issues found`. 전체 strict analyzer는 기존 fortune_sheet 미사용 코드 경고 10건으로 종료 코드 1이며 이번 변경 파일 진단은 없다.
+- 빌드: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.1`.
+- 정리: 추가 임시 산출물 없음. `version.txt`와 배포 산출물은 변경하지 않았다.
+- stage 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 커밋: 진행 예정.
+
 ## 완료: 공용라벨 키워드 더블클릭·드래그 삽입 v1.3.0
 - 요청: 특별 항목/사용 항목의 키워드 셀을 더블클릭하면 현재 편집 커서 또는 마지막 선택 셀에 `{#키워드}`를 삽입하고, 키워드를 라벨 시트로 드래그하면 정확한 드롭 caret에 삽입한 뒤 편집 상태와 저장 활성화를 유지한다.
 - 사용자 확인 완료: 편집 문자열 선택 시 선택을 유지하고 선택 끝에 삽입, `third_party/fortune_sheet` 공용 API 최소 확장, 데스크톱 즉시 마우스 드래그를 적용한다.

@@ -2112,11 +2112,17 @@ void main() {
     expect(committedRowIdentity, 'draft:auto-commit');
     expect(committedPlain, '저장 버튼 없는 변경');
     expect(committedPayload, isNotNull);
+    final committedSheet = labelSheetDecodeWorkbookSave(
+      committedPayload!,
+    ).sheets.first;
+    expect(committedSheet.cells.values.single.value, '저장 버튼 없는 변경');
     expect(
-      labelSheetDecodeWorkbookSave(
-        committedPayload!,
-      ).sheets.first.cells.values.single.value,
-      '저장 버튼 없는 변경',
+      committedSheet.columnWidths[0],
+      closeTo(fortuneMillimetersToLogicalPixels(100) - 1, 0.001),
+    );
+    expect(
+      committedSheet.rowHeights[0],
+      closeTo(fortuneMillimetersToLogicalPixels(80) - 1, 0.001),
     );
   });
 
@@ -2680,6 +2686,10 @@ void main() {
 
     await tester.pumpWidget(panel());
     await tester.pumpAndSettle();
+    final workbench = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
+    );
+    expect(workbench.fitSingleCellToViewport, isTrue);
     expect(zoomController.value, 150);
 
     zoomController.setZoomPercent(100);
