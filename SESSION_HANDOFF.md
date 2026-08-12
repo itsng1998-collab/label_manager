@@ -15,6 +15,7 @@
 - 최종 검증 완료: EXE FileVersion/ProductVersion `1.2.3`, 변경 파일 analyzer·diagnostics 오류 0건, focused 테스트 200건 통과, `git diff --check` 통과.
 - 동작 기준: 공용라벨 시트 편집 중에도 `항목 편집` 진입·저장이 가능하다. 저장 후 사용 항목 컬럼만 갱신해 편집 중 workbook draft를 유지하며, 품목관리 미저장 draft와 항목 저장 busy 상태는 기존대로 진입·저장을 차단한다.
 - stage/commit 대상: `home_page_manager.dart`, `label_column_save_service.dart`, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋 완료: `644d92e` (`공용라벨 편집 중 항목 편집 허용`).
 
 ## 완료: 액션 바 관리 메뉴와 협력업체 조회 범위 제한 v1.2.2
 - 요청: 일반 업체 계정은 협력업체·거래처·지점·사용자 관리와 관리자 복사 메뉴를 조회할 수 없어야 하며, 협력업체 계정은 자기 협력업체 소속 거래처·지점·사용자만 조회하고 아이티에스엔지/TEST 계정만 전체 업체를 조회한다.
