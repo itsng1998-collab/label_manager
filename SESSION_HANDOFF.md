@@ -8,7 +8,7 @@
 - 빌드: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.1`.
 - 정리: 추가 임시 산출물 없음. `version.txt`와 배포 산출물은 변경하지 않았다.
 - stage 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
-- 커밋: 진행 예정.
+- 기능 커밋: `ea97e8d` (`품목관리 주원료 단일 셀 크기 복원`).
 
 ## 완료: 공용라벨 키워드 더블클릭·드래그 삽입 v1.3.0
 - 요청: 특별 항목/사용 항목의 키워드 셀을 더블클릭하면 현재 편집 커서 또는 마지막 선택 셀에 `{#키워드}`를 삽입하고, 키워드를 라벨 시트로 드래그하면 정확한 드롭 caret에 삽입한 뒤 편집 상태와 저장 활성화를 유지한다.
