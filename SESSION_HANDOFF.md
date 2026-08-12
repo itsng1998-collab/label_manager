@@ -15,6 +15,7 @@
 - Windows 검증: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. `build/windows/x64/runner/Debug/label_manager.exe`의 `FileVersion`/`ProductVersion` 모두 `1.3.3`.
 - 최종 점검: `git diff --check` 통과. 배포 EXE/ZIP/설치 프로그램은 요청되지 않아 생성하지 않았다.
 - 커밋 대상: 본 항목 관련 구현·테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 stage한다.
+- 기능 커밋: `38ba44b` 사용자 접속 및 이력 기능 복원.
 
 ## 완료: 사용자 관리 검색 결과 행 중앙 스크롤 v1.3.2
 - 원인/수정: `_searchNext()`가 선택만 갱신하던 경로에 `FortuneTableScrollController`를 연결하고, 새 공용 API `revealRowCentered()`로 검색 결과 행 중심을 테이블 viewport 중심에 맞춘다. 기존 `revealRow()` 의미와 일반 행 선택 동작은 유지한다.
