@@ -777,7 +777,7 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
       throw StateError('Required label column schema is not supported.');
     }
     _validateCommand(command);
-    final sql = StringBuffer()
+    final sql = StringBuffer('SET NOCOUNT ON;\n')
       ..write(_xmlProjection)
       ..write(
         _optionalMainCheckConcurrency(

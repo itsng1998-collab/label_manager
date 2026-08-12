@@ -378,6 +378,7 @@ void main() {
     test('uses OUTPUT mapping and never guesses the last inserted rows', () {
       final sql = LabelColumnSaveDao.buildSaveStatement(_command(), _none).sql;
 
+      expect(sql, startsWith('SET NOCOUNT ON;'));
       expect(
         sql,
         contains('OUTPUT INSERTED.RICH_COLUMN_ID INTO @OneInserted'),

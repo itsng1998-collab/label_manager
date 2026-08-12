@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 완료: 공용라벨 라벨 항목 삭제 저장 무한 진행 수정 v1.2.1
+- 사용자 재현: 공용라벨관리의 `라벨 항목 편집`에서 사용 항목 하나를 삭제한 뒤 저장하면 진행 표시가 끝나지 않는다.
+- 최신 로그 `.tmp/log/app_2026-08-12_09-52-05.log` 확인: 라벨 컬럼 저장 복합 SQL이 기록된 뒤 완료·오류 로그 없이 파일이 끝난다.
+- 원인 확인: `LabelColumnSaveDao.buildSaveStatement()`가 다수의 `INSERT`/`UPDATE`/`DELETE`/`MERGE`와 마지막 결과 `SELECT`를 단일 ODBC transaction statement로 실행하면서 `SET NOCOUNT ON`이 없어 중간 rowcount 결과에서 반환이 멈출 수 있다. UI는 `onSave` 반환을 정상 대기하므로 busy 해제 누락이 아니다.
+- 수정: 저장 SQL 첫 문장에 `SET NOCOUNT ON;`을 추가하고 최종 신규 컬럼 mapping `SELECT`는 유지한다. 삭제 저장 SQL의 NOCOUNT 계약을 DAO 테스트에 추가한다.
+- focused 검증 완료: `test/label_column_save_test.dart` 전체 14건 통과.
+- 버전 편집 완료: 호환 가능한 저장 무한 진행 버그 수정이므로 PATCH 증가로 `1.2.0`에서 `1.2.1`로 갱신했다.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/features/label_column/data/label_column_save.dart test/label_column_save_test.dart` 오류·경고 0건.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- 첫 Windows 통합 빌드는 실행 중인 Debug `label_manager.exe` 잠금으로 `LNK1168` 실패했다. 해당 빌드 산출물 프로세스만 정상 종료한 뒤 같은 명령을 재실행한다.
+- Debug 앱 PID 11660에 `CloseMainWindow()`로 정상 종료를 요청한 뒤 동일 `/WX` Windows Debug 빌드 재실행 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.2.1`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 동작 기준: 사용 항목 삭제 저장 시 중간 DML rowcount를 ODBC 결과로 내보내지 않고 마지막 신규 컬럼 mapping 결과만 반환해 저장 transaction과 화면 재조회가 완료되어야 한다.
+- stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 품목관리·공용 테이블·플로팅 미리보기 개선 v1.2.0
 - 사용자 확인 완료: 최소표시 헤더 체크는 품목 draft에 포함해 저장 버튼으로 일괄 저장하고, 새로 고침은 현재 라벨 전체 품목을 DB에서 다시 읽으며 현재 선택 품목을 복원한다. 우클릭 완전 차단은 `LabelOutputPreview` 기반 읽기 전용 출력 미리보기에만 적용한다.
 - 레거시 확인: `IDR_ITEMMENU`의 클라이언트 편집 허용/불가는 관리자 편집 권한이 있고 우클릭 지점이 품목 행의 동적 컬럼일 때만 활성화하며, 단일 셀의 `RICH_EDITABLE`을 변경해 품목 저장 시 함께 반영한다. 새로 고침은 현재 라벨 전체 테이블을 DB에서 다시 읽는다.
