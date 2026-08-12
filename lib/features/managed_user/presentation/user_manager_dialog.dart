@@ -24,6 +24,7 @@ typedef ManagedUserLookup = Future<ManagedUser?> Function(String);
 typedef ManagedUserWriter = Future<void> Function(ManagedUser);
 typedef ManagedUserUpdater = Future<void> Function(String, ManagedUser);
 typedef ManagedUserDeleter = Future<void> Function(String);
+typedef ManagedUserConnector = Future<void> Function(ManagedUser);
 
 class UserManagerController extends ChangeNotifier {
   bool _activeEditing = false;
@@ -81,6 +82,8 @@ class UserManagerDialogContent extends StatefulWidget {
     this.insert = ManagedUserDAO.insert,
     this.update = ManagedUserDAO.update,
     this.delete = ManagedUserDAO.delete,
+    this.canConnect = false,
+    this.connect,
   });
 
   final UserManagerController controller;
@@ -101,6 +104,8 @@ class UserManagerDialogContent extends StatefulWidget {
   final ManagedUserWriter insert;
   final ManagedUserUpdater update;
   final ManagedUserDeleter delete;
+  final bool canConnect;
+  final ManagedUserConnector? connect;
 
   @override
   State<UserManagerDialogContent> createState() =>
@@ -310,6 +315,24 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
       () => widget.delete(selected.userId),
       '삭제가 완료되었습니다!',
     );
+  }
+
+  Future<void> _connectSelected() async {
+    final selected = _selectedUser;
+    final connect = widget.connect;
+    if (_busy || selected == null || !widget.canConnect || connect == null) {
+      return;
+    }
+    widget.controller.setWriteBusy(true);
+    if (mounted) setState(() {});
+    try {
+      await connect(selected);
+    } catch (error) {
+      if (mounted) await _showMessage(error.toString());
+    } finally {
+      widget.controller.setWriteBusy(false);
+      if (mounted) setState(() {});
+    }
   }
 
   void _searchNext() {
@@ -575,6 +598,14 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
                 tooltip: '선택한 사용자 삭제',
                 onPressed: hasSelection ? _deleteSelected : null,
                 icon: const Icon(Icons.delete_outline),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('userConnectButton'),
+                onPressed: hasSelection && widget.canConnect
+                    ? _connectSelected
+                    : null,
+                icon: const Icon(Icons.login),
+                label: const Text('접속'),
               ),
             ],
           ),

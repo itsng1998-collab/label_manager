@@ -48,7 +48,7 @@ void main() {
     expect(draft.isDirty, isFalse);
   });
 
-  test('save command updates every column with every persisted field key', () {
+  test('save command updates only the search print property', () {
     final original = [
       _column(
         id: 1,
@@ -81,13 +81,9 @@ void main() {
     for (final draft in labelCommand.updatedColumns) {
       expect(
         labelCommand.changedKeysByColumnId[draft.column.columnId],
-        containsAll(draft.persistedValues.keys),
+        {'searchPrint'},
       );
     }
-    expect(labelCommand.changedKeysByColumnId[1], contains('searchPrint'));
-    expect(labelCommand.changedKeysByColumnId[2], contains('type'));
-    expect(labelCommand.changedKeysByColumnId[2], contains('contains'));
-    expect(labelCommand.changedKeysByColumnId[2], contains('check'));
   });
 
   test('save command rejects a reordered snapshot', () {

@@ -55,13 +55,12 @@ class ExitLogoutLogSnapshot {
 
 ExitLogoutLogSnapshot? exitLogoutLogSnapshotFor({
   required bool loggedIn,
-  required bool isDisconnect,
   required bool isMasterKeyLogin,
   required User? user,
   required int? customerId,
   required String? customerName,
 }) {
-  if (!loggedIn || !isDisconnect || isMasterKeyLogin) return null;
+  if (!loggedIn || isMasterKeyLogin) return null;
   if (user == null || customerId == null || customerName == null) return null;
   return ExitLogoutLogSnapshot(
     userId: user.userId,

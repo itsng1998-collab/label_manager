@@ -151,7 +151,7 @@ void main() {
     expect(find.textContaining('이미 존재하는 ID입니다'), findsOneWidget);
   });
 
-  testWidgets('name search wraps and connect command is absent', (
+  testWidgets('name search wraps and connect is disabled without permission', (
     tester,
   ) async {
     await _pumpManager(
@@ -172,7 +172,32 @@ void main() {
           .onPressed,
       isNotNull,
     );
-    expect(find.byKey(const ValueKey('userConnectButton')), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('userConnectButton')),
+          )
+          .onPressed,
+      isNull,
+    );
+  });
+
+  testWidgets('authorized manager connects as the selected user', (
+    tester,
+  ) async {
+    ManagedUser? connected;
+    await _pumpManager(
+      tester,
+      canConnect: true,
+      connect: (user) async => connected = user,
+    );
+
+    await tester.tap(find.text('김하나'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byKey(const ValueKey('userConnectButton')));
+    await tester.pump();
+
+    expect(connected?.userId, 'one');
   });
 
   testWidgets('name search centers the matched row in the table viewport', (
@@ -303,6 +328,8 @@ Future<void> _pumpManager(
   Future<ManagedUser?> Function(String)? lookupUser,
   Future<void> Function(ManagedUser)? insert,
   Future<void> Function(String)? delete,
+  bool canConnect = false,
+  Future<void> Function(ManagedUser)? connect,
   VoidCallback? onClose,
 }) async {
   final controller = UserManagerController();
@@ -362,6 +389,8 @@ Future<void> _pumpManager(
             insert: insert ?? (_) async {},
             update: (_, _) async {},
             delete: delete ?? (_) async {},
+            canConnect: canConnect,
+            connect: connect,
           ),
         ),
       ),

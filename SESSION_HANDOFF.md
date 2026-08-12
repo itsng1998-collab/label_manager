@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: 고객 확인 항목 4~9 수정 v1.3.3
+- 사용자 확인: v1.0.1 관리자 복사 오류는 현재 버전에서 재현 확인되지 않음. SYSTEM 정상 로그인 발행도 이력 저장. 사용자 환경 접속 권한은 레거시대로 시스템 관리자/관리자 접속만 허용.
+- 로그인 이력 기준: 마스터 PW 인증은 LOGIN/LOGOUT 모두 제외한다. 사용자 관리의 관리자 접속은 대상 사용자 LOGIN을 만들지 않으며, 이후 로그아웃은 정상 직접 로그인한 원 관리자 계정으로 기록해 LOGIN/LOGOUT 쌍을 맞춘다.
+- 1차 수정 완료: 명시적 로그아웃/종료의 정상 로그인 이력 판정 통합, SYSTEM 발행 이력 제외 제거, 검색 출력 저장 changed key를 `searchPrint`로 제한. 관련 테스트 13 passed.
+- 관리자 접속 구현 완료: 레거시 권한 조건으로 접속 버튼을 복원하고 원 사용자·거래처 컨텍스트를 세션에 보존한다. 대상 환경 전환 및 `BM_ADMIN_ACCESS_LOG` 기록 실패 시 전환 전 상태로 원복한다. 세션/다이얼로그 테스트 15 passed.
+- 도움말 구현 완료: 액션바 `설정` 다음, 서버 상태 아이콘 바로 앞에 도움말 버튼을 고정 배치했다. 레거시 정보/쇼핑몰/원격지원/자료실 항목과 현재 `appVersion` 정보 창을 구현했다.
+- 관리자 복사: 첨부는 v1.0.1이며 현재 v1.3.2 재현은 확인되지 않았다. 현재 SQL에는 `labelmanager_combine` 하드코딩이 없고 레거시 3개 품목 복사 프로시저 순서를 사용한다. 최신 DAO/다이얼로그 테스트 11 passed로 확인했으며 추측성 재시도/예외 처리는 추가하지 않았다.
+- 도움말 테스트: 레거시 4개 항목, 현재 앱 버전, 외부 URL 3개 검증 2 passed.
+- 관련 통합 테스트: 로그인 이력/발행 저장/검색 출력/관리자 접속/사용자 관리/도움말 30 passed, startup login 이력 조건 3 passed. 변경 파일 진단 없음.
+- 버전: `pubspec.yaml`을 `1.3.3`으로 갱신. `version.txt`는 배포 요청이 없어 변경하지 않는다.
+- 인접 테스트: app menu 12 passed, 검색 출력/사용자 관리/로그아웃 19 passed. `flutter test test/label_print_persistence_test.dart test/label_print_pipeline_test.dart` 9 passed.
+- strict analyzer: 최초 실행에서 `home_page.dart`의 사용자 환경 접속 직접 의존 import 4개 누락을 발견해 `ManagedUser`, `MarketDAO`, `CustomerDAO`, `CooperatorDAO` import를 추가했다. 동일 변경 파일 15개 재실행 결과 `No issues found`.
+- Windows 검증: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. `build/windows/x64/runner/Debug/label_manager.exe`의 `FileVersion`/`ProductVersion` 모두 `1.3.3`.
+- 최종 점검: `git diff --check` 통과. 배포 EXE/ZIP/설치 프로그램은 요청되지 않아 생성하지 않았다.
+- 커밋 대상: 본 항목 관련 구현·테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 stage한다.
+
 ## 완료: 사용자 관리 검색 결과 행 중앙 스크롤 v1.3.2
 - 원인/수정: `_searchNext()`가 선택만 갱신하던 경로에 `FortuneTableScrollController`를 연결하고, 새 공용 API `revealRowCentered()`로 검색 결과 행 중심을 테이블 viewport 중심에 맞춘다. 기존 `revealRow()` 의미와 일반 행 선택 동작은 유지한다.
 - 경계 동작: 첫/마지막 근처 결과는 유효 scroll extent로 제한하며, 검색 결과가 없을 때 기존 안내 동작을 유지한다.

@@ -16,7 +16,6 @@ void main() {
   test('app exit captures current target session for LOGOUT', () {
     final snapshot = exitLogoutLogSnapshotFor(
       loggedIn: true,
-      isDisconnect: true,
       isMasterKeyLogin: false,
       user: user,
       customerId: 20,
@@ -33,7 +32,6 @@ void main() {
     expect(
       exitLogoutLogSnapshotFor(
         loggedIn: true,
-        isDisconnect: true,
         isMasterKeyLogin: true,
         user: user,
         customerId: 20,
@@ -43,17 +41,15 @@ void main() {
     );
   });
 
-  test('explicit logout does not use app-exit LOGOUT rule', () {
-    expect(
-      exitLogoutLogSnapshotFor(
-        loggedIn: true,
-        isDisconnect: false,
-        isMasterKeyLogin: false,
-        user: user,
-        customerId: 20,
-        customerName: '대상 거래처',
-      ),
-      isNull,
+  test('explicit logout captures the normal login session', () {
+    final snapshot = exitLogoutLogSnapshotFor(
+      loggedIn: true,
+      isMasterKeyLogin: false,
+      user: user,
+      customerId: 20,
+      customerName: '대상 거래처',
     );
+
+    expect(snapshot?.userId, 'target');
   });
 }

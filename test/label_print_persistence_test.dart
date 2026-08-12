@@ -7,13 +7,6 @@ void main() {
   const first = ColumnItemKey(columnId: 2, itemId: 10);
   const second = ColumnItemKey(columnId: 1, itemId: 20);
 
-  test('history excludes only case-insensitive exact SYSTEM user id', () {
-    expect(labelPrintHistoryEnabledForUserId('SYSTEM'), isFalse);
-    expect(labelPrintHistoryEnabledForUserId('system'), isFalse);
-    expect(labelPrintHistoryEnabledForUserId(' SYSTEM '), isTrue);
-    expect(labelPrintHistoryEnabledForUserId('SYSTEM_ADMIN_USER'), isTrue);
-  });
-
   test('auto increment statement uses XML projection and row count check', () {
     final statement = buildLabelAutoIncrementUpdateStatement({
       first: '002',

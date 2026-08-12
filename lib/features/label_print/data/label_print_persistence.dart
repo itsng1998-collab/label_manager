@@ -33,11 +33,6 @@ typedef LabelPrintTransaction = Future<List<Object>> Function(
   List<DbTransactionStatement> statements,
 );
 
-bool labelPrintHistoryEnabledForUserId(
-  String userId, {
-  String systemUserId = 'SYSTEM',
-}) => userId.toLowerCase() != systemUserId.toLowerCase();
-
 @immutable
 class LabelPrintHistoryContext {
   const LabelPrintHistoryContext({

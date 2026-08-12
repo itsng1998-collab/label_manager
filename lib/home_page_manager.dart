@@ -325,6 +325,8 @@ class HomePageManager extends StatefulWidget {
   final bool userCustomerSelectionEnabled;
   final bool userMarketSelectionEnabled;
   final bool userCredentialsVisible;
+  final bool userConnectEnabled;
+  final ManagedUserConnector onUserConnect;
   final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
@@ -345,6 +347,8 @@ class HomePageManager extends StatefulWidget {
     required this.userCustomerSelectionEnabled,
     required this.userMarketSelectionEnabled,
     required this.userCredentialsVisible,
+    required this.userConnectEnabled,
+    required this.onUserConnect,
     required this.selectedBrand,
     required this.onBrandChanged,
     required this.selectedLabelSize,
@@ -3369,6 +3373,8 @@ class _HomePageManagerState extends State<HomePageManager> {
             customerSelectionEnabled: widget.userCustomerSelectionEnabled,
             marketSelectionEnabled: widget.userMarketSelectionEnabled,
             showCredentials: widget.userCredentialsVisible,
+            canConnect: widget.userConnectEnabled,
+            connect: widget.onUserConnect,
           ),
         ),
       ),
@@ -6475,12 +6481,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         columnContents: columnContents,
         referenceAt: requestedAt,
       );
-      final historyParents =
-          labelPrintHistoryEnabledForUserId(
-            commandUser.userId,
-            systemUserId: User.SYSTEM,
-          )
-          ? buildLabelPrintHistoryParents(
+      final historyParents = buildLabelPrintHistoryParents(
               acceptedUnits: acceptedUnits,
               columns: columns,
               columnContents: columnContents,
@@ -6500,8 +6501,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 printerName: printer.name,
                 extraAreaMm: settings.extraAreaMm,
               ),
-            )
-          : const <Map<String, Object?>>[];
+            );
       final persistence = await LabelPrintPersistenceService().save(
         values: autoIncrementValues,
         historyParents: historyParents,
@@ -7017,11 +7017,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         columnContents: columnContents,
         referenceAt: requestedAt,
       );
-      final historyParents = labelPrintHistoryEnabledForUserId(
-            commandUser.userId,
-            systemUserId: User.SYSTEM,
-          )
-          ? buildLabelPrintHistoryParents(
+      final historyParents = buildLabelPrintHistoryParents(
               acceptedUnits: acceptedLabelUnits,
               columns: columns,
               columnContents: columnContents,
@@ -7041,8 +7037,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 printerName: printer.name,
                 extraAreaMm: settings.extraAreaMm,
               ),
-            )
-          : const <Map<String, Object?>>[];
+            );
       final persistence = await LabelPrintPersistenceService().save(
         values: autoIncrementValues,
         historyParents: historyParents,

@@ -84,9 +84,7 @@ LabelColumnDialogSaveCommand buildSearchPrintSettingsSaveCommand({
       updatedColumns: workingDrafts,
       changedKeysByColumnId: {
         for (final draft in workingDrafts)
-          draft.column.columnId: Set<String>.unmodifiable(
-            draft.persistedValues.keys,
-          ),
+          draft.column.columnId: const {'searchPrint'},
       },
       deletedColumnIds: const {},
       orderedKeys: [for (final draft in workingDrafts) draft.key],

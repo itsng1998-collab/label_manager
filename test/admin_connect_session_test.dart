@@ -69,6 +69,32 @@ void main() {
     expect(session.isAdminConnect, isFalse);
     expect(session.isMasterKeyLogin, isFalse);
   });
+
+  test('user connect preserves the first admin login context', () {
+    final session = AdminConnectSession.instance;
+    session.beginLogin(LoginAuthenticationMode.firstAdmin);
+    final admin = _user('admin', UserGrade.SYSTEM_ADMIN_USER, 'own');
+
+    final first = userConnectSessionFor(
+      currentUser: admin,
+      currentCustomerId: 10,
+      currentCustomerName: '원 거래처',
+      session: session,
+    );
+    session.restore(first);
+    final second = userConnectSessionFor(
+      currentUser: _user('target', UserGrade.CLIENT_USER, 'pw'),
+      currentCustomerId: 20,
+      currentCustomerName: '대상 거래처',
+      session: session,
+    );
+
+    expect(second.connectOrigin, admin);
+    expect(second.connectOriginCustomerId, 10);
+    expect(second.connectOriginCustomerName, '원 거래처');
+    expect(second.isAdminConnect, isTrue);
+    expect(second.isCoopAdminConnect, isTrue);
+  });
 }
 
 User _user(String id, UserGrade grade, String password) => User(

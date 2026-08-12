@@ -18,17 +18,24 @@ import 'package:label_manager/database/db_connection_service.dart';
 import 'package:label_manager/database/db_server_connect_info.dart';
 import 'package:label_manager/features/login_history/data/login_log_dao.dart';
 import 'package:label_manager/features/login_history/domain/login_log.dart';
+import 'package:label_manager/features/admin_connect/data/admin_access_log_dao.dart';
+import 'package:label_manager/features/login/data/user_dao.dart';
 import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/features/last_connect/domain/last_connect.dart';
 import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/managed_user/domain/managed_user.dart';
+import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/features/market/domain/market.dart';
+import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
+import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/login/presentation/startup_db_helper.dart';
 import 'package:label_manager/features/login/presentation/startup_dialog.dart';
+import 'package:label_manager/features/help/presentation/help_menu_button.dart';
 import 'database/db_connection_status_icon.dart';
 import 'home_page_manager.dart';
 import 'utils/log_context.dart';
@@ -54,9 +61,9 @@ class _HomePageState extends State<HomePage> {
   bool _disconnectCleanupDone = false;
   bool _isExiting = false;
   bool _loggedIn = false;
-  final bool _contextSwitching = false;
+  bool _contextSwitching = false;
   bool _searchPrintModeActive = false;
-  final int _managerSessionGeneration = 0;
+  int _managerSessionGeneration = 0;
   Future<void>? _loginToServerDbFuture;
   LifecycleExitSnapshotProvider? _exitSnapshotProvider;
   // 선택 상태
@@ -154,6 +161,15 @@ class _HomePageState extends State<HomePage> {
       isCoopAdminConnect: adminSession.isCoopAdminConnect,
       isFirstConnectByAdmin: adminSession.isFirstConnectByAdmin,
     );
+  }
+
+  void _handleAppMenuOpenChanged(bool open) {
+    if (open) {
+      AppShortcutBlocker.instance.activate(_appMenuShortcutBlockerOwner);
+    } else {
+      AppShortcutBlocker.instance.deactivate(_appMenuShortcutBlockerOwner);
+    }
+    _homePageManagerController.appMenuOpenChanged(open);
   }
 
   Future<void> _onLogout(bool isDisconnect) async {
@@ -260,14 +276,16 @@ class _HomePageState extends State<HomePage> {
       ScaffoldMessenger.of(context).clearSnackBars();
     }
 
+    final adminSession = AdminConnectSession.instance;
     final customer = Customer.instance;
+    final logoutUser = adminSession.connectOrigin ?? User.instance;
     final logoutLog = exitLogoutLogSnapshotFor(
       loggedIn: _loggedIn,
-      isDisconnect: isDisconnect,
       isMasterKeyLogin: AdminConnectSession.instance.isMasterKeyLogin,
-      user: User.instance,
-      customerId: customer?.customerId,
-      customerName: customer?.customerName,
+      user: logoutUser,
+        customerId: adminSession.connectOriginCustomerId ?? customer?.customerId,
+        customerName:
+          adminSession.connectOriginCustomerName ?? customer?.customerName,
     );
     if (logoutLog != null) {
       try {
@@ -309,6 +327,86 @@ class _HomePageState extends State<HomePage> {
     }
 
     debugLog(END);
+  }
+
+  Future<void> _connectToUser(ManagedUser selected) async {
+    final currentUser = User.instance;
+    final currentMarket = Market.instance;
+    final currentCustomer = Customer.instance;
+    final currentCooperator = Cooperator.instance;
+    if (currentUser == null ||
+        currentMarket == null ||
+        currentCustomer == null ||
+        currentCooperator == null) {
+      return;
+    }
+
+    final targetUser = await UserDAO.selectByUserId(selected.userId);
+    if (targetUser == null) throw StateError('접속할 사용자가 없습니다.');
+    final targetMarket = await MarketDAO.selectByMarketId(targetUser.marketId);
+    if (targetMarket == null) throw StateError('접속할 지점이 없습니다.');
+    final targetCustomer = await CustomerDAO.selectByCustomerId(
+      targetMarket.customerId,
+    );
+    if (targetCustomer == null) throw StateError('접속할 거래처가 없습니다.');
+    final targetCooperator = await CooperatorDAO.selectByCooperatorId(
+      targetCustomer.cooperatorId,
+    );
+    if (targetCooperator == null) throw StateError('접속할 협력업체가 없습니다.');
+
+    final adminSession = AdminConnectSession.instance;
+    final previousSession = adminSession.snapshot();
+    final nextSession = userConnectSessionFor(
+      currentUser: currentUser,
+      currentCustomerId: currentCustomer.customerId,
+      currentCustomerName: currentCustomer.customerName,
+      session: adminSession,
+    );
+    final previousBrand = _selectedBrand;
+    final previousLabelSize = _selectedLabelSize;
+
+    setState(() {
+      _contextSwitching = true;
+      _selectedBrand = null;
+      _selectedLabelSize = null;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+
+    adminSession.restore(nextSession);
+    User.setInstance(targetUser);
+    Market.setInstance(targetMarket);
+    Customer.setInstance(targetCustomer);
+    Cooperator.setInstance(targetCooperator);
+    _updateMenuSession();
+
+    try {
+      await AdminAccessLogDAO.insert(
+        accessUserId: nextSession.connectOrigin!.userId,
+        targetUserId: targetUser.userId,
+        targetCustomerId: targetCustomer.customerId,
+      );
+    } catch (_) {
+      User.setInstance(currentUser);
+      Market.setInstance(currentMarket);
+      Customer.setInstance(currentCustomer);
+      Cooperator.setInstance(currentCooperator);
+      adminSession.restore(previousSession);
+      _updateMenuSession();
+      if (mounted) {
+        setState(() {
+          _contextSwitching = false;
+          _selectedBrand = previousBrand;
+          _selectedLabelSize = previousLabelSize;
+        });
+      }
+      rethrow;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _contextSwitching = false;
+      _managerSessionGeneration += 1;
+    });
   }
 
   Future<void> _onLabelSizeChanged(LabelSize? labelSize) async {
@@ -375,22 +473,17 @@ class _HomePageState extends State<HomePage> {
               onCommandSelected: (id) {
                 unawaited(_appMenuController.execute(id));
               },
-              trailing: const DbConnectionStatusIcon(
-                padding: EdgeInsets.zero,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  HelpMenuButton(
+                    onMenuOpenChanged: _handleAppMenuOpenChanged,
+                  ),
+                  const DbConnectionStatusIcon(padding: EdgeInsets.zero),
+                ],
               ),
-              trailingWidth: 32,
-              onMenuOpenChanged: (open) {
-                if (open) {
-                  AppShortcutBlocker.instance.activate(
-                    _appMenuShortcutBlockerOwner,
-                  );
-                } else {
-                  AppShortcutBlocker.instance.deactivate(
-                    _appMenuShortcutBlockerOwner,
-                  );
-                }
-                _homePageManagerController.appMenuOpenChanged(open);
-              },
+              trailingWidth: 80,
+              onMenuOpenChanged: _handleAppMenuOpenChanged,
             ),
           ),
           centerTitle: false,
@@ -449,6 +542,10 @@ class _HomePageState extends State<HomePage> {
                   AdminConnectSession.instance.isCoopAdminConnect,
                 userCredentialsVisible:
                   AdminConnectSession.instance.isFirstConnectByAdmin,
+                userConnectEnabled:
+                    User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
+                    AdminConnectSession.instance.isAdminConnect,
+                onUserConnect: _connectToUser,
                 selectedBrand: _selectedBrand,
                 onBrandChanged: (v) {
                   setState(() => _selectedBrand = v);
