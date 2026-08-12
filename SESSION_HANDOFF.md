@@ -8,7 +8,7 @@
 - 빌드: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.2`.
 - 정리: 추가 임시 산출물 없음. `version.txt`와 배포 산출물은 변경하지 않았다.
 - stage 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/managed_user/presentation/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
-- 커밋: 진행 예정.
+- 기능 커밋: `443ec3c` (`사용자 검색 행 중앙 스크롤 추가`).
 
 ## 완료: 품목관리 주원료 플로팅 preview 단일 셀 크기 복원 v1.3.1
 - 원인/수정: `_ItemElementPreviewTab`의 누락된 `fitSingleCellToViewport`를 활성화해 1×1 셀이 플로팅 viewport를 채우도록 했다.
