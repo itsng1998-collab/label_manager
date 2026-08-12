@@ -20,6 +20,7 @@
 - 잔여 수동 확인: 실제 scroll/zoom 및 병합 셀 상태에서 드롭 위치 체감만 확인하면 된다. 좌표 계산은 fortune_sheet 기존 scroll/transform 및 `RenderEditable.getPositionForPoint` 경로를 사용한다.
 - 최종 자동 검증 완료: EXE FileVersion/ProductVersion `1.3.0`, `git diff --check` 통과. formatter 디스크 정렬 확인 후 canvas 관련 테스트 2건 재통과, 신규 analyzer 오류 0건.
 - stage/commit 대상: fortune_sheet 공용 API 2개, 라벨 시트 Workbench/Page/CommonLabelManage 3개, 관련 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋 완료: `bae9199` (`공용라벨 키워드 삽입 동작 추가`).
 
 ## 완료: 공용라벨 편집 모드에서 항목 편집 허용 v1.2.3
 - 요청: 공용라벨관리의 라벨 시트 편집 모드에서도 사용 항목의 `항목 편집` 다이얼로그에 진입하고 저장할 수 있어야 한다.
