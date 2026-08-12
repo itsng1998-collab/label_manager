@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: 공용라벨 편집 모드에서 항목 편집 허용 v1.2.3
+- 요청: 공용라벨관리의 라벨 시트 편집 모드에서도 사용 항목의 `항목 편집` 다이얼로그에 진입하고 저장할 수 있어야 한다.
+- 원인: `HomePageManager._openLabelColumnEditDialog()`와 저장 가능/실행 조건이 `_commonLabelSheetDirty`를 미저장 충돌로 간주해 다이얼로그 진입과 저장을 모두 차단한다.
+- 수정 방향: 품목관리 draft 및 명령 busy 차단은 유지하고 공용라벨 sheet dirty만 항목 편집 예외로 허용한다. 편집 중 항목 저장 시 기존 전체 세션 강제 reload로 workbook draft를 폐기하지 않고 현재 라벨 컬럼만 재조회해 실행 중인 시트 상태를 유지한다.
+- 수정 예정: `lib/home_page_manager.dart`, 컬럼 저장 서비스/분기 테스트, `pubspec.yaml`. 수정 후 focused 테스트, strict analyzer, `/WX` Windows Debug 빌드를 검증한다.
+- `lib/home_page_manager.dart` 편집 완료: `labelColumnEditAllowed()`로 진입·저장 조건을 통일해 공용라벨 sheet dirty를 허용하고, dirty 상태 저장 시 `_reloadLabelColumns()`로 현재 `TColumn`만 갱신해 workbook draft와 시트 widget 상태를 유지한다.
+- `label_column_save_service.dart` 편집 완료: `reloadLabelColumnsAfterSave()`가 공용라벨 draft 유지 시 컬럼 부분 reload, clean 상태에서는 기존 전체 세션 reload를 선택한다.
+- 테스트 편집 완료: `label_column_save_test.dart`에 부분/전체 reload 선택 2건, `label_sheet_toolbar_test.dart`에 편집 모드 허용 및 기존 busy/draft 차단 정책 2건을 추가했다.
+- 변경 Dart 4개 포맷 완료. strict analyzer와 diagnostics 오류·경고 0건, focused 테스트 2개 파일 전체 200건 통과.
+- 버전 편집 완료: 호환 가능한 편집 동작 수정이므로 PATCH 증가로 `1.2.2`에서 `1.2.3`으로 갱신했다.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 검증 완료: EXE FileVersion/ProductVersion `1.2.3`, 변경 파일 analyzer·diagnostics 오류 0건, focused 테스트 200건 통과, `git diff --check` 통과.
+- 동작 기준: 공용라벨 시트 편집 중에도 `항목 편집` 진입·저장이 가능하다. 저장 후 사용 항목 컬럼만 갱신해 편집 중 workbook draft를 유지하며, 품목관리 미저장 draft와 항목 저장 busy 상태는 기존대로 진입·저장을 차단한다.
+- stage/commit 대상: `home_page_manager.dart`, `label_column_save_service.dart`, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 액션 바 관리 메뉴와 협력업체 조회 범위 제한 v1.2.2
 - 요청: 일반 업체 계정은 협력업체·거래처·지점·사용자 관리와 관리자 복사 메뉴를 조회할 수 없어야 하며, 협력업체 계정은 자기 협력업체 소속 거래처·지점·사용자만 조회하고 아이티에스엔지/TEST 계정만 전체 업체를 조회한다.
 - 레거시 확인: `MainFrm.cpp`의 `OnEnableSystemAdmin`/`OnEnableAdmin`/`OnEnableManager`가 시스템·협력업체 관리자 및 관리자 접속 상태에 따라 `IDM_COOP_MANAGE`, `IDM_CUST_MANAGE`, `IDM_MARKET_MANAGE`, `IDM_USER_MANAGE`, `IDM_ADMIN_COPY`를 제한한다. `CustomerDAO::SelectByCoopID`, `UserDAO::SelectByCoopID`는 협력업체 ID로 조회 범위를 제한한다.

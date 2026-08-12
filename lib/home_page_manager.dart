@@ -160,6 +160,22 @@ bool labelPrintTabSelectionBlocked({
 }) => hasActiveEditing || itemDraftCommandBusy || itemDraftDirty;
 
 @visibleForTesting
+bool labelColumnEditAllowed({
+  required bool hasLabelSize,
+  required bool hasCustomer,
+  required bool canEdit,
+  required bool itemDraftCommandBusy,
+  required bool labelColumnEditCommandBusy,
+  required bool itemDraftDirty,
+}) =>
+    hasLabelSize &&
+    hasCustomer &&
+    canEdit &&
+    !itemDraftCommandBusy &&
+    !labelColumnEditCommandBusy &&
+    !itemDraftDirty;
+
+@visibleForTesting
 bool appMenuWorkBlocked({
   required int itemManagerQueryDepth,
   required bool itemEditing,
@@ -3003,37 +3019,41 @@ class _HomePageManagerState extends State<HomePageManager> {
     final labelSize = _effectiveLabelSize;
     final customerId = Customer.instance?.customerId;
     if (_labelColumnEditOverlayEntry != null) return;
-    if (labelSize == null ||
-        customerId == null ||
-        User.instance?.canEdit != true ||
-        _itemDraftCommandBusy ||
-        _labelColumnEditCommandBusy ||
-        _itemDraftController?.isDirty == true ||
-        _commonLabelSheetDirty) {
+    if (!labelColumnEditAllowed(
+      hasLabelSize: labelSize != null,
+      hasCustomer: customerId != null,
+      canEdit: User.instance?.canEdit == true,
+      itemDraftCommandBusy: _itemDraftCommandBusy,
+      labelColumnEditCommandBusy: _labelColumnEditCommandBusy,
+      itemDraftDirty: _itemDraftController?.isDirty == true,
+    )) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('미저장 작업을 저장하거나 취소한 뒤 항목을 편집하세요.')),
       );
       return;
     }
 
-    final targetLabelSizeId = labelSize.labelSizeId;
+    final targetLabelSizeId = labelSize!.labelSizeId;
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => BlockingModelessDialog(
         child: LabelColumnEditDialog(
           labelSizeId: targetLabelSizeId,
-          customerId: customerId,
+          customerId: customerId!,
           initialColumns: List<TColumn>.unmodifiable(
             TColumn.datas ?? const <TColumn>[],
           ),
           canSave: () async =>
               mounted &&
-              User.instance?.canEdit == true &&
               _effectiveLabelSize?.labelSizeId == targetLabelSizeId &&
-              !_itemDraftCommandBusy &&
-              !_labelColumnEditCommandBusy &&
-              _itemDraftController?.isDirty != true &&
-              !_commonLabelSheetDirty,
+              labelColumnEditAllowed(
+                hasLabelSize: _effectiveLabelSize != null,
+                hasCustomer: Customer.instance?.customerId != null,
+                canEdit: User.instance?.canEdit == true,
+                itemDraftCommandBusy: _itemDraftCommandBusy,
+                labelColumnEditCommandBusy: _labelColumnEditCommandBusy,
+                itemDraftDirty: _itemDraftController?.isDirty == true,
+              ),
           onSave: _saveLabelColumnsAndReload,
           onClose: _closeLabelColumnEditDialog,
         ),
@@ -3048,27 +3068,51 @@ class _HomePageManagerState extends State<HomePageManager> {
   ) async {
     final labelSize = _effectiveLabelSize;
     final customerId = Customer.instance?.customerId;
-    if (labelSize == null ||
-        customerId == null ||
-        command.labelSizeId != labelSize.labelSizeId ||
-        command.customerId != customerId ||
-        User.instance?.canEdit != true ||
-        _itemDraftCommandBusy ||
-        _labelColumnEditCommandBusy ||
-        _itemDraftController?.isDirty == true ||
-        _commonLabelSheetDirty) {
+    if (!labelColumnEditAllowed(
+      hasLabelSize: labelSize != null,
+      hasCustomer: customerId != null,
+      canEdit: User.instance?.canEdit == true,
+      itemDraftCommandBusy: _itemDraftCommandBusy,
+      labelColumnEditCommandBusy: _labelColumnEditCommandBusy,
+      itemDraftDirty: _itemDraftController?.isDirty == true,
+    )) {
+      throw StateError('현재 상태에서는 라벨 항목을 저장할 수 없습니다.');
+    }
+    final currentLabelSize = labelSize!;
+    final currentCustomerId = customerId!;
+    if (command.labelSizeId != currentLabelSize.labelSizeId ||
+        command.customerId != currentCustomerId) {
       throw StateError('현재 상태에서는 라벨 항목을 저장할 수 없습니다.');
     }
 
+    final preserveCommonLabelDraft = _commonLabelSheetDirty;
     setState(() => _labelColumnEditCommandBusy = true);
     try {
       await executeLabelColumnSaveAndReload(
         command,
-        reload: () => _handleLabelSizeChanged(labelSize, forceReload: true),
+        reload: () => reloadLabelColumnsAfterSave(
+          preserveCommonLabelDraft: preserveCommonLabelDraft,
+          reloadColumns: () =>
+              _reloadLabelColumns(currentLabelSize.labelSizeId),
+          reloadSession: () =>
+              _handleLabelSizeChanged(currentLabelSize, forceReload: true),
+        ),
       );
     } finally {
       if (mounted) setState(() => _labelColumnEditCommandBusy = false);
     }
+  }
+
+  Future<bool> _reloadLabelColumns(int labelSizeId) async {
+    final columns = await TColumnDAO.selectByLabelSizeId(labelSizeId);
+    if (columns == null ||
+        !mounted ||
+        _effectiveLabelSize?.labelSizeId != labelSizeId) {
+      return false;
+    }
+    TColumn.datas = columns;
+    setState(() {});
+    return true;
   }
 
   bool _handleTabShortcutKeyEvent(KeyEvent event) {

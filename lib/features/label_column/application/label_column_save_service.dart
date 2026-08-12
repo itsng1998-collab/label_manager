@@ -5,6 +5,12 @@ import 'package:label_manager/features/label_column/domain/label_column_edit.dar
 typedef LabelColumnDialogSaver =
     Future<void> Function(LabelColumnDialogSaveCommand command);
 
+Future<bool> reloadLabelColumnsAfterSave({
+  required bool preserveCommonLabelDraft,
+  required Future<bool> Function() reloadColumns,
+  required Future<bool> Function() reloadSession,
+}) => preserveCommonLabelDraft ? reloadColumns() : reloadSession();
+
 Future<void> executeLabelColumnSaveAndReload(
   LabelColumnDialogSaveCommand command, {
   LabelColumnDialogSaver save = LabelColumnSaveDao.saveDialog,

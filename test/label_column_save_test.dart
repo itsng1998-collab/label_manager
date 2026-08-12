@@ -375,6 +375,48 @@ void main() {
       expect(saved, isTrue);
     });
 
+    test('reloads only columns while preserving common label draft', () async {
+      var columnReloads = 0;
+      var sessionReloads = 0;
+
+      final result = await reloadLabelColumnsAfterSave(
+        preserveCommonLabelDraft: true,
+        reloadColumns: () async {
+          columnReloads += 1;
+          return true;
+        },
+        reloadSession: () async {
+          sessionReloads += 1;
+          return true;
+        },
+      );
+
+      expect(result, isTrue);
+      expect(columnReloads, 1);
+      expect(sessionReloads, 0);
+    });
+
+    test('reloads the full session without a common label draft', () async {
+      var columnReloads = 0;
+      var sessionReloads = 0;
+
+      final result = await reloadLabelColumnsAfterSave(
+        preserveCommonLabelDraft: false,
+        reloadColumns: () async {
+          columnReloads += 1;
+          return true;
+        },
+        reloadSession: () async {
+          sessionReloads += 1;
+          return true;
+        },
+      );
+
+      expect(result, isTrue);
+      expect(columnReloads, 0);
+      expect(sessionReloads, 1);
+    });
+
     test('uses OUTPUT mapping and never guesses the last inserted rows', () {
       final sql = LabelColumnSaveDao.buildSaveStatement(_command(), _none).sql;
 

@@ -309,6 +309,45 @@ void main() {
     );
   });
 
+  test('common label editing allows label column editing', () {
+    expect(
+      labelColumnEditAllowed(
+        hasLabelSize: true,
+        hasCustomer: true,
+        canEdit: true,
+        itemDraftCommandBusy: false,
+        labelColumnEditCommandBusy: false,
+        itemDraftDirty: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('label column editing still blocks conflicting item work', () {
+    expect(
+      labelColumnEditAllowed(
+        hasLabelSize: true,
+        hasCustomer: true,
+        canEdit: true,
+        itemDraftCommandBusy: false,
+        labelColumnEditCommandBusy: false,
+        itemDraftDirty: true,
+      ),
+      isFalse,
+    );
+    expect(
+      labelColumnEditAllowed(
+        hasLabelSize: true,
+        hasCustomer: true,
+        canEdit: true,
+        itemDraftCommandBusy: false,
+        labelColumnEditCommandBusy: true,
+        itemDraftDirty: false,
+      ),
+      isFalse,
+    );
+  });
+
   test('common label save replaces only the matching current session', () {
     const current = LabelSize(
       labelSizeId: 10,
