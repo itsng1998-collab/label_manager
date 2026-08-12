@@ -144,7 +144,9 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
 
   Future<void> _initialize() async {
     try {
-      final cooperators = await widget.loadCooperators();
+      final cooperators = widget.cooperatorSelectionEnabled
+          ? await widget.loadCooperators()
+          : const <Cooperator>[];
       final customers = await widget.loadCustomers(_selectedCooperatorId);
       final markets = await widget.loadMarkets(_selectedCustomerId!);
       final users = await widget.loadUsers(_selectedMarketId!);

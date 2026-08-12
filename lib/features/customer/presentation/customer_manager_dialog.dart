@@ -102,7 +102,9 @@ class _CustomerManagerDialogContentState
 
   Future<void> _initialize() async {
     try {
-      final cooperators = await widget.loadCooperators();
+      final cooperators = widget.cooperatorSelectionEnabled
+          ? await widget.loadCooperators()
+          : const <Cooperator>[];
       final customers = await widget.loadCustomers(_selectedCooperatorId);
       if (!mounted) return;
       setState(() {

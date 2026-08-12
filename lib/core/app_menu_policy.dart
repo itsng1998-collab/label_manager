@@ -1,6 +1,12 @@
 import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/core/user.dart';
 
+bool canBrowseAllManagementCooperators({
+  required UserGrade? userGrade,
+  required bool isAdminConnect,
+}) =>
+    userGrade == UserGrade.SYSTEM_ADMIN_USER || isAdminConnect;
+
 class AppMenuPolicyContext {
   const AppMenuPolicyContext({
     this.userGrade,
@@ -50,8 +56,10 @@ class AppMenuPolicy {
       case AppMenuPermission.editable:
         return grade != UserGrade.CLIENT_USER;
       case AppMenuPermission.systemAdminCommand:
-        return grade == UserGrade.SYSTEM_ADMIN_USER ||
-            context.isAdminConnect;
+        return canBrowseAllManagementCooperators(
+          userGrade: grade,
+          isAdminConnect: context.isAdminConnect,
+        );
       case AppMenuPermission.adminCommand:
         return grade == UserGrade.SYSTEM_ADMIN_USER ||
             grade == UserGrade.COOP_ADMIN_USER ||

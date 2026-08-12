@@ -25,9 +25,17 @@ void main() {
 
   testWidgets('disabled cooperator selector keeps current scope', (tester) async {
     final loadedScopes = <String>[];
+    var cooperatorLoads = 0;
     await _pumpManager(
       tester,
       selectionEnabled: false,
+      loadCooperators: () async {
+        cooperatorLoads += 1;
+        return const [
+          Cooperator(id: 'A', name: 'A 업체'),
+          Cooperator(id: 'B', name: 'B 업체'),
+        ];
+      },
       loadCustomers: (cooperatorId) async {
         loadedScopes.add(cooperatorId);
         return const [customerA];
@@ -39,6 +47,7 @@ void main() {
     );
     expect(dropdown.enabled, isFalse);
     expect(dropdown.inputDecorationTheme?.fillColor, const Color(0xFFE9ECEF));
+    expect(cooperatorLoads, 0);
     expect(loadedScopes, ['A']);
     expect(find.text('A 거래처'), findsOneWidget);
   });
@@ -203,6 +212,7 @@ Future<void> _pumpManager(
   WidgetTester tester, {
   required bool selectionEnabled,
   required Future<List<Customer>> Function(String cooperatorId) loadCustomers,
+  Future<List<Cooperator>> Function()? loadCooperators,
   Future<void> Function(Customer customer)? insert,
   Future<void> Function(Customer customer)? update,
   Future<void> Function(int customerId)? delete,
@@ -220,10 +230,11 @@ Future<void> _pumpManager(
       onClose: onClose ?? () {},
       initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
       cooperatorSelectionEnabled: selectionEnabled,
-      loadCooperators: () async => const [
-        Cooperator(id: 'A', name: 'A 업체'),
-        Cooperator(id: 'B', name: 'B 업체'),
-      ],
+      loadCooperators: loadCooperators ??
+          () async => const [
+            Cooperator(id: 'A', name: 'A 업체'),
+            Cooperator(id: 'B', name: 'B 업체'),
+          ],
       loadCustomers: loadCustomers,
       insert: insert ?? (customer) async {},
       update: update ?? (customer) async {},

@@ -22,6 +22,24 @@ void main() {
     controller.setWriteBusy(false);
   });
 
+  testWidgets('disabled cooperator selector does not load other cooperators', (
+    tester,
+  ) async {
+    var cooperatorLoads = 0;
+    await _pumpManager(
+      tester,
+      selectionEnabled: false,
+      loadCooperators: () async {
+        cooperatorLoads += 1;
+        return const [Cooperator(id: 'B', name: 'B 업체')];
+      },
+      loadMarkets: (_) async => const [marketA],
+    );
+
+    expect(cooperatorLoads, 0);
+    expect(find.text('A 지점'), findsOneWidget);
+  });
+
   testWidgets(
     'cooperator change clears customer and commands without fallback',
     (tester) async {
@@ -217,6 +235,7 @@ Future<void> _pumpManager(
   WidgetTester tester, {
   required bool selectionEnabled,
   required Future<List<Market>?> Function(int customerId) loadMarkets,
+  Future<List<Cooperator>> Function()? loadCooperators,
   Future<int> Function(Market market)? insert,
   Future<void> Function(Market market)? update,
   Future<void> Function(int marketId)? delete,
@@ -238,10 +257,11 @@ Future<void> _pumpManager(
         customerName: 'A 거래처',
       ),
       cooperatorSelectionEnabled: selectionEnabled,
-      loadCooperators: () async => const [
-        Cooperator(id: 'A', name: 'A 업체'),
-        Cooperator(id: 'B', name: 'B 업체'),
-      ],
+      loadCooperators: loadCooperators ??
+          () async => const [
+            Cooperator(id: 'A', name: 'A 업체'),
+            Cooperator(id: 'B', name: 'B 업체'),
+          ],
       loadCustomers: (cooperatorId) async => cooperatorId == 'A'
           ? const [
               Customer(

@@ -123,7 +123,9 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
   Future<void> _initialize() async {
     try {
       final values = await Future.wait([
-        widget.loadCooperators(),
+        widget.cooperatorSelectionEnabled
+            ? widget.loadCooperators()
+            : Future.value(const <Cooperator>[]),
         widget.loadCustomers(_cooperatorId),
       ]);
       if (!mounted) return;

@@ -1,5 +1,30 @@
 # 현재 작업 상태
 
+## 완료: 액션 바 관리 메뉴와 협력업체 조회 범위 제한 v1.2.2
+- 요청: 일반 업체 계정은 협력업체·거래처·지점·사용자 관리와 관리자 복사 메뉴를 조회할 수 없어야 하며, 협력업체 계정은 자기 협력업체 소속 거래처·지점·사용자만 조회하고 아이티에스엔지/TEST 계정만 전체 업체를 조회한다.
+- 레거시 확인: `MainFrm.cpp`의 `OnEnableSystemAdmin`/`OnEnableAdmin`/`OnEnableManager`가 시스템·협력업체 관리자 및 관리자 접속 상태에 따라 `IDM_COOP_MANAGE`, `IDM_CUST_MANAGE`, `IDM_MARKET_MANAGE`, `IDM_USER_MANAGE`, `IDM_ADMIN_COPY`를 제한한다. `CustomerDAO::SelectByCoopID`, `UserDAO::SelectByCoopID`는 협력업체 ID로 조회 범위를 제한한다.
+- 현재 메뉴 정책은 CLIENT_USER에서 관리 메뉴 5개를 숨기고 협력업체 관리 경계를 레거시와 동일하게 적용한다. 조회 결함은 협력업체 선택이 비활성인 거래처·지점·사용자·관리자 복사 다이얼로그도 초기화 때 `CooperatorDAO.selectAll()`을 호출해 전체 업체를 읽는 것이다.
+- 수정 예정: 선택 권한이 없는 계정은 현재 `Cooperator.instance`만 사용하고 전체 협력업체 loader를 호출하지 않도록 네 관리 다이얼로그를 수정한다. 시스템/관리자 접속 등 전체 업체 선택 권한이 있는 경로는 기존 전체 조회를 유지한다.
+- 거래처 관리 첫 focused 검증 완료: `customer_manager_dialog_test.dart` 7건 통과, 비활성 협력업체 selector에서 전체 업체 loader 호출 0회를 확인했다.
+- 지점·사용자·관리자 복사 편집 완료: 협력업체 선택 권한이 없으면 `CooperatorDAO.selectAll()`을 호출하지 않고 현재 협력업체만 목록에 유지한다.
+- 관리 다이얼로그 focused 검증 완료: 거래처·지점·사용자·관리자 복사 테스트 4개 파일 전체 24건 통과.
+- 추가 원인 확인: 지점 관리의 `isCoopAdminConnect`가 전체 협력업체 선택을 허용해 협력업체 계정 범위를 벗어날 수 있었다. 전체 업체 조회 권한을 시스템 관리자 등급 또는 시스템 관리자 접속으로 통일하고 협력업체 관리자 접속은 현재 협력업체 범위로 제한한다.
+- 메뉴/범위 정책 편집 완료: `canBrowseAllManagementCooperators()`를 공용 정책으로 추가해 시스템 관리자 등급 또는 시스템 관리자 접속만 네 관리 화면의 전체 협력업체 selector를 활성화한다. 일반 협력업체 관리자와 협력업체 관리자 접속은 현재 협력업체로 제한한다.
+- 메뉴/범위 focused 검증 완료: 일반 업체 ID `22948997`의 관리 메뉴 5개 비노출, 시스템 관리자/관리자 접속의 전체 범위 허용, 협력업체 관리자 제한을 포함해 정책·관리 다이얼로그 5개 테스트 파일 전체 36건 통과.
+- 변경 Dart 11개 파일 포맷 완료. 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- strict analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/core/app_menu_policy.dart lib/home_page.dart lib/features/admin_copy/presentation/admin_copy_dialog.dart lib/features/customer/presentation/customer_manager_dialog.dart lib/features/market/presentation/market_manager_dialog.dart lib/features/managed_user/presentation/user_manager_dialog.dart test/app_menu_policy_test.dart test/admin_copy_dialog_test.dart test/customer_manager_dialog_test.dart test/market_manager_dialog_test.dart test/user_manager_dialog_test.dart`.
+- 첫 strict analyzer는 관리자 복사 테스트가 존재하지 않는 `ModelessDropdownFormField.enabled` getter를 참조해 1건 실패했다. 실제 비활성 계약인 `onChanged == null`로 테스트를 수정한 뒤 같은 analyzer를 재실행한다.
+- strict analyzer 재검증 완료: 변경 production/test Dart 11개 파일 오류·경고 0건.
+- 포맷 후 최종 focused 검증 완료: 메뉴 정책·거래처·지점·사용자·관리자 복사 테스트 5개 파일 전체 42건 통과.
+- 버전 편집 완료: 기존 권한과 조회 범위를 바로잡는 호환 가능한 버그 수정이므로 PATCH 증가로 `1.2.1`에서 `1.2.2`로 갱신했다.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- 첫 Windows 통합 빌드는 실행 중인 Debug `label_manager.exe` 잠금으로 `LNK1168` 실패했다. 현재 Debug 산출물 프로세스만 정상 종료한 뒤 같은 명령을 재실행한다.
+- Debug 앱 PID 16524에 `CloseMainWindow()`로 정상 종료를 요청한 뒤 동일 `/WX` Windows Debug 빌드 재실행 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 액션 바 메뉴 회귀 검증 완료: `app_menu_bar_test.dart`, `app_menu_command_test.dart`, `app_menu_controller_test.dart`, `app_menu_policy_test.dart` 전체 12건 통과.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.2.2`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과. 관리자 복사 테스트 들여쓰기 정리 후 단독 analyzer 오류·경고 0건 및 widget 테스트 6건 재통과.
+- 동작 기준: CLIENT_USER 일반 업체(ID `22948997` 포함)는 관리 메뉴 5개를 볼 수 없다. 협력업체 관리자 및 협력업체 관리자 접속은 거래처·지점·사용자·관리자 복사에서 현재 협력업체만 조회하며 전체 협력업체 DAO를 호출하지 않는다. 시스템 관리자 등급(운영 데이터의 아이티에스엔지/TEST 계정)과 시스템 관리자 접속만 전체 협력업체 선택·조회를 유지한다.
+- stage/commit 대상: 메뉴 정책·홈 2개, 관리 다이얼로그 4개, 관련 테스트 5개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 공용라벨 라벨 항목 삭제 저장 무한 진행 수정 v1.2.1
 - 사용자 재현: 공용라벨관리의 `라벨 항목 편집`에서 사용 항목 하나를 삭제한 뒤 저장하면 진행 표시가 끝나지 않는다.
 - 최신 로그 `.tmp/log/app_2026-08-12_09-52-05.log` 확인: 라벨 컬럼 저장 복합 SQL이 기록된 뒤 완료·오류 로그 없이 파일이 끝난다.

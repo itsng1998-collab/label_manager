@@ -18,6 +18,8 @@ void main() {
   Future<void> pumpDialog(
     WidgetTester tester, {
     required Future<void> Function(AdminBrandCopyCommand) copyBrand,
+    bool cooperatorSelectionEnabled = true,
+    Future<List<Cooperator>> Function()? loadCooperators,
     Future<bool> Function(int)? targetHasColumns,
     Future<void> Function(AdminLabelSizeCopyCommand)? copyLabelSize,
     VoidCallback? onClose,
@@ -31,11 +33,12 @@ void main() {
             child: AdminCopyDialogContent(
               controller: AdminCopyController(),
               initialCooperator: cooperator,
-              cooperatorSelectionEnabled: true,
+              cooperatorSelectionEnabled: cooperatorSelectionEnabled,
               onCommitted: () async {},
               onCommitOutcomeUnknown: () {},
               onClose: onClose ?? () {},
-              loadCooperators: () async => const [cooperator],
+              loadCooperators:
+                  loadCooperators ?? () async => const [cooperator],
               loadCustomers: (_) async => customers,
               loadBrands: (customerId) async => [
                 Brand(
@@ -62,6 +65,31 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('restricted account does not load other cooperators', (
+    tester,
+  ) async {
+    var cooperatorLoads = 0;
+    await pumpDialog(
+      tester,
+      copyBrand: (_) async {},
+      cooperatorSelectionEnabled: false,
+      loadCooperators: () async {
+        cooperatorLoads += 1;
+        return const [Cooperator(id: 'OTHER', name: '다른 업체')];
+      },
+    );
+
+    expect(cooperatorLoads, 0);
+    expect(
+      tester
+          .widget<ModelessDropdownFormField<String>>(
+            find.byKey(const ValueKey('adminCopyCooperator')),
+          )
+          .onChanged,
+      isNull,
+    );
+  });
 
   testWidgets('brand checkbox waits for source brand selection event', (
     tester,

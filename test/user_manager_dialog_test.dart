@@ -20,6 +20,23 @@ void main() {
     controller.setWriteBusy(false);
   });
 
+  testWidgets('restricted cooperator account does not load other cooperators', (
+    tester,
+  ) async {
+    var cooperatorLoads = 0;
+    await _pumpManager(
+      tester,
+      cooperatorSelectionEnabled: false,
+      loadCooperators: () async {
+        cooperatorLoads += 1;
+        return const [Cooperator(id: 'B', name: 'B 업체')];
+      },
+    );
+
+    expect(cooperatorLoads, 0);
+    expect(find.text('김하나'), findsOneWidget);
+  });
+
   testWidgets('credentials are omitted and show-all disables scoped controls', (
     tester,
   ) async {
@@ -233,6 +250,8 @@ void main() {
 Future<void> _pumpManager(
   WidgetTester tester, {
   bool showCredentials = true,
+  bool cooperatorSelectionEnabled = true,
+  Future<List<Cooperator>> Function()? loadCooperators,
   List<ManagedUser>? initialUsers,
   Future<List<ManagedUser>> Function(int)? loadUsers,
   Future<ManagedUser?> Function(String)? lookupUser,
@@ -262,13 +281,14 @@ Future<void> _pumpManager(
               customerId: 10,
               name: 'A 지점',
             ),
-            cooperatorSelectionEnabled: true,
+            cooperatorSelectionEnabled: cooperatorSelectionEnabled,
             customerSelectionEnabled: true,
             marketSelectionEnabled: true,
             showCredentials: showCredentials,
-            loadCooperators: () async => const [
-              Cooperator(id: 'A', name: 'A 업체'),
-            ],
+            loadCooperators: loadCooperators ??
+                () async => const [
+                  Cooperator(id: 'A', name: 'A 업체'),
+                ],
             loadCustomers: (_) async => const [
               Customer(
                 customerId: 10,

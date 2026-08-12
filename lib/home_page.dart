@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/app_menu_controller.dart';
+import 'core/app_menu_policy.dart';
 import 'core/admin_connect_session.dart';
 import 'core/app_shortcut_blocker.dart';
 import 'core/lifecycle.dart';
@@ -414,17 +415,29 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
                 adminCopyCooperatorSelectionEnabled:
-                    User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER,
+                    canBrowseAllManagementCooperators(
+                      userGrade: User.instance?.grade,
+                      isAdminConnect:
+                          AdminConnectSession.instance.isAdminConnect,
+                    ),
                 customerCooperatorSelectionEnabled:
-                    User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
-                  AdminConnectSession.instance.isAdminConnect,
+                    canBrowseAllManagementCooperators(
+                      userGrade: User.instance?.grade,
+                      isAdminConnect:
+                          AdminConnectSession.instance.isAdminConnect,
+                    ),
                 marketCooperatorSelectionEnabled:
-                  User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
-                  AdminConnectSession.instance.isAdminConnect ||
-                  AdminConnectSession.instance.isCoopAdminConnect,
+                    canBrowseAllManagementCooperators(
+                      userGrade: User.instance?.grade,
+                      isAdminConnect:
+                          AdminConnectSession.instance.isAdminConnect,
+                    ),
                 userCooperatorSelectionEnabled:
-                  User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
-                  AdminConnectSession.instance.isAdminConnect,
+                    canBrowseAllManagementCooperators(
+                      userGrade: User.instance?.grade,
+                      isAdminConnect:
+                          AdminConnectSession.instance.isAdminConnect,
+                    ),
                 userCustomerSelectionEnabled:
                   User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                   User.instance?.grade == UserGrade.COOP_ADMIN_USER ||

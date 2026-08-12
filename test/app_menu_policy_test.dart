@@ -93,6 +93,48 @@ void main() {
     expect(state(context, AppMenuCommandId.viewPrintHistory).visible, isTrue);
   });
 
+  test('general company account 22948997 cannot see management commands', () {
+    final user = userFromRow({
+      'USER_ID': '22948997',
+      'GRADE': UserGrade.CLIENT_USER.code,
+    });
+    final context = AppMenuPolicyContext(userGrade: user.grade);
+
+    for (final command in const [
+      AppMenuCommandId.manageCooperators,
+      AppMenuCommandId.manageCustomers,
+      AppMenuCommandId.manageMarkets,
+      AppMenuCommandId.manageUsers,
+      AppMenuCommandId.copyAdmin,
+    ]) {
+      expect(state(context, command).visible, isFalse, reason: '$command');
+    }
+  });
+
+  test('only system scope can browse all management cooperators', () {
+    expect(
+      canBrowseAllManagementCooperators(
+        userGrade: UserGrade.SYSTEM_ADMIN_USER,
+        isAdminConnect: false,
+      ),
+      isTrue,
+    );
+    expect(
+      canBrowseAllManagementCooperators(
+        userGrade: UserGrade.CLIENT_USER,
+        isAdminConnect: true,
+      ),
+      isTrue,
+    );
+    expect(
+      canBrowseAllManagementCooperators(
+        userGrade: UserGrade.COOP_ADMIN_USER,
+        isAdminConnect: false,
+      ),
+      isFalse,
+    );
+  });
+
   test('legacy inactive and unreachable commands stay hidden', () {
     const context = AppMenuPolicyContext(
       userGrade: UserGrade.SYSTEM_ADMIN_USER,
