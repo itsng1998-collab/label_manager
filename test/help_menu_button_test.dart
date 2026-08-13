@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/features/help/presentation/help_menu_button.dart';
+import 'package:label_manager/widgets/app_menu_bar.dart';
 
 void main() {
   testWidgets('help menu shows legacy commands and current app version', (
@@ -26,6 +27,19 @@ void main() {
     expect(find.text('라벨지, 프린터 구매하기'), findsOneWidget);
     expect(find.text('원격 지원 프로그램 다운로드'), findsOneWidget);
     expect(find.text('ITSNG 자료실 바로가기'), findsOneWidget);
+    for (final key in const [
+      'helpAbout',
+      'helpShop',
+      'helpRemoteSupport',
+      'helpDownloads',
+    ]) {
+      final item = tester.widget<MenuItemButton>(find.byKey(ValueKey(key)));
+      expect(item.style, same(AppMenuBar.menuItemStyle));
+      expect(
+        item.style?.minimumSize?.resolve({}),
+        const Size(64, AppMenuBar.menuItemHeight),
+      );
+    }
 
     await tester.tap(find.byKey(const ValueKey('helpAbout')));
     await tester.pumpAndSettle();

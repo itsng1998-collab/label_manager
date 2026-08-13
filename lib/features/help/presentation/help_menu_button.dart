@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:label_manager/core/app.dart';
+import 'package:label_manager/widgets/app_menu_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 typedef HelpUrlLauncher = Future<bool> Function(Uri uri);
@@ -42,6 +43,7 @@ class _HelpMenuButtonState extends State<HelpMenuButton> {
       menuChildren: [
         MenuItemButton(
           key: const ValueKey('helpAbout'),
+          style: AppMenuBar.menuItemStyle,
           leadingIcon: const Icon(Icons.info_outline),
           onPressed: () => unawaited(
             showDialog<void>(
@@ -51,9 +53,10 @@ class _HelpMenuButtonState extends State<HelpMenuButton> {
           ),
           child: const Text('라벨매니저 정보'),
         ),
-        const Divider(height: 9),
+        const Divider(height: AppMenuBar.menuDividerHeight),
         MenuItemButton(
           key: const ValueKey('helpShop'),
+          style: AppMenuBar.menuItemStyle,
           onPressed: () => unawaited(
             _openUrl('https://itsngshop.com/index.html'),
           ),
@@ -61,6 +64,7 @@ class _HelpMenuButtonState extends State<HelpMenuButton> {
         ),
         MenuItemButton(
           key: const ValueKey('helpRemoteSupport'),
+          style: AppMenuBar.menuItemStyle,
           onPressed: () => unawaited(
             _openUrl(
               'https://itsng.co.kr/%ED%8C%80%EB%B7%B0%EC%96%B412_QS.exe',
@@ -70,6 +74,7 @@ class _HelpMenuButtonState extends State<HelpMenuButton> {
         ),
         MenuItemButton(
           key: const ValueKey('helpDownloads'),
+          style: AppMenuBar.menuItemStyle,
           onPressed: () => unawaited(
             _openUrl(
               'https://itsng.co.kr/board/bbs/board.php?bo_table=down',

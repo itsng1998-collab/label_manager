@@ -16,11 +16,11 @@ class AppMenuBar extends StatefulWidget {
   static const double _minimumTitleWidth = 400;
   static const double _groupButtonWidth = 48;
   static const double _menuGap = 8;
-  static const double _menuItemHeight = 28;
-  static const double _menuDividerHeight = 9;
-  static final ButtonStyle _menuItemStyle = MenuItemButton.styleFrom(
+  static const double menuItemHeight = 28;
+  static const double menuDividerHeight = 9;
+  static final ButtonStyle menuItemStyle = MenuItemButton.styleFrom(
     padding: const EdgeInsets.symmetric(horizontal: 12),
-    minimumSize: const Size(64, _menuItemHeight),
+    minimumSize: const Size(64, menuItemHeight),
     visualDensity: VisualDensity.standard,
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
@@ -155,7 +155,7 @@ class _AppMenuBarState extends State<AppMenuBar> {
         for (final group in visibleGroups)
           SubmenuButton(
             key: ValueKey('app-menu-overflow-group-${group.name}'),
-            style: AppMenuBar._menuItemStyle,
+            style: AppMenuBar.menuItemStyle,
             menuChildren: _buildCommandMenu(group),
             child: Text(_groupPresentation(group).label),
           ),
@@ -181,7 +181,7 @@ class _AppMenuBarState extends State<AppMenuBar> {
 
     for (final command in commands) {
       if (previousSection != null && previousSection != command.section) {
-        children.add(const Divider(height: AppMenuBar._menuDividerHeight));
+        children.add(const Divider(height: AppMenuBar.menuDividerHeight));
       }
       previousSection = command.section;
 
@@ -196,7 +196,7 @@ class _AppMenuBarState extends State<AppMenuBar> {
           children.add(
             SubmenuButton(
               key: const ValueKey('app-menu-submenu-searchPrint'),
-              style: AppMenuBar._menuItemStyle,
+              style: AppMenuBar.menuItemStyle,
               menuChildren: submenuCommands
                   .map(_buildCommandItem)
                   .toList(growable: false),
@@ -242,7 +242,7 @@ class _AppMenuBarState extends State<AppMenuBar> {
       excludeSemantics: true,
       child: MenuItemButton(
         key: ValueKey('app-menu-command-${command.id.name}'),
-        style: AppMenuBar._menuItemStyle,
+        style: AppMenuBar.menuItemStyle,
         onPressed: onPressed,
         leadingIcon: leadingIcon,
         trailingIcon: command.shortcutLabel == null

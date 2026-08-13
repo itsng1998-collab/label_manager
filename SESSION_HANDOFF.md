@@ -1,5 +1,11 @@
 # 현재 작업 상태
 
+## 완료: 도움말 팝업 메뉴 스타일 통일
+- 원인: 설정 등 `AppMenuBar` 팝업은 높이 28, 가로 패딩 12, 축소 tap target의 공용 `MenuItemButton` 스타일을 사용하지만 별도 `HelpMenuButton`은 Material 기본 스타일을 사용했다.
+- 수정: `AppMenuBar.menuItemStyle`, `menuItemHeight`, `menuDividerHeight`를 공용으로 노출하고 도움말 4개 항목과 divider에 동일 적용했다. 실제 `MenuItemButton` 스타일과 최소 높이 `64x28`을 위젯 테스트로 고정했다.
+- 검증: `flutter test test/help_menu_button_test.dart test/app_menu_bar_test.dart` 23 passed. 변경 3개 Dart 파일 strict analyzer `No issues found`, 편집기 진단 없음, `git diff --check` 통과.
+- 커밋 대상: `app_menu_bar.dart`, `help_menu_button.dart`, `help_menu_button_test.dart`, `SESSION_HANDOFF.md`만 stage. 기존 unrelated `analysis_options.yaml`, lock 파일, `third_party` 변경은 제외.
+
 ## 완료: 고객 확인 항목 4~9 수정 v1.3.3
 - 사용자 확인: v1.0.1 관리자 복사 오류는 현재 버전에서 재현 확인되지 않음. SYSTEM 정상 로그인 발행도 이력 저장. 사용자 환경 접속 권한은 레거시대로 시스템 관리자/관리자 접속만 허용.
 - 로그인 이력 기준: 마스터 PW 인증은 LOGIN/LOGOUT 모두 제외한다. 사용자 관리의 관리자 접속은 대상 사용자 LOGIN을 만들지 않으며, 이후 로그아웃은 정상 직접 로그인한 원 관리자 계정으로 기록해 LOGIN/LOGOUT 쌍을 맞춘다.
