@@ -5,6 +5,7 @@
 - 수정: `AppMenuBar.menuItemStyle`, `menuItemHeight`, `menuDividerHeight`를 공용으로 노출하고 도움말 4개 항목과 divider에 동일 적용했다. 실제 `MenuItemButton` 스타일과 최소 높이 `64x28`을 위젯 테스트로 고정했다.
 - 검증: `flutter test test/help_menu_button_test.dart test/app_menu_bar_test.dart` 23 passed. 변경 3개 Dart 파일 strict analyzer `No issues found`, 편집기 진단 없음, `git diff --check` 통과.
 - 커밋 대상: `app_menu_bar.dart`, `help_menu_button.dart`, `help_menu_button_test.dart`, `SESSION_HANDOFF.md`만 stage. 기존 unrelated `analysis_options.yaml`, lock 파일, `third_party` 변경은 제외.
+- 기능 커밋: `f775af1` 도움말 팝업 메뉴 스타일 통일.
 
 ## 완료: 고객 확인 항목 4~9 수정 v1.3.3
 - 사용자 확인: v1.0.1 관리자 복사 오류는 현재 버전에서 재현 확인되지 않음. SYSTEM 정상 로그인 발행도 이력 저장. 사용자 환경 접속 권한은 레거시대로 시스템 관리자/관리자 접속만 허용.
