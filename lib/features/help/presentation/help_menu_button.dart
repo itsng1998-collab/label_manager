@@ -99,7 +99,7 @@ class AppAboutDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('LabelManager 정보'),
+      title: const Text('Label Manager 정보'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,7 +108,7 @@ class AppAboutDialog extends StatelessWidget {
             children: [
               const Icon(Icons.local_offer_outlined, size: 40),
               const SizedBox(width: 12),
-              Text('LabelManager 버전 $appVersion'),
+              Text('Label Manager 버전 $appVersion'),
             ],
           ),
           const SizedBox(height: 16),
