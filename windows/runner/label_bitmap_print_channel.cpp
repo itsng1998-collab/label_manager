@@ -18,9 +18,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr int kWhiteTextSupersample = 8;
-constexpr int kWhiteTextCoverageThreshold = 48;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.15";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.16";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -258,7 +256,6 @@ struct NativeTextRenderStats {
   int fitted = 0;
   int white_bitmap_drawn = 0;
   size_t white_knockout_pixels = 0;
-  size_t white_closed_pixels = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
@@ -277,8 +274,8 @@ bool RenderWhiteTextIntoBitmap(
       });
   if (!has_white_text) return true;
 
-  const int render_width = target_width * kWhiteTextSupersample;
-  const int render_height = target_height * kWhiteTextSupersample;
+  const int render_width = target_width;
+  const int render_height = target_height;
   BITMAPINFO bitmap_info{};
   bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
   bitmap_info.bmiHeader.biWidth = render_width;
@@ -317,13 +314,12 @@ bool RenderWhiteTextIntoBitmap(
   for (const auto& descriptor : text_descriptors) {
     if (descriptor.color != RGB(255, 255, 255)) continue;
     const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
-    // Weight changes cannot strengthen the current reverse text descriptors;
-    // both are already bold, so reinforce only the raster mask below.
+    // Render reverse text on the final device grid so GDI can hint each dot.
     HFONT font = CreateFontW(
         -font_pixel_height, 0, 0, 0,
-      descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
         descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
     if (font == nullptr) {
       ++stats.failed;
@@ -416,70 +412,11 @@ bool RenderWhiteTextIntoBitmap(
     DeleteObject(font);
   }
   GdiFlush();
-  constexpr int sample_count =
-      kWhiteTextSupersample * kWhiteTextSupersample;
-  std::vector<uint8_t> white_mask(
-      static_cast<size_t>(target_width) * target_height, uint8_t{0});
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
-      int luminance_sum = 0;
-      for (int sample_y = 0; sample_y < kWhiteTextSupersample; ++sample_y) {
-        for (int sample_x = 0; sample_x < kWhiteTextSupersample; ++sample_x) {
-          const int render_x = x * kWhiteTextSupersample + sample_x;
-          const int render_y = y * kWhiteTextSupersample + sample_y;
-          const size_t render_offset =
-              (static_cast<size_t>(render_y) * render_width + render_x) * 4;
-          luminance_sum += rendered[render_offset];
-        }
-      }
-      if (luminance_sum < kWhiteTextCoverageThreshold * sample_count) {
-        continue;
-      }
-      white_mask[static_cast<size_t>(y) * target_width + x] = 1;
-    }
-  }
-  const std::vector<uint8_t> threshold_mask = white_mask;
-  std::vector<uint8_t> expanded_mask = threshold_mask;
-  for (int y = 0; y < target_height; ++y) {
-    for (int x = 0; x < target_width; ++x) {
-      if (threshold_mask[static_cast<size_t>(y) * target_width + x] == 0) {
-        continue;
-      }
-      for (int offset_y = -1; offset_y <= 1; ++offset_y) {
-        for (int offset_x = -1; offset_x <= 1; ++offset_x) {
-          const int expanded_x = x + offset_x;
-          const int expanded_y = y + offset_y;
-          if (expanded_x < 0 || expanded_x >= target_width ||
-              expanded_y < 0 || expanded_y >= target_height) {
-            continue;
-          }
-          expanded_mask[static_cast<size_t>(expanded_y) * target_width +
-                        expanded_x] = 1;
-        }
-      }
-    }
-  }
-  std::fill(white_mask.begin(), white_mask.end(), uint8_t{0});
-  for (int y = 1; y < target_height - 1; ++y) {
-    for (int x = 1; x < target_width - 1; ++x) {
-      bool keep = true;
-      for (int offset_y = -1; offset_y <= 1 && keep; ++offset_y) {
-        for (int offset_x = -1; offset_x <= 1; ++offset_x) {
-          if (expanded_mask[static_cast<size_t>(y + offset_y) * target_width +
-                            x + offset_x] == 0) {
-            keep = false;
-            break;
-          }
-        }
-      }
-      if (keep) white_mask[static_cast<size_t>(y) * target_width + x] = 1;
-    }
-  }
-  for (int y = 0; y < target_height; ++y) {
-    for (int x = 0; x < target_width; ++x) {
-      const size_t mask_offset =
-          static_cast<size_t>(y) * target_width + x;
-      if (white_mask[mask_offset] == 0) {
+      const size_t render_offset =
+          (static_cast<size_t>(y) * render_width + x) * 4;
+      if (rendered[render_offset] < 128) {
         continue;
       }
       const size_t target_offset =
@@ -492,7 +429,6 @@ bool RenderWhiteTextIntoBitmap(
       bitmap[target_offset + 1] = 255;
       bitmap[target_offset + 2] = 255;
       ++stats.white_knockout_pixels;
-      if (threshold_mask[mask_offset] == 0) ++stats.white_closed_pixels;
     }
   }
   SetTextColor(memory_dc, previous_text_color);
@@ -1034,8 +970,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=supersample8xCoverage48Close3x3"
-              << " printWatermark=v1.3.15"
+              << " nativeTextWhiteRender=device1xMonochromeHinted"
+              << " printWatermark=v1.3.16"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1199,8 +1135,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.white_bitmap_drawn
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
-                  << " nativeTextWhiteClosedPixels="
-                  << native_text_stats.white_closed_pixels
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

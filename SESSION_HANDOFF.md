@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 장치 해상도 힌팅 v1.3.16
+- 사용자 실물 `.tmp/IMG_20260817_0011.png`: v1.3.15 워터마크, 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 여전히 볼드처럼 뭉쳐 추가 개선이 필요하다.
+- 최신 로그 `.tmp/log/app_2026-08-17_18-29-51.log`: 원본 3328px에 폐쇄 1084px가 추가돼 knockout 4412px이다. 원본 대비 약 32.6% 증가한 폐쇄 연산이 남은 볼드화의 직접 원인이라 폐기한다.
+- 수정 완료: 흰 글자의 8배 확대·coverage threshold·형태 연산을 모두 제거하고, 최종 203dpi 크기 memory DIB에 `NONANTIALIASED_QUALITY`로 직접 렌더링한다. 장치 픽셀 font hinting으로 원래 weight와 외곽을 보존한다.
+- 회귀 방지: 표·선·일반 문자, 검은 글자 printer DC, font/fit/좌표는 변경하지 않았다. 진단을 `device1xMonochromeHinted`, 워터마크와 앱 버전을 `v1.3.16`으로 갱신했다.
+- 메모리: 흰 mask DIB가 8배 약 76MB에서 최종 크기 약 1.2MB로 감소해 출력 중 OOM 부담도 제거됐다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 다음으로 출력 회귀 테스트, 편집기 진단, EXE 버전과 최종 diff를 확인한다.
+- 회귀 검토: 중간 diff에서 힌팅 옵션이 일반 문자 함수에 잘못 적용된 것을 발견해 즉시 `DEFAULT_QUALITY`로 원복했다. 최종 코드는 흰 mask 한 곳만 `NONANTIALIASED_QUALITY`이며 재사용 방지 근거를 주석으로 남겼다.
+- 검증 완료: 출력 관련 4개 테스트 파일 통과, C++/pubspec/인수인계 편집기 진단 없음, 옵션 범위 수정 후 `/WX` Windows Debug 재빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.16`, `git diff --check` 통과. 변경은 역상 흰 mask의 장치 해상도 힌팅, 기존 후처리 제거, 진단·워터마크·버전과 인수인계뿐이다.
+- 판별 기준: v1.3.16 로그에서 `nativeTextWhiteRender=device1xMonochromeHinted`, `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteKnockoutPixels>0`, `nativeTextFailed=0`이어야 한다. 실물은 v1.3.15의 볼드화가 사라지고 표·선·일반 문자가 유지돼야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 내부 단절 폐쇄 v1.3.15
 - 사용자 실물 `.tmp/IMG_20260817_0010.png`: v1.3.14 워터마크, 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 개선이 아니라 전체가 볼드처럼 뭉개졌다.
 - 최신 로그 `.tmp/log/app_2026-08-17_18-08-56.log`: 원본 3328px에 확장 3293px가 추가돼 knockout이 6621px로 거의 두 배가 됐다. 전방향 1-dot 확장이 외곽 전체를 굵게 만든 원인으로 확정돼 폐기한다.
