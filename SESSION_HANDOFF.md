@@ -11,6 +11,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.13`, semibold·워터마크 진단 일치, `git diff --check` 통과. production diff는 흰 normal weight, 적용 건수 진단, 워터마크·버전뿐이다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.13 로그에서 흰 descriptor 2건, semibold 적용 건수 0 초과, 실패 0이어야 한다. 실물은 다른 출력과 글자 배치를 유지하면서 역상 normal 한글의 가는 획 연속성과 가독성이 개선돼야 한다.
+- 기능 커밋: `8eb52d7` (`Godex 역상 흰 글자 최소 획 굵기 적용`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 8배 윤곽 샘플링 v1.3.12
 - 사용자 실물 `.tmp/IMG_20260817_0007.png`: v1.3.11 워터마크는 정상 출력됐지만 역상 흰 글자는 육안상 이전과 차이가 없다. 표·선·일반 문자는 좋은 상태다.
