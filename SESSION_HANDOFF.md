@@ -12,6 +12,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.17`, `git diff --check` 통과. 변경은 역상 흰 mask의 8배 원본 복원·4방향 bridge, 진단·워터마크·버전과 인수인계뿐이다.
 - 판별 기준: v1.3.17 로그에서 `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteBridgedPixels>0`, knockout이 1x의 2482px보다 증가하되 폐쇄 방식의 4412px보다 작고, `nativeTextFailed=0`이어야 한다. 실물은 볼드화 없이 역상 획 결손이 줄어야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 기능 커밋: `95226c5` (`Godex 역상 흰 글자 방향성 단절 연결`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 장치 해상도 힌팅 v1.3.16
 - 사용자 실물 `.tmp/IMG_20260817_0011.png`: v1.3.15 워터마크, 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 여전히 볼드처럼 뭉쳐 추가 개선이 필요하다.
