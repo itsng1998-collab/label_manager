@@ -6,7 +6,6 @@
 #include <windows.h>
 
 #include <algorithm>
-#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -19,10 +18,6 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr int kNativeTextSupersample = 4;
-// 어두운 배경의 흰 텍스트 엣지 보존을 위한 낮은 임계값
-constexpr int kNativeTextThresholdDark = 64;
-constexpr int kNativeTextThresholdLight = 128;
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -264,13 +259,132 @@ struct NativeTextRenderStats {
   size_t characters = 0;
 };
 
-bool RenderNativeTextIntoBitmap(
+bool RenderNativeTextToPrinterDc(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
     int source_width, int source_height,
     const std::vector<NativeTextDescriptor>& text_descriptors,
     HDC printer_dc,
     NativeTextRenderStats& stats, std::string& error) {
   if (text_descriptors.empty()) return true;
+  (void)bitmap;
+  const int text_dc_state = SaveDC(printer_dc);
+  if (text_dc_state == 0) {
+    error = "SaveDC for native text failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  SetMapMode(printer_dc, MM_ANISOTROPIC);
+  SetWindowExtEx(printer_dc, source_width, source_height, nullptr);
+  SetViewportExtEx(printer_dc, target_width, target_height, nullptr);
+  SetViewportOrgEx(printer_dc, 0, 0, nullptr);
+  const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
+  for (const auto& descriptor : text_descriptors) {
+    const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
+    HFONT font = CreateFontW(
+        -font_pixel_height, 0, 0, 0,
+        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+        descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
+    if (font == nullptr) {
+      ++stats.failed;
+      continue;
+    }
+    HGDIOBJ previous_font = SelectObject(printer_dc, font);
+    if (previous_font == nullptr || previous_font == HGDI_ERROR) {
+      DeleteObject(font);
+      ++stats.failed;
+      continue;
+    }
+    if (GetFontData(printer_dc, 0, 0, nullptr, 0) == GDI_ERROR) {
+      ++stats.no_outline_fonts;
+    } else {
+      ++stats.outline_fonts;
+    }
+    const COLORREF previous_color =
+        SetTextColor(printer_dc, descriptor.color);
+    RECT text_rect{
+        descriptor.rect.left,
+        descriptor.rect.top,
+        descriptor.rect.right,
+        descriptor.rect.bottom,
+    };
+    UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
+    if (descriptor.horizontal_align == "0") {
+      flags |= DT_CENTER;
+    } else if (descriptor.horizontal_align == "2") {
+      flags |= DT_RIGHT;
+    } else {
+      flags |= DT_LEFT;
+    }
+    flags |= descriptor.wrap ? DT_WORDBREAK : DT_SINGLELINE;
+    RECT measured = text_rect;
+    DrawTextW(printer_dc, descriptor.text.c_str(),
+              static_cast<int>(descriptor.text.size()), &measured,
+              flags | DT_CALCRECT);
+    HFONT fitted_font = nullptr;
+    const LONG available_width = text_rect.right - text_rect.left;
+    const LONG measured_width = measured.right - measured.left;
+    if (!descriptor.wrap && measured_width > available_width &&
+        available_width > 0) {
+      LOGFONTW log_font{};
+      if (GetObjectW(font, sizeof(log_font), &log_font) != 0) {
+        const LONG desired_width = std::max(1L, available_width - 2);
+        int fitted_height = std::max(
+            1, MulDiv(font_pixel_height, desired_width, measured_width));
+        for (int attempt = 0; attempt < 4; ++attempt) {
+          log_font.lfHeight = -fitted_height;
+          log_font.lfWidth = 0;
+          HFONT next_fitted_font = CreateFontIndirectW(&log_font);
+          if (next_fitted_font == nullptr) break;
+          SelectObject(printer_dc, next_fitted_font);
+          if (fitted_font != nullptr) DeleteObject(fitted_font);
+          fitted_font = next_fitted_font;
+          measured = text_rect;
+          DrawTextW(printer_dc, descriptor.text.c_str(),
+                    static_cast<int>(descriptor.text.size()), &measured,
+                    flags | DT_CALCRECT);
+          const LONG fitted_measured_width = measured.right - measured.left;
+          if (fitted_measured_width <= desired_width) break;
+          const int next_height = std::max(
+              1, MulDiv(fitted_height, desired_width,
+                        fitted_measured_width));
+          fitted_height = next_height < fitted_height
+                              ? next_height
+                              : std::max(1, fitted_height - 1);
+        }
+        if (fitted_font != nullptr) ++stats.fitted;
+      }
+    }
+    const LONG text_height = measured.bottom - measured.top;
+    if (descriptor.vertical_align == "2") {
+      text_rect.top = std::max(text_rect.top, text_rect.bottom - text_height);
+    } else if (descriptor.vertical_align != "1") {
+      text_rect.top += std::max<LONG>(
+          0, (text_rect.bottom - text_rect.top - text_height) / 2);
+    }
+    text_rect.right += kNativeTextRightOverhangDots;
+    const int draw_result = DrawTextW(
+        printer_dc, descriptor.text.c_str(),
+        static_cast<int>(descriptor.text.size()), &text_rect, flags);
+    if (draw_result > 0) {
+      ++stats.drawn;
+      stats.characters += descriptor.text.size();
+    } else {
+      ++stats.failed;
+    }
+    SetTextColor(printer_dc, previous_color);
+    SelectObject(printer_dc, previous_font);
+    if (fitted_font != nullptr) DeleteObject(fitted_font);
+    DeleteObject(font);
+  }
+  SetBkMode(printer_dc, previous_background_mode);
+  RestoreDC(printer_dc, text_dc_state);
+  return true;
+
+#if 0
+  // v1.3.5의 supersample/threshold 경로는 203dpi 한글 획을 손실하므로
+  // 재사용하지 않는다. 실물 비교 이력을 위해 구현은 비활성 상태로 남긴다.
   const int render_width = target_width * kNativeTextSupersample;
   const int render_height = target_height * kNativeTextSupersample;
   BITMAPINFO bitmap_info{};
@@ -456,6 +570,7 @@ bool RenderNativeTextIntoBitmap(
   DeleteObject(dib);
   DeleteDC(memory_dc);
   return true;
+#endif
 }
 
 EncodableValue PrintResult(bool ok, const std::string& diagnostics,
@@ -621,10 +736,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << native_text_requested_characters
               << " nativeTextHeight=" << native_text_min_height << ".."
               << native_text_max_height
-              << " fontQuality=ANTIALIASED_QUALITY"
-              << " fontOutputPrecision=OUT_TT_ONLY_PRECIS"
+              << " fontQuality=DEFAULT_QUALITY"
+              << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=supersample4xAdaptiveThreshold"
+              << " nativeTextRaster=printerDcDrawTextW"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -653,12 +768,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
     NativeTextRenderStats native_text_stats;
-    if (!RenderNativeTextIntoBitmap(
-            composed_bitmap, target_width, target_height, source_width,
-            source_height, text_descriptors, printer_dc,
-            native_text_stats, error)) {
-      break;
-    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -681,6 +790,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
+      if (!RenderNativeTextToPrinterDc(
+              composed_bitmap, target_width, target_height, source_width,
+              source_height, text_descriptors, printer_dc,
+              native_text_stats, error)) {
+        break;
+      }
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
@@ -777,11 +892,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="
                   << native_text_stats.no_outline_fonts
-                  << " nativeTextBitmapChangedPixels="
-                  << native_text_stats.bitmap_changed_pixels
                   << " nativeTextCharacters=" << native_text_stats.characters
-                  << " nativeTextMapping=anisotropicMemoryDib"
-                  << " nativeTextComposite=finalDeviceBitmap"
+                  << " nativeTextMapping=anisotropicPrinterDc"
+                  << " nativeTextComposite=printerDcAfterBitmap"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"

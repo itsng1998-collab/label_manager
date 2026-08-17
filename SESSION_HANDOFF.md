@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex G500 한글 텍스트 출력 품질 복원 v1.3.6
+- 사용자 실물 사진 `.tmp/IMG_20260817_0001.png`: 표와 선은 정상이나 작은 한글 획이 끊기고 거칠며, 검정 배경의 흰 한글도 획 손실이 보인다.
+- 최신 로그 `.tmp/log/app_2026-08-17_16-49-14.log`: DebugLogger 1.3.5, `nativeTextRaster=supersample4xAdaptiveThreshold`, 36개/558자 모두 현재 memory DIB 텍스트 경로로 출력되어 미적용 문제는 아니다.
+- 기술 확인: Microsoft GDI 문서상 ClearType은 프린터에서 지원되지 않는다. 현재 4배 antialias 렌더를 앱에서 다시 1bit adaptive threshold로 양자화하는 과정이 203dpi의 작은 한글 edge를 소실시키므로 추가 threshold 조정은 반복하지 않는다.
+- 수정 완료: `label_bitmap_print_channel.cpp`의 텍스트만 v1.0.63 계열 printer DC `DrawTextW` 직접 출력으로 복원했다. 표·배경·barcode·현재 final-device bitmap 및 1dot border 경로는 유지했고, 이후 회귀가 확인된 `lfWidth` 장평 압축 대신 현재 uniform-height fit과 오른쪽 1dot overhang을 유지했다. v1.3.5 supersample/threshold 구현은 재사용 방지 설명과 함께 비활성화했다.
+- 진단 갱신: `nativeTextRaster=printerDcDrawTextW`, `nativeTextMapping=anisotropicPrinterDc`, `nativeTextComposite=printerDcAfterBitmap`, `fontQuality=DEFAULT_QUALITY`, `fontOutputPrecision=OUT_DEFAULT_PRECIS`로 실제 경로를 식별한다.
+- 버전 편집 완료: 호환 가능한 출력 품질 수정이므로 PATCH 증가로 `1.3.5`에서 `1.3.6`으로 갱신했다.
+- 첫 `/WX` Windows Debug 빌드는 실행 중인 Debug EXE 잠금으로 `LNK1168` 실패했다. 해당 workspace 산출물 PID 11956만 `CloseMainWindow()`로 정상 종료 후 동일 빌드 재실행에 성공했다.
+- 출력 회귀 검증 완료: `label_sheet_print_job_test.dart`, `label_print_pipeline_test.dart`, `label_print_dispatcher_test.dart`, `raw_printer_win32_test.dart` 전체 30건 통과.
+- 최종 검증 완료: C++/pubspec 편집기 진단 없음, `/WX` Windows Debug 빌드 성공, Debug EXE FileVersion/ProductVersion 모두 `1.3.6`, 활성 printer DC 진단 문자열 확인, `git diff --check` 통과.
+- 동작 기준: final bitmap과 1dot border는 v1.3.5 방식을 유지하고 텍스트 descriptor만 bitmap 전송 후 printer DC에 직접 그린다. 다음 사용자 확인은 v1.3.6 로그의 `nativeTextComposite=printerDcAfterBitmap`과 Godex G500 실물 한글 획 품질이다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+
 ## 완료: 발행 체크 후 품목 저장 활성화 수정 v1.3.5
 - 사용자 재현: 실행 중인 v1.3.4에서 품목관리 테이블의 발행 체크만 했는데 저장 버튼이 활성화된다.
 - 최신 로그 `.tmp/log/app_2026-08-17_16-29-22.log`: 체크 직전 draft는 existing 19행, `dirty=false`. 체크 시 행 선택으로 주원료 preview가 갱신된 직후 `editElement requested rowKey=item:722322`가 호출되고 해당 행이 modified로 바뀌며 `dirty=true`가 됐다.
