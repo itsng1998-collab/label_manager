@@ -448,6 +448,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         LabelSheetZoomController();
       final LabelSheetZoomController _itemElementPreviewZoomController =
         LabelSheetZoomController();
+      final LabelSheetEditingLifecycleController
+      _itemElementEditingLifecycleController =
+        LabelSheetEditingLifecycleController();
     final ScaleConnectionService _scaleConnectionService =
       ScaleConnectionService();
   LabelPrintUnit? _labelPrintRenderUnit;
@@ -4755,6 +4758,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         projectedColumnValues: projectedColumnValues,
         elementPreviewZoomController: _itemElementPreviewZoomController,
         outputPreviewZoomController: _itemOutputPreviewZoomController,
+        elementEditingLifecycleController:
+          _itemElementEditingLifecycleController,
         onElementCommitted: onElementCommitted,
         canSelectOutputPreview: canSelectOutputPreview,
         canEdit: canEdit,
@@ -4764,6 +4769,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         _itemPreviewWindow = PreviewFloatingWindow(
           initialSize: const Size(670, 470),
           minSize: const Size(420, 280),
+            onResizeStarted:
+              _itemElementEditingLifecycleController.commitActiveCellEditing,
           onCloseRequested: _handleItemPreviewCloseRequested,
           usePortalHost: true,
         );
@@ -8337,6 +8344,7 @@ class _ItemPreviewPanel extends StatefulWidget {
     this.projectedColumnValues,
     this.elementPreviewZoomController,
     this.outputPreviewZoomController,
+    this.elementEditingLifecycleController,
     this.canEdit = true,
   });
 
@@ -8347,6 +8355,8 @@ class _ItemPreviewPanel extends StatefulWidget {
   final Map<int, String>? projectedColumnValues;
   final LabelSheetZoomController? elementPreviewZoomController;
   final LabelSheetZoomController? outputPreviewZoomController;
+  final LabelSheetEditingLifecycleController?
+  elementEditingLifecycleController;
   final Future<void> Function(
     String rowIdentity,
     String elementPlain,
@@ -8381,6 +8391,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   );
 
   void _handleTabSelection(int? index, TabData? tab) {
+    widget.elementEditingLifecycleController?.commitActiveCellEditing();
     if (tab?.value != 'item_output_preview' ||
         widget.canSelectOutputPreview()) {
       return;
@@ -8636,6 +8647,8 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
           labelSize: widget.labelSize,
           elementForm: _elementForm,
           zoomController: _elementPreviewZoomController,
+            editingLifecycleController:
+              widget.elementEditingLifecycleController,
           canEdit: widget.canEdit,
           onWorkbookChanged: _handleElementWorkbookChanged,
           onSave: _handleElementSheetSave,
@@ -8744,6 +8757,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
     required this.labelSize,
     required this.elementForm,
     required this.zoomController,
+    required this.editingLifecycleController,
     required this.canEdit,
     required this.onWorkbookChanged,
     required this.onSave,
@@ -8753,6 +8767,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
   final LabelSize? labelSize;
   final _ItemElementFormState elementForm;
   final LabelSheetZoomController zoomController;
+  final LabelSheetEditingLifecycleController? editingLifecycleController;
   final bool canEdit;
   final ValueChanged<fs.FortuneWorkbook> onWorkbookChanged;
   final Future<void> Function(
@@ -8806,6 +8821,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
           zoomToolbarPlacement:
               LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
           zoomController: zoomController,
+          editingLifecycleController: editingLifecycleController,
           onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
           onUserWorkbookChangedShouldNotify: canEdit
               ? (previous, current) =>
@@ -8991,6 +9007,7 @@ Widget debugItemPreviewPanelForTesting({
   Map<int, String>? projectedColumnValues,
   LabelSheetZoomController? elementPreviewZoomController,
   LabelSheetZoomController? outputPreviewZoomController,
+  LabelSheetEditingLifecycleController? elementEditingLifecycleController,
   Future<void> Function(
     String rowIdentity,
     String elementPlain,
@@ -9007,6 +9024,7 @@ Widget debugItemPreviewPanelForTesting({
   projectedColumnValues: projectedColumnValues,
   elementPreviewZoomController: elementPreviewZoomController,
   outputPreviewZoomController: outputPreviewZoomController,
+  elementEditingLifecycleController: elementEditingLifecycleController,
   onElementCommitted: onElementCommitted ?? (_, _, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,
   canEdit: canEdit,

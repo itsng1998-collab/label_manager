@@ -1691,6 +1691,7 @@ void main() {
       _testItemOfMarket(itemName: '첫째 품목', marketId: 1),
       _testItemOfMarket(itemName: '둘째 품목', marketId: 1),
     ];
+    final itemManageController = ItemManageController();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1698,7 +1699,10 @@ void main() {
           body: SizedBox(
             width: 600,
             height: 220,
-            child: ItemManage(items: items),
+            child: ItemManage(
+              items: items,
+              controller: itemManageController,
+            ),
           ),
         ),
       ),
@@ -1723,6 +1727,7 @@ void main() {
     await tester.tapAt(tableTopLeft + const Offset(40 + 20, 36 + 14));
     await tester.pump();
 
+    expect(itemManageController.hasActiveEditing, isFalse);
     table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );

@@ -2276,6 +2276,7 @@ void main() {
     tester,
   ) async {
     var commitCount = 0;
+    final editingLifecycle = LabelSheetEditingLifecycleController();
     late PreviewFloatingWindow window;
 
     await tester.pumpWidget(
@@ -2288,6 +2289,8 @@ void main() {
                   window = PreviewFloatingWindow(
                     initialSize: const Size(670, 470),
                     minSize: const Size(420, 280),
+                    onResizeStarted:
+                      editingLifecycle.commitActiveCellEditing,
                     child: debugItemPreviewPanelForTesting(
                       item: _testItemOfMarket(
                         itemId: 578,
@@ -2295,6 +2298,7 @@ void main() {
                       ),
                       rowIdentity: 'item:578',
                       labelSize: _testLabelSizeWithFormData(''),
+                      elementEditingLifecycleController: editingLifecycle,
                       onElementCommitted: (_, _, _) async {
                         commitCount += 1;
                       },
@@ -2315,6 +2319,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(commitCount, 0);
 
+    final elementCanvas = find.byType(FortuneSheetCanvas);
+    final cellPoint = tester.getTopLeft(elementCanvas) + const Offset(80, 80);
+    await tester.tapAt(cellPoint);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(cellPoint);
+    await tester.pump();
+    expect(editingLifecycle.hasActiveCellEditing, isTrue);
+
     await tester.dragFrom(
       _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
       const Offset(60, 40),
@@ -2322,7 +2334,69 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(commitCount, 0);
+    expect(editingLifecycle.hasActiveCellEditing, isFalse);
   });
+
+  testWidgets(
+    'item preview tab changes and unchanged sheet editing do not commit draft',
+    (tester) async {
+      var commitCount = 0;
+      final editingLifecycle = LabelSheetEditingLifecycleController();
+      final encodedLabel = labelSheetEncodeWorkbookSave(
+        FortuneWorkbook(
+          sheets: [
+            FortuneSheet(
+              id: 'common_01',
+              name: '출력 시트',
+              cells: {
+                const FortuneCellCoord(0, 0): const FortuneCell(
+                  value: '#ITEMNAME',
+                ),
+              },
+            ),
+          ],
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: debugItemPreviewPanelForTesting(
+              item: _testItemOfMarket(itemId: 578, itemName: '조회 품목'),
+              rowIdentity: 'item:578',
+              labelSize: _testLabelSizeWithFormData(encodedLabel),
+              elementEditingLifecycleController: editingLifecycle,
+              onElementCommitted: (_, _, _) async {
+                commitCount += 1;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final elementCanvas = find.byType(FortuneSheetCanvas);
+      final cellPoint = tester.getTopLeft(elementCanvas) + const Offset(80, 80);
+      await tester.tapAt(cellPoint);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(cellPoint);
+      await tester.pump();
+      expect(editingLifecycle.hasActiveCellEditing, isTrue);
+
+      await tester.tap(find.text('출력내용 미리보기').last);
+      await tester.pumpAndSettle();
+
+      expect(commitCount, 0);
+      expect(editingLifecycle.hasActiveCellEditing, isFalse);
+      final outputPreview = tester.widget<FortuneSheetApp>(
+        find.byType(FortuneSheetApp),
+      );
+      expect(outputPreview.settings!.allowEdit, isFalse);
+
+      await tester.tap(find.text('주원료 및 함량').last);
+      await tester.pumpAndSettle();
+      expect(commitCount, 0);
+    },
+  );
 
   testWidgets('item element is read-only without edit permission', (
     tester,

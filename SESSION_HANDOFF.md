@@ -1,5 +1,23 @@
 # 현재 작업 상태
 
+## 완료: 품목관리 비편집 상호작용의 편집모드 진입 차단 v1.3.4
+- 요청: 발행 체크, 플로팅창 주원료/출력 미리보기 탭 클릭, 플로팅창 resize는 품목관리 편집모드로 들어가지 않아야 한다. 주원료 시트는 더블클릭 후 변경 없이 나와도 draft를 만들지 않아야 하며 출력 미리보기는 읽기 전용이어야 한다.
+- 확인: 출력 미리보기는 `LabelOutputPreview`에서 `canEditObjects: false`로 `allowEdit=false`를 전달한다. 주원료 preview는 workbook 실내용 비교 후에만 commit하지만 실제 포인터 상호작용과 active editing 상태를 직접 검증하는 테스트가 부족하다.
+- 수정 예정: `ItemManage` 발행 체크와 `_ItemPreviewPanel`의 탭/시트/resize 상호작용 회귀 테스트를 먼저 추가해 실패 제어 지점을 확정한 뒤 최소 범위로 수정한다. 상태: 미검증.
+- 원인 확인: 주원료 시트 tab은 keepAlive라 cell editor가 열린 상태에서 출력 미리보기로 이동해도 `_editingCoord`가 유지된다. 변경 없는 editor는 draft commit은 만들지 않지만 편집 상태가 남는다. 출력 미리보기는 원본 workbook과 별도로 전달되는 effective settings에서 `allowEdit=false`가 적용된다.
+- 구현 완료: FortuneSheet/LabelSheet lifecycle에 활성 cell 편집 조회·commit API를 추가하고, 품목 주원료 탭 전환과 플로팅 resize 시작 시 editor를 종료하도록 연결했다. 발행 체크는 기존 구현에서 active table editing을 만들지 않음을 테스트로 확인했다. focused 재검증 예정.
+- focused 검증 완료: 발행 체크, 변경 없는 주원료 편집 후 탭 전환, 출력 미리보기 읽기 전용, 편집 중 플로팅 resize 3건 통과. 변경 Dart 6개 파일 편집기 진단 없음, `git diff --check` 통과.
+- 버전 편집 완료: 호환 가능한 품목관리 편집 상태 수정이므로 PATCH 증가로 `1.3.3`에서 `1.3.4`로 갱신했다.
+- 관련 전체 검증 예정: `flutter test test/fortune_table_test.dart test/label_sheet_toolbar_test.dart test/preview_floating_window_test.dart` 및 변경 Dart strict analyzer를 실행한다.
+- 관련 전체 테스트 완료: `fortune_table_test.dart`, `label_sheet_toolbar_test.dart`, `preview_floating_window_test.dart` 전체 259건 통과.
+- analyzer 실행 예정: 앱/테스트 변경 파일은 `flutter analyze lib/features/label_sheet/label_sheet_workbench.dart lib/home_page_manager.dart lib/widgets/preview_floating_window.dart test/fortune_table_test.dart test/label_sheet_toolbar_test.dart`, FortuneSheet canvas는 기존 미사용 경고와 분리해 `flutter analyze --no-fatal-warnings third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`로 확인한다.
+- analyzer 완료: 앱/테스트 변경 5개 파일 `No issues found`. FortuneSheet canvas는 신규 오류 없이 기존 미사용 코드 경고 10건만 유지했다.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 Debug EXE FileVersion/ProductVersion과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.4`, `git diff --check` 통과. 추가 임시 산출물은 없고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
+- 동작 기준: 발행 체크는 품목 테이블 편집을 시작하지 않는다. 주원료 시트는 변경 없이 더블클릭 편집 후 탭 이동 또는 플로팅 resize 시 editor를 종료하고 draft를 만들지 않는다. 출력 미리보기는 effective `allowEdit=false`로 편집할 수 없다.
+- stage/commit 대상: FortuneSheet cell editing API, LabelSheet lifecycle, 품목 preview/플로팅 연결, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 도움말 팝업 메뉴 스타일 통일
 - 원인: 설정 등 `AppMenuBar` 팝업은 높이 28, 가로 패딩 12, 축소 tap target의 공용 `MenuItemButton` 스타일을 사용하지만 별도 `HelpMenuButton`은 Material 기본 스타일을 사용했다.
 - 수정: `AppMenuBar.menuItemStyle`, `menuItemHeight`, `menuDividerHeight`를 공용으로 노출하고 도움말 4개 항목과 divider에 동일 적용했다. 실제 `MenuItemButton` 스타일과 최소 높이 `64x28`을 위젯 테스트로 고정했다.

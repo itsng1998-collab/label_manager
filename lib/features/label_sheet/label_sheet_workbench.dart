@@ -789,8 +789,14 @@ class LabelSheetEditingLifecycleController {
   _LabelSheetWorkbenchState? _state;
 
   bool get isAttached => _state != null;
+  bool get hasActiveCellEditing =>
+      _state?._controller.hasActiveCellEditing ?? false;
   bool get barcodePropertyRenderPending =>
       _state?._controller.barcodePropertyRenderPending ?? false;
+
+  void commitActiveCellEditing() {
+    _state?._controller.commitActiveCellEditing();
+  }
 
   bool prepareForOwnerReplacement() {
     final state = _state;

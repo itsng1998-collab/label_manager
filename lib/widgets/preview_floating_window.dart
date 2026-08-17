@@ -58,6 +58,7 @@ class PreviewFloatingWindow {
     Widget? child,
     this.onRectChanged,
     this.onMoved,
+    this.onResizeStarted,
     this.onResizeCompleted,
     this.onCloseRequested,
     this.headerAction,
@@ -81,6 +82,7 @@ class PreviewFloatingWindow {
   final Size minSize;
   final PreviewFloatingRectChanged? onRectChanged;
   final PreviewFloatingMoved? onMoved;
+  final VoidCallback? onResizeStarted;
   final ValueChanged<Rect>? onResizeCompleted;
   final VoidCallback? onCloseRequested;
   final Widget? headerAction;
@@ -448,6 +450,7 @@ class PreviewFloatingWindow {
       'resize state=start handle=$handleName pointer=$pointer '
       'rect=${_formatRect(_rect.value)}',
     );
+    onResizeStarted?.call();
     _isResizing.value = true;
   }
 

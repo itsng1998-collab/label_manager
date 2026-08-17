@@ -1364,6 +1364,13 @@ class FortuneSheetController extends ChangeNotifier {
       FortuneObjectSelectionSnapshot(attached: false);
 
   bool get isAttached => _state != null;
+  bool get hasActiveCellEditing {
+    final state = _state;
+    return state != null &&
+        (state._editingCoord != null ||
+            state._editingFormulaBar ||
+            state._editingCommentCoord != null);
+  }
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
   FortuneSheetObjectKey? get activePropertyDraftKey => _activePropertyDraftKey;
   bool get hasActiveObjectPropertyDraft => _activePropertyDraftOwner != null;
@@ -1403,6 +1410,11 @@ class FortuneSheetController extends ChangeNotifier {
   void focusCanvas() {
     if (_disposed) return;
     _state?._focusNode.requestFocus();
+  }
+
+  void commitActiveCellEditing() {
+    if (_disposed) return;
+    _state?._commitEditing();
   }
 
   void dismissObjectPanelPresentationTransients() {
