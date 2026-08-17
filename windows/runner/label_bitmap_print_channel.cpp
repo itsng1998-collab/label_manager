@@ -253,6 +253,7 @@ struct NativeTextRenderStats {
   int drawn = 0;
   int failed = 0;
   int fitted = 0;
+  int opaque_black_background = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
@@ -364,14 +365,26 @@ bool RenderNativeTextToPrinterDc(
           0, (text_rect.bottom - text_rect.top - text_height) / 2);
     }
     text_rect.right += kNativeTextRightOverhangDots;
+    const bool white_text = descriptor.color == RGB(255, 255, 255);
+    int descriptor_background_mode = 0;
+    COLORREF previous_background_color = CLR_INVALID;
+    if (white_text) {
+      descriptor_background_mode = SetBkMode(printer_dc, OPAQUE);
+      previous_background_color = SetBkColor(printer_dc, RGB(0, 0, 0));
+    }
     const int draw_result = DrawTextW(
         printer_dc, descriptor.text.c_str(),
         static_cast<int>(descriptor.text.size()), &text_rect, flags);
     if (draw_result > 0) {
       ++stats.drawn;
       stats.characters += descriptor.text.size();
+      if (white_text) ++stats.opaque_black_background;
     } else {
       ++stats.failed;
+    }
+    if (white_text) {
+      SetBkColor(printer_dc, previous_background_color);
+      SetBkMode(printer_dc, descriptor_background_mode);
     }
     SetTextColor(printer_dc, previous_color);
     SelectObject(printer_dc, previous_font);
@@ -740,6 +753,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcDrawTextW"
+              << " nativeTextBackground=opaqueBlackForWhiteText"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -888,6 +902,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       diagnostics << " nativeTextDrawn=" << native_text_stats.drawn
                   << " nativeTextFailed=" << native_text_stats.failed
                   << " nativeTextFitted=" << native_text_stats.fitted
+                  << " nativeTextOpaqueBlackBackground="
+                  << native_text_stats.opaque_black_background
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

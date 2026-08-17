@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 진행 중: Godex 역상 흰 글자 가독성 개선 v1.3.7
+- 사용자 실물 `.tmp/IMG_20260817_0002.png`: v1.3.6 printer DC 직접 출력으로 일반 문자는 전반적으로 개선됐으나 제3·9행 검정 배경의 흰 글자는 획 내부가 점상으로 남아 가독성이 낮다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-06-56.log`: DebugLogger 1.3.6, `nativeTextComposite=printerDcAfterBitmap`, 36개/558자, 실패 0으로 새 직접 출력 경로 적용을 확인했다.
+- 원인 가설: 흰 글자도 `TRANSPARENT` 배경으로 그려 printer driver가 먼저 전송된 검정 raster를 안티앨리어싱 합성 배경으로 안정적으로 참조하지 못한다. 과거 전체 문자 `NONANTIALIASED_QUALITY`는 계단·획 단절을 악화시켜 폐기됐으므로 재사용하지 않는다.
+- 수정 완료: 정확히 흰색인 text descriptor의 실제 `DrawTextW` 호출에만 `OPAQUE` background mode와 `BLACK` background color를 적용하고 즉시 이전 GDI 상태로 복원한다. `DEFAULT_QUALITY`, font/fit/좌표, 검정 등 다른 문자와 final bitmap·border는 변경하지 않았다.
+- 진단 추가: `nativeTextBackground=opaqueBlackForWhiteText`, `nativeTextOpaqueBlackBackground=<적용 건수>`로 실제 역상 전용 경로를 확인한다.
+- 버전 편집 완료: 호환 가능한 역상 문자 품질 수정이므로 PATCH 증가로 `1.3.6`에서 `1.3.7`로 갱신했다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공. 일반 descriptor의 GDI 상태를 전혀 변경하지 않도록 흰색 분기 안으로 좁힌 후 `/WX` 재빌드도 성공했다.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.7`, 폐기한 `NONANTIALIASED_QUALITY` 미재도입, `git diff --check` 통과. 실물은 v1.3.7로 같은 라벨을 재출력해 확인해야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 판별 기준: v1.3.7 로그에서 opaque 역상 descriptor 수가 확인되어야 하며, 같은 라벨 실물에서 제3·9행 흰 글자의 점상 잔여가 줄고 일반 문자는 v1.3.6과 동일해야 한다.
+
 ## 구현 완료·실물 확인 대기: Godex G500 한글 텍스트 출력 품질 복원 v1.3.6
 - 사용자 실물 사진 `.tmp/IMG_20260817_0001.png`: 표와 선은 정상이나 작은 한글 획이 끊기고 거칠며, 검정 배경의 흰 한글도 획 손실이 보인다.
 - 최신 로그 `.tmp/log/app_2026-08-17_16-49-14.log`: DebugLogger 1.3.5, `nativeTextRaster=supersample4xAdaptiveThreshold`, 36개/558자 모두 현재 memory DIB 텍스트 경로로 출력되어 미적용 문제는 아니다.
