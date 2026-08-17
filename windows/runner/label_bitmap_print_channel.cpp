@@ -18,7 +18,9 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.16";
+constexpr int kWhiteTextSupersample = 8;
+constexpr int kWhiteTextCoverageThreshold = 48;
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.17";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -256,6 +258,7 @@ struct NativeTextRenderStats {
   int fitted = 0;
   int white_bitmap_drawn = 0;
   size_t white_knockout_pixels = 0;
+  size_t white_bridged_pixels = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
@@ -274,8 +277,8 @@ bool RenderWhiteTextIntoBitmap(
       });
   if (!has_white_text) return true;
 
-  const int render_width = target_width;
-  const int render_height = target_height;
+  const int render_width = target_width * kWhiteTextSupersample;
+  const int render_height = target_height * kWhiteTextSupersample;
   BITMAPINFO bitmap_info{};
   bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
   bitmap_info.bmiHeader.biWidth = render_width;
@@ -314,12 +317,12 @@ bool RenderWhiteTextIntoBitmap(
   for (const auto& descriptor : text_descriptors) {
     if (descriptor.color != RGB(255, 255, 255)) continue;
     const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
-    // Render reverse text on the final device grid so GDI can hint each dot.
+    // Preserve the glyph outline; only one-dot gaps are bridged after sampling.
     HFONT font = CreateFontW(
         -font_pixel_height, 0, 0, 0,
         descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
         descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
     if (font == nullptr) {
       ++stats.failed;
@@ -412,11 +415,56 @@ bool RenderWhiteTextIntoBitmap(
     DeleteObject(font);
   }
   GdiFlush();
+  constexpr int sample_count =
+      kWhiteTextSupersample * kWhiteTextSupersample;
+  std::vector<uint8_t> white_mask(
+      static_cast<size_t>(target_width) * target_height, uint8_t{0});
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
-      const size_t render_offset =
-          (static_cast<size_t>(y) * render_width + x) * 4;
-      if (rendered[render_offset] < 128) {
+      int luminance_sum = 0;
+      for (int sample_y = 0; sample_y < kWhiteTextSupersample; ++sample_y) {
+        for (int sample_x = 0; sample_x < kWhiteTextSupersample; ++sample_x) {
+          const int render_x = x * kWhiteTextSupersample + sample_x;
+          const int render_y = y * kWhiteTextSupersample + sample_y;
+          const size_t render_offset =
+              (static_cast<size_t>(render_y) * render_width + render_x) * 4;
+          luminance_sum += rendered[render_offset];
+        }
+      }
+      if (luminance_sum < kWhiteTextCoverageThreshold * sample_count) {
+        continue;
+      }
+      white_mask[static_cast<size_t>(y) * target_width + x] = 1;
+    }
+  }
+  const std::vector<uint8_t> threshold_mask = white_mask;
+  for (int y = 1; y < target_height - 1; ++y) {
+    for (int x = 1; x < target_width - 1; ++x) {
+      const size_t mask_offset =
+          static_cast<size_t>(y) * target_width + x;
+      if (threshold_mask[mask_offset] != 0) continue;
+      const bool horizontal =
+          threshold_mask[mask_offset - 1] != 0 &&
+          threshold_mask[mask_offset + 1] != 0;
+      const bool vertical =
+          threshold_mask[mask_offset - target_width] != 0 &&
+          threshold_mask[mask_offset + target_width] != 0;
+      const bool diagonal_down =
+          threshold_mask[mask_offset - target_width - 1] != 0 &&
+          threshold_mask[mask_offset + target_width + 1] != 0;
+      const bool diagonal_up =
+          threshold_mask[mask_offset - target_width + 1] != 0 &&
+          threshold_mask[mask_offset + target_width - 1] != 0;
+      if (horizontal || vertical || diagonal_down || diagonal_up) {
+        white_mask[mask_offset] = 1;
+      }
+    }
+  }
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      const size_t mask_offset =
+          static_cast<size_t>(y) * target_width + x;
+      if (white_mask[mask_offset] == 0) {
         continue;
       }
       const size_t target_offset =
@@ -429,6 +477,7 @@ bool RenderWhiteTextIntoBitmap(
       bitmap[target_offset + 1] = 255;
       bitmap[target_offset + 2] = 255;
       ++stats.white_knockout_pixels;
+      if (threshold_mask[mask_offset] == 0) ++stats.white_bridged_pixels;
     }
   }
   SetTextColor(memory_dc, previous_text_color);
@@ -970,8 +1019,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=device1xMonochromeHinted"
-              << " printWatermark=v1.3.16"
+              << " nativeTextWhiteRender=supersample8xCoverage48Bridge4Way"
+              << " printWatermark=v1.3.17"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1135,6 +1184,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.white_bitmap_drawn
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
+                  << " nativeTextWhiteBridgedPixels="
+                  << native_text_stats.white_bridged_pixels
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

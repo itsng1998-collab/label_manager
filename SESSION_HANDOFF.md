@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 방향성 단절 연결 v1.3.17
+- 사용자 실물 `.tmp/IMG_20260817_0012.png`: v1.3.16 워터마크, 양호한 표·선·일반 문자를 확인했다. 볼드화는 사라졌지만 역상 흰 글자의 획이 심하게 탈락해 가독성이 나빠졌다.
+- 최신 로그 `.tmp/log/app_2026-08-17_18-38-15.log`: `device1xMonochromeHinted`, knockout 2482px, 실패 0이다. 8배 원본 3328px보다 846px가 탈락해 1x monochrome hinting을 폐기한다.
+- 수정 완료: 8배/coverage 48 원본 mask로 복귀하고, 원본 픽셀 사이의 정확한 1-dot 간격만 수평·수직·두 대각선 방향으로 연결했다. 추가 dot은 `nativeTextWhiteBridgedPixels`로 집계한다.
+- 회귀 방지: bridge 후보는 원본 mask의 반대편 두 점 사이에만 생성돼 외곽으로 확장되지 않는다. 표·선·일반 문자, 검은 글자 printer DC, font weight/fit/좌표는 변경하지 않았다.
+- 진단·버전: `supersample8xCoverage48Bridge4Way`, 워터마크와 앱 버전을 `v1.3.17`로 갱신했다.
+- 메모리: 8배 full-page mask를 복원해 출력 중 약 76MB를 일시 사용한다. OOM 징후가 나타나면 즉시 중단·보고한다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 다음으로 출력 회귀 테스트, 편집기 진단, EXE 버전과 최종 diff를 확인한다.
+- 검증 완료: 출력 관련 4개 테스트 파일 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.17`, `git diff --check` 통과. 변경은 역상 흰 mask의 8배 원본 복원·4방향 bridge, 진단·워터마크·버전과 인수인계뿐이다.
+- 판별 기준: v1.3.17 로그에서 `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteBridgedPixels>0`, knockout이 1x의 2482px보다 증가하되 폐쇄 방식의 4412px보다 작고, `nativeTextFailed=0`이어야 한다. 실물은 볼드화 없이 역상 획 결손이 줄어야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 장치 해상도 힌팅 v1.3.16
 - 사용자 실물 `.tmp/IMG_20260817_0011.png`: v1.3.15 워터마크, 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 여전히 볼드처럼 뭉쳐 추가 개선이 필요하다.
 - 최신 로그 `.tmp/log/app_2026-08-17_18-29-51.log`: 원본 3328px에 폐쇄 1084px가 추가돼 knockout 4412px이다. 원본 대비 약 32.6% 증가한 폐쇄 연산이 남은 볼드화의 직접 원인이라 폐기한다.
