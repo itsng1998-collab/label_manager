@@ -12,6 +12,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.12`, 8배 mask·워터마크 진단 일치, bridge 코드·진단 제거, `git diff --check` 통과. 표·선·border, 일반 문자, knockout 대상 조건은 변경하지 않았다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.12 로그는 `supersample8xCoverage48`, 흰 descriptor 2건, 실패 0이어야 한다. 실물에서 다른 출력은 동일하고 역상 한글의 모서리·대각선·내부 획만 더 균일해야 한다.
+- 기능 커밋: `787d24d` (`Godex 역상 흰 글자 윤곽 샘플링 향상`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 획 1dot 단절 연결 v1.3.11
 - 사용자 실물 `.tmp/IMG_20260817_0006.png`: v1.3.10은 육안상 v1.3.9와 차이가 없고 역상 한글의 내부 획 단절·점상 거칠기가 남는다. 표·선·일반 문자는 좋은 상태다.
