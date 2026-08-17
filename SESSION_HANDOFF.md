@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 최소 획 굵기 v1.3.13
+- 사용자 실물 `.tmp/IMG_20260817_0008.png`: v1.3.12의 8배 mask는 정상 출력됐지만 역상 흰 한글의 가는 획 단절과 점상 거칠기가 여전히 남는다. 표·선·일반 문자는 좋은 상태다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-57-35.log`: DebugLogger 1.3.12, 8배 mask·워터마크 정상, 흰 knockout 3328px, 실패 0이다. 4배 v1.3.11의 3504px보다 흰 dot이 줄어 가는 획 보존에 부족하다. supersampling 증가는 종료한다.
+- 수정 완료: 흰 descriptor의 mask font에만 인쇄용 최소 `FW_SEMIBOLD`를 적용했다. 원래 normal은 400→600, 원래 bold는 `FW_BOLD` 700을 유지한다. 8배 coverage, font height, fit, 좌표와 합성 대상은 유지했다.
+- 회귀 방지: 표·선·border, final bitmap, 일반 34개 printer DC 문자와 원래 bold 역상 문자는 변경하지 않았다. `nativeTextWhiteSemiboldApplied` 진단을 추가하고 워터마크를 `v1.3.13`으로 갱신했다.
+- 버전 편집 완료: 호환 가능한 역상 문자 품질 개선이므로 PATCH 증가로 `1.3.12`에서 `1.3.13`으로 갱신했다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 다음으로 출력 회귀 테스트, 진단, EXE 버전과 최종 diff를 확인한다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음. 최종 스타일 정리 후 `/WX` Windows Debug 재빌드도 성공했다.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.13`, semibold·워터마크 진단 일치, `git diff --check` 통과. production diff는 흰 normal weight, 적용 건수 진단, 워터마크·버전뿐이다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 판별 기준: v1.3.13 로그에서 흰 descriptor 2건, semibold 적용 건수 0 초과, 실패 0이어야 한다. 실물은 다른 출력과 글자 배치를 유지하면서 역상 normal 한글의 가는 획 연속성과 가독성이 개선돼야 한다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 8배 윤곽 샘플링 v1.3.12
 - 사용자 실물 `.tmp/IMG_20260817_0007.png`: v1.3.11 워터마크는 정상 출력됐지만 역상 흰 글자는 육안상 이전과 차이가 없다. 표·선·일반 문자는 좋은 상태다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-51-42.log`: DebugLogger 1.3.11, 흰 knockout 3504px 중 bridge는 33px(약 0.9%), 실패 0이다. 적용량이 너무 작아 실물 차이가 없으므로 bridge 접근은 종료한다.
@@ -13,6 +25,7 @@
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.12 로그는 `supersample8xCoverage48`, 흰 descriptor 2건, 실패 0이어야 한다. 실물에서 다른 출력은 동일하고 역상 한글의 모서리·대각선·내부 획만 더 균일해야 한다.
 - 기능 커밋: `787d24d` (`Godex 역상 흰 글자 윤곽 샘플링 향상`).
+- 실물 결론: 8배 mask는 오류 없이 적용됐지만 knockout이 3328px로 감소하고 `.tmp/IMG_20260817_0008.png`의 가는 획 품질이 부족해 supersampling 증가는 종료한다.
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 획 1dot 단절 연결 v1.3.11
 - 사용자 실물 `.tmp/IMG_20260817_0006.png`: v1.3.10은 육안상 v1.3.9와 차이가 없고 역상 한글의 내부 획 단절·점상 거칠기가 남는다. 표·선·일반 문자는 좋은 상태다.

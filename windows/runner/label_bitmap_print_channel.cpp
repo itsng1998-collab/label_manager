@@ -20,7 +20,7 @@ using EncodableValue = flutter::EncodableValue;
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kWhiteTextSupersample = 8;
 constexpr int kWhiteTextCoverageThreshold = 48;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.12";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.13";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -257,6 +257,7 @@ struct NativeTextRenderStats {
   int failed = 0;
   int fitted = 0;
   int white_bitmap_drawn = 0;
+  int white_semibold_applied = 0;
   size_t white_knockout_pixels = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
@@ -318,7 +319,7 @@ bool RenderWhiteTextIntoBitmap(
     const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
     HFONT font = CreateFontW(
         -font_pixel_height, 0, 0, 0,
-        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+        descriptor.bold ? FW_BOLD : FW_SEMIBOLD, descriptor.italic,
         descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
@@ -404,6 +405,7 @@ bool RenderWhiteTextIntoBitmap(
     if (draw_result > 0) {
       ++stats.drawn;
       ++stats.white_bitmap_drawn;
+      if (!descriptor.bold) ++stats.white_semibold_applied;
       stats.characters += descriptor.text.size();
     } else {
       ++stats.failed;
@@ -981,8 +983,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=supersample8xCoverage48"
-              << " printWatermark=v1.3.12"
+              << " nativeTextWhiteRender=supersample8xCoverage48MinSemibold"
+              << " printWatermark=v1.3.13"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1144,6 +1146,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextFitted=" << native_text_stats.fitted
                   << " nativeTextWhiteBitmapDrawn="
                   << native_text_stats.white_bitmap_drawn
+                  << " nativeTextWhiteSemiboldApplied="
+                  << native_text_stats.white_semibold_applied
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
                   << " nativeTextOutlineFonts="
