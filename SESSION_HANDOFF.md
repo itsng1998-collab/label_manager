@@ -13,6 +13,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.9`, 실패한 opaque/path 흰 후처리 진단 제거, `git diff --check` 통과. 기존 `ComposeFinalDeviceBitmap`, border 병합/좌표, 검정 문자 렌더 본문은 변경하지 않았다.
 - 판별 기준: v1.3.9 로그에서 흰 bitmap descriptor 2건, 전체 native text 36건, 흰 knockout pixel 0 초과, 실패 0이어야 한다. 실물에서 표·선·일반 문자는 v1.3.8과 같고 제3·9행 흰 획의 연속성과 가독성만 개선돼야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 기능 커밋: `b6fc0d4` (`Godex 역상 흰 글자 비트맵 합성 적용`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 glyph outline 출력 v1.3.8
 - 사용자 실물 `.tmp/IMG_20260817_0003.png`: v1.3.7은 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 v1.3.6과 차이가 없다.
