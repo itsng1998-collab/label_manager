@@ -10,6 +10,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.15`, `git diff --check` 통과. 변경은 역상 흰 mask 폐쇄 연산·진단, 워터마크·버전과 인수인계뿐이다.
 - 판별 기준: v1.3.15 로그에서 `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteClosedPixels`가 0 초과이되 v1.3.14 확장 3293px보다 충분히 작고, `nativeTextFailed=0`이어야 한다. 실물은 v1.3.14의 볼드화가 사라지고 역상 글자 내부 단절만 줄어야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 기능 커밋: `13bcf66` (`Godex 역상 흰 글자 내부 단절 보정`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 1-dot 획 보강 v1.3.14
 - 사용자 실물 `.tmp/IMG_20260817_0009.png`: v1.3.13 워터마크와 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 여전히 획 내부가 점상으로 끊겨 추가 개선이 필요하다.
