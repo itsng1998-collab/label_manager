@@ -11,6 +11,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.14`, `git diff --check` 통과. 변경은 역상 흰 mask 확장·진단, 무효 semibold 제거, 워터마크·버전과 인수인계뿐이다.
 - 판별 기준: v1.3.14 로그에서 `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteExpandedPixels`와 `nativeTextWhiteKnockoutPixels`가 0 초과, `nativeTextFailed=0`이어야 한다. 실물은 표·선·일반 문자를 유지하면서 역상 흰 획의 끊김이 줄어야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 기능 커밋: `7503f53` (`Godex 역상 흰 글자 획 보강`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 최소 획 굵기 v1.3.13
 - 사용자 실물 `.tmp/IMG_20260817_0008.png`: v1.3.12의 8배 mask는 정상 출력됐지만 역상 흰 한글의 가는 획 단절과 점상 거칠기가 여전히 남는다. 표·선·일반 문자는 좋은 상태다.
