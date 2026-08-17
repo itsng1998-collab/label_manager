@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 내부 단절 폐쇄 v1.3.15
+- 사용자 실물 `.tmp/IMG_20260817_0010.png`: v1.3.14 워터마크, 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 개선이 아니라 전체가 볼드처럼 뭉개졌다.
+- 최신 로그 `.tmp/log/app_2026-08-17_18-08-56.log`: 원본 3328px에 확장 3293px가 추가돼 knockout이 6621px로 거의 두 배가 됐다. 전방향 1-dot 확장이 외곽 전체를 굵게 만든 원인으로 확정돼 폐기한다.
+- 수정 완료: 원본 threshold mask에 3x3 팽창 후 3x3 침식을 적용하는 폐쇄 연산으로 교체했다. 원본 외곽 두께는 복원하고 1-dot 내부 구멍·단절을 닫아 추가된 픽셀만 `nativeTextWhiteClosedPixels`로 집계한다.
+- 회귀 방지: 표·선·일반 문자, 검은 글자 printer DC, font/fit/좌표/coverage는 변경하지 않았다. 진단을 `supersample8xCoverage48Close3x3`, 워터마크와 앱 버전을 `v1.3.15`로 갱신했다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 다음으로 출력 회귀 테스트, 편집기 진단, EXE 버전과 최종 diff를 확인한다.
+- 검증 완료: 출력 관련 4개 테스트 파일 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.15`, `git diff --check` 통과. 변경은 역상 흰 mask 폐쇄 연산·진단, 워터마크·버전과 인수인계뿐이다.
+- 판별 기준: v1.3.15 로그에서 `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteClosedPixels`가 0 초과이되 v1.3.14 확장 3293px보다 충분히 작고, `nativeTextFailed=0`이어야 한다. 실물은 v1.3.14의 볼드화가 사라지고 역상 글자 내부 단절만 줄어야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 1-dot 획 보강 v1.3.14
 - 사용자 실물 `.tmp/IMG_20260817_0009.png`: v1.3.13 워터마크와 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 여전히 획 내부가 점상으로 끊겨 추가 개선이 필요하다.
 - 최신 로그 `.tmp/log/app_2026-08-17_18-02-58.log`: `nativeTextWhiteSemiboldApplied=0`, 흰 knockout 3328px, 실패 0이다. 흰 descriptor 2건이 모두 원래 bold여서 v1.3.13의 normal 전용 semibold는 적용되지 않았고 v1.3.12와 mask가 동일했다.
