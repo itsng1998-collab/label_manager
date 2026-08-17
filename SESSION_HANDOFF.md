@@ -9,6 +9,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.10`, 상수·진단 모두 coverage 48로 일치, `git diff --check` 통과. production diff는 threshold·진단·버전뿐이다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.10 로그는 `supersample4xCoverage48`, 흰 descriptor 2건, knockout 0 초과, 실패 0이어야 한다. 실물은 제3·9행 흰 획의 연속성은 유지하면서 외곽 돌출과 뭉침이 줄고 나머지는 v1.3.9와 같아야 한다.
+- 기능 커밋: `19ff26f` (`Godex 역상 흰 글자 외곽 정리`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 전용 bitmap knockout v1.3.9
 - 사용자 실물 `.tmp/IMG_20260817_0004.png`: v1.3.8도 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 개선되지 않았고, 표·선·일반 문자는 좋은 상태다.
