@@ -11,6 +11,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.8`, 실패한 v1.3.7 opaque 진단 제거, `git diff --check` 통과. 실제 GoDEX path 지원과 품질은 v1.3.8 실물 출력으로 확인해야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.8 로그에서 흰 path 성공 2건/fallback 0건이어야 하며, 같은 실물에서 일반 문자는 유지되고 제3·9행 흰 glyph 내부의 점상 잔여와 획 단절이 줄어야 한다.
+- 기능 커밋: `46f16c6` (`Godex 역상 흰 글자 윤곽 출력 적용`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 가독성 개선 v1.3.7
 - 사용자 실물 `.tmp/IMG_20260817_0002.png`: v1.3.6 printer DC 직접 출력으로 일반 문자는 전반적으로 개선됐으나 제3·9행 검정 배경의 흰 글자는 획 내부가 점상으로 남아 가독성이 낮다.
