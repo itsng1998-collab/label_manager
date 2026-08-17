@@ -20,6 +20,8 @@ using EncodableValue = flutter::EncodableValue;
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kWhiteTextSupersample = 4;
 constexpr int kWhiteTextCoverageThreshold = 48;
+constexpr int kWhiteTextBridgeCoverageThreshold = 16;
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.11";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -257,6 +259,7 @@ struct NativeTextRenderStats {
   int fitted = 0;
   int white_bitmap_drawn = 0;
   size_t white_knockout_pixels = 0;
+  size_t white_bridge_pixels = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
@@ -414,6 +417,10 @@ bool RenderWhiteTextIntoBitmap(
   GdiFlush();
   constexpr int sample_count =
       kWhiteTextSupersample * kWhiteTextSupersample;
+  const size_t target_pixel_count =
+      static_cast<size_t>(target_width) * target_height;
+  std::vector<uint16_t> coverage(target_pixel_count, 0);
+  std::vector<uint8_t> strong_mask(target_pixel_count, 0);
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
       int luminance_sum = 0;
@@ -426,15 +433,47 @@ bool RenderWhiteTextIntoBitmap(
           luminance_sum += rendered[render_offset];
         }
       }
-      if (luminance_sum < kWhiteTextCoverageThreshold * sample_count) {
-        continue;
-      }
-      const size_t target_offset =
-          (static_cast<size_t>(y) * target_width + x) * 4;
+      const size_t pixel_index =
+          static_cast<size_t>(y) * target_width + x;
+      coverage[pixel_index] = static_cast<uint16_t>(luminance_sum);
+      const size_t target_offset = pixel_index * 4;
       if (bitmap[target_offset] >= 128 || bitmap[target_offset + 1] >= 128 ||
           bitmap[target_offset + 2] >= 128) {
         continue;
       }
+      if (luminance_sum >= kWhiteTextCoverageThreshold * sample_count) {
+        strong_mask[pixel_index] = 1;
+      }
+    }
+  }
+  std::vector<uint8_t> final_mask = strong_mask;
+  for (int y = 1; y + 1 < target_height; ++y) {
+    for (int x = 1; x + 1 < target_width; ++x) {
+      const size_t pixel_index =
+          static_cast<size_t>(y) * target_width + x;
+      if (strong_mask[pixel_index] != 0 ||
+          coverage[pixel_index] <
+              kWhiteTextBridgeCoverageThreshold * sample_count) {
+        continue;
+      }
+      const bool horizontal_bridge =
+          strong_mask[pixel_index - 1] != 0 &&
+          strong_mask[pixel_index + 1] != 0;
+      const bool vertical_bridge =
+          strong_mask[pixel_index - target_width] != 0 &&
+          strong_mask[pixel_index + target_width] != 0;
+      if (horizontal_bridge || vertical_bridge) {
+        final_mask[pixel_index] = 1;
+        ++stats.white_bridge_pixels;
+      }
+    }
+  }
+  for (size_t pixel_index = 0; pixel_index < target_pixel_count;
+       ++pixel_index) {
+    if (final_mask[pixel_index] == 0) continue;
+    const size_t target_offset = pixel_index * 4;
+    if (bitmap[target_offset] < 128 && bitmap[target_offset + 1] < 128 &&
+        bitmap[target_offset + 2] < 128) {
       bitmap[target_offset] = 255;
       bitmap[target_offset + 1] = 255;
       bitmap[target_offset + 2] = 255;
@@ -764,6 +803,55 @@ bool RenderNativeTextToPrinterDc(
 #endif
 }
 
+bool DrawPrintTestWatermark(HDC printer_dc, int destination_x,
+                            int destination_y, int target_width,
+                            int target_height, std::string& error) {
+  const int dc_state = SaveDC(printer_dc);
+  if (dc_state == 0) {
+    error = "SaveDC for print watermark failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  SetMapMode(printer_dc, MM_TEXT);
+  SetBkMode(printer_dc, TRANSPARENT);
+  SetTextColor(printer_dc, RGB(0, 0, 0));
+  HFONT font = CreateFontW(
+      -7, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+      OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+      DEFAULT_PITCH | FF_DONTCARE, L"Arial");
+  if (font == nullptr) {
+    RestoreDC(printer_dc, dc_state);
+    error = "CreateFontW for print watermark failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  HGDIOBJ previous_font = SelectObject(printer_dc, font);
+  SIZE text_size{};
+  const int text_length =
+      static_cast<int>(std::size(kPrintTestWatermark) - 1);
+  const BOOL measured = GetTextExtentPoint32W(
+      printer_dc, kPrintTestWatermark, text_length, &text_size);
+  const int measured_width = measured ? static_cast<int>(text_size.cx) : 32;
+  const int measured_height = measured ? static_cast<int>(text_size.cy) : 7;
+  const int left = std::max(
+      destination_x,
+      destination_x + target_width - measured_width - 2);
+  const int top = std::max(
+      destination_y,
+      destination_y + target_height - measured_height - 2);
+  const BOOL drawn = TextOutW(printer_dc, left, top, kPrintTestWatermark,
+                              text_length);
+  SelectObject(printer_dc, previous_font);
+  DeleteObject(font);
+  RestoreDC(printer_dc, dc_state);
+  if (drawn == 0) {
+    error = "TextOutW for print watermark failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  return true;
+}
+
 EncodableValue PrintResult(bool ok, const std::string& diagnostics,
                            const std::string& error = {}) {
   EncodableMap result{
@@ -931,7 +1019,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=supersample4xCoverage48"
+              << " nativeTextWhiteRender=supersample4xCoverage48Bridge16"
+              << " printWatermark=v1.3.11"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -992,6 +1081,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               composed_bitmap, target_width, target_height, source_width,
               source_height, text_descriptors, printer_dc,
               native_text_stats, error)) {
+        break;
+      }
+      if (!DrawPrintTestWatermark(
+              printer_dc, destination_x, destination_y, target_width,
+              target_height, error)) {
         break;
       }
       int native_borders_drawn = 0;
@@ -1090,6 +1184,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.white_bitmap_drawn
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
+                  << " nativeTextWhiteBridgePixels="
+                  << native_text_stats.white_bridge_pixels
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

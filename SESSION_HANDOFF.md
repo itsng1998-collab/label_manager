@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 획 1dot 단절 연결 v1.3.11
+- 사용자 실물 `.tmp/IMG_20260817_0006.png`: v1.3.10은 육안상 v1.3.9와 차이가 없고 역상 한글의 내부 획 단절·점상 거칠기가 남는다. 표·선·일반 문자는 좋은 상태다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-44-22.log`: DebugLogger 1.3.10, knockout 3471px로 v1.3.9의 3657px보다 186px(약 5%)만 줄어 threshold 32→48 변화가 실물에 작게 반영됐다. 단순 threshold 조정은 종료한다.
+- 수정 완료: coverage 48의 강한 흰 mask 외곽은 유지하고, coverage 16 이상인 약한 pixel 중 원본 강한 mask가 좌우 또는 상하로 모두 이어진 1dot 내부 공백만 한 번 연결한다. 새 pixel을 다음 연결에 재사용하지 않아 연쇄 팽창하지 않는다.
+- 회귀 방지: 흰 descriptor 전용 mask 후처리만 변경하며 표·선·border, 일반 34개 printer DC 문자, font/fit/좌표는 그대로 유지한다. `nativeTextWhiteBridgePixels` 진단을 추가했다.
+- 사용자 추가 요청: 반복 실물 출력의 버전 구분을 위해 임시 워터마크를 허용했다. v1.3.11은 역상 검정 행을 피하고 라벨 우하단에 작은 `v1.3.11` 투명 배경 텍스트를 별도 printer DC로 출력하며 진단에 watermark 버전을 남긴다. 기존 descriptor와 bitmap 내용은 변경하지 않는다.
+- 워터마크 구현 완료: 우하단 2dot 안쪽에 높이 7dot `v1.3.11`을 별도 printer DC로 출력하고 `printWatermark=v1.3.11`을 기록한다. 워터마크 실패 시 테스트 출력 자체를 실패 처리한다.
+- 버전 편집 완료: 호환 가능한 역상 문자 보완이므로 PATCH 증가로 `1.3.10`에서 `1.3.11`로 갱신했다.
+- 첫 워터마크 포함 `/WX` 빌드는 `SIZE.cx/cy`의 `LONG`과 좌표 `int`의 `std::max` 타입 불일치로 실패했다. 측정 크기를 명시적으로 `int` 변환한 뒤 동일 `/WX` 빌드 재실행에 성공했다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음. 최종 스타일 정리 후 `/WX` Windows Debug 재빌드도 성공했다.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.11`, bridge·watermark 진단과 표시 문자열 일치, `git diff --check` 통과. 기존 표·선·border와 일반 문자 렌더 본문은 변경하지 않았다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 판별 기준: v1.3.11 로그에서 흰 descriptor 2건, bridge pixel 0 초과, 실패 0이어야 한다. 실물에서 외곽 굵기·자간은 v1.3.10과 같고 제3·9행 흰 획 내부의 1dot 단절만 줄어야 한다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 edge 정리 v1.3.10
 - 사용자 실물 `.tmp/IMG_20260817_0005.png`: v1.3.9에서 제3·9행 역상 흰 글자는 이전보다 개선됐으나 낮은 coverage edge까지 흰 dot으로 확정돼 획 외곽과 모서리가 거칠고 일부 글자가 뭉쳐 보인다. 표·선·일반 문자는 좋은 상태다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-30-29.log`: DebugLogger 1.3.9, 흰 bitmap descriptor 2건, knockout 3657px, 전체 문자 36건, 실패 0으로 분리 합성이 정상 적용됐다.
@@ -10,6 +24,7 @@
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.10 로그는 `supersample4xCoverage48`, 흰 descriptor 2건, knockout 0 초과, 실패 0이어야 한다. 실물은 제3·9행 흰 획의 연속성은 유지하면서 외곽 돌출과 뭉침이 줄고 나머지는 v1.3.9와 같아야 한다.
 - 기능 커밋: `19ff26f` (`Godex 역상 흰 글자 외곽 정리`).
+- 실물 결론: knockout은 186px 감소했지만 `.tmp/IMG_20260817_0006.png`에서 육안상 차이가 없어 threshold 단독 조정은 종료한다.
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 전용 bitmap knockout v1.3.9
 - 사용자 실물 `.tmp/IMG_20260817_0004.png`: v1.3.8도 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 개선되지 않았고, 표·선·일반 문자는 좋은 상태다.
