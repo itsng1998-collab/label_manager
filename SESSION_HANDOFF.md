@@ -20,6 +20,7 @@
 - 최종 검증 완료: FortuneTable nested package navigation 2건 통과, `/WX` Windows Debug 빌드 성공, EXE FileVersion/ProductVersion 모두 `1.3.5`, `git diff --check` 통과.
 - 동작 기준: 품목 발행 checkbox는 발행 체크 상태만 변경한다. 현재 행 선택과 주원료 preview owner를 바꾸지 않으므로 item draft는 clean이고 저장 버튼은 비활성 상태를 유지한다. 다른 FortuneTable checkbox는 기존 행 선택 기본 동작을 유지한다.
 - stage/commit 대상: `fortune_table.dart`, `item_manage.dart`, 실제 checkbox 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `725a3bf` (`발행 체크의 품목 초안 변경 방지`).
 
 ## 완료: 품목관리 비편집 상호작용의 편집모드 진입 차단 v1.3.4
 - 요청: 발행 체크, 플로팅창 주원료/출력 미리보기 탭 클릭, 플로팅창 resize는 품목관리 편집모드로 들어가지 않아야 한다. 주원료 시트는 더블클릭 후 변경 없이 나와도 draft를 만들지 않아야 하며 출력 미리보기는 읽기 전용이어야 한다.
