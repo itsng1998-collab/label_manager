@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 전용 bitmap knockout v1.3.9
+- 사용자 실물 `.tmp/IMG_20260817_0004.png`: v1.3.8도 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 개선되지 않았고, 표·선·일반 문자는 좋은 상태다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-22-53.log`: DebugLogger 1.3.8, `nativeTextWhitePathDrawn=2`, fallback 0, 실패 0으로 glyph path가 정확히 두 descriptor에 정상 적용됐다. printer DC에서 흰 글자를 후처리하는 방식 자체를 종료한다.
+- 새 원인/방식: GoDEX driver가 먼저 출력된 검정 raster 위에 별도 흰 vector/path를 합성할 때 glyph edge를 안정적인 단색 dot으로 만들지 못한다. 흰 descriptor만 4배 coverage mask로 렌더하고 final 1:1 bitmap의 검정 배경에 순수 흰 dot으로 knockout한 뒤 한 번에 전송한다.
+- 회귀 방지 범위: 검정 등 일반 34개 문자는 v1.3.6의 printer DC `DrawTextW`를 그대로 유지한다. 표·선·border 생성/좌표와 final bitmap 크기는 바꾸지 않으며, 흰 mask가 있는 검정 픽셀만 변경한다. 과거 전체 텍스트 supersample/threshold 방식은 재사용하지 않는다.
+- 구현 완료: 흰 descriptor만 4배 memory DIB의 검정 mask에 `DEFAULT_QUALITY`로 렌더하고 평균 coverage 12.5% 이상인 final dot을 순수 흰색으로 만든다. 원래 final bitmap이 검정 계열인 픽셀만 변경한다. printer DC 일반 문자 루프는 흰 descriptor를 건너뛴다.
+- 진단 갱신: `nativeTextWhiteRender=supersample4xCoverage32`, `nativeTextWhiteBitmapDrawn`, `nativeTextWhiteKnockoutPixels`, split mapping/composite로 실제 경로를 확인한다.
+- 버전 편집 완료: 호환 가능한 역상 문자 출력 수정이므로 PATCH 증가로 `1.3.8`에서 `1.3.9`로 갱신했다.
+- 첫 `/WX` Windows Debug 빌드는 mask `fill_n`의 `int`→`uint8_t` 축소 경고 C4244를 오류 처리해 실패했다. 초기화 값을 `uint8_t{0}`으로 명시한 뒤 동일 `/WX` 빌드 재실행에 성공했다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.9`, 실패한 opaque/path 흰 후처리 진단 제거, `git diff --check` 통과. 기존 `ComposeFinalDeviceBitmap`, border 병합/좌표, 검정 문자 렌더 본문은 변경하지 않았다.
+- 판별 기준: v1.3.9 로그에서 흰 bitmap descriptor 2건, 전체 native text 36건, 흰 knockout pixel 0 초과, 실패 0이어야 한다. 실물에서 표·선·일반 문자는 v1.3.8과 같고 제3·9행 흰 획의 연속성과 가독성만 개선돼야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 glyph outline 출력 v1.3.8
 - 사용자 실물 `.tmp/IMG_20260817_0003.png`: v1.3.7은 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 v1.3.6과 차이가 없다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-16-14.log`: DebugLogger 1.3.7, `nativeTextOpaqueBlackBackground=2`, 실패 0으로 정확히 두 역상 descriptor에 opaque 경로가 적용됐다. 따라서 background mode 원인 가설은 기각한다.
@@ -12,6 +26,7 @@
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.8 로그에서 흰 path 성공 2건/fallback 0건이어야 하며, 같은 실물에서 일반 문자는 유지되고 제3·9행 흰 glyph 내부의 점상 잔여와 획 단절이 줄어야 한다.
 - 기능 커밋: `46f16c6` (`Godex 역상 흰 글자 윤곽 출력 적용`).
+- 실물 결론: path 성공 2건/fallback 0건은 확인됐지만 `.tmp/IMG_20260817_0004.png`에서 육안상 차이가 없어 printer DC 흰 글자 후처리 접근은 종료한다.
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 가독성 개선 v1.3.7
 - 사용자 실물 `.tmp/IMG_20260817_0002.png`: v1.3.6 printer DC 직접 출력으로 일반 문자는 전반적으로 개선됐으나 제3·9행 검정 배경의 흰 글자는 획 내부가 점상으로 남아 가독성이 낮다.

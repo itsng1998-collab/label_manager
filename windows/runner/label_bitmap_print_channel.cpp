@@ -18,6 +18,8 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
+constexpr int kWhiteTextSupersample = 4;
+constexpr int kWhiteTextCoverageThreshold = 32;
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -253,13 +255,199 @@ struct NativeTextRenderStats {
   int drawn = 0;
   int failed = 0;
   int fitted = 0;
-  int white_path_drawn = 0;
-  int white_path_fallback = 0;
+  int white_bitmap_drawn = 0;
+  size_t white_knockout_pixels = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
   size_t characters = 0;
 };
+
+bool RenderWhiteTextIntoBitmap(
+    std::vector<uint8_t>& bitmap, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    HDC printer_dc, NativeTextRenderStats& stats, std::string& error) {
+  const bool has_white_text = std::any_of(
+      text_descriptors.begin(), text_descriptors.end(),
+      [](const NativeTextDescriptor& descriptor) {
+        return descriptor.color == RGB(255, 255, 255);
+      });
+  if (!has_white_text) return true;
+
+  const int render_width = target_width * kWhiteTextSupersample;
+  const int render_height = target_height * kWhiteTextSupersample;
+  BITMAPINFO bitmap_info{};
+  bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  bitmap_info.bmiHeader.biWidth = render_width;
+  bitmap_info.bmiHeader.biHeight = -render_height;
+  bitmap_info.bmiHeader.biPlanes = 1;
+  bitmap_info.bmiHeader.biBitCount = 32;
+  bitmap_info.bmiHeader.biCompression = BI_RGB;
+  HDC memory_dc = CreateCompatibleDC(printer_dc);
+  if (memory_dc == nullptr) {
+    error = "CreateCompatibleDC for white text failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  void* dib_bits = nullptr;
+  HBITMAP dib = CreateDIBSection(memory_dc, &bitmap_info, DIB_RGB_COLORS,
+                                 &dib_bits, nullptr, 0);
+  if (dib == nullptr || dib_bits == nullptr) {
+    error = "CreateDIBSection for white text failed: " +
+            std::to_string(GetLastError());
+    if (dib != nullptr) DeleteObject(dib);
+    DeleteDC(memory_dc);
+    return false;
+  }
+  HGDIOBJ previous_bitmap = SelectObject(memory_dc, dib);
+  auto* rendered = static_cast<uint8_t*>(dib_bits);
+  std::fill_n(rendered,
+              static_cast<size_t>(render_width) * render_height * 4,
+              uint8_t{0});
+  SetMapMode(memory_dc, MM_ANISOTROPIC);
+  SetWindowExtEx(memory_dc, source_width, source_height, nullptr);
+  SetViewportExtEx(memory_dc, render_width, render_height, nullptr);
+  SetViewportOrgEx(memory_dc, 0, 0, nullptr);
+  const int previous_background_mode = SetBkMode(memory_dc, TRANSPARENT);
+  const COLORREF previous_text_color = SetTextColor(memory_dc, RGB(255, 255, 255));
+
+  for (const auto& descriptor : text_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
+    HFONT font = CreateFontW(
+        -font_pixel_height, 0, 0, 0,
+        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+        descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
+    if (font == nullptr) {
+      ++stats.failed;
+      continue;
+    }
+    HGDIOBJ previous_font = SelectObject(memory_dc, font);
+    if (previous_font == nullptr || previous_font == HGDI_ERROR) {
+      DeleteObject(font);
+      ++stats.failed;
+      continue;
+    }
+    if (GetFontData(memory_dc, 0, 0, nullptr, 0) == GDI_ERROR) {
+      ++stats.no_outline_fonts;
+    } else {
+      ++stats.outline_fonts;
+    }
+    RECT text_rect{
+        descriptor.rect.left,
+        descriptor.rect.top,
+        descriptor.rect.right,
+        descriptor.rect.bottom,
+    };
+    UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
+    if (descriptor.horizontal_align == "0") {
+      flags |= DT_CENTER;
+    } else if (descriptor.horizontal_align == "2") {
+      flags |= DT_RIGHT;
+    } else {
+      flags |= DT_LEFT;
+    }
+    flags |= descriptor.wrap ? DT_WORDBREAK : DT_SINGLELINE;
+    RECT measured = text_rect;
+    DrawTextW(memory_dc, descriptor.text.c_str(),
+              static_cast<int>(descriptor.text.size()), &measured,
+              flags | DT_CALCRECT);
+    HFONT fitted_font = nullptr;
+    const LONG available_width = text_rect.right - text_rect.left;
+    const LONG measured_width = measured.right - measured.left;
+    if (!descriptor.wrap && measured_width > available_width &&
+        available_width > 0) {
+      LOGFONTW log_font{};
+      if (GetObjectW(font, sizeof(log_font), &log_font) != 0) {
+        const LONG desired_width = std::max(1L, available_width - 2);
+        int fitted_height = std::max(
+            1, MulDiv(font_pixel_height, desired_width, measured_width));
+        for (int attempt = 0; attempt < 4; ++attempt) {
+          log_font.lfHeight = -fitted_height;
+          log_font.lfWidth = 0;
+          HFONT next_fitted_font = CreateFontIndirectW(&log_font);
+          if (next_fitted_font == nullptr) break;
+          SelectObject(memory_dc, next_fitted_font);
+          if (fitted_font != nullptr) DeleteObject(fitted_font);
+          fitted_font = next_fitted_font;
+          measured = text_rect;
+          DrawTextW(memory_dc, descriptor.text.c_str(),
+                    static_cast<int>(descriptor.text.size()), &measured,
+                    flags | DT_CALCRECT);
+          const LONG fitted_measured_width = measured.right - measured.left;
+          if (fitted_measured_width <= desired_width) break;
+          const int next_height = std::max(
+              1, MulDiv(fitted_height, desired_width,
+                        fitted_measured_width));
+          fitted_height = next_height < fitted_height
+                              ? next_height
+                              : std::max(1, fitted_height - 1);
+        }
+        if (fitted_font != nullptr) ++stats.fitted;
+      }
+    }
+    const LONG text_height = measured.bottom - measured.top;
+    if (descriptor.vertical_align == "2") {
+      text_rect.top = std::max(text_rect.top, text_rect.bottom - text_height);
+    } else if (descriptor.vertical_align != "1") {
+      text_rect.top += std::max<LONG>(
+          0, (text_rect.bottom - text_rect.top - text_height) / 2);
+    }
+    text_rect.right += kNativeTextRightOverhangDots;
+    const int draw_result = DrawTextW(
+        memory_dc, descriptor.text.c_str(),
+        static_cast<int>(descriptor.text.size()), &text_rect, flags);
+    if (draw_result > 0) {
+      ++stats.drawn;
+      ++stats.white_bitmap_drawn;
+      stats.characters += descriptor.text.size();
+    } else {
+      ++stats.failed;
+    }
+    SelectObject(memory_dc, previous_font);
+    if (fitted_font != nullptr) DeleteObject(fitted_font);
+    DeleteObject(font);
+  }
+  GdiFlush();
+  constexpr int sample_count =
+      kWhiteTextSupersample * kWhiteTextSupersample;
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      int luminance_sum = 0;
+      for (int sample_y = 0; sample_y < kWhiteTextSupersample; ++sample_y) {
+        for (int sample_x = 0; sample_x < kWhiteTextSupersample; ++sample_x) {
+          const int render_x = x * kWhiteTextSupersample + sample_x;
+          const int render_y = y * kWhiteTextSupersample + sample_y;
+          const size_t render_offset =
+              (static_cast<size_t>(render_y) * render_width + render_x) * 4;
+          luminance_sum += rendered[render_offset];
+        }
+      }
+      if (luminance_sum < kWhiteTextCoverageThreshold * sample_count) {
+        continue;
+      }
+      const size_t target_offset =
+          (static_cast<size_t>(y) * target_width + x) * 4;
+      if (bitmap[target_offset] >= 128 || bitmap[target_offset + 1] >= 128 ||
+          bitmap[target_offset + 2] >= 128) {
+        continue;
+      }
+      bitmap[target_offset] = 255;
+      bitmap[target_offset + 1] = 255;
+      bitmap[target_offset + 2] = 255;
+      ++stats.white_knockout_pixels;
+    }
+  }
+  SetTextColor(memory_dc, previous_text_color);
+  SetBkMode(memory_dc, previous_background_mode);
+  SelectObject(memory_dc, previous_bitmap);
+  DeleteObject(dib);
+  DeleteDC(memory_dc);
+  return true;
+}
 
 bool RenderNativeTextToPrinterDc(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
@@ -281,6 +469,7 @@ bool RenderNativeTextToPrinterDc(
   SetViewportOrgEx(printer_dc, 0, 0, nullptr);
   const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
   for (const auto& descriptor : text_descriptors) {
+    if (descriptor.color == RGB(255, 255, 255)) continue;
     const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
     HFONT font = CreateFontW(
         -font_pixel_height, 0, 0, 0,
@@ -366,45 +555,9 @@ bool RenderNativeTextToPrinterDc(
           0, (text_rect.bottom - text_rect.top - text_height) / 2);
     }
     text_rect.right += kNativeTextRightOverhangDots;
-    const bool white_text = descriptor.color == RGB(255, 255, 255);
-    int draw_result = 0;
-    if (white_text) {
-      const BOOL path_started = BeginPath(printer_dc);
-      const int path_text_result = path_started
-          ? DrawTextW(printer_dc, descriptor.text.c_str(),
-                      static_cast<int>(descriptor.text.size()), &text_rect,
-                      flags)
-          : 0;
-      const BOOL path_ended = path_text_result > 0
-          ? EndPath(printer_dc)
-          : FALSE;
-      const int path_points = path_ended
-          ? GetPath(printer_dc, nullptr, nullptr, 0)
-          : 0;
-      if (path_points > 0) {
-        HGDIOBJ previous_brush =
-            SelectObject(printer_dc, GetStockObject(WHITE_BRUSH));
-        if (previous_brush != nullptr && previous_brush != HGDI_ERROR &&
-            FillPath(printer_dc) != 0) {
-          draw_result = path_text_result;
-          ++stats.white_path_drawn;
-        }
-        if (previous_brush != nullptr && previous_brush != HGDI_ERROR) {
-          SelectObject(printer_dc, previous_brush);
-        }
-      }
-      if (draw_result == 0) {
-        AbortPath(printer_dc);
-        draw_result = DrawTextW(
-            printer_dc, descriptor.text.c_str(),
-            static_cast<int>(descriptor.text.size()), &text_rect, flags);
-        if (draw_result > 0) ++stats.white_path_fallback;
-      }
-    } else {
-      draw_result = DrawTextW(
-          printer_dc, descriptor.text.c_str(),
-          static_cast<int>(descriptor.text.size()), &text_rect, flags);
-    }
+    const int draw_result = DrawTextW(
+        printer_dc, descriptor.text.c_str(),
+        static_cast<int>(descriptor.text.size()), &text_rect, flags);
     if (draw_result > 0) {
       ++stats.drawn;
       stats.characters += descriptor.text.size();
@@ -777,8 +930,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=printerDcDrawTextW"
-              << " nativeTextWhiteRender=filledGlyphPath"
+              << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
+              << " nativeTextWhiteRender=supersample4xCoverage32"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -807,6 +960,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
     NativeTextRenderStats native_text_stats;
+    if (!RenderWhiteTextIntoBitmap(
+        composed_bitmap, target_width, target_height, source_width,
+        source_height, text_descriptors, printer_dc,
+        native_text_stats, error)) {
+      break;
+    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -927,17 +1086,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       diagnostics << " nativeTextDrawn=" << native_text_stats.drawn
                   << " nativeTextFailed=" << native_text_stats.failed
                   << " nativeTextFitted=" << native_text_stats.fitted
-                  << " nativeTextWhitePathDrawn="
-                  << native_text_stats.white_path_drawn
-                  << " nativeTextWhitePathFallback="
-                  << native_text_stats.white_path_fallback
+                  << " nativeTextWhiteBitmapDrawn="
+                  << native_text_stats.white_bitmap_drawn
+                  << " nativeTextWhiteKnockoutPixels="
+                  << native_text_stats.white_knockout_pixels
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
-                  << " nativeTextMapping=anisotropicPrinterDc"
-                  << " nativeTextComposite=printerDcAfterBitmap"
+                  << " nativeTextMapping=anisotropicSplit"
+                  << " nativeTextComposite=whiteInFinalBitmap+blackPrinterDc"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
