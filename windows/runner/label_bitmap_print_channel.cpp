@@ -19,7 +19,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kWhiteTextSupersample = 4;
-constexpr int kWhiteTextCoverageThreshold = 32;
+constexpr int kWhiteTextCoverageThreshold = 48;
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -931,7 +931,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=supersample4xCoverage32"
+              << " nativeTextWhiteRender=supersample4xCoverage48"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";

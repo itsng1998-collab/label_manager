@@ -1,5 +1,15 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 edge 정리 v1.3.10
+- 사용자 실물 `.tmp/IMG_20260817_0005.png`: v1.3.9에서 제3·9행 역상 흰 글자는 이전보다 개선됐으나 낮은 coverage edge까지 흰 dot으로 확정돼 획 외곽과 모서리가 거칠고 일부 글자가 뭉쳐 보인다. 표·선·일반 문자는 좋은 상태다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-30-29.log`: DebugLogger 1.3.9, 흰 bitmap descriptor 2건, knockout 3657px, 전체 문자 36건, 실패 0으로 분리 합성이 정상 적용됐다.
+- 수정 완료: 흰 4배 mask의 평균 coverage 기준만 32(12.5%)에서 48(18.75%)로 올리고 진단을 `supersample4xCoverage48`로 갱신했다. 렌더·fit·좌표·final bitmap·border 및 일반 printer DC 문자는 변경하지 않았다.
+- 버전 편집 완료: 호환 가능한 역상 문자 edge 조정이므로 PATCH 증가로 `1.3.9`에서 `1.3.10`으로 갱신했다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.10`, 상수·진단 모두 coverage 48로 일치, `git diff --check` 통과. production diff는 threshold·진단·버전뿐이다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 판별 기준: v1.3.10 로그는 `supersample4xCoverage48`, 흰 descriptor 2건, knockout 0 초과, 실패 0이어야 한다. 실물은 제3·9행 흰 획의 연속성은 유지하면서 외곽 돌출과 뭉침이 줄고 나머지는 v1.3.9와 같아야 한다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 전용 bitmap knockout v1.3.9
 - 사용자 실물 `.tmp/IMG_20260817_0004.png`: v1.3.8도 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 개선되지 않았고, 표·선·일반 문자는 좋은 상태다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-22-53.log`: DebugLogger 1.3.8, `nativeTextWhitePathDrawn=2`, fallback 0, 실패 0으로 glyph path가 정확히 두 descriptor에 정상 적용됐다. printer DC에서 흰 글자를 후처리하는 방식 자체를 종료한다.
@@ -14,6 +24,7 @@
 - 판별 기준: v1.3.9 로그에서 흰 bitmap descriptor 2건, 전체 native text 36건, 흰 knockout pixel 0 초과, 실패 0이어야 한다. 실물에서 표·선·일반 문자는 v1.3.8과 같고 제3·9행 흰 획의 연속성과 가독성만 개선돼야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 기능 커밋: `b6fc0d4` (`Godex 역상 흰 글자 비트맵 합성 적용`).
+- 실물 결론: `.tmp/IMG_20260817_0005.png`에서 역상 글자 개선은 확인됐으나 coverage 32의 edge 과확장으로 외곽 정리가 더 필요하다. 분리 합성 구조는 유지한다.
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 glyph outline 출력 v1.3.8
 - 사용자 실물 `.tmp/IMG_20260817_0003.png`: v1.3.7은 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 v1.3.6과 차이가 없다.
