@@ -12,6 +12,7 @@
 - 최종 검증 완료: C++/pubspec 편집기 진단 없음, `/WX` Windows Debug 빌드 성공, Debug EXE FileVersion/ProductVersion 모두 `1.3.6`, 활성 printer DC 진단 문자열 확인, `git diff --check` 통과.
 - 동작 기준: final bitmap과 1dot border는 v1.3.5 방식을 유지하고 텍스트 descriptor만 bitmap 전송 후 printer DC에 직접 그린다. 다음 사용자 확인은 v1.3.6 로그의 `nativeTextComposite=printerDcAfterBitmap`과 Godex G500 실물 한글 획 품질이다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 기능 커밋: `d132209` (`Godex 한글 텍스트 출력 품질 복원`).
 
 ## 완료: 발행 체크 후 품목 저장 활성화 수정 v1.3.5
 - 사용자 재현: 실행 중인 v1.3.4에서 품목관리 테이블의 발행 체크만 했는데 저장 버튼이 활성화된다.
