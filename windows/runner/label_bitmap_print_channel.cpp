@@ -253,7 +253,8 @@ struct NativeTextRenderStats {
   int drawn = 0;
   int failed = 0;
   int fitted = 0;
-  int opaque_black_background = 0;
+  int white_path_drawn = 0;
+  int white_path_fallback = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
@@ -366,25 +367,49 @@ bool RenderNativeTextToPrinterDc(
     }
     text_rect.right += kNativeTextRightOverhangDots;
     const bool white_text = descriptor.color == RGB(255, 255, 255);
-    int descriptor_background_mode = 0;
-    COLORREF previous_background_color = CLR_INVALID;
+    int draw_result = 0;
     if (white_text) {
-      descriptor_background_mode = SetBkMode(printer_dc, OPAQUE);
-      previous_background_color = SetBkColor(printer_dc, RGB(0, 0, 0));
+      const BOOL path_started = BeginPath(printer_dc);
+      const int path_text_result = path_started
+          ? DrawTextW(printer_dc, descriptor.text.c_str(),
+                      static_cast<int>(descriptor.text.size()), &text_rect,
+                      flags)
+          : 0;
+      const BOOL path_ended = path_text_result > 0
+          ? EndPath(printer_dc)
+          : FALSE;
+      const int path_points = path_ended
+          ? GetPath(printer_dc, nullptr, nullptr, 0)
+          : 0;
+      if (path_points > 0) {
+        HGDIOBJ previous_brush =
+            SelectObject(printer_dc, GetStockObject(WHITE_BRUSH));
+        if (previous_brush != nullptr && previous_brush != HGDI_ERROR &&
+            FillPath(printer_dc) != 0) {
+          draw_result = path_text_result;
+          ++stats.white_path_drawn;
+        }
+        if (previous_brush != nullptr && previous_brush != HGDI_ERROR) {
+          SelectObject(printer_dc, previous_brush);
+        }
+      }
+      if (draw_result == 0) {
+        AbortPath(printer_dc);
+        draw_result = DrawTextW(
+            printer_dc, descriptor.text.c_str(),
+            static_cast<int>(descriptor.text.size()), &text_rect, flags);
+        if (draw_result > 0) ++stats.white_path_fallback;
+      }
+    } else {
+      draw_result = DrawTextW(
+          printer_dc, descriptor.text.c_str(),
+          static_cast<int>(descriptor.text.size()), &text_rect, flags);
     }
-    const int draw_result = DrawTextW(
-        printer_dc, descriptor.text.c_str(),
-        static_cast<int>(descriptor.text.size()), &text_rect, flags);
     if (draw_result > 0) {
       ++stats.drawn;
       stats.characters += descriptor.text.size();
-      if (white_text) ++stats.opaque_black_background;
     } else {
       ++stats.failed;
-    }
-    if (white_text) {
-      SetBkColor(printer_dc, previous_background_color);
-      SetBkMode(printer_dc, descriptor_background_mode);
     }
     SetTextColor(printer_dc, previous_color);
     SelectObject(printer_dc, previous_font);
@@ -753,7 +778,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcDrawTextW"
-              << " nativeTextBackground=opaqueBlackForWhiteText"
+              << " nativeTextWhiteRender=filledGlyphPath"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -902,8 +927,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       diagnostics << " nativeTextDrawn=" << native_text_stats.drawn
                   << " nativeTextFailed=" << native_text_stats.failed
                   << " nativeTextFitted=" << native_text_stats.fitted
-                  << " nativeTextOpaqueBlackBackground="
-                  << native_text_stats.opaque_black_background
+                  << " nativeTextWhitePathDrawn="
+                  << native_text_stats.white_path_drawn
+                  << " nativeTextWhitePathFallback="
+                  << native_text_stats.white_path_fallback
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

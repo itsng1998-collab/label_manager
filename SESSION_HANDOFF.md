@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 glyph outline 출력 v1.3.8
+- 사용자 실물 `.tmp/IMG_20260817_0003.png`: v1.3.7은 제3·9행 역상 흰 글자의 점상·획 손실이 육안상 v1.3.6과 차이가 없다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-16-14.log`: DebugLogger 1.3.7, `nativeTextOpaqueBlackBackground=2`, 실패 0으로 정확히 두 역상 descriptor에 opaque 경로가 적용됐다. 따라서 background mode 원인 가설은 기각한다.
+- 새 원인/방식: printer DC의 antialiased 흰 `DrawTextW`가 검정 raster 위에서 회색 edge를 단색 dot으로 안정적으로 제거하지 못한다. 흰 descriptor만 GDI TrueType glyph outline path로 변환하고 `WHITE_BRUSH`로 내부를 채워 회색 AA 없이 출력한다.
+- 수정 완료: 흰 descriptor는 `BeginPath`/`DrawTextW`/`EndPath` 후 실제 path point가 있을 때 `WHITE_BRUSH`로 `FillPath`한다. path 생성·채움 실패 시 기존 직접 `DrawTextW`로 fallback한다. 검정 등 다른 문자의 호출문, font/fit/좌표, final bitmap·border는 그대로 유지했다.
+- 진단 추가: `nativeTextWhiteRender=filledGlyphPath`, `nativeTextWhitePathDrawn=<성공 건수>`, `nativeTextWhitePathFallback=<fallback 건수>`로 실제 GoDEX printer DC 지원 여부를 확인한다.
+- 버전 편집 완료: 호환 가능한 역상 문자 출력 수정이므로 PATCH 증가로 `1.3.7`에서 `1.3.8`로 갱신했다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.8`, 실패한 v1.3.7 opaque 진단 제거, `git diff --check` 통과. 실제 GoDEX path 지원과 품질은 v1.3.8 실물 출력으로 확인해야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 판별 기준: v1.3.8 로그에서 흰 path 성공 2건/fallback 0건이어야 하며, 같은 실물에서 일반 문자는 유지되고 제3·9행 흰 glyph 내부의 점상 잔여와 획 단절이 줄어야 한다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 가독성 개선 v1.3.7
 - 사용자 실물 `.tmp/IMG_20260817_0002.png`: v1.3.6 printer DC 직접 출력으로 일반 문자는 전반적으로 개선됐으나 제3·9행 검정 배경의 흰 글자는 획 내부가 점상으로 남아 가독성이 낮다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-06-56.log`: DebugLogger 1.3.6, `nativeTextComposite=printerDcAfterBitmap`, 36개/558자, 실패 0으로 새 직접 출력 경로 적용을 확인했다.
@@ -12,6 +24,7 @@
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.7 로그에서 opaque 역상 descriptor 수가 확인되어야 하며, 같은 라벨 실물에서 제3·9행 흰 글자의 점상 잔여가 줄고 일반 문자는 v1.3.6과 동일해야 한다.
 - 기능 커밋: `95ae3b0` (`Godex 역상 흰 글자 가독성 개선`).
+- 실물 결론: opaque 경로 2건 적용은 확인됐지만 `.tmp/IMG_20260817_0003.png`에서 육안상 차이가 없어 이 접근은 종료한다.
 
 ## 구현 완료·실물 확인 대기: Godex G500 한글 텍스트 출력 품질 복원 v1.3.6
 - 사용자 실물 사진 `.tmp/IMG_20260817_0001.png`: 표와 선은 정상이나 작은 한글 획이 끊기고 거칠며, 검정 배경의 흰 한글도 획 손실이 보인다.
