@@ -17,6 +17,7 @@
 - 최종 확인 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.4`, `git diff --check` 통과. 추가 임시 산출물은 없고 Debug 빌드 산출물은 기존 ignored 경로에 있다.
 - 동작 기준: 발행 체크는 품목 테이블 편집을 시작하지 않는다. 주원료 시트는 변경 없이 더블클릭 편집 후 탭 이동 또는 플로팅 resize 시 editor를 종료하고 draft를 만들지 않는다. 출력 미리보기는 effective `allowEdit=false`로 편집할 수 없다.
 - stage/commit 대상: FortuneSheet cell editing API, LabelSheet lifecycle, 품목 preview/플로팅 연결, 관련 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+- 기능 커밋: `9bf9f2b` (`품목 미리보기 편집 상태 전환 수정`).
 
 ## 완료: 도움말 팝업 메뉴 스타일 통일
 - 원인: 설정 등 `AppMenuBar` 팝업은 높이 28, 가로 패딩 12, 축소 tap target의 공용 `MenuItemButton` 스타일을 사용하지만 별도 `HelpMenuButton`은 Material 기본 스타일을 사용했다.
