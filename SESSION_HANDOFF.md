@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 8배 윤곽 샘플링 v1.3.12
+- 사용자 실물 `.tmp/IMG_20260817_0007.png`: v1.3.11 워터마크는 정상 출력됐지만 역상 흰 글자는 육안상 이전과 차이가 없다. 표·선·일반 문자는 좋은 상태다.
+- 최신 로그 `.tmp/log/app_2026-08-17_17-51-42.log`: DebugLogger 1.3.11, 흰 knockout 3504px 중 bridge는 33px(약 0.9%), 실패 0이다. 적용량이 너무 작아 실물 차이가 없으므로 bridge 접근은 종료한다.
+- 수정 완료: 흰 descriptor 전용 mask만 4배(최종 dot당 16 sample)에서 8배(64 sample)로 올려 한글 윤곽 coverage 정밀도를 높였다. threshold 48/255 비율과 knockout 대상은 유지하고 효과 없던 bridge 및 관련 진단은 제거했다.
+- 회귀 방지: 표·선·border, final bitmap, 일반 34개 printer DC 문자, font/fit/좌표와 흰 mask 합성 대상은 변경하지 않았다. 워터마크와 진단을 `v1.3.12`/`supersample8xCoverage48`로 갱신했다.
+- 메모리: full-page 8배 32-bit mask는 출력 중 일시적으로 약 76MB를 사용한다. 현재 환경에서 허용 범위로 판단하되 OOM 징후가 나타나면 즉시 중단·보고한다. 상태: 미검증.
+- 버전 편집 완료: 호환 가능한 역상 문자 품질 개선이므로 PATCH 증가로 `1.3.11`에서 `1.3.12`로 갱신했다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 실제 DIB 할당은 실물 출력 시 검증하며, 다음으로 자동 회귀 테스트와 진단을 확인한다.
+- 검증 완료: 출력 관련 4개 테스트 파일 전체 30건 통과, C++/pubspec/인수인계 편집기 진단 없음, `/WX` Windows Debug 빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.12`, 8배 mask·워터마크 진단 일치, bridge 코드·진단 제거, `git diff --check` 통과. 표·선·border, 일반 문자, knockout 대상 조건은 변경하지 않았다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 판별 기준: v1.3.12 로그는 `supersample8xCoverage48`, 흰 descriptor 2건, 실패 0이어야 한다. 실물에서 다른 출력은 동일하고 역상 한글의 모서리·대각선·내부 획만 더 균일해야 한다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 획 1dot 단절 연결 v1.3.11
 - 사용자 실물 `.tmp/IMG_20260817_0006.png`: v1.3.10은 육안상 v1.3.9와 차이가 없고 역상 한글의 내부 획 단절·점상 거칠기가 남는다. 표·선·일반 문자는 좋은 상태다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-44-22.log`: DebugLogger 1.3.10, knockout 3471px로 v1.3.9의 3657px보다 186px(약 5%)만 줄어 threshold 32→48 변화가 실물에 작게 반영됐다. 단순 threshold 조정은 종료한다.
@@ -14,6 +27,7 @@
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.11 로그에서 흰 descriptor 2건, bridge pixel 0 초과, 실패 0이어야 한다. 실물에서 외곽 굵기·자간은 v1.3.10과 같고 제3·9행 흰 획 내부의 1dot 단절만 줄어야 한다.
 - 기능 커밋: `2bee561` (`Godex 역상 흰 획 연결 및 테스트 워터마크 추가`).
+- 실물 결론: bridge는 33px만 적용돼 `.tmp/IMG_20260817_0007.png`에서 차이가 없었다. bridge 접근은 종료하고 워터마크만 다음 테스트에 유지한다.
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 edge 정리 v1.3.10
 - 사용자 실물 `.tmp/IMG_20260817_0005.png`: v1.3.9에서 제3·9행 역상 흰 글자는 이전보다 개선됐으나 낮은 coverage edge까지 흰 dot으로 확정돼 획 외곽과 모서리가 거칠고 일부 글자가 뭉쳐 보인다. 표·선·일반 문자는 좋은 상태다.
