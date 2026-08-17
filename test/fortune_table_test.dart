@@ -1688,10 +1688,16 @@ void main() {
     tester,
   ) async {
     final items = [
-      _testItemOfMarket(itemName: '첫째 품목', marketId: 1),
-      _testItemOfMarket(itemName: '둘째 품목', marketId: 1),
+      _testItemOfMarket(itemName: '첫째 품목', itemId: 10, marketId: 1),
+      _testItemOfMarket(itemName: '둘째 품목', itemId: 20, marketId: 1),
     ];
+    final draftController = ItemManagerDraftController.fromItems(
+      items: items,
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(draftController.dispose);
     final itemManageController = ItemManageController();
+    var selectedCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1702,6 +1708,9 @@ void main() {
             child: ItemManage(
               items: items,
               controller: itemManageController,
+              draftController: draftController,
+              onRowSelected: (_, _) => selectedCount += 1,
+              onSaveDraft: () async {},
             ),
           ),
         ),
@@ -1721,13 +1730,20 @@ void main() {
       isFalse,
     );
 
-    final tableTopLeft = tester.getTopLeft(
-      find.byType(FortuneTable<ItemOfMarket>),
+    await tester.tap(
+      find.byKey(const ValueKey('fortune_table_checkbox_publish_0')),
     );
-    await tester.tapAt(tableTopLeft + const Offset(40 + 20, 36 + 14));
     await tester.pump();
 
     expect(itemManageController.hasActiveEditing, isFalse);
+    expect(selectedCount, 0);
+    expect(draftController.isDirty, isFalse);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNull,
+    );
     table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
@@ -1752,6 +1768,7 @@ void main() {
 
     expect(_cellColorForText(tester, '첫째 품목'), const Color(0xFFEAF4FF));
     expect(_cellColorForText(tester, '둘째 품목'), const Color(0xFFE3F2FD));
+    await tester.pump(const Duration(milliseconds: 50));
   });
 
   testWidgets('ItemManage shows minimum-column header checkboxes', (

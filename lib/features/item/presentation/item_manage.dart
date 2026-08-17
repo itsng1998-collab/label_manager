@@ -1471,6 +1471,7 @@ class _ItemManageState extends State<ItemManage> {
                 rowIndex,
               )
             : null,
+        selectRowOnCheckboxTap: false,
       ),
       const FortuneTableColumn<ItemOfMarket>(
         id: 'labelSize',

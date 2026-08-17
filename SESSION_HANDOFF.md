@@ -1,5 +1,26 @@
 # 현재 작업 상태
 
+## 완료: 발행 체크 후 품목 저장 활성화 수정 v1.3.5
+- 사용자 재현: 실행 중인 v1.3.4에서 품목관리 테이블의 발행 체크만 했는데 저장 버튼이 활성화된다.
+- 최신 로그 `.tmp/log/app_2026-08-17_16-29-22.log`: 체크 직전 draft는 existing 19행, `dirty=false`. 체크 시 행 선택으로 주원료 preview가 갱신된 직후 `editElement requested rowKey=item:722322`가 호출되고 해당 행이 modified로 바뀌며 `dirty=true`가 됐다.
+- 원인: FortuneTable checkbox cell도 일반 cell의 상위 pointer handler에서 `_selectRow()`를 호출한다. 발행 체크가 행 선택과 preview 교체까지 유발한다. 기존 회귀 테스트는 폭 40px인 발행 열 밖 `x=60`을 클릭해 실제 checkbox 경로를 검증하지 못했다.
+- 수정: 공용 checkbox 기본 행 선택 동작은 유지하고 `selectRowOnCheckboxTap` 옵션을 추가해 품목 발행 컬럼만 체크 상태 변경 외 행 선택/cell activation/editor commit을 하지 않도록 했다.
+- 구현 전 판별 테스트: 실제 checkbox key 클릭 시 `onRowSelected`가 1회 호출되어 실패해 원인 가설을 확인했다.
+- `fortune_table.dart`, `item_manage.dart` 편집 완료: 품목 발행 checkbox cell만 일반 cell의 행 선택/cell activation/다른 editor commit pointer 경로를 타지 않고 checkbox 값만 변경한다.
+- focused 검증 완료: 실제 `fortune_table_checkbox_publish_0` 클릭 후 체크 상태만 변경되고 `onRowSelected=0`, item draft clean, 저장 버튼 비활성, active table editing false를 확인했다.
+- 관련 전체 테스트 완료: `fortune_table_test.dart`, `label_sheet_toolbar_test.dart`, `preview_floating_window_test.dart` 전체 259건 통과. 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 호환 가능한 발행 체크 버그 수정이므로 PATCH 증가로 `1.3.4`에서 `1.3.5`로 갱신했다.
+- 다음 검증 예정: FortuneTable nested package navigation 테스트, 변경 파일 strict analyzer, `/WX` Windows Debug 빌드.
+- strict analyzer 완료: `fortune_table.dart`, `fortune_table_test.dart` `No issues found`.
+- 중첩 package 검증 완료: VS Code test runner는 테스트를 발견하지 못했지만 FortuneSheet 디렉터리에서 `flutter test test/fortune_table_navigation_test.dart` CLI 실행 결과 2건 통과.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- 첫 Windows 통합 빌드는 실행 중인 Debug `label_manager.exe` 잠금으로 `LNK1168` 실패했다. 해당 Debug 산출물 프로세스만 `CloseMainWindow()`로 정상 종료한 뒤 동일 명령을 재실행한다.
+- Debug 앱 PID 700 정상 종료 후 첫 수정 소스의 `/WX` Windows Debug 빌드 성공. 이후 공용 기본 동작 보존을 위해 옵션을 품목 발행 컬럼에만 scoped 처리했다.
+- scoped 처리 후 관련 전체 테스트 259건 재통과, 변경 3개 Dart 파일 strict analyzer `No issues found`, 편집기 진단 없음. FortuneTable nested package 테스트와 `/WX` 빌드를 최종 재실행한다.
+- 최종 검증 완료: FortuneTable nested package navigation 2건 통과, `/WX` Windows Debug 빌드 성공, EXE FileVersion/ProductVersion 모두 `1.3.5`, `git diff --check` 통과.
+- 동작 기준: 품목 발행 checkbox는 발행 체크 상태만 변경한다. 현재 행 선택과 주원료 preview owner를 바꾸지 않으므로 item draft는 clean이고 저장 버튼은 비활성 상태를 유지한다. 다른 FortuneTable checkbox는 기존 행 선택 기본 동작을 유지한다.
+- stage/commit 대상: `fortune_table.dart`, `item_manage.dart`, 실제 checkbox 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다.
+
 ## 완료: 품목관리 비편집 상호작용의 편집모드 진입 차단 v1.3.4
 - 요청: 발행 체크, 플로팅창 주원료/출력 미리보기 탭 클릭, 플로팅창 resize는 품목관리 편집모드로 들어가지 않아야 한다. 주원료 시트는 더블클릭 후 변경 없이 나와도 draft를 만들지 않아야 하며 출력 미리보기는 읽기 전용이어야 한다.
 - 확인: 출력 미리보기는 `LabelOutputPreview`에서 `canEditObjects: false`로 `allowEdit=false`를 전달한다. 주원료 preview는 workbook 실내용 비교 후에만 commit하지만 실제 포인터 상호작용과 active editing 상태를 직접 검증하는 테스트가 부족하다.

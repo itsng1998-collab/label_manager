@@ -211,6 +211,7 @@ class FortuneTableColumn<T> {
     this.checkboxController,
     this.onCheckboxChanged,
     this.onCheckboxChangedAt,
+    this.selectRowOnCheckboxTap = true,
     this.headerCheckboxValue,
     this.headerCheckboxEnabled = true,
     this.onHeaderCheckboxChanged,
@@ -233,6 +234,7 @@ class FortuneTableColumn<T> {
   final FortuneTableCheckboxController? checkboxController;
   final void Function(T row, bool value)? onCheckboxChanged;
   final void Function(T row, int rowIndex, bool value)? onCheckboxChangedAt;
+  final bool selectRowOnCheckboxTap;
   final bool? headerCheckboxValue;
   final bool headerCheckboxEnabled;
   final ValueChanged<bool>? onHeaderCheckboxChanged;
@@ -1096,16 +1098,19 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     Color color,
   ) {
     final column = widget.columns[columnIndex];
+    final selectsRow =
+        !column.isCheckbox || column.selectRowOnCheckboxTap;
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
-        if (event.buttons == kPrimaryMouseButton) {
+        if (selectsRow && event.buttons == kPrimaryMouseButton) {
           _selectRow(row, rowIndex);
           widget.onCellActivated?.call(row, rowIndex, column.id);
         }
       },
       onPointerUp: (_) {
-        if (_editingRowIndex != null &&
+        if (selectsRow &&
+            _editingRowIndex != null &&
             (_editingRowIndex != rowIndex ||
                 _editingColumnIndex != columnIndex)) {
           unawaited(_queueTextEditingCommit());
