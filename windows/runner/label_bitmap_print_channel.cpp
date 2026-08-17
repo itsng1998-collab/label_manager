@@ -20,7 +20,7 @@ using EncodableValue = flutter::EncodableValue;
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kWhiteTextSupersample = 8;
 constexpr int kWhiteTextCoverageThreshold = 48;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.13";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.14";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -257,8 +257,8 @@ struct NativeTextRenderStats {
   int failed = 0;
   int fitted = 0;
   int white_bitmap_drawn = 0;
-  int white_semibold_applied = 0;
   size_t white_knockout_pixels = 0;
+  size_t white_expanded_pixels = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
@@ -317,9 +317,11 @@ bool RenderWhiteTextIntoBitmap(
   for (const auto& descriptor : text_descriptors) {
     if (descriptor.color != RGB(255, 255, 255)) continue;
     const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
+    // Weight changes cannot strengthen the current reverse text descriptors;
+    // both are already bold, so reinforce only the raster mask below.
     HFONT font = CreateFontW(
         -font_pixel_height, 0, 0, 0,
-        descriptor.bold ? FW_BOLD : FW_SEMIBOLD, descriptor.italic,
+      descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
         descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
@@ -405,7 +407,6 @@ bool RenderWhiteTextIntoBitmap(
     if (draw_result > 0) {
       ++stats.drawn;
       ++stats.white_bitmap_drawn;
-      if (!descriptor.bold) ++stats.white_semibold_applied;
       stats.characters += descriptor.text.size();
     } else {
       ++stats.failed;
@@ -417,6 +418,8 @@ bool RenderWhiteTextIntoBitmap(
   GdiFlush();
   constexpr int sample_count =
       kWhiteTextSupersample * kWhiteTextSupersample;
+  std::vector<uint8_t> white_mask(
+      static_cast<size_t>(target_width) * target_height, uint8_t{0});
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
       int luminance_sum = 0;
@@ -432,6 +435,36 @@ bool RenderWhiteTextIntoBitmap(
       if (luminance_sum < kWhiteTextCoverageThreshold * sample_count) {
         continue;
       }
+      white_mask[static_cast<size_t>(y) * target_width + x] = 1;
+    }
+  }
+  const std::vector<uint8_t> threshold_mask = white_mask;
+  constexpr int neighbor_x[] = {-1, 1, 0, 0};
+  constexpr int neighbor_y[] = {0, 0, -1, 1};
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      if (threshold_mask[static_cast<size_t>(y) * target_width + x] == 0) {
+        continue;
+      }
+      for (size_t neighbor = 0; neighbor < std::size(neighbor_x); ++neighbor) {
+        const int expanded_x = x + neighbor_x[neighbor];
+        const int expanded_y = y + neighbor_y[neighbor];
+        if (expanded_x < 0 || expanded_x >= target_width || expanded_y < 0 ||
+            expanded_y >= target_height) {
+          continue;
+        }
+        white_mask[static_cast<size_t>(expanded_y) * target_width +
+                   expanded_x] = 1;
+      }
+    }
+  }
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      const size_t mask_offset =
+          static_cast<size_t>(y) * target_width + x;
+      if (white_mask[mask_offset] == 0) {
+        continue;
+      }
       const size_t target_offset =
           (static_cast<size_t>(y) * target_width + x) * 4;
       if (bitmap[target_offset] >= 128 || bitmap[target_offset + 1] >= 128 ||
@@ -442,6 +475,7 @@ bool RenderWhiteTextIntoBitmap(
       bitmap[target_offset + 1] = 255;
       bitmap[target_offset + 2] = 255;
       ++stats.white_knockout_pixels;
+      if (threshold_mask[mask_offset] == 0) ++stats.white_expanded_pixels;
     }
   }
   SetTextColor(memory_dc, previous_text_color);
@@ -983,8 +1017,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=supersample8xCoverage48MinSemibold"
-              << " printWatermark=v1.3.13"
+              << " nativeTextWhiteRender=supersample8xCoverage48OrthogonalExpand1"
+              << " printWatermark=v1.3.14"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1146,10 +1180,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextFitted=" << native_text_stats.fitted
                   << " nativeTextWhiteBitmapDrawn="
                   << native_text_stats.white_bitmap_drawn
-                  << " nativeTextWhiteSemiboldApplied="
-                  << native_text_stats.white_semibold_applied
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
+                  << " nativeTextWhiteExpandedPixels="
+                  << native_text_stats.white_expanded_pixels
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

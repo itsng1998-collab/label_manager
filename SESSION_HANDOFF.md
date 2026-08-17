@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 1-dot 획 보강 v1.3.14
+- 사용자 실물 `.tmp/IMG_20260817_0009.png`: v1.3.13 워터마크와 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 여전히 획 내부가 점상으로 끊겨 추가 개선이 필요하다.
+- 최신 로그 `.tmp/log/app_2026-08-17_18-02-58.log`: `nativeTextWhiteSemiboldApplied=0`, 흰 knockout 3328px, 실패 0이다. 흰 descriptor 2건이 모두 원래 bold여서 v1.3.13의 normal 전용 semibold는 적용되지 않았고 v1.3.12와 mask가 동일했다.
+- 수정 완료: font/fit/좌표/coverage는 유지하고, threshold를 통과한 역상 흰 mask에만 상하좌우 1 device-dot 확장을 적용했다. 최종 bitmap의 검은 영역에 실제 추가된 dot만 `nativeTextWhiteExpandedPixels`로 집계한다.
+- 무효 경로 정리: v1.3.13 semibold와 적용 건수 진단을 제거하고 normal weight를 `FW_NORMAL`로 복원했다. 현재 역상 2건은 모두 원래 bold라 weight 변경으로 보강하지 않도록 코드에 재사용 방지 근거를 남겼다.
+- 회귀 방지: 표·선·일반 문자와 검은 글자 printer DC 경로는 변경하지 않았다. 진단을 `supersample8xCoverage48OrthogonalExpand1`, 워터마크와 앱 버전을 `v1.3.14`로 갱신했다.
+- 수정 직후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 다음으로 출력 회귀 테스트, 편집기 진단, EXE 버전과 최종 diff를 확인한다.
+- 검증 완료: 출력 관련 4개 테스트 파일 통과, C++/pubspec/인수인계 편집기 진단 없음, semibold 제거 후 `/WX` Windows Debug 재빌드 성공.
+- 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.14`, `git diff --check` 통과. 변경은 역상 흰 mask 확장·진단, 무효 semibold 제거, 워터마크·버전과 인수인계뿐이다.
+- 판별 기준: v1.3.14 로그에서 `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteExpandedPixels`와 `nativeTextWhiteKnockoutPixels`가 0 초과, `nativeTextFailed=0`이어야 한다. 실물은 표·선·일반 문자를 유지하면서 역상 흰 획의 끊김이 줄어야 한다.
+- stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 최소 획 굵기 v1.3.13
 - 사용자 실물 `.tmp/IMG_20260817_0008.png`: v1.3.12의 8배 mask는 정상 출력됐지만 역상 흰 한글의 가는 획 단절과 점상 거칠기가 여전히 남는다. 표·선·일반 문자는 좋은 상태다.
 - 최신 로그 `.tmp/log/app_2026-08-17_17-57-35.log`: DebugLogger 1.3.12, 8배 mask·워터마크 정상, 흰 knockout 3328px, 실패 0이다. 4배 v1.3.11의 3504px보다 흰 dot이 줄어 가는 획 보존에 부족하다. supersampling 증가는 종료한다.
