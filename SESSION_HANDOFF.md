@@ -13,6 +13,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.11`, bridge·watermark 진단과 표시 문자열 일치, `git diff --check` 통과. 기존 표·선·border와 일반 문자 렌더 본문은 변경하지 않았다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
 - 판별 기준: v1.3.11 로그에서 흰 descriptor 2건, bridge pixel 0 초과, 실패 0이어야 한다. 실물에서 외곽 굵기·자간은 v1.3.10과 같고 제3·9행 흰 획 내부의 1dot 단절만 줄어야 한다.
+- 기능 커밋: `2bee561` (`Godex 역상 흰 획 연결 및 테스트 워터마크 추가`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 edge 정리 v1.3.10
 - 사용자 실물 `.tmp/IMG_20260817_0005.png`: v1.3.9에서 제3·9행 역상 흰 글자는 이전보다 개선됐으나 낮은 coverage edge까지 흰 dot으로 확정돼 획 외곽과 모서리가 거칠고 일부 글자가 뭉쳐 보인다. 표·선·일반 문자는 좋은 상태다.
