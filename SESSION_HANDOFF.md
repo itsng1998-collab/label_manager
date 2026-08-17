@@ -12,6 +12,7 @@
 - 최종 확인: Debug EXE FileVersion/ProductVersion 모두 `1.3.16`, `git diff --check` 통과. 변경은 역상 흰 mask의 장치 해상도 힌팅, 기존 후처리 제거, 진단·워터마크·버전과 인수인계뿐이다.
 - 판별 기준: v1.3.16 로그에서 `nativeTextWhiteRender=device1xMonochromeHinted`, `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteKnockoutPixels>0`, `nativeTextFailed=0`이어야 한다. 실물은 v1.3.15의 볼드화가 사라지고 표·선·일반 문자가 유지돼야 한다.
 - stage/commit 대상: `label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 배포 EXE/ZIP/설치 프로그램은 생성하지 않는다.
+- 기능 커밋: `cfab653` (`Godex 역상 흰 글자 장치 힌팅 적용`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 내부 단절 폐쇄 v1.3.15
 - 사용자 실물 `.tmp/IMG_20260817_0010.png`: v1.3.14 워터마크, 양호한 표·선·일반 문자를 확인했다. 역상 흰 글자는 개선이 아니라 전체가 볼드처럼 뭉개졌다.
