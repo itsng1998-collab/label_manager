@@ -17,6 +17,7 @@
 - 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.33`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `d755435` (`품목관리 가로 스크롤 조작 개선`).
 
 ## 완료: 품목관리 셀별 클라이언트 편집 권한 적용 v1.3.32
 - 요구 동작: 동적 셀의 `RICH_EDITABLE=false`는 셀 색상을 변경하고 입력을 잠그며, `RICH_EDITABLE=true`는 로그인 사용자 등급과 무관하게 입력을 허용한다.
