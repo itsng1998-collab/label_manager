@@ -14,6 +14,7 @@
 - Windows 통합 검증 완료: 최초 실행 중인 `label_manager.exe` 점유로 `LNK1168`이 발생했으나 사용자 승인 후 앱을 종료하고 재실행하여 `/WX` Debug 빌드에 성공했다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.37`, `git diff --check` 통과.
 - stage/commit 대상: `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `4df4575` (`품목관리 저장 버튼 상태 복구`).
 
 ## 완료: 품목관리 초기 저장 모드 표시 수정 v1.3.36
 - 사용자 제보: 최근 가로 아이콘 footer 재배치 이후 품목관리 첫 진입에서 무조건 저장 모드가 되는 것으로 보인다.
