@@ -16,6 +16,7 @@
 - 실제 재현 rollback 검증 완료: 로그의 source `8114`, target `8139`, target market `1`로 전체 일반 복사 SQL을 실행해 성공 응답을 확인하고 같은 batch에서 rollback했다. 기존 약 43초 후 ODBC 927이 발생하던 경로가 약 45초에 정상 완료됐으며 데이터 변경은 남기지 않았다. 임시 probe 파일은 삭제했다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.23`, `git diff --check` 통과.
 - stage/commit 대상: `lib/features/admin_copy/data/admin_copy_dao.dart`, `test/admin_copy_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `69fceab` (`관리자 품목 복사 구 DB 의존 제거`).
 
 ## 완료: 출력내용 미리보기 열린 상태의 품목명 편집 build 예외 수정 v1.3.22
 - 사용자 재현: 품목관리의 `출력내용 미리보기` 탭을 연 상태에서 항목명 편집에 들어가면 `_blockItemDraftContextChange()`가 build 중 `ScaffoldMessenger.showSnackBar()`를 호출해 미리보기 오류와 멈춤이 발생한다.
