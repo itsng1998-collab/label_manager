@@ -12,6 +12,7 @@
 - 최종 확인 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.19`, `git diff --check` 통과.
 - 동작 기준: 설정 → 품목별 정보 편집 overlay 구성 중에는 controller가 알리지 않으며, 첫 frame 이후 로딩 상태와 조회 결과를 정상 반영한다.
 - 커밋 대상: `item_info_dialog.dart`, 신규 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 기존 staged `startup_dialog.dart`와 범위 밖 lockfile 변경은 제외한다.
+- 기능 커밋: `9fee4b4` (`품목별 정보 편집 진입 예외 수정`).
 
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 분산 외곽 열 보상 v1.3.18
 - 사용자 실물 `.tmp/IMG_20260817_0013.png`: v1.3.17 워터마크, 양호한 표·선·일반 문자를 확인했다. 1x보다 획은 복구됐지만 역상 흰 글자는 여전히 불규칙하게 메워져 추가 개선이 필요하다.
