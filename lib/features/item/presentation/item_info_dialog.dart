@@ -137,7 +137,9 @@ class _ItemInfoDialogContentState extends State<ItemInfoDialogContent> {
   void initState() {
     super.initState();
     widget.controller.addListener(_handleControllerChanged);
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override

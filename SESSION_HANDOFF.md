@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료: 품목별 정보 편집 진입 build 중 알림 예외 수정 v1.3.19
+- 사용자 재현: 설정 → 품목별 정보 편집 진입 시 `ItemInfoController.setLoading()`의 `notifyListeners()`에서 `setState() or markNeedsBuild() called during build` 예외가 발생한다.
+- 원인 확인: 실제 `AnimatedBuilder` 부모 구조를 재현한 테스트가 `_dirty` framework assertion으로 실패했다. overlay가 `ItemInfoDialogContent`를 구성하는 동안 자식 `initState()`가 동기 `_load()`를 시작하고 `setLoading(true)`로 같은 builder에 알린다.
+- 구현 완료: controller listener는 기존처럼 즉시 등록하되 초기 `_load()`만 첫 frame 종료 후 시작하고, frame 전에 dispose되면 실행하지 않는다.
+- 검증 완료: 신규 overlay 재현 테스트와 `item_info_dialog_test.dart` 전체 4건 통과, 변경 Dart 파일 편집기 진단 없음.
+- 버전 편집 완료: 호환 가능한 진입 오류 수정이므로 PATCH 증가로 `1.3.18`에서 `1.3.19`로 갱신했다.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/features/item/presentation/item_info_dialog.dart test/item_info_dialog_test.dart` 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.19`, `git diff --check` 통과.
+- 동작 기준: 설정 → 품목별 정보 편집 overlay 구성 중에는 controller가 알리지 않으며, 첫 frame 이후 로딩 상태와 조회 결과를 정상 반영한다.
+- 커밋 대상: `item_info_dialog.dart`, 신규 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 기존 staged `startup_dialog.dart`와 범위 밖 lockfile 변경은 제외한다.
+
 ## 구현 완료·실물 확인 대기: Godex 역상 흰 글자 분산 외곽 열 보상 v1.3.18
 - 사용자 실물 `.tmp/IMG_20260817_0013.png`: v1.3.17 워터마크, 양호한 표·선·일반 문자를 확인했다. 1x보다 획은 복구됐지만 역상 흰 글자는 여전히 불규칙하게 메워져 추가 개선이 필요하다.
 - 최신 로그 `.tmp/log/app_2026-08-17_20-15-32.log`: 8배 원본 3328px, 4방향 bridge 595px, 총 knockout 3923px, 실패 0이다. 내부 간격 연결만으로는 검은 바탕의 열 번짐이 흰 외곽을 잠식하는 현상을 해결하지 못해 bridge를 폐기한다.

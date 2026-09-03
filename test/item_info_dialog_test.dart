@@ -105,6 +105,36 @@ void main() {
     expect(save.onPressed, isNull);
   });
 
+  testWidgets('loading starts without notifying overlay during build', (
+    tester,
+  ) async {
+    final controller = ItemInfoController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) => child!,
+          child: ItemInfoDialogContent(
+            controller: controller,
+            marketId: 7,
+            labelSizeId: 3,
+            load: (_, _) async => [item()],
+            save: (_) async {},
+            onCommitted: (_) {},
+            onCommitOutcomeUnknown: () {},
+            onClose: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(controller.rows, hasLength(1));
+  });
+
   testWidgets('bottom close button requests dialog close', (tester) async {
     var closeCalls = 0;
     await pumpContent(
