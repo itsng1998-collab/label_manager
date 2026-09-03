@@ -15,6 +15,7 @@
 - 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.35`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `1570164` (`가로 이동 아이콘을 품목관리 하단으로 이동`).
 
 ## 완료: 품목 플로팅창 하단 가로 스크롤 비가림 보정 v1.3.34
 - 사용자 확인: FortuneTable 하단 가로 scrollbar와 좌우 이동 컨트롤 높이가 커져 기존 플로팅창 Y 정렬이 조작 영역을 가린다.
