@@ -16,6 +16,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.39`, `git diff --check` 통과.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `f377ed3` (`라벨 변경 후 주원료 자동 편집 방지`).
 
 ## 완료: 클라이언트 편집 불가 셀 시각 표시 개선 v1.3.38
 - 사용자 확인: 동적 컬럼의 편집 불가 셀을 전체 회색 배경으로 표시하면 그리드 구분선 대비가 약해지고 선택 행 하이라이트가 `주원료` 이후 끊겨 보인다.
