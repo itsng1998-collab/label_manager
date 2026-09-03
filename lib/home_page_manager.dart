@@ -212,7 +212,7 @@ Offset itemPreviewBottomRightTarget({
     tableRect.bottomRight -
     Offset(
       scrollbarThickness + _HomePageManagerState._itemPreviewTableInset,
-      fs.fortuneTableHorizontalControlsHeight +
+        fs.fortuneTableHorizontalScrollbarThickness +
           _HomePageManagerState._itemPreviewTableInset,
     );
 

@@ -167,7 +167,9 @@ class _ItemManageState extends State<ItemManage> {
       FortuneTableSelectionController();
   final FortuneTableFocusController _focusController =
       FortuneTableFocusController();
-    final FortuneTableEditingController _editingController =
+  final FortuneTableScrollController _tableScrollController =
+      FortuneTableScrollController();
+  final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
   final TextEditingController _addCountController = TextEditingController(
     text: '1',
@@ -201,6 +203,7 @@ class _ItemManageState extends State<ItemManage> {
     _publishCheckboxController.addListener(_handlePublishChecksChanged);
     _selectionController.addListener(_handleSelectionChanged);
     _editingController.addListener(_handleEditingStateChanged);
+    _tableScrollController.addListener(_handleTableScrollChanged);
     widget.draftController?.addListener(_handleDraftChanged);
     _projectDraftSelection();
     _attachController();
@@ -234,6 +237,10 @@ class _ItemManageState extends State<ItemManage> {
   void _handleEditingStateChanged() {
     if (mounted) setState(() {});
     widget.onEditingChanged?.call();
+  }
+
+  void _handleTableScrollChanged() {
+    if (mounted) setState(() {});
   }
 
   void _handleDraftChanged() {
@@ -343,11 +350,13 @@ class _ItemManageState extends State<ItemManage> {
     _publishCheckboxController.removeListener(_handlePublishChecksChanged);
     _selectionController.removeListener(_handleSelectionChanged);
     _editingController.removeListener(_handleEditingStateChanged);
+    _tableScrollController.removeListener(_handleTableScrollChanged);
     _addCountController.dispose();
     _insertCountController.dispose();
     _publishCheckboxController.dispose();
     _selectionController.dispose();
     _focusController.dispose();
+    _tableScrollController.dispose();
     widget.controller?._detach(this);
     super.dispose();
   }
@@ -408,6 +417,7 @@ class _ItemManageState extends State<ItemManage> {
               selectionController: _selectionController,
               focusController: _focusController,
               editingController: _editingController,
+              scrollController: _tableScrollController,
               multiSelectionEnabled: true,
               onRowSelected: _handleRowSelected,
               onCellActivated: (_, _, columnId) {
@@ -467,7 +477,9 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Widget _buildCommandFooter() {
-    if (!widget.canEdit) {
+    final showHorizontalControls =
+        _tableScrollController.hasHorizontalOverflow;
+    if (!widget.canEdit && !showHorizontalControls) {
       return const SizedBox.shrink();
     }
     final dirty = widget.draftController?.isDirty == true;
@@ -485,20 +497,21 @@ class _ItemManageState extends State<ItemManage> {
       ),
       child: Row(
         children: [
-          OutlinedButton(
-            onPressed:
-                widget.canEdit && cleanEnabled && widget.onExcelImport != null
-                ? widget.onExcelImport
-                : null,
-            child: const Text('엑셀 가져오기'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: cleanEnabled && widget.onExcelExport != null
-                ? widget.onExcelExport
-                : null,
-            child: const Text('엑셀 내보내기'),
-          ),
+          if (widget.canEdit) ...[
+            OutlinedButton(
+              onPressed: cleanEnabled && widget.onExcelImport != null
+                  ? widget.onExcelImport
+                  : null,
+              child: const Text('엑셀 가져오기'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: cleanEnabled && widget.onExcelExport != null
+                  ? widget.onExcelExport
+                  : null,
+              child: const Text('엑셀 내보내기'),
+            ),
+          ],
           if (widget.commandBusy) ...[
             const SizedBox(width: 12),
             const SizedBox(
@@ -510,19 +523,40 @@ class _ItemManageState extends State<ItemManage> {
             const Text('처리 중'),
           ],
           const Spacer(),
-          OutlinedButton(
-            onPressed: dirtyEnabled && widget.onCancelDraft != null
-                ? widget.onCancelDraft
-                : null,
-            child: const Text('취소'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: dirtyEnabled && widget.onSaveDraft != null
-                ? widget.onSaveDraft
-                : null,
-            child: const Text('저장'),
-          ),
+          if (widget.canEdit) ...[
+            OutlinedButton(
+              onPressed: dirtyEnabled && widget.onCancelDraft != null
+                  ? widget.onCancelDraft
+                  : null,
+              child: const Text('취소'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: dirtyEnabled && widget.onSaveDraft != null
+                  ? widget.onSaveDraft
+                  : null,
+              child: const Text('저장'),
+            ),
+          ],
+          if (showHorizontalControls) ...[
+            const SizedBox(width: 12),
+            IconButton(
+              key: const ValueKey('fortune_table_scroll_left'),
+              tooltip: '왼쪽으로 이동',
+              onPressed: _tableScrollController.canScrollHorizontalLeft
+                  ? _tableScrollController.scrollHorizontalLeft
+                  : null,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            IconButton(
+              key: const ValueKey('fortune_table_scroll_right'),
+              tooltip: '오른쪽으로 이동',
+              onPressed: _tableScrollController.canScrollHorizontalRight
+                  ? _tableScrollController.scrollHorizontalRight
+                  : null,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
         ],
       ),
     );

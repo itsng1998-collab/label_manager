@@ -3746,7 +3746,7 @@ void main() {
     expect(bodyVerticalController.offset, greaterThan(0));
   });
 
-  testWidgets('FortuneTable supports Shift wheel and horizontal controls', (
+  testWidgets('FortuneTable supports Shift wheel and thick scrollbar', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -3779,14 +3779,12 @@ void main() {
     expect(scrollbars.last.thickness, 12);
     expect(
       find.byKey(const ValueKey('fortune_table_scroll_left')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey('fortune_table_scroll_right')),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.byTooltip('왼쪽으로 이동'), findsOneWidget);
-    expect(find.byTooltip('오른쪽으로 이동'), findsOneWidget);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     tester.binding.handlePointerEvent(
@@ -3799,17 +3797,59 @@ void main() {
     await tester.pump();
     expect(horizontalController.offset, greaterThan(0));
 
-    final afterWheel = horizontalController.offset;
-    await tester.tap(
-      find.byKey(const ValueKey('fortune_table_scroll_right')),
+  });
+
+  testWidgets('ItemManage places horizontal controls after save button', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = originalColumns);
+    TColumn.datas = List.generate(
+      8,
+      (index) => _testColumn(
+        columnId: 101 + index,
+        columnName: '가로 항목 ${index + 1}',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: [_testItemOfMarket()],
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+            ),
+          ),
+        ),
+      ),
     );
     await tester.pump();
-    expect(horizontalController.offset, greaterThan(afterWheel));
 
-    final afterRight = horizontalController.offset;
-    await tester.tap(find.byKey(const ValueKey('fortune_table_scroll_left')));
+    final saveRect = tester.getRect(find.widgetWithText(FilledButton, '저장'));
+    final leftButton = find.byKey(
+      const ValueKey('fortune_table_scroll_left'),
+    );
+    final rightButton = find.byKey(
+      const ValueKey('fortune_table_scroll_right'),
+    );
+    expect(leftButton, findsOneWidget);
+    expect(rightButton, findsOneWidget);
+    expect(find.byTooltip('왼쪽으로 이동'), findsOneWidget);
+    expect(find.byTooltip('오른쪽으로 이동'), findsOneWidget);
+    expect(tester.getRect(leftButton).left, greaterThan(saveRect.right));
+    expect(tester.getRect(leftButton).center.dy, saveRect.center.dy);
+
+    final horizontalController = _bodyHorizontalController(tester);
+    await tester.tap(rightButton);
     await tester.pump();
-    expect(horizontalController.offset, lessThan(afterRight));
+    expect(horizontalController.offset, greaterThan(0));
+    await tester.tap(leftButton);
+    await tester.pump();
+    expect(horizontalController.offset, 0);
   });
 
   testWidgets(

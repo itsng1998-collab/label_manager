@@ -5,7 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-const double fortuneTableHorizontalControlsHeight = 30;
+const double fortuneTableHorizontalScrollbarThickness = 12;
 
 class FortuneTableCheckboxController extends ChangeNotifier {
   final Map<String, Set<int>> _checkedRowsByColumn = <String, Set<int>>{};
@@ -168,10 +168,19 @@ class FortuneTableEditingController extends ChangeNotifier {
   }
 }
 
-class FortuneTableScrollController {
+class FortuneTableScrollController extends ChangeNotifier {
   Object? _owner;
   void Function(int rowIndex)? _revealRow;
   void Function(int rowIndex)? _revealRowCentered;
+  VoidCallback? _scrollHorizontalLeft;
+  VoidCallback? _scrollHorizontalRight;
+  bool _hasHorizontalOverflow = false;
+  bool _canScrollHorizontalLeft = false;
+  bool _canScrollHorizontalRight = false;
+
+  bool get hasHorizontalOverflow => _hasHorizontalOverflow;
+  bool get canScrollHorizontalLeft => _canScrollHorizontalLeft;
+  bool get canScrollHorizontalRight => _canScrollHorizontalRight;
 
   void revealRow(int rowIndex) {
     if (rowIndex < 0) return;
@@ -183,14 +192,38 @@ class FortuneTableScrollController {
     _revealRowCentered?.call(rowIndex);
   }
 
+  void scrollHorizontalLeft() => _scrollHorizontalLeft?.call();
+
+  void scrollHorizontalRight() => _scrollHorizontalRight?.call();
+
   void _attach({
     required Object owner,
     required void Function(int) revealRow,
     required void Function(int) revealRowCentered,
+    required VoidCallback scrollHorizontalLeft,
+    required VoidCallback scrollHorizontalRight,
   }) {
     _owner = owner;
     _revealRow = revealRow;
     _revealRowCentered = revealRowCentered;
+    _scrollHorizontalLeft = scrollHorizontalLeft;
+    _scrollHorizontalRight = scrollHorizontalRight;
+  }
+
+  void _updateHorizontalState({
+    required bool hasOverflow,
+    required bool canScrollLeft,
+    required bool canScrollRight,
+  }) {
+    if (_hasHorizontalOverflow == hasOverflow &&
+        _canScrollHorizontalLeft == canScrollLeft &&
+        _canScrollHorizontalRight == canScrollRight) {
+      return;
+    }
+    _hasHorizontalOverflow = hasOverflow;
+    _canScrollHorizontalLeft = canScrollLeft;
+    _canScrollHorizontalRight = canScrollRight;
+    notifyListeners();
   }
 
   void _detach(Object owner) {
@@ -198,6 +231,13 @@ class FortuneTableScrollController {
     _owner = null;
     _revealRow = null;
     _revealRowCentered = null;
+    _scrollHorizontalLeft = null;
+    _scrollHorizontalRight = null;
+    _updateHorizontalState(
+      hasOverflow: false,
+      canScrollLeft: false,
+      canScrollRight: false,
+    );
   }
 }
 
@@ -373,7 +413,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   static const Color _checkboxCheckColor = Color(0xff0188fb);
   static const Color _textEditorBorderColor = Color(0xFF0188FB);
   static const double _checkboxSize = 13.0;
-  static const double _horizontalScrollbarThickness = 12;
   static const double _horizontalScrollStep = 180;
 
   final ScrollController _hScrollHeader = ScrollController();
@@ -401,6 +440,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   TextEditingController? _textEditorController;
   FocusNode? _textEditorFocusNode;
   Future<void>? _pendingTextCommit;
+  bool _horizontalStateUpdateScheduled = false;
+  bool _pendingHorizontalOverflow = false;
 
   @override
   void initState() {
@@ -419,6 +460,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       owner: this,
       revealRow: _revealRow,
       revealRowCentered: _revealRowCentered,
+      scrollHorizontalLeft: () =>
+          _jumpBy(_hScrollBody, -_horizontalScrollStep),
+      scrollHorizontalRight: () =>
+          _jumpBy(_hScrollBody, _horizontalScrollStep),
     );
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
@@ -493,6 +538,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         owner: this,
         revealRow: _revealRow,
         revealRowCentered: _revealRowCentered,
+        scrollHorizontalLeft: () =>
+            _jumpBy(_hScrollBody, -_horizontalScrollStep),
+        scrollHorizontalRight: () =>
+            _jumpBy(_hScrollBody, _horizontalScrollStep),
       );
     }
     widget.selectionController?.setSelectedRows(
@@ -539,15 +588,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
               (constraints.maxWidth - widget.rowNumberWidth)
                   .clamp(0, double.infinity)
                   .toDouble();
-            final hasHorizontalOverflow =
+          final hasHorizontalOverflow =
               bodyWidth > horizontalViewportWidth + 0.5;
-              final horizontalControlsHeight = hasHorizontalOverflow
-                ? fortuneTableHorizontalControlsHeight
-                : 0;
+          _scheduleHorizontalStateUpdate(hasHorizontalOverflow);
           final bodyViewportHeight =
-              (constraints.maxHeight -
-                  widget.headerHeight -
-                    horizontalControlsHeight)
+              (constraints.maxHeight - widget.headerHeight)
                   .clamp(0, double.infinity)
                   .toDouble();
           final hasVerticalOverflow =
@@ -638,7 +683,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                               child: RawScrollbar(
                                 controller: _hScrollBody,
                                 thumbVisibility: hasHorizontalOverflow,
-                                thickness: _horizontalScrollbarThickness,
+                                thickness:
+                                    fortuneTableHorizontalScrollbarThickness,
                                 radius: Radius.zero,
                                 notificationPredicate: (notification) =>
                                     notification.metrics.axis ==
@@ -671,63 +717,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                       ],
                     ),
                   ),
-                  if (hasHorizontalOverflow) _buildHorizontalControls(),
                 ],
               ),
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildHorizontalControls() {
-    return Container(
-      height: fortuneTableHorizontalControlsHeight,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF7F8FA),
-        border: Border(top: BorderSide(color: _bodySeparatorColor)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(width: widget.rowNumberWidth),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    key: const ValueKey('fortune_table_scroll_left'),
-                    tooltip: '왼쪽으로 이동',
-                    onPressed: () =>
-                        _jumpBy(_hScrollBody, -_horizontalScrollStep),
-                    icon: const Icon(Icons.chevron_left),
-                    iconSize: 20,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: fortuneTableHorizontalControlsHeight,
-                      height: fortuneTableHorizontalControlsHeight,
-                    ),
-                  ),
-                  IconButton(
-                    key: const ValueKey('fortune_table_scroll_right'),
-                    tooltip: '오른쪽으로 이동',
-                    onPressed: () =>
-                        _jumpBy(_hScrollBody, _horizontalScrollStep),
-                    icon: const Icon(Icons.chevron_right),
-                    iconSize: 20,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: fortuneTableHorizontalControlsHeight,
-                      height: fortuneTableHorizontalControlsHeight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1751,6 +1745,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   }
 
   void _syncHorizontalFromBody() {
+    _updateHorizontalState();
     if (_syncingHorizontal) return;
     if (!_hScrollBody.hasClients || !_hScrollHeader.hasClients) return;
     _syncingHorizontal = true;
@@ -1761,6 +1756,33 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       ),
     );
     _syncingHorizontal = false;
+  }
+
+  void _scheduleHorizontalStateUpdate(bool hasOverflow) {
+    _pendingHorizontalOverflow = hasOverflow;
+    if (_horizontalStateUpdateScheduled || widget.scrollController == null) {
+      return;
+    }
+    _horizontalStateUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _horizontalStateUpdateScheduled = false;
+      if (!mounted) return;
+      _updateHorizontalState();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _updateHorizontalState() {
+    final position = _hScrollBody.hasClients ? _hScrollBody.position : null;
+    widget.scrollController?._updateHorizontalState(
+      hasOverflow: _pendingHorizontalOverflow,
+      canScrollLeft:
+          _pendingHorizontalOverflow && position != null && position.pixels > 0,
+      canScrollRight:
+          _pendingHorizontalOverflow &&
+          position != null &&
+          position.pixels < position.maxScrollExtent,
+    );
   }
 
   void _syncHorizontalFromHeader() {
