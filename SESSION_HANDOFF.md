@@ -18,6 +18,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.26`, `git diff --check` 통과.
 - stage/commit 대상: `admin_connect_session.dart`, `user_access_service.dart`, `home_page.dart`, 관련 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `3b4f0ea` (`관리자 계정 표시 및 시리얼 인증 정책 적용`).
 
 ## 완료: 품목 저장 데이터내용 이력 누락 수정 v1.3.25
 - 사용자 재현: 품목 2번 `황치즈쿠키`를 `황치즈쿠키+`로 변경해 저장한 뒤 조회/이력 → 데이터내용 이력 조회에서 변경 당일 `2026-08-19`를 조회해도 결과가 없다.
