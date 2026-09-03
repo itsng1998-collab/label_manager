@@ -389,6 +389,7 @@ class _LoginPanelState extends State<_LoginPanel> {
   Future<void> _onUserIdFieldCommit(String userIdText) async {
     if (_LoginPanel._noticeFetchInFlight) return;
     _LoginPanel._noticeFetchInFlight = true;
+    const notFoundId = '잘못된 ID입니다!';
 
     try {
       final inputId = userIdText.trim();
@@ -424,18 +425,21 @@ class _LoginPanelState extends State<_LoginPanel> {
         widget.userName.text = '';
 
         if (mounted) {
-          setState(() => _infoText = '아이디가 존재하지 않습니다!');
+          setState(() => _infoText = notFoundId);
           FocusScope.of(context).requestFocus(_userIdFocus);
         }
       }
     }
     catch (e) {
-      final errmsg = e.toString();
-      _infoText = stripLeadingBracketTags(errmsg);
+      var errmsg = e.toString();
+      errmsg = stripLeadingBracketTags(errmsg);
       debugLog('Exception: $errmsg');
 
       if (mounted) {
-        setState(() => _infoText = stripLeadingBracketTags(errmsg));
+        if (errmsg.contains('No rows in result')) {
+          errmsg = notFoundId;
+        }
+        setState(() => _infoText = errmsg);
         FocusScope.of(context).requestFocus(_userIdFocus);
       }
     }
