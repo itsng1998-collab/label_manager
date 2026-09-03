@@ -24,14 +24,18 @@ void main() {
     expect(sql, isNot(contains('INSERT INTO BM_GS1_COLUMN_INFO')));
   });
 
-  test('item procedures keep verified legacy order', () {
-    final sql = AdminCopyDAO.copyLabelSizeSql;
-    final item = sql.indexOf('EXEC proc_copy_item ');
-    final content = sql.indexOf('EXEC proc_copy_item_content');
-    final market = sql.indexOf('EXEC proc_copy_item_of_market');
-    expect(item, greaterThanOrEqualTo(0));
-    expect(content, greaterThan(item));
-    expect(market, greaterThan(content));
+  test('item copy keeps verified legacy order without legacy database dependency', () {
+    for (final sql in [AdminCopyDAO.copyLabelSizeSql, AdminCopyDAO.copyBrandSql]) {
+      final item = sql.indexOf('EXEC proc_copy_item ');
+      final content = sql.indexOf('EXEC proc_copy_item_content');
+      final market = sql.indexOf('INSERT INTO BM_ITEM_OF_MARKET');
+      expect(item, greaterThanOrEqualTo(0));
+      expect(content, greaterThan(item));
+      expect(market, greaterThan(content));
+      expect(sql, isNot(contains('EXEC proc_copy_item_of_market')));
+      expect(sql, isNot(contains('[labelmanager_combine]')));
+      expect(sql, contains('INNER JOIN BM_ITEM_OF_MARKET M'));
+    }
   });
 
   test('brand copy uses output mappings without last-row fallback', () {

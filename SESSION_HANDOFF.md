@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 관리자 품목 복사 중 복원 DB ODBC 927 오류 수정 v1.3.23
+- 사용자 재현: system 계정의 파일/관리 → 관리자 복사에서 `80*60 테스트용`을 `80*60 복사용`으로 품목까지 복사하면 `labelmanager_combine` 복원 중 ODBC 예외가 표시된다.
+- 로그 확인: `.tmp/log/app_2026-09-03_14-33-44.log`의 실행본은 `v1.3.22`; 현재 연결 DB는 `labelmanager_combine2`이며 관리자 복사 transaction이 SQLSTATE `42000`, native `927`, `데이터베이스 'labelmanager_combine'을(를) 열 수 없습니다. 복원 중입니다.`로 rollback됐다.
+- 원인 확인: 읽기 전용 `OBJECT_DEFINITION` probe 결과 서버의 `proc_copy_item_of_market`만 원본 market 행을 `[labelmanager_combine].[its_labelmanager].[BM_ITEM_OF_MARKET]`에서 읽도록 구 DB 이름을 하드코딩했다. 레거시도 같은 프로시저를 호출하지만 현재 연결 DB 기준 복사를 보장하지 못한다.
+- 재현 테스트 추가: 품목/컬럼내용/지점 매핑의 레거시 순서는 유지하되 `proc_copy_item_of_market`과 `[labelmanager_combine]` 의존을 금지하고 현재 DB `BM_ITEM_OF_MARKET` 사용을 요구한다.
+- 구현 완료: 결함 프로시저 호출을 서버 정의와 동일한 25개 `BM_ITEM_OF_MARKET` 컬럼 복사 SQL로 대체했다. 원본/대상 품목은 레거시처럼 `RICH_ITEM_ORDER`로 매핑하고 대상 거래처 첫 지점 ID를 저장하되, 원본 market 행은 현재 연결 DB에서 읽는다. 일반 라벨크기 복사와 브랜드 전체 복사에 모두 적용했다.
+- 첫 focused 재검증 완료: 결함 프로시저/구 DB 의존 금지와 현재 DB market 행 사용 계약 테스트 통과.
+- 테스트 보강 완료: 일반 라벨크기 복사와 브랜드 전체 복사 SQL에 동일 계약을 적용했고 관리자 복사 DAO/dialog 테스트 5건이 통과했다. 변경 파일 편집기 진단 없음.
+- 실제 서버 검증 완료: 임시 읽기 전용 `IF 1=0` compile probe로 현재 `labelmanager_combine2`에서 일반 라벨크기/브랜드 복사 SQL의 테이블, 25개 market 컬럼, 문법을 검증했다. DML은 실행하지 않았고 probe 파일은 삭제했다.
+- 버전 편집 완료: 호환 가능한 관리자 복사 ODBC 오류 수정이므로 PATCH 증가로 `1.3.22`에서 `1.3.23`으로 갱신했다.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/features/admin_copy/data/admin_copy_dao.dart test/admin_copy_dao_test.dart` 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 실제 재현 rollback 검증 완료: 로그의 source `8114`, target `8139`, target market `1`로 전체 일반 복사 SQL을 실행해 성공 응답을 확인하고 같은 batch에서 rollback했다. 기존 약 43초 후 ODBC 927이 발생하던 경로가 약 45초에 정상 완료됐으며 데이터 변경은 남기지 않았다. 임시 probe 파일은 삭제했다.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.23`, `git diff --check` 통과.
+- stage/commit 대상: `lib/features/admin_copy/data/admin_copy_dao.dart`, `test/admin_copy_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 출력내용 미리보기 열린 상태의 품목명 편집 build 예외 수정 v1.3.22
 - 사용자 재현: 품목관리의 `출력내용 미리보기` 탭을 연 상태에서 항목명 편집에 들어가면 `_blockItemDraftContextChange()`가 build 중 `ScaffoldMessenger.showSnackBar()`를 호출해 미리보기 오류와 멈춤이 발생한다.
 - 원인 확인: 신규 테스트가 `_ItemPreviewPanel.didUpdateWidget()` → `_replaceTabsPreservingSelection()` → `_handleTabSelection()` → `showSnackBar()`의 동일 build 예외로 실패했다. 탭 재생성 후 기존 출력 탭의 programmatic 재선택이 사용자 탭 guard를 다시 호출했다.

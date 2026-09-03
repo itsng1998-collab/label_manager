@@ -60,6 +60,56 @@ class AdminCopyDAO extends DAO {
     T.RICH_SETUP_USE_SCALE=S.RICH_SETUP_USE_SCALE
   ''';
 
+  static const String _itemOfMarketColumns = '''
+    RICH_MARKET_ID, RICH_ITEM_ID, RICH_ADDITIONAL_ITEM_ID, RICH_GDS_NO,
+    RICH_SALE_START_DATE, RICH_SALE_END_DATE, RICH_DISCOUNT_PERCENT,
+    RICH_DISCOUNT_AMOUNT, RICH_DISCOUNT_START_DATE, RICH_DISCOUNT_END_DATE,
+    RICH_USE_USER_DEFINE_ELEMENT, RICH_USER_DEFINE_ELEMENT_RTF,
+    RICH_USE_LINEFEED, RICH_LINEFEED, RICH_USE_SCALEBARCODE, RICH_PRINT_COUNT,
+    RICH_USE_LABELSIZE, RICH_LABELSIZE_WIDTH, RICH_LABELSIZE_HEIGHT,
+    RICH_USE_MARGIN, RICH_LEFT_MARGIN, RICH_TOP_MARGIN, RICH_RIGHT_MARGIN,
+    RICH_LEFT_PUSH, RICH_TOP_PUSH
+  ''';
+
+  static const String _sourceItemOfMarketValues = '''
+    M.RICH_ADDITIONAL_ITEM_ID, M.RICH_GDS_NO,
+    M.RICH_SALE_START_DATE, M.RICH_SALE_END_DATE, M.RICH_DISCOUNT_PERCENT,
+    M.RICH_DISCOUNT_AMOUNT, M.RICH_DISCOUNT_START_DATE, M.RICH_DISCOUNT_END_DATE,
+    M.RICH_USE_USER_DEFINE_ELEMENT, M.RICH_USER_DEFINE_ELEMENT_RTF,
+    M.RICH_USE_LINEFEED, M.RICH_LINEFEED, M.RICH_USE_SCALEBARCODE,
+    M.RICH_PRINT_COUNT, M.RICH_USE_LABELSIZE, M.RICH_LABELSIZE_WIDTH,
+    M.RICH_LABELSIZE_HEIGHT, M.RICH_USE_MARGIN, M.RICH_LEFT_MARGIN,
+    M.RICH_TOP_MARGIN, M.RICH_RIGHT_MARGIN, M.RICH_LEFT_PUSH, M.RICH_TOP_PUSH
+  ''';
+
+  static const String _copyLabelSizeItemMarkets = '''
+    INSERT INTO BM_ITEM_OF_MARKET ($_itemOfMarketColumns)
+    SELECT @targetFirstMarketId, T.RICH_ITEM_ID, $_sourceItemOfMarketValues
+      FROM BM_RICH_ITEM T
+      INNER JOIN BM_ITEM_OF_MARKET M
+        ON M.RICH_ITEM_ID=(
+          SELECT TOP 1 S.RICH_ITEM_ID
+            FROM BM_RICH_ITEM S
+           WHERE S.RICH_LABELSIZE_ID=@sourceLabelSizeId
+             AND S.RICH_ITEM_ORDER=T.RICH_ITEM_ORDER
+        )
+     WHERE T.RICH_LABELSIZE_ID=@targetLabelSizeId;
+  ''';
+
+  static const String _copyBrandItemMarkets = '''
+    INSERT INTO BM_ITEM_OF_MARKET ($_itemOfMarketColumns)
+    SELECT @targetFirstMarketId, T.RICH_ITEM_ID, $_sourceItemOfMarketValues
+      FROM BM_RICH_ITEM T
+      INNER JOIN BM_ITEM_OF_MARKET M
+        ON M.RICH_ITEM_ID=(
+          SELECT TOP 1 S.RICH_ITEM_ID
+            FROM BM_RICH_ITEM S
+           WHERE S.RICH_LABELSIZE_ID=@FromSizeId
+             AND S.RICH_ITEM_ORDER=T.RICH_ITEM_ORDER
+        )
+     WHERE T.RICH_LABELSIZE_ID=@ToSizeId;
+  ''';
+
   static const String targetHasColumnsSql = '''
     SELECT CASE WHEN EXISTS (
       SELECT 1 FROM BM_RICH_COLUMN WHERE RICH_LABELSIZE_ID=@targetLabelSizeId
@@ -104,8 +154,7 @@ class AdminCopyDAO extends DAO {
       EXEC proc_copy_item @sourceLabelSizeId, @targetLabelSizeId;
       EXEC proc_copy_item_content
         @targetFirstMarketId, @sourceLabelSizeId, @targetLabelSizeId;
-      EXEC proc_copy_item_of_market
-        @targetFirstMarketId, @sourceLabelSizeId, @targetLabelSizeId;
+      $_copyLabelSizeItemMarkets
     END;
 
     SELECT @targetLabelSizeId AS TARGET_LABELSIZE_ID;
@@ -182,7 +231,7 @@ class AdminCopyDAO extends DAO {
           FROM @SizeMap WHERE ROW_NO=@RowNo;
         EXEC proc_copy_item @FromSizeId, @ToSizeId;
         EXEC proc_copy_item_content @targetFirstMarketId, @FromSizeId, @ToSizeId;
-        EXEC proc_copy_item_of_market @targetFirstMarketId, @FromSizeId, @ToSizeId;
+        $_copyBrandItemMarkets
         SET @RowNo+=1;
       END;
     END;
