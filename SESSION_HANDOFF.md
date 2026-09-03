@@ -1,5 +1,28 @@
 # 현재 작업 상태
 
+## 완료: 날짜 시한 자유 입력 저장 오류 수정 v1.3.29
+- 사용자 재현: 날짜 시한 사용 컬럼에서 빈값/한글/영문/숫자값 등 입력 내용과 무관하게 `소비시한 날짜/시간 형식 또는 범위가 올바르지 않습니다.` 오류로 품목 저장이 불가능하다.
+- 원인 후보: 현재 `TYPE_VALIDDATE` validation은 `RICH_USE_DATERANGE=1`이면 `RICH_DATERANGE`가 양쪽 숫자인 `before|after` 형식이어야만 통과한다. 레거시 설정은 앞/뒤 범위를 비워 `|`, `3|`, `|5`로 저장하는 것도 허용한다.
+- 현재 DB 확인: `BM_RICH_COLUMN`의 소비시한/날짜 범위 사용 컬럼 타입과 `RICH_DATERANGE` 원문을 읽기 전용 probe로 조회했다.
+- DB 읽기 전용 probe 결과: 실제 `소비시한` 컬럼은 `RICH_TYPE=2`(`TYPE_VALIDTIME`)이며 날짜 범위를 사용하지 않는다. 현재 앱이 비어 있지 않은 값을 무조건 `HHmm`로 강제하는 것이 재현 원인이다.
+- 레거시 확인: `CheckDateFormat`은 `TYPE_VALIDDATE`, `TYPE_MAKEDATE`에만 호출되며 `TYPE_VALIDTIME`은 형식 검증 없이 타임바코드 갱신 원본으로 사용된다.
+- 테스트 추가: `item_manager_draft_test.dart`에 빈값/한글/영문/숫자 날짜 시한 값을 허용하는 회귀 테스트를 추가했다. 구현 전 실패 확인 예정.
+- 구현 전 회귀 테스트 결과: 예상대로 `1행 소비시한 날짜/시간 형식 또는 범위가 올바르지 않습니다.`로 실패했다.
+- 구현 완료: `_isValidDateOrTimeValue`에서 `TYPE_VALIDTIME`을 자유 문자열로 허용했다. `TYPE_MAKETIME`의 기존 `HHmm` 검증은 유지한다.
+- focused 검증 완료: 날짜 시한 회귀 테스트 1건 통과.
+- 임시 산출물 정리: 읽기 전용 DB 조회에 사용한 `test/date_range_probe_test.dart`를 삭제했다.
+- 인접 검증 예정: `C:/Flutter/bin/flutter.bat test test/item_manager_draft_test.dart`로 품목 draft 저장 검증 전체를 실행한다.
+- 품목 draft 전체 검증 완료: `item_manager_draft_test.dart` 33건 통과. 기존 제조일자·소비기한·제조시한 형식 및 범위 검증도 통과했다.
+- 관련 통합 검증 예정: `item_manager_*_test.dart` 6개 파일을 실행해 저장/세션/조회/import/export 회귀를 확인한다.
+- 관련 통합 검증 완료: `item_manager_*_test.dart` 6개 파일, 총 40건 통과.
+- 버전 편집 완료: 날짜 시한 값 때문에 품목 저장이 차단되는 회귀 수정이므로 PATCH 증가로 `1.3.28`에서 `1.3.29`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/item/domain/item_manager_draft.dart test/item_manager_draft_test.dart`.
+- strict analyzer 완료: 변경 구현/테스트 2개 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.29`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
+- stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `test/item_manager_draft_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목 편집 중 주원료/출력 미리보기 재표시 및 draft 반영 v1.3.28
 - 사용자 재현: 주원료 및 라벨출력 미리보기 창을 닫은 뒤 품목관리에서 셀 편집 중 다시 열거나 출력 탭을 선택하면 `품목 편집을 완료하거나 취소한 뒤 변경해 주세요.`로 차단된다.
 - 요구사항: 주원료 입력도 품목 편집의 일부이므로 창을 다시 표시할 수 있어야 하고, 출력내용 미리보기는 품목 저장 전에도 현재 입력 내용을 즉시 표시해야 한다.

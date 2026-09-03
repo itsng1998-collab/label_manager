@@ -1381,11 +1381,12 @@ bool _isValidDateOrTimeValue(
       final range = _parseDateRange(rule.dateRange);
       return range != null && offset >= -range.$1 && offset <= range.$2;
     case TColumnType.TYPE_MAKETIME:
-    case TColumnType.TYPE_VALIDTIME:
       if (!RegExp(r'^\d{4}$').hasMatch(value)) return false;
       final hour = int.parse(value.substring(0, 2));
       final minute = int.parse(value.substring(2, 4));
       return hour <= 23 && minute <= 59;
+    case TColumnType.TYPE_VALIDTIME:
+      return true;
     default:
       return true;
   }

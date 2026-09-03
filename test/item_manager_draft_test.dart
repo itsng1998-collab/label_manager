@@ -921,6 +921,32 @@ void main() {
       expect(controller.validateForSave, returnsNormally);
     });
 
+    test('allows free-form valid time values like legacy', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '소비시한',
+            typeCode: TColumnType.TYPE_VALIDTIME,
+            required: false,
+          ),
+        ],
+      );
+
+      for (final value in ['', '한글', 'text', '123']) {
+        controller.updateColumnValue(
+          'item:10',
+          columnId: 7,
+          editable: true,
+          dataString: value,
+        );
+        expect(controller.validateForSave, returnsNormally);
+      }
+    });
+
     test('rejects invalid GS1 AI edits without changing the draft', () {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
 
