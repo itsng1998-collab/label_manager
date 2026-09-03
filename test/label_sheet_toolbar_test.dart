@@ -2176,6 +2176,54 @@ void main() {
     );
   });
 
+  testWidgets('item preview ignores a stale callback after label change', (
+    tester,
+  ) async {
+    var item = _testItemOfMarket(itemId: 41, itemName: '이전 품목');
+    var labelSize = _testLabelSizeWithFormData('');
+    final committedRows = <String>[];
+    late StateSetter updateHost;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return debugItemPreviewPanelForTesting(
+                item: item,
+                rowIdentity: 'item:${item.item.itemId}',
+                labelSize: labelSize,
+                onElementCommitted: (rowIdentity, _, _) async {
+                  committedRows.add(rowIdentity);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final staleCallback = tester
+        .widget<LabelSheetWorkbench>(find.byType(LabelSheetWorkbench))
+        .onUserWorkbookChanged!;
+    item = _testItemOfMarket(itemId: 42, itemName: '새 품목');
+    labelSize = labelSize.copyWith(labelSizeId: 21, labelSizeName: '새 라벨');
+    updateHost(() {});
+    await tester.pump();
+
+    staleCallback(
+      debugItemElementWorkbookForOutputTesting(
+        _testItemOfMarket(itemId: 41, element: '늦은 변경'),
+        _testLabelSizeWithFormData(''),
+      ),
+    );
+    await tester.pump();
+
+    expect(committedRows, isEmpty);
+  });
+
   testWidgets('item element preview keeps a sheet edit after parent echo', (
     tester,
   ) async {

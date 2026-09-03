@@ -8631,7 +8631,18 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     super.dispose();
   }
 
-  void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
+  ({int? labelSizeId, String rowIdentity, int sourceHash})
+  get _elementWorkbookSourceIdentity => (
+    labelSizeId: widget.labelSize?.labelSizeId,
+    rowIdentity: widget.rowIdentity,
+    sourceHash: _elementForm.sourceHash,
+  );
+
+  void _handleElementWorkbookChanged(
+    ({int? labelSizeId, String rowIdentity, int sourceHash}) sourceIdentity,
+    fs.FortuneWorkbook workbook,
+  ) {
+    if (sourceIdentity != _elementWorkbookSourceIdentity) return;
     if (!widget.canEdit) return;
     final normalizedWorkbook = _itemElementWorkbookWithLabelSize(
       workbook,
@@ -8661,7 +8672,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     _updateOutputPreviewTabContent();
     unawaited(
       widget
-          .onElementCommitted(widget.rowIdentity, next, encodedWorkbook)
+          .onElementCommitted(sourceIdentity.rowIdentity, next, encodedWorkbook)
           .catchError((Object error, StackTrace stackTrace) {
             debugLog(
               'item element draft auto commit failed '
@@ -8780,6 +8791,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   }
 
   List<TabData> _buildTabs() {
+    final elementWorkbookSourceIdentity = _elementWorkbookSourceIdentity;
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
     final imageObjectIds = _itemPreviewImageObjectIdsFor([
@@ -8802,7 +8814,10 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
             editingLifecycleController:
               widget.elementEditingLifecycleController,
           canEdit: widget.canEdit,
-          onWorkbookChanged: _handleElementWorkbookChanged,
+          onWorkbookChanged: (workbook) => _handleElementWorkbookChanged(
+            elementWorkbookSourceIdentity,
+            workbook,
+          ),
           onSave: _handleElementSheetSave,
         ),
         closable: false,

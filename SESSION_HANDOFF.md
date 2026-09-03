@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 라벨크기 변경 후 테이블 클릭 시 편집 전환 방지 v1.3.39
+- 사용자 제보: 품목관리에서 라벨크기를 바꾼 뒤 테이블을 한 번 클릭했는데 편집 모드로 전환된다.
+- 최신 로그 확인: 라벨 `8116` load 완료 후 첫 행 클릭 시 `editElement requested`와 row modified가 발생하고, 이후 행 클릭마다 다른 행의 주원료가 연속 modified 처리된다. inline editor는 값이 바뀌지 않으면 commit하지 않으므로 우측 주원료 preview의 지연 callback이 원인이다.
+- 원인 가설: `_ItemPreviewPanel`은 라벨/행 전환에도 같은 State를 유지하며, 이전 `LabelSheetWorkbench` callback이 늦게 도착하면 `_handleElementWorkbookChanged`가 현재 `widget.rowIdentity`를 사용해 새 행에 이전 workbook을 commit한다.
+- 회귀 테스트 추가: 이전 preview callback을 캡처한 뒤 라벨과 행을 전환하고 그 callback을 호출해 새 행 commit이 발생하지 않아야 함을 검증한다.
+- 수정 전 focused 테스트 결과: 이전 callback 호출 시 새 행 `item:42`가 commit되어 실패, 원인 가설을 확인했다.
+- 구현 완료: preview workbook callback 생성 시 `(labelSizeId, rowIdentity, sourceHash)`를 캡처하고, callback 도착 시 현재 preview identity와 다르면 무시한다. 유효한 callback도 캡처한 row identity로만 commit한다.
+- 수정 후 focused 테스트 완료: 같은 지연 callback 재현에서 commit이 발생하지 않아 테스트 통과.
+- 버전 편집 완료: 라벨 전환 후 잘못된 주원료 draft 수정 방지이므로 PATCH 증가로 `1.3.38`에서 `1.3.39`로 갱신했다.
+- 인접 검증 예정: `test/label_sheet_toolbar_test.dart`, `test/fortune_table_test.dart`, `test/home_page_manager_session_test.dart` 실행 후 변경 파일 strict analyzer를 수행한다.
+- 인접 검증 완료: preview, FortuneTable, home manager session 테스트 총 270건 통과.
+- strict analyzer 완료: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart` 분석 결과 `No issues found`, 편집기 진단 없음.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.39`, `git diff --check` 통과.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 클라이언트 편집 불가 셀 시각 표시 개선 v1.3.38
 - 사용자 확인: 동적 컬럼의 편집 불가 셀을 전체 회색 배경으로 표시하면 그리드 구분선 대비가 약해지고 선택 행 하이라이트가 `주원료` 이후 끊겨 보인다.
 - 원인 확인: FortuneTable은 `cellColorBuilder` 결과를 행 선택/교차 행 색상보다 우선 적용하며, 품목관리 잠금 셀이 불투명 `#E5E7EB`를 반환해 행 배경을 덮는다.
