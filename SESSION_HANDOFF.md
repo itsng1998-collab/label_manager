@@ -11,6 +11,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.22`, `git diff --check` 통과. 재현 테스트는 framework 예외 없음, guard 미재호출, 출력 탭 콘텐츠 유지를 모두 확인한다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `a02f0df` (`품목 미리보기 편집 중 build 예외 수정`).
 
 ## 완료: 품목 블록선택 발행 체크 줌 입력 build 예외 수정 v1.3.21
 - 사용자 재현: 품목관리에서 블록선택 발행 체크 시 `LabelSheetZoomToolbar._handleZoomChanged()`의 `TextEditingController.value` 갱신으로 `EditableText setState() or markNeedsBuild() called during build` 예외가 발생한다.
