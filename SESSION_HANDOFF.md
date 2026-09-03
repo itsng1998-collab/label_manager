@@ -17,6 +17,7 @@
 - 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.34`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `dd98dd6` (`플로팅창 가로 스크롤 비가림 보정`).
 
 ## 완료: 품목관리 가로 스크롤 접근성 개선 v1.3.33
 - 요구 동작: FortuneTable에서 `Shift + 휠` 가로 이동을 지원하고 가로 scrollbar 두께를 확대하며, 가로 overflow 시 테이블 하단에 좌우 이동 아이콘을 제공한다.
