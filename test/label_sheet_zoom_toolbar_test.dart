@@ -55,6 +55,38 @@ void main() {
     expect(controller.value, 20);
     expect(_zoomInputText(tester), '20');
   });
+
+  testWidgets('zoom toolbar follows changes triggered during sibling build', (
+    tester,
+  ) async {
+    final controller = LabelSheetZoomController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              LabelSheetZoomToolbar(controller: controller),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    controller.setZoomPercent(220);
+                    return const SizedBox();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(controller.value, 220);
+    expect(_zoomInputText(tester), '220');
+  });
 }
 
 String _zoomInputText(WidgetTester tester) => tester

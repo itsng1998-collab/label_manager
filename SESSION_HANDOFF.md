@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 완료: 품목 블록선택 발행 체크 줌 입력 build 예외 수정 v1.3.21
+- 사용자 재현: 품목관리에서 블록선택 발행 체크 시 `LabelSheetZoomToolbar._handleZoomChanged()`의 `TextEditingController.value` 갱신으로 `EditableText setState() or markNeedsBuild() called during build` 예외가 발생한다.
+- 실행 확인: 최신 로그 실행본은 `v1.3.20`; debugger 화면의 변경 값은 auto-fit 결과 `220`이고 현재 build widget은 `LayoutBuilder`다.
+- 원인 확인: toolbar와 sibling `LayoutBuilder`가 같은 controller를 공유하고 builder에서 220%로 변경하는 테스트가 첨부 화면과 동일한 `EditableText`/`LayoutBuilder` framework assertion으로 실패했다.
+- 구현 완료: toolbar listener는 controller 변경을 즉시 `TextEditingController`에 쓰지 않고 한 frame에 한 번으로 합쳐 post-frame에 최신 줌 값을 반영한다. idle 상태 변경도 반영되도록 visual update를 요청한다.
+- 검증 완료: 동일 sibling build 재현 테스트 통과, 줌 toolbar/controller 7건, label output auto-fit/줌 유지 2건, 품목 블록선택 발행 체크와 dirty 차단 2건 통과. 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 호환 가능한 공용 줌 입력 동기화 오류 수정이므로 PATCH 증가로 `1.3.20`에서 `1.3.21`로 갱신했다.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/widgets/label_sheet_zoom.dart test/label_sheet_zoom_toolbar_test.dart` 결과 `No issues found`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.21`, `git diff --check` 통과.
+- stage/commit 대상: `lib/widgets/label_sheet_zoom.dart`, `test/label_sheet_zoom_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 검색출력 발행 줌 auto-fit build 예외 수정 v1.3.20
 - 사용자 재현: 파일관리 → 검색출력에서 발행 시 `setState() or markNeedsBuild() called during build` 예외가 발생한다.
 - 실행 로그 확인: `.tmp/log/app_2026-08-17_20-30-19.log`의 실행본은 `v1.3.18`이며, 검색 발행 직전 예외 stack은 `LabelOutputPreview`의 `LayoutBuilder` → `applyInitialAutoFit()` → 줌 toolbar `TextEditingController` 갱신 → `EditableText.markNeedsBuild()` 순서다.

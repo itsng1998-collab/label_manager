@@ -77,6 +77,7 @@ class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
     text: '${widget.controller.value}',
   );
   late final FocusNode _focusNode = FocusNode();
+  bool _zoomTextUpdateScheduled = false;
 
   @override
   void initState() {
@@ -103,6 +104,16 @@ class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
   }
 
   void _handleZoomChanged() {
+    if (_zoomTextUpdateScheduled) return;
+    _zoomTextUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _zoomTextUpdateScheduled = false;
+      if (mounted) _syncZoomText();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _syncZoomText() {
     final text = '${widget.controller.value}';
     if (_textController.text == text) return;
     _textController.value = TextEditingValue(
