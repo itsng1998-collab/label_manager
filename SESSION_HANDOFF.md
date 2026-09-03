@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 완료: 관리자 복사 진행바 표시 v1.3.24
+- 사용자 요청: 약 45초 걸리는 관리자 복사 동안 진행 상태를 시각적으로 표시한다.
+- 구현 완료: 기존 `_writeBusy` 수명에 맞춰 footer 왼쪽에 `복사 진행 중...` 문구와 indeterminate `LinearProgressIndicator`를 표시한다. 기존 취소/복사 버튼 위치와 footer 높이는 유지하며 복사 중 입력 차단도 그대로 사용한다.
+- 테스트 추가: `Completer`로 복사를 대기시켜 작업 중 진행바 표시/취소 버튼 비활성화와 완료 후 진행바 제거를 검증한다.
+- 첫 focused 검증: 신규 진행바 테스트는 통과했으나 dialog 전체 테스트에서 기존 `대상 지점 없음` 오류 dialog를 기다리는 동안 indeterminate bar가 계속 동작해 `pumpAndSettle` timeout을 재현했다.
+- 오류 경로 보완: 복사 실패가 확정되면 `_writeBusy`와 진행바를 먼저 종료한 뒤 오류 dialog를 표시하도록 변경했다. 성공 경로는 `onCommitted` 완료까지 진행 상태를 유지한다.
+- 재검증 완료: 신규 진행바/대상 지점 없음 focused 2건과 관리자 복사 dialog/DAO 전체 12건 통과, 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 사용자에게 보이는 호환 UI 개선이므로 PATCH 증가로 `1.3.23`에서 `1.3.24`로 갱신했다.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/features/admin_copy/presentation/admin_copy_dialog.dart test/admin_copy_dialog_test.dart` 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 빌드 블로커 해결: 실행 중이던 workspace Debug `label_manager.exe`가 산출물을 잠가 첫 빌드가 `LNK1168`로 실패했다. 해당 앱 프로세스만 종료했다.
+- Windows 통합 검증 완료: 잠금 해제 후 동일 `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.24`, `git diff --check` 통과. 진행바가 footer 버튼과 겹치지 않는 widget 위치 계약도 통과했다.
+- stage/commit 대상: `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/admin_copy_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 관리자 품목 복사 중 복원 DB ODBC 927 오류 수정 v1.3.23
 - 사용자 재현: system 계정의 파일/관리 → 관리자 복사에서 `80*60 테스트용`을 `80*60 복사용`으로 품목까지 복사하면 `labelmanager_combine` 복원 중 ODBC 예외가 표시된다.
 - 로그 확인: `.tmp/log/app_2026-09-03_14-33-44.log`의 실행본은 `v1.3.22`; 현재 연결 DB는 `labelmanager_combine2`이며 관리자 복사 transaction이 SQLSTATE `42000`, native `927`, `데이터베이스 'labelmanager_combine'을(를) 열 수 없습니다. 복원 중입니다.`로 rollback됐다.

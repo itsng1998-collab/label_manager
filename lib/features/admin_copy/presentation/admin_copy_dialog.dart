@@ -333,14 +333,20 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
       }
       await widget.onCommitted();
     } on DbCommitOutcomeUnknown catch (error) {
+      _finishWriteBusy();
       if (mounted) await _showMessage(error.toString());
       widget.onCommitOutcomeUnknown();
     } catch (error) {
+      _finishWriteBusy();
       if (mounted) await _showMessage(error.toString());
     } finally {
-      widget.controller.setWriteBusy(false);
-      if (mounted) setState(() {});
+      _finishWriteBusy();
     }
+  }
+
+  void _finishWriteBusy() {
+    widget.controller.setWriteBusy(false);
+    if (mounted) setState(() {});
   }
 
   Future<bool?> _confirmOverwrite() =>
@@ -438,8 +444,23 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
         ),
         const SizedBox(height: 8),
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            Expanded(
+              child: widget.controller.writeBusy
+                  ? const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('복사 진행 중...'),
+                        SizedBox(height: 4),
+                        LinearProgressIndicator(
+                          key: ValueKey('adminCopyProgress'),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 16),
             OutlinedButton(
               key: const ValueKey('adminCopyClose'),
               onPressed: _busy ? null : widget.onClose,

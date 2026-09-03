@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/admin_copy/domain/admin_copy.dart';
@@ -191,6 +193,53 @@ void main() {
 
     expect(copied?.sourceBrandId, 10);
     expect(copied?.targetCustomerId, 2);
+  });
+
+  testWidgets('shows progress bar while copy is running', (tester) async {
+    final copyCompleter = Completer<void>();
+    await pumpDialog(
+      tester,
+      copyBrand: (_) => copyCompleter.future,
+    );
+    await tester.tap(find.byKey(const ValueKey('adminCopyWholeBrand')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceCustomer')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('원본 거래처').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceBrand')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('브랜드 1').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('adminCopyTargetCustomer')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('대상 거래처').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('adminCopyExecute')));
+    await tester.pump();
+
+    expect(find.text('복사 진행 중...'), findsOneWidget);
+    expect(find.byKey(const ValueKey('adminCopyProgress')), findsOneWidget);
+    expect(
+      tester
+          .getRect(find.byKey(const ValueKey('adminCopyProgress')))
+          .right,
+      lessThan(
+        tester.getRect(find.byKey(const ValueKey('adminCopyClose'))).left,
+      ),
+    );
+    expect(
+      tester.widget<OutlinedButton>(
+        find.byKey(const ValueKey('adminCopyClose')),
+      ).onPressed,
+      isNull,
+    );
+
+    copyCompleter.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('adminCopyProgress')), findsNothing);
   });
 
   testWidgets('item copy without target market performs no DML', (
