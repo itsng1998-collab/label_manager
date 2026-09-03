@@ -17,6 +17,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.28`, `git diff --check` 통과, 변경 파일 진단 없음.
 - stage/commit 대상: `lib/home_page_manager.dart`, 미리보기/세션 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `ffb5d53` (`품목 편집 중 미리보기 즉시 반영`).
 
 ## 완료: 재로그인 후 품목관리 브랜드 로딩 지속 수정 v1.3.27
 - 사용자 재현: ID `3575` 로그인 → 우측 상단 로그아웃 → 같은 ID 재로그인 시 `브랜드 데이터를 불러오고 있습니다...`가 지속되고 품목 추가/삭제 등 이벤트가 비활성화된다.
