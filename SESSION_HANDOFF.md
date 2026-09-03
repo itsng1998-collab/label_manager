@@ -1,5 +1,23 @@
 # 현재 작업 상태
 
+## 완료: 품목관리 가로 스크롤 접근성 개선 v1.3.33
+- 요구 동작: FortuneTable에서 `Shift + 휠` 가로 이동을 지원하고 가로 scrollbar 두께를 확대하며, 가로 overflow 시 테이블 하단에 좌우 이동 아이콘을 제공한다.
+- 현재 동작 확인: trackpad의 수평 delta와 8px 가로 scrollbar는 지원하지만 Shift modifier를 wheel 축 변환에 사용하지 않고, 품목관리의 multi-selection 때문에 mouse drag scroll은 비활성화된다.
+- 회귀 테스트 예정: 세로 wheel delta가 Shift 입력 중 가로 offset을 증가시키고, 12px 가로 scrollbar와 하단 좌우 아이콘이 표시되며 아이콘 click으로 양방향 이동하는지 검증한다.
+- 구현 전 focused 테스트 결과: 가로 scrollbar 두께가 기존 8px여서 실패해 요구 동작이 아직 없음을 확인했다.
+- 구현 완료: Shift 입력 중 wheel의 우세 delta를 가로 controller로 전달한다. 가로 overflow 시 scrollbar를 12px로 확대하고 30px 하단 컨트롤 바에 좌우 chevron 아이콘을 제공하며, 각 아이콘에 `왼쪽으로 이동`/`오른쪽으로 이동` 툴팁을 적용했다.
+- focused 검증 완료: Shift+wheel 가로 offset 증가, 12px scrollbar, 좌우 아이콘·툴팁 표시와 양방향 click 이동 테스트 통과.
+- 인접 검증 완료: FortuneTable 통합 및 fortune_sheet navigation 테스트 총 71건 통과.
+- 변경 파일 편집기 진단 완료: FortuneTable과 회귀 테스트 오류 없음.
+- 버전 편집 완료: 품목관리 가로 스크롤 접근성 개선이므로 PATCH 증가로 `1.3.32`에서 `1.3.33`으로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_table.dart test/fortune_table_test.dart`.
+- strict analyzer 완료: 변경 구현/테스트 2개 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.33`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목관리 셀별 클라이언트 편집 권한 적용 v1.3.32
 - 요구 동작: 동적 셀의 `RICH_EDITABLE=false`는 셀 색상을 변경하고 입력을 잠그며, `RICH_EDITABLE=true`는 로그인 사용자 등급과 무관하게 입력을 허용한다.
 - 기존 경로 확인: 우클릭 `클라이언트 편집 허용/불가`와 draft/저장 payload의 `editable` 보존은 이미 구현되어 있다. 현재 `_canEditDynamicColumn()`이 사용자 등급 권한을 선행 조건으로 사용해 일반 사용자의 허용 셀도 차단하며 FortuneTable은 행 단위 색상 API만 제공한다.

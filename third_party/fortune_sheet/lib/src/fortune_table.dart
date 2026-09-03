@@ -371,6 +371,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   static const Color _checkboxCheckColor = Color(0xff0188fb);
   static const Color _textEditorBorderColor = Color(0xFF0188FB);
   static const double _checkboxSize = 13.0;
+  static const double _horizontalScrollbarThickness = 12;
+  static const double _horizontalControlsHeight = 30;
+  static const double _horizontalScrollStep = 180;
 
   final ScrollController _hScrollHeader = ScrollController();
   final ScrollController _hScrollBody = ScrollController();
@@ -535,12 +538,14 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
               (constraints.maxWidth - widget.rowNumberWidth)
                   .clamp(0, double.infinity)
                   .toDouble();
+            final hasHorizontalOverflow =
+              bodyWidth > horizontalViewportWidth + 0.5;
           final bodyViewportHeight =
-              (constraints.maxHeight - widget.headerHeight)
+              (constraints.maxHeight -
+                  widget.headerHeight -
+                  (hasHorizontalOverflow ? _horizontalControlsHeight : 0))
                   .clamp(0, double.infinity)
                   .toDouble();
-          final hasHorizontalOverflow =
-              bodyWidth > horizontalViewportWidth + 0.5;
           final hasVerticalOverflow =
               widget.rows.length * widget.rowHeight > bodyViewportHeight + 0.5;
           return Listener(
@@ -629,7 +634,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                               child: RawScrollbar(
                                 controller: _hScrollBody,
                                 thumbVisibility: hasHorizontalOverflow,
-                                thickness: 8,
+                                thickness: _horizontalScrollbarThickness,
                                 radius: Radius.zero,
                                 notificationPredicate: (notification) =>
                                     notification.metrics.axis ==
@@ -662,11 +667,63 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                       ],
                     ),
                   ),
+                  if (hasHorizontalOverflow) _buildHorizontalControls(),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildHorizontalControls() {
+    return Container(
+      height: _horizontalControlsHeight,
+      decoration: const BoxDecoration(
+        color: Color(0xFFF7F8FA),
+        border: Border(top: BorderSide(color: _bodySeparatorColor)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: widget.rowNumberWidth),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    key: const ValueKey('fortune_table_scroll_left'),
+                    tooltip: '왼쪽으로 이동',
+                    onPressed: () =>
+                        _jumpBy(_hScrollBody, -_horizontalScrollStep),
+                    icon: const Icon(Icons.chevron_left),
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: _horizontalControlsHeight,
+                      height: _horizontalControlsHeight,
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey('fortune_table_scroll_right'),
+                    tooltip: '오른쪽으로 이동',
+                    onPressed: () =>
+                        _jumpBy(_hScrollBody, _horizontalScrollStep),
+                    icon: const Icon(Icons.chevron_right),
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: _horizontalControlsHeight,
+                      height: _horizontalControlsHeight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -791,6 +848,13 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   }
 
   void _handlePointerScroll(Offset delta) {
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      final horizontalDelta = delta.dx.abs() > delta.dy.abs()
+          ? delta.dx
+          : delta.dy;
+      _jumpBy(_hScrollBody, horizontalDelta);
+      return;
+    }
     if (delta.dx.abs() > delta.dy.abs()) {
       _jumpBy(_hScrollBody, delta.dx);
       return;

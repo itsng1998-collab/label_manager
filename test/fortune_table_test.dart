@@ -3746,6 +3746,72 @@ void main() {
     expect(bodyVerticalController.offset, greaterThan(0));
   });
 
+  testWidgets('FortuneTable supports Shift wheel and horizontal controls', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 240,
+            height: 180,
+            child: FortuneTable<String>(
+              rows: const ['행 1'],
+              autoFitColumns: false,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'wide',
+                  header: '넓은 컬럼',
+                  initialWidth: 520,
+                  text: (row) => row,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final horizontalController = _bodyHorizontalController(tester);
+    final scrollbars = tester.widgetList<RawScrollbar>(
+      find.byType(RawScrollbar),
+    );
+    expect(scrollbars.last.thickness, 12);
+    expect(
+      find.byKey(const ValueKey('fortune_table_scroll_left')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('fortune_table_scroll_right')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('왼쪽으로 이동'), findsOneWidget);
+    expect(find.byTooltip('오른쪽으로 이동'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    tester.binding.handlePointerEvent(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(FortuneTable<String>)),
+        scrollDelta: const Offset(0, 100),
+      ),
+    );
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(horizontalController.offset, greaterThan(0));
+
+    final afterWheel = horizontalController.offset;
+    await tester.tap(
+      find.byKey(const ValueKey('fortune_table_scroll_right')),
+    );
+    await tester.pump();
+    expect(horizontalController.offset, greaterThan(afterWheel));
+
+    final afterRight = horizontalController.offset;
+    await tester.tap(find.byKey(const ValueKey('fortune_table_scroll_left')));
+    await tester.pump();
+    expect(horizontalController.offset, lessThan(afterRight));
+  });
+
   testWidgets(
     'FortuneTable consumes trackpad pan inside a parent scroll view',
     (tester) async {
@@ -3908,6 +3974,13 @@ class _PopupRouteObserver extends NavigatorObserver {
 ScrollController _bodyVerticalController(WidgetTester tester) {
   final listViews = tester.widgetList<ListView>(find.byType(ListView));
   return listViews.last.controller!;
+}
+
+ScrollController _bodyHorizontalController(WidgetTester tester) {
+  final scrollViews = tester.widgetList<SingleChildScrollView>(
+    find.byType(SingleChildScrollView),
+  );
+  return scrollViews.last.controller!;
 }
 
 Future<void> _openItemManageContextMenu(
