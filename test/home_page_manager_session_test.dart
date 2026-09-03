@@ -1,8 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  test('item preview alignment stays above horizontal table controls', () {
+    expect(
+      itemPreviewBottomRightTarget(
+        tableRect: const Rect.fromLTWH(100, 50, 800, 600),
+        scrollbarThickness: 12,
+      ),
+      const Offset(878, 610),
+    );
+  });
+
   test('item refresh and order reload do not wait for render readiness', () {
     expect(itemManagerSessionLoadWaitsForRenderReady(isReload: false), isTrue);
     expect(itemManagerSessionLoadWaitsForRenderReady(isReload: true), isFalse);

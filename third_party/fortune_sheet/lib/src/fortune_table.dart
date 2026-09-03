@@ -5,6 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+const double fortuneTableHorizontalControlsHeight = 30;
+
 class FortuneTableCheckboxController extends ChangeNotifier {
   final Map<String, Set<int>> _checkedRowsByColumn = <String, Set<int>>{};
 
@@ -372,7 +374,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   static const Color _textEditorBorderColor = Color(0xFF0188FB);
   static const double _checkboxSize = 13.0;
   static const double _horizontalScrollbarThickness = 12;
-  static const double _horizontalControlsHeight = 30;
   static const double _horizontalScrollStep = 180;
 
   final ScrollController _hScrollHeader = ScrollController();
@@ -540,10 +541,13 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                   .toDouble();
             final hasHorizontalOverflow =
               bodyWidth > horizontalViewportWidth + 0.5;
+              final horizontalControlsHeight = hasHorizontalOverflow
+                ? fortuneTableHorizontalControlsHeight
+                : 0;
           final bodyViewportHeight =
               (constraints.maxHeight -
                   widget.headerHeight -
-                  (hasHorizontalOverflow ? _horizontalControlsHeight : 0))
+                    horizontalControlsHeight)
                   .clamp(0, double.infinity)
                   .toDouble();
           final hasVerticalOverflow =
@@ -679,7 +683,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   Widget _buildHorizontalControls() {
     return Container(
-      height: _horizontalControlsHeight,
+      height: fortuneTableHorizontalControlsHeight,
       decoration: const BoxDecoration(
         color: Color(0xFFF7F8FA),
         border: Border(top: BorderSide(color: _bodySeparatorColor)),
@@ -702,8 +706,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                     iconSize: 20,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints.tightFor(
-                      width: _horizontalControlsHeight,
-                      height: _horizontalControlsHeight,
+                      width: fortuneTableHorizontalControlsHeight,
+                      height: fortuneTableHorizontalControlsHeight,
                     ),
                   ),
                   IconButton(
@@ -715,8 +719,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                     iconSize: 20,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints.tightFor(
-                      width: _horizontalControlsHeight,
-                      height: _horizontalControlsHeight,
+                      width: fortuneTableHorizontalControlsHeight,
+                      height: fortuneTableHorizontalControlsHeight,
                     ),
                   ),
                 ],

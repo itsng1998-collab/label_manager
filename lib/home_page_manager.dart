@@ -205,6 +205,18 @@ bool itemManagerSessionLoadWaitsForRenderReady({required bool isReload}) =>
     !isReload;
 
 @visibleForTesting
+Offset itemPreviewBottomRightTarget({
+  required Rect tableRect,
+  required double scrollbarThickness,
+}) =>
+    tableRect.bottomRight -
+    Offset(
+      scrollbarThickness + _HomePageManagerState._itemPreviewTableInset,
+      fs.fortuneTableHorizontalControlsHeight +
+          _HomePageManagerState._itemPreviewTableInset,
+    );
+
+@visibleForTesting
 bool itemOutputPreviewSelectionAllowed({
   required bool itemDraftCommandBusy,
 }) => !itemDraftCommandBusy;
@@ -4889,11 +4901,10 @@ class _HomePageManagerState extends State<HomePageManager> {
         _itemPreviewScrollbarThicknessFallback;
     window.alignBottomRightTo(
       context,
-      tableRect.bottomRight -
-          Offset(
-            scrollbarThickness + _itemPreviewTableInset,
-            scrollbarThickness + _itemPreviewTableInset,
-          ),
+      itemPreviewBottomRightTarget(
+        tableRect: tableRect,
+        scrollbarThickness: scrollbarThickness,
+      ),
     );
     _itemPreviewAlignedToTable = true;
   }

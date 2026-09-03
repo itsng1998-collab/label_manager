@@ -1,5 +1,23 @@
 # 현재 작업 상태
 
+## 완료: 품목 플로팅창 하단 가로 스크롤 비가림 보정 v1.3.34
+- 사용자 확인: FortuneTable 하단 가로 scrollbar와 좌우 이동 컨트롤 높이가 커져 기존 플로팅창 Y 정렬이 조작 영역을 가린다.
+- 원인 확인: 플로팅창 bottom-right target은 테이블 bottom에서 기존 scrollbar theme 두께와 10px inset만 뺀다. 새 30px 하단 가로 컨트롤 높이를 반영하지 않는다.
+- 회귀 테스트 예정: 800×600 테이블과 12px scrollbar에서 X는 기존 22px inset을 유지하고 Y는 30px 하단 컨트롤+10px 여백을 적용한 `(878, 610)`을 반환하는지 검증한다.
+- 구현 전 focused 테스트 결과: `itemPreviewBottomRightTarget` 부재로 컴파일 실패해 새 하단 컨트롤 높이를 반영하는 정렬 정책이 없음을 확인했다.
+- 구현 완료: FortuneTable 하단 컨트롤 높이 30px를 공용 상수로 노출했다. 품목 플로팅창 X target은 기존 scrollbar 두께+10px inset을 유지하고, Y target은 테이블 bottom에서 하단 컨트롤 30px+10px를 빼 해당 조작 영역 위에 정렬한다.
+- focused 검증 완료: 플로팅 bottom-right target이 기존 X 위치를 유지하면서 Y를 하단 컨트롤 위 `(878, 610)`으로 계산하는 테스트 통과.
+- 인접 검증 완료: home manager 정책, FortuneTable 통합 및 fortune_sheet navigation 테스트 총 76건 통과.
+- 변경 파일 편집기 진단 완료: FortuneTable, home manager, 회귀 테스트 오류 없음.
+- 버전 편집 완료: 품목 플로팅창 위치 보정이므로 PATCH 증가로 `1.3.33`에서 `1.3.34`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_table.dart lib/home_page_manager.dart test/home_page_manager_session_test.dart`.
+- strict analyzer 완료: 변경 구현/테스트 3개 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.34`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목관리 가로 스크롤 접근성 개선 v1.3.33
 - 요구 동작: FortuneTable에서 `Shift + 휠` 가로 이동을 지원하고 가로 scrollbar 두께를 확대하며, 가로 overflow 시 테이블 하단에 좌우 이동 아이콘을 제공한다.
 - 현재 동작 확인: trackpad의 수평 delta와 8px 가로 scrollbar는 지원하지만 Shift modifier를 wheel 축 변환에 사용하지 않고, 품목관리의 multi-selection 때문에 mouse drag scroll은 비활성화된다.
