@@ -20,6 +20,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.25`, `git diff --check` 통과.
 - stage/commit 대상: 품목 save command/draft/service/DAO, `home_page_manager.dart`, save/draft 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `7834912` (`품목 저장 데이터내용 이력 기록`).
 
 ## 완료: 관리자 복사 진행바 표시 v1.3.24
 - 사용자 요청: 약 45초 걸리는 관리자 복사 동안 진행 상태를 시각적으로 표시한다.
