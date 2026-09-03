@@ -157,6 +157,7 @@ class _ItemManageState extends State<ItemManage> {
   static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
+  static const Color _clientNotEditableCellColor = Color(0xFFE5E7EB);
   static const double _minimizedHeaderColumnWidth = 70;
   static const int _autoFitSampleSize = 200;
 
@@ -1267,9 +1268,18 @@ class _ItemManageState extends State<ItemManage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  bool _canEditDynamicColumn(ItemManagerDraftRow? draft) {
-    return itemManagerCanPersistDynamicCell(
-      canManageItemStructure: widget.canEdit,
+  bool _dynamicCellEditable(ItemManagerDraftRow draft, int columnId) {
+    if (draft.isNew) return true;
+    return draft.columnDrafts[columnId]?.editable ??
+        widget.draftController!.scopedColumnContents
+            .get(columnId, draft.sourceItemId!)
+            ?.editable ??
+        false;
+  }
+
+  bool _canEditDynamicColumn(ItemManagerDraftRow? draft, int columnId) {
+    return itemManagerCanEditDynamicCell(
+      cellEditable: draft != null && _dynamicCellEditable(draft, columnId),
       commandBusy: widget.commandBusy,
       hasDraftRow: draft != null,
     );
@@ -1277,7 +1287,7 @@ class _ItemManageState extends State<ItemManage> {
 
   Future<void> _selectBmpImage(int rowIndex, TColumn column) async {
     final draft = _draftAtDisplayIndex(rowIndex);
-    if (!_canEditDynamicColumn(draft)) return;
+    if (!_canEditDynamicColumn(draft, column.columnId)) return;
     final targetDraft = draft!;
     const bmpGroup = XTypeGroup(label: 'BMP 이미지', extensions: <String>['bmp']);
     final file = await openFile(acceptedTypeGroups: const [bmpGroup]);
@@ -1403,26 +1413,28 @@ class _ItemManageState extends State<ItemManage> {
                   )?.dataString ??
                   '';
             },
+            cellColorBuilder: (_, rowIndex) {
+              final draft = _draftAtDisplayIndex(rowIndex);
+              if (draft == null || _dynamicCellEditable(draft, c.columnId)) {
+                return null;
+              }
+              return _clientNotEditableCellColor;
+            },
             isTextEditable: (_, rowIndex) {
               final draft = _draftAtDisplayIndex(rowIndex);
               return itemManagerDynamicCellEditorForType(c.columnType.code) ==
                       ItemManagerDynamicCellEditor.text &&
-                  _canEditDynamicColumn(draft);
+                  _canEditDynamicColumn(draft, c.columnId);
             },
             onDoubleTap:
-              widget.canEdit &&
-                  itemManagerDynamicCellEditorForType(c.columnType.code) ==
+              itemManagerDynamicCellEditorForType(c.columnType.code) ==
                       ItemManagerDynamicCellEditor.imagePicker
                 ? (_, rowIndex) => _selectBmpImage(rowIndex, c)
                 : null,
             onTextCommitted: (_, rowIndex, value) async {
               final draft = _draftAtDisplayIndex(rowIndex);
               if (draft == null) return;
-              final editable = draft.isNew ||
-                (widget.draftController!.scopedColumnContents
-                    .get(c.columnId, draft.sourceItemId!)
-                    ?.editable ??
-                  false);
+              final editable = _dynamicCellEditable(draft, c.columnId);
               try {
                 await widget.onBeforeColumnChange?.call(draft, c.columnId);
               } catch (error) {

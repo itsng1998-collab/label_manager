@@ -387,18 +387,18 @@ void main() {
     );
   });
 
-  test('item manager persists dynamic cells only for legacy editable grades', () {
+  test('item manager edits dynamic cells only when the cell is editable', () {
     expect(
-      itemManagerCanPersistDynamicCell(
-        canManageItemStructure: true,
+      itemManagerCanEditDynamicCell(
+        cellEditable: true,
         commandBusy: false,
         hasDraftRow: true,
       ),
       isTrue,
     );
     expect(
-      itemManagerCanPersistDynamicCell(
-        canManageItemStructure: false,
+      itemManagerCanEditDynamicCell(
+        cellEditable: false,
         commandBusy: false,
         hasDraftRow: true,
       ),
@@ -3009,6 +3009,16 @@ void main() {
       ),
     );
 
+    FortuneTableColumn<ItemOfMarket> dynamicColumn() => tester
+        .widget<FortuneTable<ItemOfMarket>>(
+          find.byType(FortuneTable<ItemOfMarket>),
+        )
+        .columns
+        .singleWhere((column) => column.id == 'dyn_101');
+
+    expect(dynamicColumn().isTextEditable!(item, 0), isFalse);
+    expect(_cellColorForText(tester, '1000'), const Color(0xFFE5E7EB));
+
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('1000')),
       kind: PointerDeviceKind.mouse,
@@ -3019,13 +3029,109 @@ void main() {
     await tester.tap(find.text('클라이언트 편집 허용'));
     await tester.pumpAndSettle();
 
-    final saved = controller
-        .toSaveCommand(labelSizeId: 20, targetMarketIds: const [1])
-        .columnValues
-        .single;
+    expect(dynamicColumn().isTextEditable!(item, 0), isTrue);
+    expect(_cellColorForText(tester, '1000'), isNot(const Color(0xFFE5E7EB)));
+    var saved = controller
+      .toSaveCommand(labelSizeId: 20, targetMarketIds: const [1])
+      .columnValues
+      .single;
     expect(saved.columnId, 101);
     expect(saved.dataString, '1000');
     expect(saved.editable, isTrue);
+
+    final secondGesture = await tester.startGesture(
+      tester.getCenter(find.text('1000')),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await secondGesture.up();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('클라이언트 편집 불가'));
+    await tester.pumpAndSettle();
+
+    expect(dynamicColumn().isTextEditable!(item, 0), isFalse);
+    expect(_cellColorForText(tester, '1000'), const Color(0xFFE5E7EB));
+    expect(
+      controller
+        .toSaveCommand(labelSizeId: 20, targetMarketIds: const [1])
+        .columnValues,
+      isEmpty,
+    );
+  });
+
+  testWidgets('ItemManage honors client edit permission per dynamic cell', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = originalColumns);
+    TColumn.datas = [_testColumn(columnId: 101, columnName: '판매가격')];
+    final lockedItem = _testItemOfMarket(itemName: '잠금 품목', itemId: 10);
+    final editableItem = _testItemOfMarket(itemName: '허용 품목', itemId: 11);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [lockedItem, editableItem],
+      scopedColumnContents: TColumnContentScopedView({
+        const ColumnItemKey(columnId: 101, itemId: 10): TColumnContent(
+          colContentId: 1,
+          columnId: 101,
+          itemId: 10,
+          editable: false,
+          dataString: '잠금값',
+        ),
+        const ColumnItemKey(columnId: 101, itemId: 11): TColumnContent(
+          colContentId: 2,
+          columnId: 101,
+          itemId: 11,
+          editable: true,
+          dataString: '허용값',
+        ),
+      }),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 780,
+            height: 220,
+            child: ItemManage(
+              items: [lockedItem, editableItem],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              canEdit: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final dynamicColumn = table.columns.singleWhere(
+      (column) => column.id == 'dyn_101',
+    );
+    expect(dynamicColumn.isTextEditable!(table.rows[0], 0), isFalse);
+    expect(dynamicColumn.isTextEditable!(table.rows[1], 1), isTrue);
+    expect(_cellColorForText(tester, '잠금값'), const Color(0xFFE5E7EB));
+
+    await tester.tap(find.text('잠금값'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('잠금값'));
+    await tester.pump();
+    expect(find.byType(EditableText), findsNothing);
+
+    await tester.tap(find.text('허용값'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('허용값'));
+    await tester.pump();
+    expect(find.byType(EditableText), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('ItemManage opens an editor for an empty added-row cell', (

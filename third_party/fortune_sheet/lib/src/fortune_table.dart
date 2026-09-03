@@ -218,6 +218,7 @@ class FortuneTableColumn<T> {
     this.isTextEditable,
     this.onTextCommitted,
     this.onDoubleTap,
+    this.cellColorBuilder,
     this.dragData,
     this.dragFeedbackBuilder,
     this.autoFit = true,
@@ -242,6 +243,7 @@ class FortuneTableColumn<T> {
   final FutureOr<void> Function(T row, int rowIndex, String value)?
   onTextCommitted;
   final FutureOr<void> Function(T row, int rowIndex)? onDoubleTap;
+  final Color? Function(T row, int rowIndex)? cellColorBuilder;
   final Object? Function(T row, int rowIndex)? dragData;
   final Widget Function(BuildContext context, T row, int rowIndex)?
   dragFeedbackBuilder;
@@ -1098,6 +1100,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     Color color,
   ) {
     final column = widget.columns[columnIndex];
+    final effectiveColor = column.cellColorBuilder?.call(row, rowIndex) ?? color;
     final selectsRow =
         !column.isCheckbox || column.selectRowOnCheckboxTap;
     return Listener(
@@ -1138,7 +1141,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         child: Container(
           width: width,
           decoration: BoxDecoration(
-            color: color,
+            color: effectiveColor,
             border: const Border(
               right: BorderSide(color: _bodySeparatorColor),
               bottom: BorderSide(color: _bodySeparatorColor),
@@ -1180,7 +1183,13 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                     }
                   },
                 )
-              : _buildTextCell(row, rowIndex, columnIndex, column, color),
+              : _buildTextCell(
+                  row,
+                  rowIndex,
+                  columnIndex,
+                  column,
+                  effectiveColor,
+                ),
         ),
       ),
     );

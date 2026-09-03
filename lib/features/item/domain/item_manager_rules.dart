@@ -10,12 +10,12 @@ ItemManagerDynamicCellEditor itemManagerDynamicCellEditorForType(
       : ItemManagerDynamicCellEditor.text;
 }
 
-bool itemManagerCanPersistDynamicCell({
-  required bool canManageItemStructure,
+bool itemManagerCanEditDynamicCell({
+  required bool cellEditable,
   required bool commandBusy,
   required bool hasDraftRow,
 }) {
-  return canManageItemStructure && !commandBusy && hasDraftRow;
+  return cellEditable && !commandBusy && hasDraftRow;
 }
 
 String itemManagerDeleteConfirmationMessage({

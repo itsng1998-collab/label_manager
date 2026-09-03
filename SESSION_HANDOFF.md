@@ -1,5 +1,24 @@
 # 현재 작업 상태
 
+## 완료: 품목관리 셀별 클라이언트 편집 권한 적용 v1.3.32
+- 요구 동작: 동적 셀의 `RICH_EDITABLE=false`는 셀 색상을 변경하고 입력을 잠그며, `RICH_EDITABLE=true`는 로그인 사용자 등급과 무관하게 입력을 허용한다.
+- 기존 경로 확인: 우클릭 `클라이언트 편집 허용/불가`와 draft/저장 payload의 `editable` 보존은 이미 구현되어 있다. 현재 `_canEditDynamicColumn()`이 사용자 등급 권한을 선행 조건으로 사용해 일반 사용자의 허용 셀도 차단하며 FortuneTable은 행 단위 색상 API만 제공한다.
+- 회귀 테스트 예정: `canEdit=false`에서 불가 셀은 잠금 색상과 편집 차단, 허용 셀은 실제 inline editor 진입을 검증한다.
+- 구현 전 focused 테스트 결과: 허용 셀의 `isTextEditable`이 `false`여서 실패해 사용자 등급 선행 조건이 원인임을 확인했다.
+- 구현 완료: FortuneTable 컬럼에 `cellColorBuilder`를 추가했다. ItemManage는 baseline 또는 현재 column draft의 `editable`을 셀별로 계산해 `false`이면 회색과 입력 잠금을 적용하고, `true`이면 사용자 등급과 무관하게 텍스트/BMP 입력을 허용한다. 우클릭 허용/불가 설정은 기존 관리자 권한 조건을 유지한다.
+- 설정 전환 검증 보완: 관리자 우클릭으로 같은 셀을 `불가 → 허용 → 불가` 전환할 때 편집 가능 여부와 잠금 색상이 즉시 바뀌고 최종 `editable=false`가 저장 payload에 반영되는지 검증한다.
+- focused 검증 완료: 셀별 일반 사용자 입력 권한 테스트와 관리자 우클릭 허용/불가 왕복 테스트 2건 통과.
+- 인접 검증 완료: FortuneTable 통합 및 fortune_sheet navigation 테스트 총 70건 통과.
+- 변경 파일 편집기 진단 완료: FortuneTable, ItemManage, item manager rules, 회귀 테스트 오류 없음.
+- 버전 편집 완료: 품목관리 셀별 클라이언트 편집 권한 적용이므로 PATCH 증가로 `1.3.31`에서 `1.3.32`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_table.dart lib/features/item/domain/item_manager_rules.dart lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart`.
+- strict analyzer 완료: 변경 구현/테스트 4개 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.32`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/domain/item_manager_rules.dart`, `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품명 편집 중 다른 품목 클릭 후 스크롤 비활성 수정 v1.3.31
 - 사용자 재현: 품목관리에서 품명을 더블클릭해 편집한 채 다른 품목을 한 번 클릭하면 이동 스크롤이 비활성화되고, 다시 편집 후 Enter를 눌러야 복구된다.
 - 원인 가설: FortuneTable은 다른 셀 `onPointerDown`에서 선택과 품목 draft selection 재빌드를 먼저 수행하고 편집 commit은 `onPointerUp`에 예약한다. 재빌드로 pointer-up listener가 유실되면 editor/drag 상태가 남는다.
