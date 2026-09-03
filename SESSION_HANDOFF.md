@@ -19,6 +19,7 @@
 - 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.31`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `ff63111` (`품명 편집 후 스크롤 비활성 수정`).
 
 ## 완료: 품목 우클릭 새로고침 후 무한 로딩 확인 v1.3.30
 - 사용자 재현: 품목관리 우클릭 `새로 고침` 후 하단 `처리 중`이 계속 표시되고 메뉴가 일괄 비활성화된다.
