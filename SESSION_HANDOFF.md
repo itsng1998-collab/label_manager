@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: 공용라벨 필수등록 변경 시 저장 비활성
+## 완료: 공용라벨 필수등록 변경 시 저장 활성화 v1.3.41
 - 사용자 재현: 공용라벨관리에서 `SWEIGHT`, `SPRICE` 필수등록만 체크/해제하면 저장 표시가 활성화되지 않고, 서식을 별도로 수정한 뒤 저장해야 필수등록 변경도 함께 반영된다.
 - 원인 확인: `_CommonLabelTable`은 `TColumnBase.useMissingKeywordCheck`를 변경하고 우측 목록/필수 키워드만 다시 그리며, `LabelSheetWorkbench._isDirty`에는 변경 사실을 전달하지 않는다. 따라서 체크만 바꾸면 서식 저장 버튼이 비활성 상태로 남는다.
 - 회귀 테스트 추가: `CommonLabelManage`에서 필수등록 체크만 변경해도 `onSheetDirtyChanged(true)`가 전달되는지 검증한다.
@@ -12,6 +12,7 @@
 - Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.41`, `git diff --check` 통과.
 - stage/commit 대상: `lib/features/label_sheet/label_sheet_workbench.dart`, `lib/features/label_sheet/presentation/common_label_manage.dart`, `test/common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `200cafd` (`공용라벨 필수등록 저장 활성화 수정`).
 
 ## 완료: 라벨 항목 보조값 저장 간헐 실패 수정 v1.3.40
 - 사용자 제보: 공용라벨관리의 라벨 항목 편집에서 표시/누락키워드 설정을 여러 번 바꾸고 적용 후 저장하면 간헐적으로 SQL Server `51115 Label column auxiliary values changed after editing started`가 발생한다.
