@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 진행 중: 품목관리 초기 저장 모드 오인/전환 확인
+- 사용자 제보: 최근 가로 아이콘 footer 재배치 이후 품목관리 첫 진입에서 무조건 저장 모드가 되는 것으로 보인다.
+- 최신 앱 로그 확인: session load 직후 draft는 `dirty=false`, 26초 뒤 rows가 모두 existing인 상태에서 `dirty=true`로 전환되어 행/셀 변경이 아닌 최소표시 draft 변경 가능성이 있다. 최근 footer는 clean 상태에서도 비활성 취소/저장 버튼을 항상 노출한다.
+- 재현 테스트 결과: 실제 existing draft와 가로 overflow를 구성한 초기 여러 frame 후에도 `controller.isDirty=false`, 저장 버튼 `onPressed=null`로 기능상 dirty 전환은 재현되지 않았다.
+- 편집 완료: clean 상태에서는 `취소`/`저장` 버튼을 렌더링하지 않고, draft가 dirty가 된 뒤에만 두 버튼을 가로 이동 아이콘 왼쪽에 표시한다. Excel 명령과 가로 이동 아이콘은 기존대로 유지한다.
+- 테스트 수정: 초기 clean 상태에서는 취소/저장 버튼이 없고, 품명 변경 후 dirty 상태에서 버튼과 가로 이동 아이콘 배치/동작이 유지되는지 검증한다.
+- focused 검증 완료: 수정한 footer 회귀 테스트 1건 및 `test/fortune_table_test.dart` 전체 72건 통과, 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 초기 clean 상태의 저장 모드 오인 UI 수정이므로 PATCH 증가로 `1.3.35`에서 `1.3.36`으로 갱신했다.
+- 인접 검증 예정: `test/fortune_table_test.dart`, `test/home_page_manager_session_test.dart`, `third_party/fortune_sheet/test/fortune_table_navigation_test.dart` 실행 후 변경 파일 strict analyzer를 수행한다.
+- 인접 검증 완료: FortuneTable, home manager session, fortune_sheet navigation 테스트 총 77건 통과.
+- strict analyzer 완료: `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart` 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.36`, `git diff --check` 통과.
+- stage/commit 대상: `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목관리 가로 이동 아이콘 footer 배치 v1.3.35
 - 사용자 실물 확인: FortuneTable 하단 좌우 아이콘 전용 30px 행이 공간을 낭비한다. 아이콘을 품목관리 footer의 `취소`/`저장` 오른쪽으로 적당한 간격을 두고 이동한다.
 - 수정 방향: FortuneTable은 Shift+wheel과 12px scrollbar만 유지한다. `FortuneTableScrollController`에 가로 overflow/이동 API를 추가해 ItemManage footer가 좌우 아이콘과 툴팁을 소유하도록 변경한다.

@@ -1792,12 +1792,7 @@ void main() {
     expect(itemManageController.hasActiveEditing, isFalse);
     expect(selectedCount, 0);
     expect(draftController.isDirty, isFalse);
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
-          .onPressed,
-      isNull,
-    );
+    expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
     table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
@@ -3811,6 +3806,12 @@ void main() {
         columnName: '가로 항목 ${index + 1}',
       ),
     );
+    final item = _testItemOfMarket();
+    final controller = ItemManagerDraftController.fromItems(
+      items: [item],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -3819,7 +3820,14 @@ void main() {
             width: 780,
             height: 220,
             child: ItemManage(
-              items: [_testItemOfMarket()],
+              items: [item],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
               onCancelDraft: () async {},
               onSaveDraft: () async {},
             ),
@@ -3828,6 +3836,14 @@ void main() {
       ),
     );
     await tester.pump();
+
+    expect(controller.isDirty, isFalse);
+    expect(find.widgetWithText(OutlinedButton, '취소'), findsNothing);
+    expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+
+    controller.updateItemName(controller.rows.single.rowKey, '수정 품목');
+    await tester.pump();
+    expect(controller.isDirty, isTrue);
 
     final saveRect = tester.getRect(find.widgetWithText(FilledButton, '저장'));
     final leftButton = find.byKey(

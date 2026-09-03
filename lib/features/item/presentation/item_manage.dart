@@ -523,18 +523,14 @@ class _ItemManageState extends State<ItemManage> {
             const Text('처리 중'),
           ],
           const Spacer(),
-          if (widget.canEdit) ...[
+          if (dirtyEnabled) ...[
             OutlinedButton(
-              onPressed: dirtyEnabled && widget.onCancelDraft != null
-                  ? widget.onCancelDraft
-                  : null,
+              onPressed: widget.onCancelDraft,
               child: const Text('취소'),
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: dirtyEnabled && widget.onSaveDraft != null
-                  ? widget.onSaveDraft
-                  : null,
+              onPressed: widget.onSaveDraft,
               child: const Text('저장'),
             ),
           ],
