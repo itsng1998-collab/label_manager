@@ -14,6 +14,7 @@
 - Windows 통합 검증 완료: 잠금 해제 후 동일 `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.24`, `git diff --check` 통과. 진행바가 footer 버튼과 겹치지 않는 widget 위치 계약도 통과했다.
 - stage/commit 대상: `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/admin_copy_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `2147fff` (`관리자 복사 진행 상태 표시`).
 
 ## 완료: 관리자 품목 복사 중 복원 DB ODBC 927 오류 수정 v1.3.23
 - 사용자 재현: system 계정의 파일/관리 → 관리자 복사에서 `80*60 테스트용`을 `80*60 복사용`으로 품목까지 복사하면 `labelmanager_combine` 복원 중 ODBC 예외가 표시된다.
