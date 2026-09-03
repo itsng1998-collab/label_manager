@@ -22,6 +22,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.29`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
 - stage/commit 대상: `lib/features/item/domain/item_manager_draft.dart`, `test/item_manager_draft_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `f05d6ab` (`날짜 시한 자유 입력 저장 오류 수정`).
 
 ## 완료: 품목 편집 중 주원료/출력 미리보기 재표시 및 draft 반영 v1.3.28
 - 사용자 재현: 주원료 및 라벨출력 미리보기 창을 닫은 뒤 품목관리에서 셀 편집 중 다시 열거나 출력 탭을 선택하면 `품목 편집을 완료하거나 취소한 뒤 변경해 주세요.`로 차단된다.
