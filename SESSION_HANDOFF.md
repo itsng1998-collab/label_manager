@@ -7,6 +7,7 @@
 - 추가 production 수정/버전 증가는 하지 않는다. 기존 정책 회귀 테스트 이름을 새로고침과 순서 저장 두 진입점이 모두 공통 reload 정책의 보호 대상임을 명시하도록 보강했다.
 - 검증 완료: `home_page_manager_session_test.dart`, `fortune_table_test.dart` 총 72건 통과. `flutter analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart` 결과 `No issues found`.
 - stage/commit 대상: `test/home_page_manager_session_test.dart`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 회귀 검증 커밋: `7630359` (`품목 새로고침 무한 로딩 회귀 검증`).
 
 ## 완료: 품목 순서 변경 저장 후 무한 로딩 수정 v1.3.30
 - 사용자 재현: 품목 순서 변경 다이얼로그에서 행을 드래그해 순서를 변경하고 저장하면 하단 `처리 중`이 계속 표시되고 품목관리 메뉴가 일괄 비활성화된다.
