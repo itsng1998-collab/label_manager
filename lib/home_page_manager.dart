@@ -201,6 +201,10 @@ bool itemManagerSessionAlreadyLoaded({
     requestedLabelSizeId == loadedLabelSizeId;
 
 @visibleForTesting
+bool itemManagerSessionLoadWaitsForRenderReady({required bool isReload}) =>
+    !isReload;
+
+@visibleForTesting
 bool itemOutputPreviewSelectionAllowed({
   required bool itemDraftCommandBusy,
 }) => !itemDraftCommandBusy;
@@ -1629,6 +1633,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     LabelSize? labelSize, {
     bool forceReload = false,
     bool skipDraftContextGuard = false,
+    bool isItemManagerReload = false,
   }) async {
     _itemManagerQueryDepth += 1;
     _syncAppMenuWorkState();
@@ -1781,14 +1786,25 @@ class _HomePageManagerState extends State<HomePageManager> {
         'specials=${TColumnSpecial.datas?.length ?? 0}, '
         'items=${ItemOfMarket.datas?.length ?? 0}',
       );
-      final renderReady = await _resetTabsAndWaitForItemManager(trace);
-      if (!renderReady) {
+      if (itemManagerSessionLoadWaitsForRenderReady(
+        isReload: isItemManagerReload,
+      )) {
+        final renderReady = await _resetTabsAndWaitForItemManager(trace);
+        if (!renderReady) {
+          ItemManagerDebugLog.event(
+            'sessionLoad',
+            'renderCancelled',
+            trace: trace,
+          );
+          return false;
+        }
+      } else {
+        _resetTabs();
         ItemManagerDebugLog.event(
           'sessionLoad',
-          'renderCancelled',
+          'renderDeferred',
           trace: trace,
         );
-        return false;
       }
       ItemManagerDebugLog.event(
         'sessionLoad',
@@ -2761,7 +2777,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         'keepInitialFirstSelection': keepInitialFirstSelection,
       },
     );
-    final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
+    final loaded = await _handleLabelSizeChanged(
+      labelSize,
+      forceReload: true,
+      isItemManagerReload: true,
+    );
     if (!loaded) {
       ItemManagerDebugLog.event('reload', 'loadFailed', trace: trace);
       return false;

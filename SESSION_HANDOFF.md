@@ -1,5 +1,27 @@
 # 현재 작업 상태
 
+## 완료: 품목 순서 변경 저장 후 무한 로딩 수정 v1.3.30
+- 사용자 재현: 품목 순서 변경 다이얼로그에서 행을 드래그해 순서를 변경하고 저장하면 하단 `처리 중`이 계속 표시되고 품목관리 메뉴가 일괄 비활성화된다.
+- 코드 경로: `_changeItemOrder()`가 `_itemDraftCommandBusy=true`로 진입한 뒤 `saveItemManagerOrder()`와 DB 재조회를 기다리며, `finally`는 있으므로 await 중 하나가 반환하지 않는 경우에만 busy가 지속된다.
+- 조사 예정: 연결 DB의 `플로터 테스트` 품목을 현재 순서와 동일한 order로 `ItemDAO.updateOrders()`에 전달해 실제 SQL transaction 반환 여부와 시간을 측정한다.
+- DB probe 결과: 현재 DB의 품목 20개 동일 순서 update는 transaction/COMMIT 포함 105ms에 정상 반환했다. 순서 저장 SQL 자체는 지속 busy 원인이 아니다.
+- 원인 확인: 저장 후 `_reloadItemDraftFromDatabase()`가 DB 데이터와 controller 반영을 끝낸 뒤에도 `ItemManage.onReady` callback을 무기한 기다린다. callback이 유실되면 `_changeItemOrder()`의 `finally`에 도달하지 못해 `처리 중`이 영구 유지된다.
+- 수정 방향: 일반 라벨 전환의 render-ready 대기는 유지하되, 저장 후 강제 재조회는 탭 재구성만 요청하고 render callback을 command 완료 조건에서 제외한다.
+- 회귀 테스트 추가: 일반 세션 로드는 render-ready를 기다리고 저장 후 reload는 기다리지 않는 정책을 `home_page_manager_session_test.dart`에 추가했다. 구현 전 실패 확인 예정.
+- 구현 전 focused 테스트 결과: `itemManagerSessionLoadWaitsForRenderReady` 부재로 컴파일 실패해 새 정책이 기존 코드에 없음을 확인했다.
+- 구현 완료: `_reloadItemDraftFromDatabase()`가 `isItemManagerReload=true`를 전달하고, reload에서는 DB/controller 반영 후 `_resetTabs()`만 호출해 `ItemManage.onReady`를 기다리지 않는다. 일반 라벨 세션 로드의 render-ready 대기는 유지한다.
+- focused 검증 완료: render-ready 대기 정책 회귀 테스트 1건 통과.
+- 임시 산출물 정리: 현재 DB에서 동일 order update 반환 시간을 측정한 `test/item_order_db_probe_test.dart`를 삭제했다.
+- 인접 검증 예정: 품목 순서 다이얼로그/세션/저장 DAO/draft 및 FortuneTable 품목관리 테스트를 실행한다.
+- 인접 검증 완료: `item_order_dialog`, `home_page_manager_session`, `item_manager_save_dao`, `item_manager_draft`, `fortune_table` 총 115건 통과.
+- 버전 편집 완료: 품목 순서 저장 후 command busy가 영구 유지되는 회귀 수정이므로 PATCH 증가로 `1.3.29`에서 `1.3.30`으로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart`.
+- strict analyzer 완료: 변경 구현/테스트 2개 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.30`, 변경 파일 편집기 진단 없음, `git diff --check` 통과. helper 들여쓰기 정리 후 focused 테스트도 재통과했다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 날짜 시한 자유 입력 저장 오류 수정 v1.3.29
 - 사용자 재현: 날짜 시한 사용 컬럼에서 빈값/한글/영문/숫자값 등 입력 내용과 무관하게 `소비시한 날짜/시간 형식 또는 범위가 올바르지 않습니다.` 오류로 품목 저장이 불가능하다.
 - 원인 후보: 현재 `TYPE_VALIDDATE` validation은 `RICH_USE_DATERANGE=1`이면 `RICH_DATERANGE`가 양쪽 숫자인 `before|after` 형식이어야만 통과한다. 레거시 설정은 앞/뒤 범위를 비워 `|`, `3|`, `|5`로 저장하는 것도 허용한다.

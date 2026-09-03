@@ -3,6 +3,11 @@ import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  test('item reload does not wait for item manager render readiness', () {
+    expect(itemManagerSessionLoadWaitsForRenderReady(isReload: false), isTrue);
+    expect(itemManagerSessionLoadWaitsForRenderReady(isReload: true), isFalse);
+  });
+
   test('same label reloads when the item manager session is absent', () {
     expect(
       itemManagerSessionAlreadyLoaded(
