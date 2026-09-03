@@ -15,6 +15,7 @@
 - 동작 기준: 검색출력 발행으로 출력 미리보기가 교체돼도 LayoutBuilder build가 끝난 뒤 최초 auto-fit을 적용하며, 줌 입력과 미리보기 배율은 예외 없이 동기화된다.
 - 커밋 대상: `label_output_preview.dart`, 신규 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 범위 밖 lockfile 변경은 제외한다.
 - null controller의 불필요한 callback 예약을 제거한 뒤 focused 재현 테스트 재통과, strict analyzer `No issues found`, 최종 `/WX` Windows Debug 재빌드 성공을 확인했다.
+- 기능 커밋: `9b29e9d` (`검색출력 발행 줌 예외 수정`).
 
 ## 완료: 품목별 정보 편집 진입 build 중 알림 예외 수정 v1.3.19
 - 사용자 재현: 설정 → 품목별 정보 편집 진입 시 `ItemInfoController.setLoading()`의 `notifyListeners()`에서 `setState() or markNeedsBuild() called during build` 예외가 발생한다.
