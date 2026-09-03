@@ -1,5 +1,24 @@
 # 현재 작업 상태
 
+## 완료: 재로그인 후 품목관리 브랜드 로딩 지속 수정 v1.3.27
+- 사용자 재현: ID `3575` 로그인 → 우측 상단 로그아웃 → 같은 ID 재로그인 시 `브랜드 데이터를 불러오고 있습니다...`가 지속되고 품목 추가/삭제 등 이벤트가 비활성화된다.
+- 실행본 참고: 첨부 화면은 `v1.3.5`; 현재 소스는 `v1.3.26`. workspace 최신 로그는 해당 3575 재현 로그가 아니어서 코드 경로로 원인을 확정했다.
+- 원인 확인: 로그아웃 후 부모의 선택 라벨이 유지되고 새 `HomePageManager`가 그 라벨을 `_currentLabelSize`로 받는다. 초기 로드에서 요청/현재/부모 선택 ID가 같다는 이유만으로 `_handleLabelSizeChanged`가 조기 반환하여 실제 품목 세션과 draft controller를 만들지 않고, 로딩 스낵바도 닫지 않는다.
+- 수정 예정: 동일 라벨 조기 반환은 `_itemDraftLoadedLabelSizeId`까지 일치해 현재 manager에 품목 세션이 실제 적재된 경우에만 허용한다.
+- 재현 테스트 추가: 요청/현재/선택 라벨이 같아도 loaded session ID가 없으면 미적재로 판단하고, 모두 같을 때만 적재 완료로 판단한다.
+- 구현 완료: `itemManagerSessionAlreadyLoaded` 판정에 `_itemDraftLoadedLabelSizeId`를 포함해 재로그인 새 manager의 미적재 상태에서는 동일 라벨도 반드시 다시 로드한다.
+- 판정 보완: 요청 라벨 ID가 `null`인 빈 브랜드/라벨 상태는 적재 완료로 보지 않아 초기화 및 스낵바 종료 경로를 실행한다.
+- focused 검증 완료: 신규 세션 적재 판정 테스트 통과. 포맷 후 `home_page_manager.dart` diff는 의도한 18줄 추가/2줄 변경이며 공백 오류 없음.
+- 인접 검증 예정: `home_page_manager_session_test.dart`, `fortune_table_test.dart`, `label_sheet_toolbar_test.dart`를 실행해 품목 세션/탭 렌더링 회귀를 확인한다.
+- 인접 검증 완료: 품목 세션/fortune table/label sheet toolbar 총 261건 통과.
+- 버전 편집 완료: 재로그인 후 품목관리 사용 불가 오류 수정이므로 PATCH 증가로 `1.3.26`에서 `1.3.27`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart`.
+- strict analyzer 완료: 위 2개 변경 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.27`, `git diff --check` 통과. helper 들여쓰기 보정 후 focused 테스트도 재통과했다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 관리자 grade 0/1 ID/PW 표시 및 시리얼 인증 제외 v1.3.26
 - 사용자 요청: `BM_USER.RICH_USER_GRADE`가 `0` 또는 `1`이면 사용자관리에서 ID/PW를 표시하고, SYSTEM과 같은 관리자 계정으로 취급해 다른 PC에서도 시리얼 인증 없이 로그인한다.
 - 현재 동작: grade 0 자체 비밀번호만 `firstAdmin`, grade 1은 `regular`로 분류한다. 사용자관리 ID/PW는 `isFirstConnectByAdmin`만 보고, `firstAdmin`도 PC 시리얼 인증을 요구한다.

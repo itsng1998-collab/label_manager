@@ -188,6 +188,18 @@ bool appMenuWorkBlocked({
     autoItemUpdateEditing ||
     scaleOutputEditing;
 
+@visibleForTesting
+bool itemManagerSessionAlreadyLoaded({
+  required int? requestedLabelSizeId,
+  required int? currentLabelSizeId,
+  required int? selectedLabelSizeId,
+  required int? loadedLabelSizeId,
+}) =>
+    requestedLabelSizeId != null &&
+    requestedLabelSizeId == currentLabelSizeId &&
+    requestedLabelSizeId == selectedLabelSizeId &&
+    requestedLabelSizeId == loadedLabelSizeId;
+
 bool homeTabTapBlocked({
   required Object? currentTabValue,
   required bool itemDraftContextChangeBlocked,
@@ -1655,8 +1667,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       final currentLabelSizeId = _currentLabelSize?.labelSizeId;
       final selectedLabelSizeId = widget.selectedLabelSize?.labelSizeId;
       if (!forceReload &&
-          labelSize?.labelSizeId == currentLabelSizeId &&
-          labelSize?.labelSizeId == selectedLabelSizeId) {
+          itemManagerSessionAlreadyLoaded(
+            requestedLabelSizeId: labelSize?.labelSizeId,
+            currentLabelSizeId: currentLabelSizeId,
+            selectedLabelSizeId: selectedLabelSizeId,
+            loadedLabelSizeId: _itemDraftLoadedLabelSizeId,
+          )) {
         debugLog('skip unchanged labelSizeId=${labelSize?.labelSizeId}');
         ItemManagerDebugLog.event(
           'sessionLoad',
