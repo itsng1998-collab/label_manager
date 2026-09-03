@@ -261,6 +261,8 @@ class FortuneTableColumn<T> {
     this.onTextCommitted,
     this.onDoubleTap,
     this.cellColorBuilder,
+    this.textStyleBuilder,
+    this.tooltipBuilder,
     this.dragData,
     this.dragFeedbackBuilder,
     this.autoFit = true,
@@ -286,6 +288,8 @@ class FortuneTableColumn<T> {
   onTextCommitted;
   final FutureOr<void> Function(T row, int rowIndex)? onDoubleTap;
   final Color? Function(T row, int rowIndex)? cellColorBuilder;
+  final TextStyle? Function(T row, int rowIndex)? textStyleBuilder;
+  final String? Function(T row, int rowIndex)? tooltipBuilder;
   final Object? Function(T row, int rowIndex)? dragData;
   final Widget Function(BuildContext context, T row, int rowIndex)?
   dragFeedbackBuilder;
@@ -1319,6 +1323,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         ),
       );
     }
+    final text = Text(
+      column.text(row),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style:
+          column.textStyleBuilder?.call(row, rowIndex) ??
+          const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+    );
+    final tooltip = column.tooltipBuilder?.call(row, rowIndex);
     final cell = SizedBox.expand(
       child: Listener(
         onPointerDown: (event) {
@@ -1335,12 +1348,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
               : _isTextEditable(column, row, rowIndex)
               ? () => _startTextEditing(row, rowIndex, columnIndex, column)
               : null,
-          child: Text(
-            column.text(row),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
-          ),
+          child: tooltip == null ? text : Tooltip(message: tooltip, child: text),
         ),
       ),
     );

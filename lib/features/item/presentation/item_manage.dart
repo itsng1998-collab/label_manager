@@ -157,7 +157,10 @@ class _ItemManageState extends State<ItemManage> {
   static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
-  static const Color _clientNotEditableCellColor = Color(0xFFE5E7EB);
+  static const TextStyle _clientNotEditableCellTextStyle = TextStyle(
+    fontSize: 14,
+    color: Color(0xFF6B7280),
+  );
   static const double _minimizedHeaderColumnWidth = 70;
   static const int _autoFitSampleSize = 200;
 
@@ -1447,12 +1450,17 @@ class _ItemManageState extends State<ItemManage> {
                   )?.dataString ??
                   '';
             },
-            cellColorBuilder: (_, rowIndex) {
+            textStyleBuilder: (_, rowIndex) {
               final draft = _draftAtDisplayIndex(rowIndex);
-              if (draft == null || _dynamicCellEditable(draft, c.columnId)) {
-                return null;
-              }
-              return _clientNotEditableCellColor;
+              return draft != null && !_dynamicCellEditable(draft, c.columnId)
+                  ? _clientNotEditableCellTextStyle
+                  : null;
+            },
+            tooltipBuilder: (_, rowIndex) {
+              final draft = _draftAtDisplayIndex(rowIndex);
+              return draft != null && !_dynamicCellEditable(draft, c.columnId)
+                  ? '클라이언트 편집 불가'
+                  : null;
             },
             isTextEditable: (_, rowIndex) {
               final draft = _draftAtDisplayIndex(rowIndex);

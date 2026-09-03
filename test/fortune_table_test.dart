@@ -3017,7 +3017,8 @@ void main() {
         .singleWhere((column) => column.id == 'dyn_101');
 
     expect(dynamicColumn().isTextEditable!(item, 0), isFalse);
-    expect(_cellColorForText(tester, '1000'), const Color(0xFFE5E7EB));
+    expect(_textStyleForText(tester, '1000').color, const Color(0xFF6B7280));
+    expect(find.byTooltip('클라이언트 편집 불가'), findsOneWidget);
 
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('1000')),
@@ -3030,7 +3031,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(dynamicColumn().isTextEditable!(item, 0), isTrue);
-    expect(_cellColorForText(tester, '1000'), isNot(const Color(0xFFE5E7EB)));
+    expect(_textStyleForText(tester, '1000').color, const Color(0xFF202124));
+    expect(find.byTooltip('클라이언트 편집 불가'), findsNothing);
     var saved = controller
       .toSaveCommand(labelSizeId: 20, targetMarketIds: const [1])
       .columnValues
@@ -3050,7 +3052,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(dynamicColumn().isTextEditable!(item, 0), isFalse);
-    expect(_cellColorForText(tester, '1000'), const Color(0xFFE5E7EB));
+    expect(_textStyleForText(tester, '1000').color, const Color(0xFF6B7280));
+    expect(find.byTooltip('클라이언트 편집 불가'), findsOneWidget);
     expect(
       controller
         .toSaveCommand(labelSizeId: 20, targetMarketIds: const [1])
@@ -3118,10 +3121,14 @@ void main() {
     );
     expect(dynamicColumn.isTextEditable!(table.rows[0], 0), isFalse);
     expect(dynamicColumn.isTextEditable!(table.rows[1], 1), isTrue);
-    expect(_cellColorForText(tester, '잠금값'), const Color(0xFFE5E7EB));
+    expect(_textStyleForText(tester, '잠금값').color, const Color(0xFF6B7280));
+    expect(_textStyleForText(tester, '허용값').color, const Color(0xFF202124));
+    expect(find.byTooltip('클라이언트 편집 불가'), findsOneWidget);
 
     await tester.tap(find.text('잠금값'));
     await tester.pump(const Duration(milliseconds: 50));
+    expect(_cellColorForText(tester, '잠금 품목'), const Color(0xFFE3F2FD));
+    expect(_cellColorForText(tester, '잠금값'), const Color(0xFFE3F2FD));
     await tester.tap(find.text('잠금값'));
     await tester.pump();
     expect(find.byType(EditableText), findsNothing);
@@ -4103,6 +4110,9 @@ Color? _cellColorForText(WidgetTester tester, String text) {
   );
   return (container.decoration! as BoxDecoration).color;
 }
+
+TextStyle _textStyleForText(WidgetTester tester, String text) =>
+    tester.widget<Text>(find.text(text)).style!;
 
 ItemOfMarket _testItemOfMarket({
   String itemName = '테스트 품목',

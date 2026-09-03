@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 완료: 클라이언트 편집 불가 셀 시각 표시 개선 v1.3.38
+- 사용자 확인: 동적 컬럼의 편집 불가 셀을 전체 회색 배경으로 표시하면 그리드 구분선 대비가 약해지고 선택 행 하이라이트가 `주원료` 이후 끊겨 보인다.
+- 원인 확인: FortuneTable은 `cellColorBuilder` 결과를 행 선택/교차 행 색상보다 우선 적용하며, 품목관리 잠금 셀이 불투명 `#E5E7EB`를 반환해 행 배경을 덮는다.
+- 편집 완료: FortuneTable column에 셀별 `textStyleBuilder`와 `tooltipBuilder`를 추가했다. 품목관리 잠금 셀은 전체 회색 배경을 제거하고 흐린 글자색 `#6B7280` 및 `클라이언트 편집 불가` 툴팁으로 표시한다.
+- 테스트 수정: 권한 전환 시 글자색/툴팁을 검증하고, 잠금 셀을 선택해도 고정 컬럼부터 동적 컬럼까지 선택 배경 `#E3F2FD`가 연속 적용되는지 검증한다.
+- focused 검증 완료: 셀별 권한 표시/전환 및 선택 행 배경 연속성 테스트 2건 통과.
+- 버전 편집 완료: 편집 불가 셀 시각 표시 개선이므로 PATCH 증가로 `1.3.37`에서 `1.3.38`로 갱신했다.
+- 인접 검증 예정: `test/fortune_table_test.dart`, `test/home_page_manager_session_test.dart`, `third_party/fortune_sheet/test/fortune_table_navigation_test.dart` 실행 후 공용 FortuneTable과 품목관리 변경 파일 strict analyzer를 수행한다.
+- 인접 검증 완료: FortuneTable, home manager session, fortune_sheet navigation 테스트 총 77건 통과.
+- strict analyzer 완료: 변경 구현/테스트 3개 파일 분석 결과 `No issues found`, 편집기 진단 없음.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.38`, `git diff --check` 통과.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목관리 저장 버튼 상태 및 동적 컬럼 확인 v1.3.37
 - 사용자 실물 확인: 취소/저장을 숨기지 말고 clean/dirty에 따라 비활성/활성 처리해야 하며, `주원료` 이후 동적 컬럼이 보이지 않는다.
 - 원인 확인: 직전 v1.3.36에서 clean 상태의 취소/저장을 숨긴 것은 요구와 다르다. 첨부 실행 로그 `app_2026-09-03_17-13-14.log`의 선택 라벨 `불러오기 테스트용`(ID 8116)은 DB 조회 결과 `columns=0`, `contents=0`이며 8월 이후 모든 로그에서도 동일하다. 컬럼 DAO는 레거시와 동일하게 선택 라벨 ID로 조회하며 최근 조건 변경이 없다.
