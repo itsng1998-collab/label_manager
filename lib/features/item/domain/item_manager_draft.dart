@@ -636,6 +636,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   ItemManagerSaveCommand toSaveCommand({
     required int labelSizeId,
     required List<int> targetMarketIds,
+    ItemManagerSaveLogContext? logContext,
   }) {
     validateForSave();
     if (labelSizeId <= 0) {
@@ -648,8 +649,18 @@ class ItemManagerDraftController extends ChangeNotifier {
     final existingRows = <ItemManagerExistingRowSave>[];
     final newRows = <ItemManagerNewRowSave>[];
     final columnValues = <ItemManagerColumnValueSave>[];
+    final contentColumnsWire = _contentSaveLogWire([
+      '품목',
+      '주원료',
+      ...validationRules.map((rule) => rule.columnName),
+    ]);
     for (final row in _rows) {
       final sourceItemId = row.sourceItemId;
+      final contentsWire = _contentSaveLogWire([
+        row.itemName,
+        row.elementPlain,
+        ...validationRules.map((rule) => columnValue(row, rule.columnId)),
+      ]);
       if (sourceItemId != null &&
           row.rowState == ItemManagerDraftRowState.modified) {
         existingRows.add(
@@ -659,6 +670,8 @@ class ItemManagerDraftController extends ChangeNotifier {
             elementPlain: row.elementPlain,
             elementSheet: row.elementPayload,
             order: row.order,
+            contentColumnsWire: contentColumnsWire,
+            contentsWire: contentsWire,
           ),
         );
       } else if (sourceItemId == null) {
@@ -671,6 +684,8 @@ class ItemManagerDraftController extends ChangeNotifier {
             elementSheet: row.elementPayload,
             order: row.order,
             mappingDefaults: row.newMappingDefaults!,
+            contentColumnsWire: contentColumnsWire,
+            contentsWire: contentsWire,
           ),
         );
       }
@@ -693,10 +708,14 @@ class ItemManagerDraftController extends ChangeNotifier {
       newRows: newRows,
       columnValues: columnValues,
       minColumnChecks: _minColumnChecks.values.toList(growable: false),
+      logContext: logContext,
     );
     command.validate();
     return command;
   }
+
+  String _contentSaveLogWire(Iterable<String> values) =>
+      '${values.map((value) => value.replaceAll('\n', '')).join('\n')}\n';
 
   void validateForSave() {
     if (_rows.length > ItemManagerLimits.maxRows) {

@@ -1,5 +1,26 @@
 # 현재 작업 상태
 
+## 완료: 품목 저장 데이터내용 이력 누락 수정 v1.3.25
+- 사용자 재현: 품목 2번 `황치즈쿠키`를 `황치즈쿠키+`로 변경해 저장한 뒤 조회/이력 → 데이터내용 이력 조회에서 변경 당일 `2026-08-19`를 조회해도 결과가 없다.
+- 원인 확인: 조회 DAO는 레거시와 동일하게 `BM_CONTENT_SAVE_LOG`를 날짜/거래처로 조회하지만 현재 `ItemManagerSaveDAO.saveSql` transaction에는 이력 INSERT가 전혀 없다. 레거시는 수정/신규 행별 표시 컬럼명과 최종 값, 사용자/거래처/라벨/IP를 `BM_CONTENT_SAVE_LOG`에 저장한다.
+- 재현 테스트 추가: 품목 저장 SQL이 수정 행과 신규 행의 이력을 같은 transaction에서 `BM_CONTENT_SAVE_LOG`에 기록하는 계약을 검증한다.
+- 구현 완료: save command에 사용자/거래처/라벨/IP 이력 context와 행별 레거시 `품목\n주원료\n...` 컬럼/최종값 wire를 추가했다. DAO는 수정 상태 `1`, 신규 상태 `0` 이력을 품목 변경과 같은 transaction에서 `BM_CONTENT_SAVE_LOG`에 INSERT한다.
+- 첫 focused 재검증 완료: 실패했던 이력 INSERT SQL 계약 테스트 통과.
+- 인접 테스트 결과: item manager save/draft 37건 중 기존 파라미터 key 목록 테스트만 이력 context 6개 추가로 실패했고 나머지 36건 및 편집기 진단은 통과했다.
+- 테스트 보강: 확장 key 목록과 null context를 반영하고 한글/특수문자/줄바꿈 이력 XML wire 및 사용자 context 전달을 검증한다.
+- 인접 재검증 완료: `item_manager_save_dao_test.dart`, `item_manager_draft_test.dart` 총 38건 통과.
+- 실제 서버 compile probe 완료: 현재 저장 연결 정보로 `BM_CONTENT_SAVE_LOG` 스키마를 조회하고 변경된 전체 save SQL을 `IF 1=0` 블록에서 컴파일했으며 통과했다. 데이터 변경은 없고 임시 probe 테스트는 제거했다.
+- diff/레거시 재검토: `GDS_NO=0`, 수정/신규 `SAVE_STATUS=1/0`, 전체 최종 행 wire 기록이 레거시와 일치한다. 현행 품목 모델의 최종 원본이 sheet payload이므로 `ELEMENT_DATA`에는 `ELEMENT_SHEET`를 보존한다.
+- draft 테스트 보강: DB baseline 값과 수정값을 함께 사용해 `품목`, `주원료`, 전체 컬럼 순서 및 값 내부 개행 제거를 검증한다.
+- 통합 focused 검증 완료: save DAO/draft와 `fortune_table_test.dart` 총 107건 통과.
+- 버전 편집 완료: 데이터내용 이력 누락 수정이므로 PATCH 증가로 `1.3.24`에서 `1.3.25`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/item/domain/item_manager_save_command.dart lib/features/item/domain/item_manager_draft.dart lib/features/item/application/item_manager_save_service.dart lib/features/item/data/item_manager_save.dart lib/home_page_manager.dart test/item_manager_save_dao_test.dart test/item_manager_draft_test.dart`.
+- strict analyzer 완료: 위 7개 변경 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.25`, `git diff --check` 통과.
+- stage/commit 대상: 품목 save command/draft/service/DAO, `home_page_manager.dart`, save/draft 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 관리자 복사 진행바 표시 v1.3.24
 - 사용자 요청: 약 45초 걸리는 관리자 복사 동안 진행 상태를 시각적으로 표시한다.
 - 구현 완료: 기존 `_writeBusy` 수명에 맞춰 footer 왼쪽에 `복사 진행 중...` 문구와 indeterminate `LinearProgressIndicator`를 표시한다. 기존 취소/복사 버튼 위치와 footer 높이는 유지하며 복사 중 입력 차단도 그대로 사용한다.

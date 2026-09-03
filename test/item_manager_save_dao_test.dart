@@ -74,7 +74,14 @@ void main() {
         'newRowsXml',
         'columnValuesXml',
         'minColumnChecksXml',
+        'logUserId',
+        'logUserGrade',
+        'logCustomerId',
+        'logCustomerName',
+        'logLabelSizeName',
+        'logSaveIp',
       ]);
+      expect(params['logUserId'], isNull);
       expect(
         params['targetMarketIdsXml'],
         '<markets><market id="9" /><market id="10" /></markets>',
@@ -303,6 +310,56 @@ void main() {
         contains('Inserted item id mapping key mismatch.'),
       );
       expect(ItemManagerSaveDAO.saveSql, contains('EXCEPT'));
+    });
+
+    test('save SQL records modified and new content history in transaction', () {
+      final sql = ItemManagerSaveDAO.saveSql;
+      expect(sql, contains('INSERT INTO BM_CONTENT_SAVE_LOG'));
+      expect(sql, contains('FROM @ExistingInput E'));
+      expect(sql, contains('FROM @NewInput N'));
+      expect(sql, contains('SAVE_STATUS, ELEMENT_DATA'));
+      expect(sql, contains('GETDATE(), CONVERT(VARCHAR(8), GETDATE(), 112)'));
+    });
+
+    test('save command keeps content history context and escaped wire', () {
+      const command = ItemManagerSaveCommand(
+        targetMarketIds: [9],
+        existingRows: [
+          ItemManagerExistingRowSave(
+            sourceItemId: 3,
+            itemName: '황치즈쿠키+',
+            elementPlain: '주원료',
+            elementSheet: '{sheet}',
+            order: 2,
+            contentColumnsWire: '품목\n주원료\n가격 & 표시\n',
+            contentsWire: '황치즈쿠키+\n치즈 & 우유\n1000\n',
+          ),
+        ],
+        logContext: ItemManagerSaveLogContext(
+          userId: 'system',
+          userGrade: '시스템 관리자',
+          customerId: 10,
+          customerName: '아이티에스엔지',
+          labelSizeName: '80*60 테스트용',
+          saveIp: '127.0.0.1',
+        ),
+      );
+
+      final params = itemManagerSaveSqlParams(command);
+      expect(
+        params['existingRowsXml'],
+        contains('<contentColumns>품목\n주원료\n가격 &amp; 표시\n</contentColumns>'),
+      );
+      expect(
+        params['existingRowsXml'],
+        contains('<contents>황치즈쿠키+\n치즈 &amp; 우유\n1000\n</contents>'),
+      );
+      expect(params['logUserId'], 'system');
+      expect(params['logUserGrade'], '시스템 관리자');
+      expect(params['logCustomerId'], 10);
+      expect(params['logCustomerName'], '아이티에스엔지');
+      expect(params['logLabelSizeName'], '80*60 테스트용');
+      expect(params['logSaveIp'], '127.0.0.1');
     });
   });
 }

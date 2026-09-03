@@ -54,6 +54,8 @@ class ItemManagerExistingRowSave {
   final String elementPlain;
   final String elementSheet;
   final int order;
+  final String contentColumnsWire;
+  final String contentsWire;
 
   const ItemManagerExistingRowSave({
     required this.sourceItemId,
@@ -61,6 +63,8 @@ class ItemManagerExistingRowSave {
     required this.elementPlain,
     required this.elementSheet,
     required this.order,
+    this.contentColumnsWire = '',
+    this.contentsWire = '',
   });
 }
 
@@ -72,6 +76,8 @@ class ItemManagerNewRowSave {
   final String elementSheet;
   final int order;
   final ItemManagerNewMappingDefaults mappingDefaults;
+  final String contentColumnsWire;
+  final String contentsWire;
 
   const ItemManagerNewRowSave({
     required this.draftRowKey,
@@ -81,6 +87,26 @@ class ItemManagerNewRowSave {
     required this.elementSheet,
     required this.order,
     this.mappingDefaults = const ItemManagerNewMappingDefaults(),
+    this.contentColumnsWire = '',
+    this.contentsWire = '',
+  });
+}
+
+class ItemManagerSaveLogContext {
+  final String userId;
+  final String userGrade;
+  final int customerId;
+  final String customerName;
+  final String labelSizeName;
+  final String saveIp;
+
+  const ItemManagerSaveLogContext({
+    required this.userId,
+    required this.userGrade,
+    required this.customerId,
+    required this.customerName,
+    required this.labelSizeName,
+    required this.saveIp,
   });
 }
 
@@ -125,6 +151,7 @@ class ItemManagerSaveCommand {
   final List<ItemManagerNewRowSave> newRows;
   final List<ItemManagerColumnValueSave> columnValues;
   final List<ItemManagerMinColumnCheckSave> minColumnChecks;
+  final ItemManagerSaveLogContext? logContext;
 
   const ItemManagerSaveCommand({
     required this.targetMarketIds,
@@ -133,6 +160,7 @@ class ItemManagerSaveCommand {
     this.newRows = const [],
     this.columnValues = const [],
     this.minColumnChecks = const [],
+    this.logContext,
   });
 
   void validate() {
@@ -157,6 +185,11 @@ class ItemManagerSaveCommand {
     }
     if (newRows.isNotEmpty && targetMarketIds.isEmpty) {
       throw ArgumentError('New rows require targetMarketIds.');
+    }
+    if (logContext case final context?) {
+      if (context.userId.trim().isEmpty || context.customerId <= 0) {
+        throw ArgumentError('Save log context requires user and customer.');
+      }
     }
     for (final value in columnValues) {
       final hasSource = value.sourceItemId != null;

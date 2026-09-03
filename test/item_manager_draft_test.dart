@@ -572,6 +572,55 @@ void main() {
       expect(command.validate, returnsNormally);
     });
 
+    test('builds legacy content history wire from final row values', () {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket(itemId: 10, order: 1, name: '기존')],
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: true,
+            dataString: '기존\n가격',
+          ),
+        }),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '가격\n표시',
+            typeCode: TColumnType.TYPE_BASE,
+            required: false,
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 8,
+            columnName: '원산지',
+            typeCode: TColumnType.TYPE_BASE,
+            required: false,
+          ),
+        ],
+      );
+      controller.updateItemName('item:10', '수정\n품목');
+      controller.updateElement(
+        'item:10',
+        elementPlain: '치즈\n우유',
+        elementPayload: '{"sheet":1}',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '한국\n산',
+      );
+
+      final row = controller
+          .toSaveCommand(labelSizeId: 4, targetMarketIds: const [3])
+          .existingRows
+          .single;
+
+      expect(row.contentColumnsWire, '품목\n주원료\n가격표시\n원산지\n');
+      expect(row.contentsWire, '수정품목\n치즈우유\n기존가격\n한국산\n');
+    });
+
     test('allows empty item names and elements for existing and new rows', () {
       final existing = _itemOfMarket(itemId: 10, order: 1, name: '기존');
       final controller = ItemManagerDraftController.fromItems(

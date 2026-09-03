@@ -29,6 +29,12 @@ Map<String, dynamic> itemManagerSaveSqlParams(ItemManagerSaveCommand command) {
     'minColumnChecksXml': _itemManagerMinColumnChecksXml(
       command.minColumnChecks,
     ),
+    'logUserId': command.logContext?.userId,
+    'logUserGrade': command.logContext?.userGrade,
+    'logCustomerId': command.logContext?.customerId,
+    'logCustomerName': command.logContext?.customerName,
+    'logLabelSizeName': command.logContext?.labelSizeName,
+    'logSaveIp': command.logContext?.saveIp,
   };
 }
 
@@ -53,6 +59,10 @@ String _itemManagerExistingRowsXml(
       ..write(
         '<elementSheet>${_itemManagerXmlText(row.elementSheet)}</elementSheet>',
       )
+      ..write(
+        '<contentColumns>${_itemManagerXmlText(row.contentColumnsWire)}</contentColumns>',
+      )
+      ..write('<contents>${_itemManagerXmlText(row.contentsWire)}</contents>')
       ..write('</row>');
   }
   return (xml..write('</rows>')).toString();
@@ -92,6 +102,10 @@ String _itemManagerNewRowsXml(Iterable<ItemManagerNewRowSave> rows) {
       ..write(
         '<elementSheet>${_itemManagerXmlText(row.elementSheet)}</elementSheet>',
       )
+      ..write(
+        '<contentColumns>${_itemManagerXmlText(row.contentColumnsWire)}</contentColumns>',
+      )
+      ..write('<contents>${_itemManagerXmlText(row.contentsWire)}</contents>')
       ..write(
         '<dateSaleStart>${defaults.dateSaleStart?.toIso8601String() ?? ''}</dateSaleStart>',
       )
@@ -174,7 +188,9 @@ class ItemManagerSaveDAO extends DAO {
       ITEM_NAME NVARCHAR(100) NOT NULL,
       ELEMENT_PLAIN NVARCHAR(MAX) NOT NULL,
       ELEMENT_SHEET NVARCHAR(MAX) NOT NULL,
-      ITEM_ORDER INT NOT NULL
+      ITEM_ORDER INT NOT NULL,
+      CONTENT_COLUMNS NVARCHAR(MAX) NOT NULL,
+      CONTENTS NVARCHAR(MAX) NOT NULL
     );
     INSERT INTO @TargetMarkets(MARKET_ID)
     SELECT N.value('@id', 'INT')
@@ -183,14 +199,17 @@ class ItemManagerSaveDAO extends DAO {
     SELECT N.value('@id', 'INT')
     FROM @DeletedItemsDocument.nodes('/items/item') X(N);
     INSERT INTO @ExistingInput(
-      ITEM_ID, ITEM_NAME, ELEMENT_PLAIN, ELEMENT_SHEET, ITEM_ORDER
+      ITEM_ID, ITEM_NAME, ELEMENT_PLAIN, ELEMENT_SHEET, ITEM_ORDER,
+      CONTENT_COLUMNS, CONTENTS
     )
     SELECT
       N.value('@sourceItemId', 'INT'),
       N.value('string((itemName/text())[1])', 'NVARCHAR(100)'),
       N.value('string((elementPlain/text())[1])', 'NVARCHAR(MAX)'),
       N.value('string((elementSheet/text())[1])', 'NVARCHAR(MAX)'),
-      N.value('@order', 'INT')
+      N.value('@order', 'INT'),
+      N.value('string((contentColumns/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('string((contents/text())[1])', 'NVARCHAR(MAX)')
     FROM @ExistingRowsDocument.nodes('/rows/row') X(N);
 
     DECLARE @InsertedRows TABLE (
@@ -227,6 +246,8 @@ class ItemManagerSaveDAO extends DAO {
       TOP_MARGIN FLOAT NOT NULL,
       LEFT_PUSH FLOAT NOT NULL,
       TOP_PUSH FLOAT NOT NULL
+      , CONTENT_COLUMNS NVARCHAR(MAX) NOT NULL
+      , CONTENTS NVARCHAR(MAX) NOT NULL
     );
 
     INSERT INTO @NewInput
@@ -251,7 +272,9 @@ class ItemManagerSaveDAO extends DAO {
       N.value('@labelSizeHeight', 'INT'), N.value('@useMargin', 'BIT'),
       N.value('@leftMargin', 'FLOAT'), N.value('@rightMargin', 'FLOAT'),
       N.value('@topMargin', 'FLOAT'), N.value('@leftPush', 'FLOAT'),
-      N.value('@topPush', 'FLOAT')
+      N.value('@topPush', 'FLOAT'),
+      N.value('string((contentColumns/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('string((contents/text())[1])', 'NVARCHAR(MAX)')
     FROM @NewRowsDocument.nodes('/rows/row') X(N);
 
     UPDATE I SET
@@ -383,6 +406,31 @@ class ItemManagerSaveDAO extends DAO {
     ) VALUES (
       SOURCE.COLUMN_ID, SOURCE.ITEM_ID, SOURCE.EDITABLE, SOURCE.DATA_STRING
     );
+
+    IF @logUserId IS NOT NULL
+    BEGIN
+      INSERT INTO BM_CONTENT_SAVE_LOG (
+        USER_ID, USER_GRADE, CUST_ID, CUST_NAME, LABELSIZE_NAME,
+        ITEM_NAME, GDS_NO, CONTENT_COLUMNS, CONTENTS,
+        SAVE_DATE, SAVE_DATE_YYYYMMDD, SAVE_IP, SAVE_STATUS, ELEMENT_DATA
+      )
+      SELECT @logUserId, @logUserGrade, @logCustomerId, @logCustomerName,
+        @logLabelSizeName, E.ITEM_NAME, 0, E.CONTENT_COLUMNS, E.CONTENTS,
+        GETDATE(), CONVERT(VARCHAR(8), GETDATE(), 112), @logSaveIp, 1,
+        E.ELEMENT_SHEET
+      FROM @ExistingInput E;
+
+      INSERT INTO BM_CONTENT_SAVE_LOG (
+        USER_ID, USER_GRADE, CUST_ID, CUST_NAME, LABELSIZE_NAME,
+        ITEM_NAME, GDS_NO, CONTENT_COLUMNS, CONTENTS,
+        SAVE_DATE, SAVE_DATE_YYYYMMDD, SAVE_IP, SAVE_STATUS, ELEMENT_DATA
+      )
+      SELECT @logUserId, @logUserGrade, @logCustomerId, @logCustomerName,
+        @logLabelSizeName, N.ITEM_NAME, 0, N.CONTENT_COLUMNS, N.CONTENTS,
+        GETDATE(), CONVERT(VARCHAR(8), GETDATE(), 112), @logSaveIp, 0,
+        N.ELEMENT_SHEET
+      FROM @NewInput N;
+    END;
 
     MERGE BM_RICH_COL_MIN AS TARGET
     USING (

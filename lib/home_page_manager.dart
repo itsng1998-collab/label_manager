@@ -10,6 +10,7 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:flutter/material.dart';
+import 'package:r_get_ip/r_get_ip.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -2189,6 +2190,14 @@ class _HomePageManagerState extends State<HomePageManager> {
         controller: controller,
         labelSizeId: labelSize.labelSizeId,
         targetMarketIds: _itemDraftTargetMarketIds,
+        logContext: ItemManagerSaveLogContext(
+          userId: User.instance!.userId,
+          userGrade: User.instance!.grade.label,
+          customerId: Customer.instance!.customerId,
+          customerName: Customer.instance!.customerName,
+          labelSizeName: labelSize.labelSizeName,
+          saveIp: await RGetIp.internalIP ?? '',
+        ),
       );
       ItemManagerDebugLog.event(
         'save',

@@ -23,6 +23,7 @@ Future<ItemManagerSaveExecution> executeItemManagerSave({
   required ItemManagerDraftController controller,
   required int labelSizeId,
   required List<int> targetMarketIds,
+  ItemManagerSaveLogContext? logContext,
   ItemManagerCommandSaver save = ItemManagerSaveDAO.save,
 }) async {
   controller.validateForSave();
@@ -36,6 +37,7 @@ Future<ItemManagerSaveExecution> executeItemManagerSave({
   final command = controller.toSaveCommand(
     labelSizeId: labelSizeId,
     targetMarketIds: targetMarketIds,
+    logContext: logContext,
   );
   final result = await save(command);
   return ItemManagerSaveExecution(
