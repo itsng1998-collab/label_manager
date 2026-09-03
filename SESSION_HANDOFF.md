@@ -21,6 +21,7 @@
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.30`, 변경 파일 편집기 진단 없음, `git diff --check` 통과. helper 들여쓰기 정리 후 focused 테스트도 재통과했다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `3bac0a3` (`품목 순서 저장 무한 로딩 수정`).
 
 ## 완료: 날짜 시한 자유 입력 저장 오류 수정 v1.3.29
 - 사용자 재현: 날짜 시한 사용 컬럼에서 빈값/한글/영문/숫자값 등 입력 내용과 무관하게 `소비시한 날짜/시간 형식 또는 범위가 올바르지 않습니다.` 오류로 품목 저장이 불가능하다.
