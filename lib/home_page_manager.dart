@@ -200,6 +200,20 @@ bool itemManagerSessionAlreadyLoaded({
     requestedLabelSizeId == selectedLabelSizeId &&
     requestedLabelSizeId == loadedLabelSizeId;
 
+@visibleForTesting
+bool itemOutputPreviewSelectionAllowed({
+  required bool itemDraftCommandBusy,
+}) => !itemDraftCommandBusy;
+
+@visibleForTesting
+Map<int, String> itemOutputPreviewDraftColumnValues({
+  required Map<int, String> baseline,
+  required Map<int, ItemManagerColumnDraft> drafts,
+}) => <int, String>{
+  ...baseline,
+  for (final entry in drafts.entries) entry.key: entry.value.dataString,
+};
+
 bool homeTabTapBlocked({
   required Object? currentTabValue,
   required bool itemDraftContextChangeBlocked,
@@ -606,6 +620,11 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   void _handleItemDraftDirtyChanged() {
     final dirty = _itemDraftController?.isDirty == true;
+    if (mounted &&
+        _selectedTabValue() == 'items' &&
+        _itemPreviewWindow?.isVisible == true) {
+      _showItemPreviewWindow();
+    }
     _logItemDraftCancelDebug(
       'dirtyChanged observed=$dirty previous=$_lastReportedItemDraftDirty',
       traceId: _lastItemDraftCancelTraceId,
@@ -4750,18 +4769,39 @@ class _HomePageManagerState extends State<HomePageManager> {
         canEdit = User.instance?.canEdit == true && !_autoItemUpdateCommandBusy;
       } else {
         selected = _selectedItemOfMarket;
-        if (selected != null) {
-          rowIdentity =
-              _itemDraftController?.anchorRowKey ??
-              'item:${selected.item.itemId}';
-          referenceAt = DateTime.now();
-          projectedColumnValues = _baselineOutputProjectedColumnValues(
-            itemId: selected.item.itemId,
-            referenceAt: referenceAt,
+        final draft = _selectedItemDraftRow();
+        final labelSize = _effectiveLabelSize;
+        final marketId = Market.instance?.marketId;
+        if (draft != null && labelSize != null && marketId != null) {
+          selected = draft.toPreviewItem(
+            marketId: marketId,
+            labelSizeId: labelSize.labelSizeId,
+            labelSizeName: labelSize.labelSizeName,
           );
         }
+        if (selected != null) {
+          rowIdentity = draft?.rowKey ?? 'item:${selected.item.itemId}';
+          referenceAt = DateTime.now();
+          projectedColumnValues = draft == null
+              ? _baselineOutputProjectedColumnValues(
+                  itemId: selected.item.itemId,
+                  referenceAt: referenceAt,
+                )
+              : _itemDraftOutputProjectedColumnValues(
+                  draft,
+                  referenceAt: referenceAt,
+                );
+        }
         onElementCommitted = _commitItemElementDraft;
-        canSelectOutputPreview = () => !_blockItemDraftContextChange();
+        canSelectOutputPreview = () {
+          if (!itemOutputPreviewSelectionAllowed(
+            itemDraftCommandBusy: _itemDraftCommandBusy,
+          )) {
+            return false;
+          }
+          unawaited(_itemManageController.commitEditing());
+          return true;
+        };
         canEdit =
             User.instance?.canEditItemDetails == true && !_itemDraftCommandBusy;
       }
@@ -4863,6 +4903,51 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  ItemManagerDraftRow? _selectedItemDraftRow() {
+    final controller = _itemDraftController;
+    final anchorRowKey = controller?.anchorRowKey;
+    if (controller == null || anchorRowKey == null) return null;
+    for (final row in controller.rows) {
+      if (row.rowKey == anchorRowKey) return row;
+    }
+    return null;
+  }
+
+  Map<int, String> _itemDraftOutputProjectedColumnValues(
+    ItemManagerDraftRow row, {
+    required DateTime referenceAt,
+  }) {
+    final itemId = row.sourceItemId ?? 0;
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final controller = _itemDraftController;
+    final rawValues = itemOutputPreviewDraftColumnValues(
+      baseline: {
+        for (final column in columns)
+          column.columnId:
+              controller?.scopedColumnContents.value(column.columnId, itemId) ??
+              '',
+      },
+      drafts: row.columnDrafts,
+    );
+    return projectLabelPrintColumnValues(
+      itemId: itemId,
+      copyIndex: 0,
+      columns: columns,
+      columnContents: {
+        for (final entry in rawValues.entries)
+          ColumnItemKey(columnId: entry.key, itemId: itemId): TColumnContent(
+            colContentId: TColumnContent.noId,
+            columnId: entry.key,
+            itemId: itemId,
+            editable: row.columnDrafts[entry.key]?.editable ?? true,
+            dataString: entry.value,
+          ),
+      },
+      referenceAt: referenceAt,
+      dateSetup: _effectiveLabelSize?.labelSizeSetup,
+    );
+  }
+
   Future<void> _commitItemElementDraft(
     String rowKey,
     String elementPlain,
@@ -4943,8 +5028,12 @@ class _HomePageManagerState extends State<HomePageManager> {
     return topLeft & renderObject.size;
   }
 
-  void _restoreItemPreviewWindow() {
+  Future<void> _restoreItemPreviewWindow() async {
     if (!_itemPreviewSupportedTab(_selectedTabValue())) return;
+    if (_selectedTabValue() == 'items') {
+      await _itemManageController.commitEditing();
+      if (!mounted) return;
+    }
     _itemPreviewClosedByUser = false;
     setState(() {});
     _showItemPreviewWindow();

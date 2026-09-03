@@ -2616,7 +2616,7 @@ void main() {
     expect(window.rect, savedRect);
   });
 
-  testWidgets('item preview blocks output tab while draft context is locked', (
+  testWidgets('item preview honors output tab selection guard', (
     tester,
   ) async {
     var blockedRequests = 0;

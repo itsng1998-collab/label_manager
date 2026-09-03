@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
@@ -38,6 +39,30 @@ void main() {
         loadedLabelSizeId: 10,
       ),
       isFalse,
+    );
+  });
+
+  test('item output preview allows active editing and unsaved draft', () {
+    expect(
+      itemOutputPreviewSelectionAllowed(itemDraftCommandBusy: false),
+      isTrue,
+    );
+    expect(
+      itemOutputPreviewSelectionAllowed(itemDraftCommandBusy: true),
+      isFalse,
+    );
+  });
+
+  test('item output preview overlays unsaved column drafts', () {
+    expect(
+      itemOutputPreviewDraftColumnValues(
+        baseline: const {7: '저장값', 8: '유지값'},
+        drafts: const {
+          7: ItemManagerColumnDraft(editable: true, dataString: '편집값'),
+          9: ItemManagerColumnDraft(editable: true, dataString: '신규값'),
+        },
+      ),
+      const {7: '편집값', 8: '유지값', 9: '신규값'},
     );
   });
 }

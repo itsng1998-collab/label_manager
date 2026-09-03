@@ -1,5 +1,23 @@
 # 현재 작업 상태
 
+## 완료: 품목 편집 중 주원료/출력 미리보기 재표시 및 draft 반영 v1.3.28
+- 사용자 재현: 주원료 및 라벨출력 미리보기 창을 닫은 뒤 품목관리에서 셀 편집 중 다시 열거나 출력 탭을 선택하면 `품목 편집을 완료하거나 취소한 뒤 변경해 주세요.`로 차단된다.
+- 요구사항: 주원료 입력도 품목 편집의 일부이므로 창을 다시 표시할 수 있어야 하고, 출력내용 미리보기는 품목 저장 전에도 현재 입력 내용을 즉시 표시해야 한다.
+- 원인 확인: production의 `canSelectOutputPreview`가 브랜드/라벨 변경용 `_blockItemDraftContextChange()`를 재사용해 active editing과 dirty draft를 모두 차단한다. 출력 미리보기 입력도 저장된 `ItemOfMarket`과 baseline 컬럼값을 사용해 품명/컬럼 draft가 즉시 반영되지 않는다.
+- 수정 예정: 창 복원 전에 품목 셀 편집을 commit하고, 출력 탭은 command 실행 중만 제한한다. 선택 행의 draft item과 baseline 위에 덮은 draft 컬럼값을 미리보기에 전달한다.
+- 재현 테스트 추가: active/dirty 상태와 무관한 출력 탭 허용 정책(command busy만 차단) 및 저장 전 컬럼 draft 우선 투영을 검증한다.
+- 구현 완료: 미리보기 복원과 출력 탭 선택 시 품목 테이블 active editing을 commit한다. 선택 품목을 현재 `ItemManagerDraftRow.toPreviewItem()`으로 만들고 baseline 출력값 위에 `columnDrafts`를 덮어 품명/주원료/컬럼 수정 내용을 저장 전에 표시한다. 출력 탭은 save command 진행 중에만 차단한다.
+- 즉시 갱신 보완: 품목 draft listener가 dirty 여부 변화와 무관하게 열린 미리보기 child를 현재 draft로 다시 주입한다. 기존 panel guard 테스트명은 command-busy 등 실제 선택 제한 의미에 맞게 정리했다.
+- 출력 형식 보완: draft 컬럼 raw 값을 scoped baseline에 먼저 합친 뒤 기존 `projectLabelPrintColumnValues()`를 통과시켜 날짜/바코드/자동증가 후처리가 실제 발행과 동일하게 적용되도록 했다.
+- focused 및 인접 검증 완료: 미리보기 정책/투영 focused 5건과 품목 세션/toolbar/draft/fortune table 전체 295건 통과, 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 품목 편집 중 미리보기 재표시 및 즉시 draft 반영 개선이므로 PATCH 증가로 `1.3.27`에서 `1.3.28`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart test/label_sheet_toolbar_test.dart`.
+- strict analyzer 완료: 위 3개 변경 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.28`, `git diff --check` 통과, 변경 파일 진단 없음.
+- stage/commit 대상: `lib/home_page_manager.dart`, 미리보기/세션 테스트 2개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 재로그인 후 품목관리 브랜드 로딩 지속 수정 v1.3.27
 - 사용자 재현: ID `3575` 로그인 → 우측 상단 로그아웃 → 같은 ID 재로그인 시 `브랜드 데이터를 불러오고 있습니다...`가 지속되고 품목 추가/삭제 등 이벤트가 비활성화된다.
 - 실행본 참고: 첨부 화면은 `v1.3.5`; 현재 소스는 `v1.3.26`. workspace 최신 로그는 해당 3575 재현 로그가 아니어서 코드 경로로 원인을 확정했다.
