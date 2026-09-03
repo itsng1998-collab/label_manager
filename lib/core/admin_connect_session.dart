@@ -2,6 +2,16 @@ import 'package:label_manager/core/user.dart';
 
 enum LoginAuthenticationMode { regular, firstAdmin, masterKey }
 
+bool isAdministratorGrade(UserGrade? grade) =>
+    grade == UserGrade.SYSTEM_ADMIN_USER ||
+    grade == UserGrade.COOP_ADMIN_USER;
+
+bool userCredentialsVisibleFor({
+  required UserGrade? userGrade,
+  required bool isFirstConnectByAdmin,
+}) =>
+    isAdministratorGrade(userGrade) || isFirstConnectByAdmin;
+
 LoginAuthenticationMode? loginAuthenticationModeFor({
   required User user,
   required String inputPassword,
@@ -17,7 +27,7 @@ LoginAuthenticationMode? loginAuthenticationModeFor({
         : null;
   }
   if (inputPassword == user.pwd) {
-    return user.grade == UserGrade.SYSTEM_ADMIN_USER
+    return isAdministratorGrade(user.grade)
         ? LoginAuthenticationMode.firstAdmin
         : LoginAuthenticationMode.regular;
   }

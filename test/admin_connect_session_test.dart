@@ -30,6 +30,15 @@ void main() {
     );
     expect(
       loginAuthenticationModeFor(
+        user: _user('coop-admin', UserGrade.COOP_ADMIN_USER, 'own'),
+        inputPassword: 'own',
+        directPassword: 'direct',
+        systemPassword: 'system',
+      ),
+      LoginAuthenticationMode.firstAdmin,
+    );
+    expect(
+      loginAuthenticationModeFor(
         user: _user('client', UserGrade.CLIENT_USER, 'own'),
         inputPassword: 'direct',
         directPassword: 'direct',
@@ -54,6 +63,37 @@ void main() {
         systemPassword: 'system',
       ),
       LoginAuthenticationMode.masterKey,
+    );
+  });
+
+  test('user credentials are visible for grade zero or one', () {
+    expect(
+      userCredentialsVisibleFor(
+        userGrade: UserGrade.SYSTEM_ADMIN_USER,
+        isFirstConnectByAdmin: false,
+      ),
+      isTrue,
+    );
+    expect(
+      userCredentialsVisibleFor(
+        userGrade: UserGrade.COOP_ADMIN_USER,
+        isFirstConnectByAdmin: false,
+      ),
+      isTrue,
+    );
+    expect(
+      userCredentialsVisibleFor(
+        userGrade: UserGrade.MANAGER_USER,
+        isFirstConnectByAdmin: false,
+      ),
+      isFalse,
+    );
+    expect(
+      userCredentialsVisibleFor(
+        userGrade: UserGrade.CLIENT_USER,
+        isFirstConnectByAdmin: true,
+      ),
+      isTrue,
     );
   });
 

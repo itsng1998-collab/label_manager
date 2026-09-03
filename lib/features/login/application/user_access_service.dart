@@ -16,7 +16,7 @@ typedef UserAccessSerialPrompt = Future<bool> Function(
 );
 
 bool userAccessAuthorizationRequired(LoginAuthenticationMode mode) =>
-    mode != LoginAuthenticationMode.masterKey;
+  mode == LoginAuthenticationMode.regular;
 
 class UserAccessService {
   UserAccessService({

@@ -541,7 +541,11 @@ class _HomePageState extends State<HomePage> {
                   AdminConnectSession.instance.isAdminConnect ||
                   AdminConnectSession.instance.isCoopAdminConnect,
                 userCredentialsVisible:
-                  AdminConnectSession.instance.isFirstConnectByAdmin,
+                  userCredentialsVisibleFor(
+                    userGrade: User.instance?.grade,
+                    isFirstConnectByAdmin:
+                        AdminConnectSession.instance.isFirstConnectByAdmin,
+                  ),
                 userConnectEnabled:
                     User.instance?.grade == UserGrade.SYSTEM_ADMIN_USER ||
                     AdminConnectSession.instance.isAdminConnect,

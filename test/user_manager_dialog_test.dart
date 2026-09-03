@@ -64,6 +64,17 @@ void main() {
     );
   });
 
+  testWidgets('administrator credentials show user id and password', (
+    tester,
+  ) async {
+    await _pumpManager(tester, showCredentials: true);
+
+    expect(find.text('사용자 ID'), findsOneWidget);
+    expect(find.text('비밀번호'), findsOneWidget);
+    expect(find.text('one'), findsOneWidget);
+    expect(find.text('pw'), findsOneWidget);
+  });
+
   testWidgets('scope selectors show aligned labels', (tester) async {
     await _pumpManager(tester);
 

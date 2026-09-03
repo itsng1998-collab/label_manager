@@ -16,14 +16,14 @@ void main() {
   );
   const serverData = '20260810123456123';
 
-  test('마스터키 로그인만 PC 시리얼 인증에서 제외한다', () {
+  test('관리자와 마스터키 로그인을 PC 시리얼 인증에서 제외한다', () {
     expect(
       userAccessAuthorizationRequired(LoginAuthenticationMode.regular),
       isTrue,
     );
     expect(
       userAccessAuthorizationRequired(LoginAuthenticationMode.firstAdmin),
-      isTrue,
+      isFalse,
     );
     expect(
       userAccessAuthorizationRequired(LoginAuthenticationMode.masterKey),

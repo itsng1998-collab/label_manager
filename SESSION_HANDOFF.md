@@ -1,5 +1,24 @@
 # 현재 작업 상태
 
+## 완료: 관리자 grade 0/1 ID/PW 표시 및 시리얼 인증 제외 v1.3.26
+- 사용자 요청: `BM_USER.RICH_USER_GRADE`가 `0` 또는 `1`이면 사용자관리에서 ID/PW를 표시하고, SYSTEM과 같은 관리자 계정으로 취급해 다른 PC에서도 시리얼 인증 없이 로그인한다.
+- 현재 동작: grade 0 자체 비밀번호만 `firstAdmin`, grade 1은 `regular`로 분류한다. 사용자관리 ID/PW는 `isFirstConnectByAdmin`만 보고, `firstAdmin`도 PC 시리얼 인증을 요구한다.
+- 수정 예정: 공용 관리자 grade 판정을 0/1로 정의하고 로그인 모드·ID/PW 표시에서 사용한다. `firstAdmin`과 `masterKey`는 PC 시리얼 인증에서 제외한다.
+- 재현 테스트 추가: grade 1 자체 비밀번호의 `firstAdmin` 분류, grade 0/1 자격정보 표시, `firstAdmin` 시리얼 인증 제외 계약을 검증한다.
+- 첫 focused 검증: 기존 정책에서 `firstAdmin` 시리얼 인증 필요 값이 `true`라 신규 계약 테스트가 실패함을 확인했다.
+- 구현 완료: 공용 `isAdministratorGrade`/`userCredentialsVisibleFor`를 추가해 grade 0/1 자체 비밀번호를 `firstAdmin`으로 분류하고 사용자관리 ID/PW를 표시한다. PC 시리얼 인증은 `regular` 로그인에만 수행한다.
+- 핵심 정책 재검증 완료: 관리자 로그인 분류/표시 및 시리얼 인증 정책 테스트 10건 통과, 변경 파일 편집기 진단 없음.
+- 사용자관리 표시 테스트 추가: `showCredentials=true`일 때 ID/PW 헤더와 실제 사용자 ID/비밀번호 값이 렌더링되는지 검증한다.
+- 사용자관리 표시 focused 검증: fixture ID 기대값을 실제 `one`으로 맞춘 뒤 ID/PW 헤더와 값 렌더링 테스트 통과.
+- 관련 통합 테스트 완료: 세션/시리얼/사용자관리/startup 로그인/메뉴 정책 총 29건 통과, 최종 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 관리자 로그인 및 자격정보 표시 정책 개선이므로 PATCH 증가로 `1.3.25`에서 `1.3.26`으로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze lib/core/admin_connect_session.dart lib/features/login/application/user_access_service.dart lib/home_page.dart test/admin_connect_session_test.dart test/user_access_service_test.dart test/user_manager_dialog_test.dart`.
+- strict analyzer 완료: 위 6개 변경 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.26`, `git diff --check` 통과.
+- stage/commit 대상: `admin_connect_session.dart`, `user_access_service.dart`, `home_page.dart`, 관련 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목 저장 데이터내용 이력 누락 수정 v1.3.25
 - 사용자 재현: 품목 2번 `황치즈쿠키`를 `황치즈쿠키+`로 변경해 저장한 뒤 조회/이력 → 데이터내용 이력 조회에서 변경 당일 `2026-08-19`를 조회해도 결과가 없다.
 - 원인 확인: 조회 DAO는 레거시와 동일하게 `BM_CONTENT_SAVE_LOG`를 날짜/거래처로 조회하지만 현재 `ItemManagerSaveDAO.saveSql` transaction에는 이력 INSERT가 전혀 없다. 레거시는 수정/신규 행별 표시 컬럼명과 최종 값, 사용자/거래처/라벨/IP를 `BM_CONTENT_SAVE_LOG`에 저장한다.
