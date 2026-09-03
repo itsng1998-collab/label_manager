@@ -1,5 +1,25 @@
 # 현재 작업 상태
 
+## 완료: 품명 편집 중 다른 품목 클릭 후 스크롤 비활성 수정 v1.3.31
+- 사용자 재현: 품목관리에서 품명을 더블클릭해 편집한 채 다른 품목을 한 번 클릭하면 이동 스크롤이 비활성화되고, 다시 편집 후 Enter를 눌러야 복구된다.
+- 원인 가설: FortuneTable은 다른 셀 `onPointerDown`에서 선택과 품목 draft selection 재빌드를 먼저 수행하고 편집 commit은 `onPointerUp`에 예약한다. 재빌드로 pointer-up listener가 유실되면 editor/drag 상태가 남는다.
+- 회귀 테스트 추가: 다른 셀 pointer-down 직후, pointer-up 전에도 기존 editor가 종료되고 commit이 1회 수행되는지 검증한다. 현재 구현에서 실패 확인 예정.
+- 구현 전 focused 테스트 결과: pointer-down 직후 commit 횟수가 0으로 실패해 기존 editor가 pointer-up에 의존함을 확인했다.
+- 구현 완료: FortuneTable의 다른 셀 `onPointerDown`에서 `_selectRow()`보다 먼저 `_queueTextEditingCommit()`을 시작한다. 기존 pointer-up은 pending 중복 방지 fallback으로 유지한다.
+- focused 검증 완료: 동일 pointer-down commit 테스트가 통과해 pointer-up 전 commit 1회와 editor 종료를 확인했다.
+- 첫 구현 후 핵심 commit/editor assertion은 통과했고, 테스트 종료 시 double-tap recognizer의 40ms 타이머만 남아 실패했다. gesture 종료 후 100ms pump를 추가해 테스트 타이머를 정리했다.
+- 사용자 증상 직접 검증 보완: 회귀 테스트를 20행으로 확장하고 다른 품목 클릭/commit 후 wheel 이벤트가 FortuneTable 세로 scroll offset을 실제로 증가시키는지 확인한다.
+- 스크롤 회귀 검증 완료: 확장된 focused 테스트 통과. FortuneTable 통합 및 fortune_sheet navigation 테스트 총 69건도 통과했다.
+- 변경 파일 편집기 진단 완료: `fortune_table.dart`, `fortune_table_test.dart` 오류 없음.
+- 버전 편집 완료: 사용자 조작으로 공용 FortuneTable 스크롤이 비활성화되는 회귀 수정이므로 PATCH 증가로 `1.3.30`에서 `1.3.31`로 갱신했다.
+- strict analyzer 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_table.dart test/fortune_table_test.dart`.
+- strict analyzer 완료: 변경 구현/테스트 2개 파일 분석 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.31`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목 우클릭 새로고침 후 무한 로딩 확인 v1.3.30
 - 사용자 재현: 품목관리 우클릭 `새로 고침` 후 하단 `처리 중`이 계속 표시되고 메뉴가 일괄 비활성화된다.
 - 제출 로그 파일명 `품목관리_새로고침이후 무한 로딩 현상.log`, `품목관리_새로고침_무한로딩.log`는 workspace에서 발견되지 않았다. 기존 workspace 재현 로그에는 `sessionLoad event=renderWaiting` 이후 `renderReady`가 없는 사례가 존재한다.

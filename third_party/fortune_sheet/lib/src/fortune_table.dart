@@ -1104,6 +1104,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
         if (selectsRow && event.buttons == kPrimaryMouseButton) {
+          if (_editingRowIndex != null &&
+              (_editingRowIndex != rowIndex ||
+                  _editingColumnIndex != columnIndex)) {
+            unawaited(_queueTextEditingCommit());
+          }
           _selectRow(row, rowIndex);
           widget.onCellActivated?.call(row, rowIndex, column.id);
         }

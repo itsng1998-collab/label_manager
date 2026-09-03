@@ -888,6 +888,60 @@ void main() {
     expect(selectedIndex, 1);
   });
 
+  testWidgets('FortuneTable commits editing on another cell pointer down', (
+    tester,
+  ) async {
+    final rows = ['첫째', '둘째', ...List.generate(18, (index) => '품목 ${index + 3}')];
+    var commitCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: FortuneTable<String>(
+              rows: rows,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'name',
+                  header: '이름',
+                  text: (row) => row,
+                  isTextEditable: (_, _) => true,
+                  onTextCommitted: (_, _, _) => commitCount += 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('첫째'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('첫째'));
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), '첫째 수정');
+
+    final gesture = await tester.startGesture(tester.getCenter(find.text('둘째')));
+    await tester.pump();
+
+    expect(commitCount, 1);
+    expect(find.byType(EditableText), findsNothing);
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final verticalController = _bodyVerticalController(tester);
+    expect(verticalController.offset, 0);
+    tester.binding.handlePointerEvent(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(FortuneTable<String>)),
+        scrollDelta: const Offset(0, 100),
+      ),
+    );
+    await tester.pump();
+    expect(verticalController.offset, greaterThan(0));
+  });
+
   testWidgets('FortuneTable starts selected cell editing from keyboard', (
     tester,
   ) async {
