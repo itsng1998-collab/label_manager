@@ -6,6 +6,7 @@ import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
 
@@ -228,6 +229,51 @@ void main() {
     expect(columns.single.useMissingKeywordCheck, isFalse);
     expect(changedCount, 1);
     expect(commonLabelRequiredKeywordsFromColumns(columns), isEmpty);
+  });
+
+  testWidgets('required checkbox marks common label sheet dirty', (
+    tester,
+  ) async {
+    final previousSpecialColumns = TColumnSpecial.datas;
+    final previousColumns = TColumn.datas;
+    addTearDown(() {
+      TColumnSpecial.datas = previousSpecialColumns;
+      TColumn.datas = previousColumns;
+    });
+    TColumnSpecial.datas = [
+      _column(
+        'SWEIGHT',
+        columnName: '저울중량',
+        useMissingKeywordCheck: true,
+      ),
+    ];
+    TColumn.datas = const [];
+    final dirtyChanges = <bool>[];
+    final editingLifecycleController =
+      LabelSheetEditingLifecycleController();
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommonLabelManage(
+            title: '공용라벨관리',
+            editingLifecycleController: editingLifecycleController,
+            onSheetDirtyChanged: dirtyChanges.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final specialTable = find.byType(FortuneTable<TColumnBase>).first;
+    final tableTopLeft = tester.getTopLeft(specialTable);
+    await tester.tapAt(tableTopLeft + const Offset(315, 50));
+    await tester.pump();
+
+    expect(TColumnSpecial.datas!.single.useMissingKeywordCheck, isFalse);
+    expect(dirtyChanges, contains(true));
   });
 
   testWidgets('keyword column exposes double tap and drag token', (

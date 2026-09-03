@@ -798,6 +798,10 @@ class LabelSheetEditingLifecycleController {
     _state?._controller.commitActiveCellEditing();
   }
 
+  void markDirty() {
+    _state?._markDirty();
+  }
+
   bool prepareForOwnerReplacement() {
     final state = _state;
     if (state == null) return true;
@@ -1618,6 +1622,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _markKeywordInsertDirty() {
+    _markDirty();
+  }
+
+  void _markDirty() {
     if (_isDirty) return;
     setState(() => _isDirty = true);
     widget.onDirtyChanged?.call(true);

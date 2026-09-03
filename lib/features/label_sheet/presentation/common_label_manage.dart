@@ -266,6 +266,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 keywordInsertController: _keywordInsertController,
                 onColumnEditRequested: widget.onColumnEditRequested,
                 onRequiredChanged: () {
+                  widget.editingLifecycleController?.markDirty();
                   setState(() {});
                 },
               ),
