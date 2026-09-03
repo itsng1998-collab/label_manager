@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 진행 중: 라벨 항목 보조값 저장 간헐 실패
+- 사용자 제보: 공용라벨관리의 라벨 항목 편집에서 표시/누락키워드 설정을 여러 번 바꾸고 적용 후 저장하면 간헐적으로 SQL Server `51115 Label column auxiliary values changed after editing started`가 발생한다.
+- 원인 확인: 동시성 검사가 `BM_RICH_CHECK_COLUMNS`, `BM_GS1_COLUMN_INFO`와 함께 `VIEW_BM_GS1_CONTAIN_COLUMN.CONTAIN_COLUMNS_ID` 집계 문자열을 exact 비교한다. GS1 포함컬럼은 관계 집합인데 view 집계 순서는 보장되지 않아 동일 집합도 문자열 순서 차이로 `51115`가 발생할 수 있다. 표시 값은 본 컬럼 snapshot 비교, 누락키워드는 보조값 비교 및 신형 스키마의 별도 본 컬럼 비교가 이미 존재한다.
+- 회귀 테스트 추가: 저장 SQL이 view 집계 문자열을 직접 비교하지 않고 원본 XML의 포함컬럼 값을 관계 테이블로 투영해 DB 관계와 양방향 집합 비교하는지 검증한다.
+- 수정 전 focused 테스트 결과: `@OriginalContainValues`가 없고 view 집계 문자열을 직접 비교하여 실패.
+- 구현 완료: 원본 XML의 `containValues`를 `(RICH_COLUMN_ID, CONTAIN_COLUMN_ID)` 집합으로 `DISTINCT` 투영하고 DB 관계와 양방향 `EXCEPT` 비교한다. 일반 보조값 비교와 원본 projection에서 비결정적 포함컬럼 집계 문자열을 제거했다.
+- focused 검증 완료: 실제 포함 ID 2개가 있는 원본 XML 생성 및 관계 집합 양방향 비교 SQL 테스트 통과.
+- 인접 검증 완료: 라벨 항목 저장/편집/다이얼로그 테스트 총 16건 통과, 변경 구현/테스트 strict analyzer 및 편집기 진단 모두 이상 없음.
+- 버전 편집 완료: 공용라벨관리 저장 false-positive 동시성 오류 수정이므로 PATCH 증가로 `1.3.39`에서 `1.3.40`으로 갱신했다.
+- Windows 통합 검증 예정: 변경 파일 포맷과 관련 테스트 재실행 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`를 실행하고 EXE 버전 및 최종 diff를 확인한다.
+- 최종 검증 완료: 포맷 후 라벨 항목 관련 테스트 16건 및 strict analyzer 재통과, Windows `/WX` Debug 빌드 성공. Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.40`, `git diff --check` 통과.
+- stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 라벨크기 변경 후 테이블 클릭 시 편집 전환 방지 v1.3.39
 - 사용자 제보: 품목관리에서 라벨크기를 바꾼 뒤 테이블을 한 번 클릭했는데 편집 모드로 전환된다.
 - 최신 로그 확인: 라벨 `8116` load 완료 후 첫 행 클릭 시 `editElement requested`와 row modified가 발생하고, 이후 행 클릭마다 다른 행의 주원료가 연속 modified 처리된다. inline editor는 값이 바뀌지 않으면 commit하지 않으므로 우측 주원료 preview의 지연 callback이 원인이다.

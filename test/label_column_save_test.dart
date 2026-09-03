@@ -78,7 +78,9 @@ LabelColumnSaveCommand _command() {
     labelSizeId: 10,
     originalColumnsById: {
       7: LabelColumnDraft.fromColumn(_column(7, 'PRICE')),
-      9: LabelColumnDraft.fromColumn(_column(9, 'OLD')),
+      9: LabelColumnDraft.fromColumn(
+        _column(9, 'OLD').copyWith(containColumns: '11|12'),
+      ),
     },
     newColumns: [added],
     updatedColumns: [existing],
@@ -140,6 +142,10 @@ void main() {
       final xml = statement.params['commandXml'] as String;
       expect(xml, startsWith('<command labelSizeId="10">'));
       expect(
+        xml,
+        contains('<containValues><value>11</value><value>12</value></containValues>'),
+      );
+      expect(
         RegExp(r'<column section="originalColumns"').allMatches(xml),
         hasLength(2),
       );
@@ -181,6 +187,29 @@ void main() {
         statement.sql,
         contains('Label column auxiliary values changed after editing started.'),
       );
+      expect(statement.sql, contains('DECLARE @OriginalContainValues TABLE'));
+      expect(
+        statement.sql,
+        contains("@CommandDocument.nodes('/command/originalColumns/column')"),
+      );
+      expect(
+        statement.sql,
+        isNot(contains('V.CONTAIN_COLUMNS_ID')),
+      );
+      expect(statement.sql, contains("C.value('@columnId', 'INT')"));
+      expect(statement.sql, contains("C.nodes('containValues/value')"));
+      expect(
+        RegExp(
+          r'BM_GS1_CONTAIN_COLUMN[\s\S]*?EXCEPT[\s\S]*?@OriginalContainValues',
+        ).hasMatch(statement.sql),
+        isTrue,
+      );
+      expect(
+        RegExp(
+          r'@OriginalContainValues[\s\S]*?EXCEPT[\s\S]*?BM_GS1_CONTAIN_COLUMN',
+        ).hasMatch(statement.sql),
+        isTrue,
+      );
       final originalProjection = statement.sql.substring(
         statement.sql.indexOf('INSERT @OriginalColumns'),
         statement.sql.indexOf('DECLARE @FinalOrder'),
@@ -195,7 +224,6 @@ void main() {
         "N.value('(check/text())[1]', 'BIT')",
         "N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)')",
         "N.value('(formatOption/text())[1]', 'INT')",
-        "N.value('string((contains/text())[1])', 'NVARCHAR(MAX)')",
         "N.value('(showGs1/text())[1]', 'BIT')",
       ]) {
         expect(originalProjection, contains(field));
