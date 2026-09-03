@@ -3,7 +3,7 @@ import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
-  test('item reload does not wait for item manager render readiness', () {
+  test('item refresh and order reload do not wait for render readiness', () {
     expect(itemManagerSessionLoadWaitsForRenderReady(isReload: false), isTrue);
     expect(itemManagerSessionLoadWaitsForRenderReady(isReload: true), isFalse);
   });

@@ -1,5 +1,13 @@
 # 현재 작업 상태
 
+## 완료: 품목 우클릭 새로고침 후 무한 로딩 확인 v1.3.30
+- 사용자 재현: 품목관리 우클릭 `새로 고침` 후 하단 `처리 중`이 계속 표시되고 메뉴가 일괄 비활성화된다.
+- 제출 로그 파일명 `품목관리_새로고침이후 무한 로딩 현상.log`, `품목관리_새로고침_무한로딩.log`는 workspace에서 발견되지 않았다. 기존 workspace 재현 로그에는 `sessionLoad event=renderWaiting` 이후 `renderReady`가 없는 사례가 존재한다.
+- 코드 확인: `_refreshItemManager()`와 품목 순서 저장은 모두 `_reloadItemDraftFromDatabase()`를 호출한다. v1.3.30의 `isItemManagerReload=true` 및 render-ready 비대기 수정이 우클릭 새로고침에도 동일하게 적용된다.
+- 추가 production 수정/버전 증가는 하지 않는다. 기존 정책 회귀 테스트 이름을 새로고침과 순서 저장 두 진입점이 모두 공통 reload 정책의 보호 대상임을 명시하도록 보강했다.
+- 검증 완료: `home_page_manager_session_test.dart`, `fortune_table_test.dart` 총 72건 통과. `flutter analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart` 결과 `No issues found`.
+- stage/commit 대상: `test/home_page_manager_session_test.dart`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목 순서 변경 저장 후 무한 로딩 수정 v1.3.30
 - 사용자 재현: 품목 순서 변경 다이얼로그에서 행을 드래그해 순서를 변경하고 저장하면 하단 `처리 중`이 계속 표시되고 품목관리 메뉴가 일괄 비활성화된다.
 - 코드 경로: `_changeItemOrder()`가 `_itemDraftCommandBusy=true`로 진입한 뒤 `saveItemManagerOrder()`와 DB 재조회를 기다리며, `finally`는 있으므로 await 중 하나가 반환하지 않는 경우에만 busy가 지속된다.
