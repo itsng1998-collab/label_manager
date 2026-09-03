@@ -51,6 +51,33 @@ class LabelOutputPreview extends StatefulWidget {
 }
 
 class _LabelOutputPreviewState extends State<LabelOutputPreview> {
+  bool _initialAutoFitScheduled = false;
+  int? _pendingInitialAutoFitPercent;
+  LabelSheetZoomController? _pendingInitialAutoFitController;
+
+  void _scheduleInitialAutoFit(int percent) {
+    final controller = widget.zoomController;
+    if (controller == null) return;
+    _pendingInitialAutoFitPercent = percent;
+    _pendingInitialAutoFitController = controller;
+    if (_initialAutoFitScheduled) return;
+    _initialAutoFitScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initialAutoFitScheduled = false;
+      final pendingPercent = _pendingInitialAutoFitPercent;
+      final pendingController = _pendingInitialAutoFitController;
+      _pendingInitialAutoFitPercent = null;
+      _pendingInitialAutoFitController = null;
+      if (!mounted ||
+          pendingPercent == null ||
+          pendingController == null ||
+          !identical(widget.zoomController, pendingController)) {
+        return;
+      }
+      pendingController.applyInitialAutoFit(pendingPercent);
+    });
+  }
+
   @override
   void didUpdateWidget(covariant LabelOutputPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -84,7 +111,7 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (widget.autoFitWidth && constraints.maxWidth.isFinite) {
-          widget.zoomController?.applyInitialAutoFit(
+          _scheduleInitialAutoFit(
             labelOutputPreviewFitWidthZoomPercent(
               viewportWidth: constraints.maxWidth,
               sheet: value.activeSheet,

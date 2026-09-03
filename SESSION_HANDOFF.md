@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: 검색출력 발행 줌 auto-fit build 예외 수정 v1.3.20
+- 사용자 재현: 파일관리 → 검색출력에서 발행 시 `setState() or markNeedsBuild() called during build` 예외가 발생한다.
+- 실행 로그 확인: `.tmp/log/app_2026-08-17_20-30-19.log`의 실행본은 `v1.3.18`이며, 검색 발행 직전 예외 stack은 `LabelOutputPreview`의 `LayoutBuilder` → `applyInitialAutoFit()` → 줌 toolbar `TextEditingController` 갱신 → `EditableText.markNeedsBuild()` 순서다.
+- 기각한 가설: `LabelPrintSessionController.replaceRowsForIssue()`/`beginIssue()` 동기 알림을 page build 중 재현한 테스트는 통과했다. 해당 테스트와 가설은 제거했다.
+- 원인 확인: 실제 출력 wrapper처럼 `LabelOutputPreview(autoFitWidth: true)`와 외부 줌 toolbar가 controller를 공유하는 테스트가 production 로그와 동일한 `EditableText`/`LayoutBuilder` assertion으로 실패했다.
+- 구현 완료: `LabelOutputPreview`가 LayoutBuilder에서 계산한 최신 최초 auto-fit 값과 동일 controller를 보관하고 첫 frame 종료 후 적용한다. widget/controller가 교체된 callback은 적용하지 않으며 기존 controller 동기 API 계약은 유지한다.
+- 검증 완료: 신규 auto-fit 재현 테스트 통과, `label_print_session_test.dart`와 줌 controller/toolbar 테스트 전체 27건 및 scale output 인접 테스트 1건 통과, 변경 파일 편집기 진단 없음.
+- 버전 편집 완료: 호환 가능한 검색 발행 UI 오류 수정이므로 PATCH 증가로 `1.3.19`에서 `1.3.20`으로 갱신했다.
+- strict analyzer 완료: `C:/Flutter/bin/flutter.bat analyze lib/widgets/label_output_preview.dart test/label_print_session_test.dart` 결과 `No issues found`.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.20`, `git diff --check` 통과.
+- 동작 기준: 검색출력 발행으로 출력 미리보기가 교체돼도 LayoutBuilder build가 끝난 뒤 최초 auto-fit을 적용하며, 줌 입력과 미리보기 배율은 예외 없이 동기화된다.
+- 커밋 대상: `label_output_preview.dart`, 신규 회귀 테스트, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 범위 밖 lockfile 변경은 제외한다.
+- null controller의 불필요한 callback 예약을 제거한 뒤 focused 재현 테스트 재통과, strict analyzer `No issues found`, 최종 `/WX` Windows Debug 재빌드 성공을 확인했다.
+
 ## 완료: 품목별 정보 편집 진입 build 중 알림 예외 수정 v1.3.19
 - 사용자 재현: 설정 → 품목별 정보 편집 진입 시 `ItemInfoController.setLoading()`의 `notifyListeners()`에서 `setState() or markNeedsBuild() called during build` 예외가 발생한다.
 - 원인 확인: 실제 `AnimatedBuilder` 부모 구조를 재현한 테스트가 `_dirty` framework assertion으로 실패했다. overlay가 `ItemInfoDialogContent`를 구성하는 동안 자식 `initState()`가 동기 `_load()`를 시작하고 `setLoading(true)`로 같은 builder에 알린다.

@@ -723,6 +723,52 @@ void main() {
     );
   });
 
+  testWidgets('label output preview applies auto fit after layout build', (
+    tester,
+  ) async {
+    final zoomController = LabelSheetZoomController(initialPercent: 150);
+    addTearDown(zoomController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              LabelSheetZoomToolbar(controller: zoomController),
+              Expanded(
+                child: LabelOutputPreview(
+                  workbook: FortuneWorkbook(
+                    sheets: [FortuneSheet(id: 'sheet', name: '라벨')],
+                  ),
+                  hintText: null,
+                  identityKey: 'label-print-auto-fit-test',
+                  imageObjectIds: const [],
+                  barcodeObjectIds: const [],
+                  zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+                  zoomController: zoomController,
+                  autoFitWidth: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(zoomController.value, 100);
+    expect(
+      tester
+          .widget<EditableText>(
+            find.byKey(const ValueKey('label-sheet-zoom-input')),
+          )
+          .controller
+          .text,
+      '100',
+    );
+  });
+
   testWidgets('printer settings uses common label dialog styling', (
     tester,
   ) async {
