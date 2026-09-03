@@ -18,6 +18,7 @@
 - 최종 확인 예정: Debug EXE `FileVersion`/`ProductVersion`, `git diff --check`, 변경 파일 상태를 확인한다.
 - 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.32`, 변경 파일 편집기 진단 없음, `git diff --check` 통과.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/domain/item_manager_rules.dart`, `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `aeb9a3c` (`품목관리 셀별 클라이언트 편집 권한 적용`).
 
 ## 완료: 품명 편집 중 다른 품목 클릭 후 스크롤 비활성 수정 v1.3.31
 - 사용자 재현: 품목관리에서 품명을 더블클릭해 편집한 채 다른 품목을 한 번 클릭하면 이동 스크롤이 비활성화되고, 다시 편집 후 Enter를 눌러야 복구된다.
