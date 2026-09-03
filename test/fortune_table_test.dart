@@ -1792,7 +1792,12 @@ void main() {
     expect(itemManageController.hasActiveEditing, isFalse);
     expect(selectedCount, 0);
     expect(draftController.isDirty, isFalse);
-    expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNull,
+    );
     table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
@@ -3838,12 +3843,44 @@ void main() {
     await tester.pump();
 
     expect(controller.isDirty, isFalse);
-    expect(find.widgetWithText(OutlinedButton, '취소'), findsNothing);
-    expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '취소'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNull,
+    );
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns[3].header, '주원료');
+    expect(table.columns[4].header, '가로 항목 1');
+    expect(table.columns.length, 12);
 
     controller.updateItemName(controller.rows.single.rowKey, '수정 품목');
     await tester.pump();
     expect(controller.isDirty, isTrue);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '취소'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNotNull,
+    );
 
     final saveRect = tester.getRect(find.widgetWithText(FilledButton, '저장'));
     final leftButton = find.byKey(

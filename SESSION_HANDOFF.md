@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 완료: 품목관리 저장 버튼 상태 및 동적 컬럼 확인 v1.3.37
+- 사용자 실물 확인: 취소/저장을 숨기지 말고 clean/dirty에 따라 비활성/활성 처리해야 하며, `주원료` 이후 동적 컬럼이 보이지 않는다.
+- 원인 확인: 직전 v1.3.36에서 clean 상태의 취소/저장을 숨긴 것은 요구와 다르다. 첨부 실행 로그 `app_2026-09-03_17-13-14.log`의 선택 라벨 `불러오기 테스트용`(ID 8116)은 DB 조회 결과 `columns=0`, `contents=0`이며 8월 이후 모든 로그에서도 동일하다. 컬럼 DAO는 레거시와 동일하게 선택 라벨 ID로 조회하며 최근 조건 변경이 없다.
+- 편집 완료: 취소/저장은 편집 권한이 있으면 항상 표시하고, draft가 clean이면 비활성, dirty이면 활성화하도록 복구했다.
+- 테스트 보강: clean/dirty 버튼 상태를 각각 검증하고, 동적 컬럼이 설정된 라벨에서는 8개 컬럼이 `주원료` 뒤에 순서대로 포함되어 총 12개 컬럼과 가로 이동이 유지되는지 검증한다.
+- focused 검증 완료: 저장/취소 상태와 동적 컬럼 순서·가로 이동 회귀 테스트 1건 통과.
+- 버전 편집 완료: footer 버튼 상태 복구이므로 PATCH 증가로 `1.3.36`에서 `1.3.37`로 갱신했다.
+- 인접 검증 예정: `test/fortune_table_test.dart`, `test/home_page_manager_session_test.dart`, `third_party/fortune_sheet/test/fortune_table_navigation_test.dart` 실행 후 변경 파일 strict analyzer를 수행한다.
+- 인접 검증 완료: FortuneTable, home manager session, fortune_sheet navigation 테스트 총 77건 통과.
+- strict analyzer 완료: 변경 구현/테스트 2개 파일 분석 결과 `No issues found`, 편집기 진단 없음.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
+- Windows 통합 검증 완료: 최초 실행 중인 `label_manager.exe` 점유로 `LNK1168`이 발생했으나 사용자 승인 후 앱을 종료하고 재실행하여 `/WX` Debug 빌드에 성공했다.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.37`, `git diff --check` 통과.
+- stage/commit 대상: `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목관리 초기 저장 모드 표시 수정 v1.3.36
 - 사용자 제보: 최근 가로 아이콘 footer 재배치 이후 품목관리 첫 진입에서 무조건 저장 모드가 되는 것으로 보인다.
 - 최신 앱 로그 확인: session load 직후 draft는 `dirty=false`, 26초 뒤 rows가 모두 existing인 상태에서 `dirty=true`로 전환되어 행/셀 변경이 아닌 최소표시 draft 변경 가능성이 있다. 최근 footer는 clean 상태에서도 비활성 취소/저장 버튼을 항상 노출한다.
