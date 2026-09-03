@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 완료: 출력내용 미리보기 열린 상태의 품목명 편집 build 예외 수정 v1.3.22
+- 사용자 재현: 품목관리의 `출력내용 미리보기` 탭을 연 상태에서 항목명 편집에 들어가면 `_blockItemDraftContextChange()`가 build 중 `ScaffoldMessenger.showSnackBar()`를 호출해 미리보기 오류와 멈춤이 발생한다.
+- 원인 확인: 신규 테스트가 `_ItemPreviewPanel.didUpdateWidget()` → `_replaceTabsPreservingSelection()` → `_handleTabSelection()` → `showSnackBar()`의 동일 build 예외로 실패했다. 탭 재생성 후 기존 출력 탭의 programmatic 재선택이 사용자 탭 guard를 다시 호출했다.
+- 구현 완료: `_replaceTabsPreservingSelection()`이 탭 선택을 복원하는 동안 `_handleTabSelection()`을 억제해 편집 commit과 차단 알림이 실제 사용자 탭 선택에서만 실행되도록 했다.
+- 검증 완료: 동일 재현 테스트와 품목 미리보기의 선택 행 변경/사용자 탭 차단/출력 줌 유지/최초 width-fit 인접 테스트 총 5건 통과.
+- 버전 편집 완료: 호환 가능한 품목 미리보기 UI 예외 수정이므로 PATCH 증가로 `1.3.21`에서 `1.3.22`로 갱신했다.
+- 포맷/진단 완료: 변경 Dart 2개 파일 포맷 후 production 13줄/테스트 40줄의 의도한 diff만 남았고 편집기 진단은 없다.
+- 재검증 완료: `label_sheet_toolbar_test.dart`의 재현/인접 5건 통과, `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart` 결과 `No issues found`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 확인 완료: Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.22`, `git diff --check` 통과. 재현 테스트는 framework 예외 없음, guard 미재호출, 출력 탭 콘텐츠 유지를 모두 확인한다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+
 ## 완료: 품목 블록선택 발행 체크 줌 입력 build 예외 수정 v1.3.21
 - 사용자 재현: 품목관리에서 블록선택 발행 체크 시 `LabelSheetZoomToolbar._handleZoomChanged()`의 `TextEditingController.value` 갱신으로 `EditableText setState() or markNeedsBuild() called during build` 예외가 발생한다.
 - 실행 확인: 최신 로그 실행본은 `v1.3.20`; debugger 화면의 변경 값은 auto-fit 결과 `220`이고 현재 build widget은 `LayoutBuilder`다.

@@ -2644,6 +2644,47 @@ void main() {
     expect(find.text('주원료 및 함량'), findsWidgets);
   });
 
+  testWidgets('item preview preserves output tab without rechecking guard', (
+    tester,
+  ) async {
+    var itemName = '첫 품목';
+    var contextChangeBlocked = false;
+    var guardRequests = 0;
+
+    Widget preview() => MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: itemName),
+            labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+            canSelectOutputPreview: () {
+              guardRequests += 1;
+              if (!contextChangeBlocked) return true;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('품목 편집 중')),
+              );
+              return false;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(preview());
+    await tester.tap(find.text('출력내용 미리보기').last);
+    await tester.pumpAndSettle();
+    expect(guardRequests, 1);
+
+    contextChangeBlocked = true;
+    itemName = '수정 품목';
+    await tester.pumpWidget(preview());
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(guardRequests, 1);
+    expect(find.byType(LabelOutputPreview), findsOneWidget);
+  });
+
   testWidgets('item output preview keeps zoom after panel recreation', (
     tester,
   ) async {

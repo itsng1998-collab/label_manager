@@ -8389,8 +8389,10 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     _buildTabs(),
     onTabSelection: _handleTabSelection,
   );
+  bool _restoringTabSelection = false;
 
   void _handleTabSelection(int? index, TabData? tab) {
+    if (_restoringTabSelection) return;
     widget.elementEditingLifecycleController?.commitActiveCellEditing();
     if (tab?.value != 'item_output_preview' ||
         widget.canSelectOutputPreview()) {
@@ -8615,9 +8617,14 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
 
   void _replaceTabsPreservingSelection() {
     final selectedValue = _controller.selectedTab?.value;
-    _controller.setTabs(_buildTabs());
-    if (selectedValue != null) {
-      _controller.selectTabByValue(selectedValue);
+    _restoringTabSelection = true;
+    try {
+      _controller.setTabs(_buildTabs());
+      if (selectedValue != null) {
+        _controller.selectTabByValue(selectedValue);
+      }
+    } finally {
+      _restoringTabSelection = false;
     }
   }
 
