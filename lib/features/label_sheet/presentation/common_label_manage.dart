@@ -478,7 +478,7 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                 text: (row) => _CommonLabelTable._cellText(row, index),
                 onDoubleTap: index == 0
                     ? (row, rowIndex) => widget.keywordInsertController
-                          .insertAtCurrentContext('{#${row.keyword}}')
+                      .insertAtCurrentContext('#${row.keyword}')
                     : null,
                 dragData: index == 0
                     ? (row, rowIndex) =>

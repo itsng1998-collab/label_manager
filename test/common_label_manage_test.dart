@@ -10,6 +10,17 @@ import 'package:label_manager/features/label_column/application/special_columns.
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
 
+class _RecordingKeywordInsertController
+    extends LabelSheetKeywordInsertController {
+  String? insertedText;
+
+  @override
+  bool insertAtCurrentContext(String text) {
+    insertedText = text;
+    return true;
+  }
+}
+
 TColumnBase _column(
   String keyword, {
   String? columnName,
@@ -302,7 +313,7 @@ void main() {
   testWidgets('keyword column exposes double tap and drag token', (
     tester,
   ) async {
-    final keywordController = LabelSheetKeywordInsertController();
+    final keywordController = _RecordingKeywordInsertController();
     final columns = [_column('SWEIGHT', columnName: '저울중량')];
     await tester.pumpWidget(
       MaterialApp(
@@ -325,6 +336,8 @@ void main() {
     );
     final keywordColumn = table.columns.first;
     expect(keywordColumn.onDoubleTap, isNotNull);
+    keywordColumn.onDoubleTap!(columns.single, 0);
+    expect(keywordController.insertedText, '#SWEIGHT');
     final dragData = keywordColumn.dragData!(columns.single, 0);
     expect(
       dragData,

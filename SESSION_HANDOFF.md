@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 사용 항목 더블클릭 중괄호 제거 v1.3.49
+- 제보/화면 확인: 공용라벨 사용 항목 `TEST2`를 더블클릭하면 시트에 `{#TEST2}`가 삽입된다. 기존 라벨 키워드는 `#TEST2` 형식이다.
+- 로그 확인: 더블클릭 직후 셀 편집값이 7자 증가하며 `{#TEST}`가 한 번에 추가되어 셀 편집기 후처리가 아닌 삽입 payload 문제로 확인했다.
+- 원인 확인: `_CommonLabelTable`의 키워드 열 더블클릭 콜백이 `'{#${row.keyword}}'`를 직접 생성했다.
+- 구현 완료: 더블클릭 삽입값만 `#${row.keyword}`로 변경했다. 요청 범위 밖인 드래그 payload와 feedback의 `{#...}` 형식은 유지한다.
+- 테스트 보강: 실제 더블클릭 콜백이 `#SWEIGHT`를 전달하고 드래그 payload는 `{#SWEIGHT}`를 유지하는지 검증한다.
+- 버전 편집 완료: `1.3.48`에서 `1.3.49`로 갱신했다.
+- focused 검증 완료: 신규 콜백 테스트 및 `test/common_label_manage_test.dart` 전체 12건 통과. 변경 파일 diagnostics 오류 없음.
+- Dart 포맷 완료: `common_label_manage.dart`, `common_label_manage_test.dart`.
+- 변경 파일 엄격 분석 완료: `flutter analyze --fatal-infos --fatal-warnings lib/features/label_sheet/presentation/common_label_manage.dart test/common_label_manage_test.dart` 오류·경고 0건.
+- 연관 회귀 검증 완료: `test/label_sheet_toolbar_test.dart` 전체 194건 통과.
+- DTD 확인 완료: VS Code DTD에는 연결되어 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.49`.
+- 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- runtime 확인: 실행 중인 앱이 없어 실제 화면 더블클릭 수동 확인은 수행하지 못했다. 실제 테이블 콜백 payload 회귀 테스트와 Windows 빌드로 검증했다.
+- stage/commit 대상: `common_label_manage.dart`, `common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 공용라벨 필수등록 누락 경고 후 저장 허용 v1.3.48
 - 제보/로그 확인: SWEIGHT·SPRICE 필수등록이 체크된 상태에서 시트의 두 키워드를 제거하고 저장하면 누락 경고 직후 흐름이 종료된다. 로그도 `saveLabelSheet missingRequiredKeywords=저울중량,최종가격`에서 끝난다.
 - 원인 확인: `LabelSheetPage._handleSaveLabelSheet()`가 누락 경고창을 닫은 직후 `LabelSheetSaveResult.notApplied`를 반환해 실제 저장 트랜잭션 진입을 차단했다.
