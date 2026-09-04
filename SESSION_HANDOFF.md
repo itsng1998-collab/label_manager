@@ -1,5 +1,26 @@
 # 현재 작업 상태
 
+## 완료: 시리얼 인증 후 로그인창 종료 및 재로그인 불가 v1.3.43
+- 사용자 제보/이미지: 로그인 및 우측 상단 메뉴 재로그인에서 시리얼 인증을 완료하면 로그인이 진행되지 않고 로그인창이 닫혀 빈 홈 화면만 남는다. 정상 로그인 후 같은 PC 재로그인은 시리얼 인증 없이 진행되어야 한다.
+- 로그 확인: 두 제출 로그 모두 시리얼 승인 후 `UserAccessDAO.saveAccess`가 `BM_USER_ACCESS_LOG.ACCESS_DATE`에서 SQL Server `207 (42S22)`로 실패하며 `StartupLoginService.login`과 `onLogin`에 도달하지 못한다.
+- 원인 확인: 레거시는 `BM_USER_ACCESS_LOG`에 컬럼 목록 없이 테이블의 6열 순서로 INSERT하지만 Flutter 포팅 시 운영 DB에 없는 `ACCESS_DATE`, `ACCESS_DATETIME` 컬럼명을 가정했다. 또한 `_onLoginButtonPressed` catch가 `_onCancelButtonPressed()`를 호출해 오류 메시지를 보여주기 전에 로그인 dialog까지 닫는다.
+- 회귀 테스트 추가: 접속 이력 SQL이 존재하지 않는 날짜 컬럼명을 사용하지 않는지, 최초 시리얼 승인으로 서버/로컬 토큰을 저장한 뒤 같은 PC 재로그인에서는 serial prompt를 생략하는지 검증한다.
+- 수정 전 focused 테스트 결과: 재로그인 serial prompt 생략 서비스 테스트는 통과했고, DAO SQL은 `ACCESS_DATE`/`ACCESS_DATETIME`을 포함해 운영 DB 호환 테스트가 실패했다.
+- 구현 완료: `BM_USER_ACCESS_LOG`는 레거시와 동일한 6열 순서 INSERT로 변경하고, 인증/로그인 예외 catch는 세션만 정리하며 로그인 dialog와 입력값을 유지하도록 수정했다.
+- widget 회귀 테스트 추가: 선택적 로그인 서비스 주입으로 접속정보 저장 예외를 실제 로그인 버튼 경로에 발생시켜 dialog 유지, 오류 표시, `onLogin` 미호출을 검증한다. 운영 `StartupDialog.show()` 호출은 기본 서비스 사용을 유지한다.
+- focused 검증 완료: DAO/서비스 테스트 7건, startup dialog 테스트 5건 통과. 새 widget 테스트의 최초 실패는 기본 800x600 viewport에서 로그인 버튼 tap이 빗나간 테스트 환경 문제였으며 데스크톱 viewport와 `ensureVisible` 적용 후 통과했다.
+- 변경 Dart 파일 포맷 완료. 호환 가능한 로그인 결함 수정이므로 PATCH 증가로 `1.3.42`에서 `1.3.43`으로 갱신했다.
+- 인증 관련 통합 테스트 실행 예정: `flutter test test/user_access_dao_test.dart test/user_access_service_test.dart test/user_access_serial_test.dart test/user_access_serial_dialog_test.dart test/startup_login_service_test.dart test/startup_dialog_test.dart`.
+- 인증 관련 통합 테스트 완료: 위 6개 테스트 파일 전체 12건 통과.
+- strict analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/login/data/user_access_dao.dart lib/features/login/presentation/startup_dialog.dart test/user_access_dao_test.dart test/user_access_service_test.dart test/startup_dialog_test.dart`.
+- strict analyzer 완료: 변경 production/test Dart 5개 파일 오류·경고 0건.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 자동 검증 예정: Debug EXE FileVersion/ProductVersion `1.3.43`, 변경 파일 diagnostics, `git diff --check`를 확인한다.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.3.43`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 동작 기준: 최초 시리얼 인증 성공 시 서버 접속 토큰과 이력, 로컬 토큰을 저장하고 로그인을 계속한다. 이후 같은 PC 재로그인은 서버/로컬 토큰 일치로 시리얼 dialog를 생략한다. 인증 또는 로그인 오류 시에는 로그인창을 유지하고 오류 내용을 표시한다.
+- stage/commit 대상: 로그인 DAO/presentation 2개, 관련 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `lib/core/app.dart` 및 lock 파일 변경은 제외한다.
+
 ## 완료: 이전 공용라벨 RTF 불러오기 응답 없음 수정 v1.3.42
 - 사용자 제보 로그: `.tmp/3. 공용라벨관리_RTF 변환 응답없음.log`에서 저장하지 않은 레거시 RTF 양식을 불러오면 `RTF 변환 중` 상태에서 프로그램이 멈춘다.
 - 로그 원인 확인: 앱 `1.3.5`에서 16,550자 RTF fallback 변환은 `0.542초`에 `result=draft`로 정상 완료했다. 약 4.3초 뒤 `PreviewFloatingWindow.wrapPortalHost`의 `OverlayPortal`에서 `cachedLocation._zOrderIndex == zOrderIndex` assertion이 발생해 frame build가 중단됐다.

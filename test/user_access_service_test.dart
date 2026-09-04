@@ -97,6 +97,34 @@ void main() {
     expect(stored, userAccessLocalValue('20260810150000999'));
   });
 
+  test('시리얼 인증 성공 후 같은 PC 재로그인은 인증을 생략한다', () async {
+    var serverValue = serverData;
+    var localValue = 'other-pc';
+    var promptCount = 0;
+    final service = UserAccessService(
+      loadAccessData: (_) async => serverValue,
+      readLocalValue: () async => localValue,
+      saveAccessData: (_, _) async {
+        serverValue = '20260810150000999';
+        return serverValue;
+      },
+      writeLocalValue: (value) async => localValue = value,
+      now: () => DateTime(2026, 8, 10, 12, 34, 56),
+    );
+
+    Future<bool> authorize() => service.authorize(
+      user: user,
+      promptSerial: (_) async {
+        promptCount += 1;
+        return true;
+      },
+    );
+
+    expect(await authorize(), isTrue);
+    expect(await authorize(), isTrue);
+    expect(promptCount, 1);
+  });
+
   test('PC 값이 다르고 시리얼 인증을 취소하면 저장하지 않는다', () async {
     var saved = false;
     final service = UserAccessService(

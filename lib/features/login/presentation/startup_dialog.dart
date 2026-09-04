@@ -27,6 +27,8 @@ class StartupDialog extends StatefulWidget {
   final VoidCallback onLogin;
   final String? serverName;
   final bool forceNoticeClosed;
+  final StartupLoginService? loginService;
+  final UserAccessService? userAccessService;
   static Future<void>? _showFuture;
 
   static Future<void> show(
@@ -64,6 +66,8 @@ class StartupDialog extends StatefulWidget {
     required this.onLogin,
     this.serverName,
     this.forceNoticeClosed = false,
+    this.loginService,
+    this.userAccessService,
   });
 
   @override
@@ -152,6 +156,8 @@ class _StartupDialogState extends State<StartupDialog> {
         });
       },
       serverName: widget.serverName,
+      loginService: widget.loginService,
+      userAccessService: widget.userAccessService,
     );
 
     return Dialog(
@@ -188,6 +194,8 @@ class _DialogBody extends StatefulWidget {
   final String noticeContent;
   final ValueChanged<String> onNoticeUpdate;
   final String? serverName;
+  final StartupLoginService? loginService;
+  final UserAccessService? userAccessService;
 
   const _DialogBody({
     required this.noticeClosed,
@@ -199,6 +207,8 @@ class _DialogBody extends StatefulWidget {
     required this.noticeContent,
     required this.onNoticeUpdate,
     this.serverName,
+    this.loginService,
+    this.userAccessService,
   });
 
   @override
@@ -246,6 +256,8 @@ class _DialogBodyState extends State<_DialogBody> {
       onLogin: widget.onLogin,
       onUserIdCommit: widget.onNoticeUpdate,
       serverName: widget.serverName,
+      loginService: widget.loginService,
+      userAccessService: widget.userAccessService,
     );
 
     if (widget.noticeClosed) {
@@ -319,6 +331,8 @@ class _LoginPanel extends StatefulWidget {
   final VoidCallback onLogin;
   final ValueChanged<String>? onUserIdCommit;
   final String? serverName;
+  final StartupLoginService? loginService;
+  final UserAccessService? userAccessService;
 
   // 중복 실행 방지 플래그
   static bool _noticeFetchInFlight = false;
@@ -334,6 +348,8 @@ class _LoginPanel extends StatefulWidget {
     required this.onLogin,
     this.onUserIdCommit,
     this.serverName,
+    this.loginService,
+    this.userAccessService,
   });
 
   @override
@@ -341,8 +357,8 @@ class _LoginPanel extends StatefulWidget {
 }
 
 class _LoginPanelState extends State<_LoginPanel> {
-  final StartupLoginService _loginService = StartupLoginService();
-  final UserAccessService _userAccessService = UserAccessService();
+  late final StartupLoginService _loginService;
+  late final UserAccessService _userAccessService;
   String _infoText = '';
   final FocusNode _userIdFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
@@ -368,6 +384,8 @@ class _LoginPanelState extends State<_LoginPanel> {
   @override
   void initState() {
     super.initState();
+    _loginService = widget.loginService ?? StartupLoginService();
+    _userAccessService = widget.userAccessService ?? UserAccessService();
     _loadPreferences();
   }
 
@@ -536,7 +554,7 @@ class _LoginPanelState extends State<_LoginPanel> {
       });
     }
     catch (e) {
-      await _onCancelButtonPressed();
+      _loginService.clearSession();
       final errmsg = e.toString();
       _infoText = stripLeadingBracketTags(errmsg);
       debugLog('Exception: $errmsg');

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/login/application/startup_login_service.dart';
+import 'package:label_manager/features/login/application/user_access_service.dart';
 import 'package:label_manager/features/login/presentation/startup_dialog.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -85,6 +88,59 @@ void main() {
     Navigator.of(hostContext, rootNavigator: true).pop();
     await tester.pumpAndSettle();
     await dialog;
+  });
+
+  testWidgets('startup login failure keeps dialog open', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': 'user',
+      'save_id': true,
+    });
+    var loginCallbackCalled = false;
+    const user = User(
+      userId: 'user',
+      marketId: 1,
+      name: '사용자',
+      pwd: 'pw',
+      grade: UserGrade.CLIENT_USER,
+      marketName: '지점',
+      customerName: '거래처',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            forceNoticeClosed: true,
+            onLogin: () => loginCallbackCalled = true,
+            loginService: StartupLoginService(
+              loadNotice: (_) async => '',
+              loadUser: (_) async => user,
+            ),
+            userAccessService: UserAccessService(
+              loadAccessData: (_) async => null,
+              readLocalValue: () async => '',
+              saveAccessData: (_, _) async => throw StateError('접속 정보 저장 실패'),
+              writeLocalValue: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(4), 'pw');
+    final loginButton = find.widgetWithText(ElevatedButton, '로그인');
+    await tester.ensureVisible(loginButton);
+    await tester.tap(loginButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(StartupDialog), findsOneWidget);
+    expect(find.textContaining('접속 정보 저장 실패'), findsOneWidget);
+    expect(loginCallbackCalled, isFalse);
   });
 
   testWidgets('startup notice restores equal content and image widths', (

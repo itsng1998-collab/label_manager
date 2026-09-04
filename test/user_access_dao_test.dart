@@ -8,5 +8,11 @@ void main() {
     expect(UserAccessDAO.saveSql, contains('CONVERT(CHAR(8), GETDATE(), 112)'));
     expect(UserAccessDAO.saveSql, contains('SET NOCOUNT ON'));
     expect(UserAccessDAO.saveSql, isNot(contains('FORMAT(')));
+    expect(UserAccessDAO.saveSql, isNot(contains('ACCESS_DATE')));
+    expect(UserAccessDAO.saveSql, isNot(contains('ACCESS_DATETIME')));
+    expect(
+      UserAccessDAO.saveSql,
+      contains('INSERT INTO BM_USER_ACCESS_LOG\n    SELECT USER_ID'),
+    );
   });
 }
