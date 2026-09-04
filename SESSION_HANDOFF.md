@@ -25,6 +25,7 @@
 - Windows 최종 재검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
 - 최종 점검 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.56`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - stage/commit 대상: production 3개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `6f7d4af` (`검색출력 전용 모드 잠금 적용`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: 공용라벨 사용항목 자동 증가 설정 복원 v1.3.55
