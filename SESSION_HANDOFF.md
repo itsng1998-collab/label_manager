@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: 이전 공용라벨 RTF 불러오기 응답 없음
+## 완료: 이전 공용라벨 RTF 불러오기 응답 없음 수정 v1.3.42
 - 사용자 제보 로그: `.tmp/3. 공용라벨관리_RTF 변환 응답없음.log`에서 저장하지 않은 레거시 RTF 양식을 불러오면 `RTF 변환 중` 상태에서 프로그램이 멈춘다.
 - 로그 원인 확인: 앱 `1.3.5`에서 16,550자 RTF fallback 변환은 `0.542초`에 `result=draft`로 정상 완료했다. 약 4.3초 뒤 `PreviewFloatingWindow.wrapPortalHost`의 `OverlayPortal`에서 `cachedLocation._zOrderIndex == zOrderIndex` assertion이 발생해 frame build가 중단됐다.
 - 코드 가설: item preview portal이 표시된 상태에서 RTF 준비 완료 후 common-label preview window가 지연 생성되고, 화면 루트 바깥에 두 번째 portal wrapper가 동적으로 추가되면서 기존 portal의 widget ancestry/z-order cache가 무효화된다.
@@ -13,6 +13,7 @@
 - Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE 버전과 최종 diff를 확인한다.
 - Windows 통합 검증 완료: `/WX` Debug 빌드 성공, Debug EXE `FileVersion`/`ProductVersion` 모두 `1.3.42`, `git diff --check` 통과.
 - stage/commit 대상: `lib/widgets/preview_floating_window.dart`, `test/preview_floating_window_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 범위 밖 `lib/core/app.dart`와 lockfile 4개는 제외한다.
+- 구현 커밋: `b4f89c8` (`공용라벨 RTF 불러오기 멈춤 수정`).
 
 ## 완료: 공용라벨 필수등록 변경 시 저장 활성화 v1.3.41
 - 사용자 재현: 공용라벨관리에서 `SWEIGHT`, `SPRICE` 필수등록만 체크/해제하면 저장 표시가 활성화되지 않고, 서식을 별도로 수정한 뒤 저장해야 필수등록 변경도 함께 반영된다.
