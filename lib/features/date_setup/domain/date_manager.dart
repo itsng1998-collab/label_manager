@@ -26,6 +26,7 @@ enum PrintTimeFormat {
   TIME_FORMAT_NONE, // 입력그대로
   TIME_FORMAT_HANGUL_hh, // hh시
   TIME_FORMAT_USER_DEFINE, // 사용자 정의
+  TIME_FORMAT_KOREAN_12H, // 오전/오후 h시 [mm분]
 }
 
 class DateManager {
@@ -138,6 +139,10 @@ class DateManager {
           ? _componentWithWidth(hour, match.group(0)!.length)
           : _componentWithWidth(minute, match.group(0)!.length),
     ),
+    PrintTimeFormat.TIME_FORMAT_KOREAN_12H =>
+      '${hour < 12 ? '오전' : '오후'} '
+          '${hour % 12 == 0 ? 12 : hour % 12}시'
+          '${minute == 0 ? '' : ' ${minute.toString().padLeft(2, '0')}분'}',
   };
 
   static String _yearWithWidth(int year, int width) {

@@ -138,6 +138,44 @@ void main() {
     );
   });
 
+  test('Korean 12-hour setup formats make and valid time columns', () {
+    const setup = LabelSizeSetup(
+      readOnly: false,
+      useMakeDate: false,
+      useMakeTime: true,
+      useValidDate: false,
+      useValidTime: true,
+      makingDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      makingTimeFormat: PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+      validDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      validTimeFormat: PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+      strMakeDate: '',
+      strMakeTime: '',
+      strValidDate: '',
+      strValidTime: '',
+      useScale: false,
+    );
+
+    expect(
+      formatLabelDateColumnValue(
+        columnType: TColumnType.TYPE_MAKETIME,
+        rawValue: '1600',
+        projectedValue: '1600',
+        setup: setup,
+      ),
+      '오후 4시',
+    );
+    expect(
+      formatLabelDateColumnValue(
+        columnType: TColumnType.TYPE_VALIDTIME,
+        rawValue: '1630',
+        projectedValue: '1630',
+        setup: setup,
+      ),
+      '오후 4시 30분',
+    );
+  });
+
 }
 
 LabelAutoIncrementProjection _project(

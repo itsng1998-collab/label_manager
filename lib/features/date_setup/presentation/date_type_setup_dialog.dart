@@ -401,4 +401,5 @@ String _timeFormatLabel(PrintTimeFormat format) => switch (format) {
   PrintTimeFormat.TIME_FORMAT_NONE => '입력 그대로',
   PrintTimeFormat.TIME_FORMAT_HANGUL_hh => '12시',
   PrintTimeFormat.TIME_FORMAT_USER_DEFINE => '사용자 정의',
+  PrintTimeFormat.TIME_FORMAT_KOREAN_12H => '오후 4시',
 };

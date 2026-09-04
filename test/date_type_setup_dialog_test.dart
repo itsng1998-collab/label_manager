@@ -105,4 +105,57 @@ void main() {
     expect(tester.widget<Checkbox>(find.byType(Checkbox).first).onChanged, isNull);
     expect(tester.widget<TextField>(find.byType(TextField).first).enabled, isFalse);
   });
+
+  testWidgets('time setup exposes and saves Korean 12-hour format', (
+    tester,
+  ) async {
+    LabelSizeDateSetupUpdate? result;
+    const setup = LabelSizeSetup(
+      readOnly: false,
+      useMakeDate: false,
+      useMakeTime: true,
+      useValidDate: false,
+      useValidTime: false,
+      makingDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      makingTimeFormat: PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+      validDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      validTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
+      strMakeDate: '',
+      strMakeTime: '',
+      strValidDate: '',
+      strValidTime: '',
+      useScale: false,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showDialog<LabelSizeDateSetupUpdate>(
+                context: context,
+                builder: (_) => const DateTypeSetupDialog(
+                  initialSetup: setup,
+                  showInvalidValueWarning: false,
+                ),
+              );
+            },
+            child: const Text('열기'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('열기'));
+    await tester.pumpAndSettle();
+    expect(find.text('오후 4시'), findsOneWidget);
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(
+      result!.makingTimeFormat,
+      PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+    );
+    expect(result!.toParams()['makeTimeType'], 5);
+  });
 }

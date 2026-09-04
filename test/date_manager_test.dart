@@ -82,6 +82,37 @@ void main() {
     );
   });
 
+  test('four-digit time supports Korean 12-hour output', () {
+    expect(
+      DateManager.formatTimeValue(
+        PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+        '1600',
+      ),
+      '오후 4시',
+    );
+    expect(
+      DateManager.formatTimeValue(
+        PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+        '1630',
+      ),
+      '오후 4시 30분',
+    );
+    expect(
+      DateManager.formatTimeValue(
+        PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+        '0000',
+      ),
+      '오전 12시',
+    );
+    expect(
+      DateManager.formatTimeValue(
+        PrintTimeFormat.TIME_FORMAT_KOREAN_12H,
+        '1200',
+      ),
+      '오후 12시',
+    );
+  });
+
   test('invalid date setup indexes use defaults and expose warning state', () {
     final labelSize = labelSizeFromRow({
       'LABELSIZE_ID': 1,

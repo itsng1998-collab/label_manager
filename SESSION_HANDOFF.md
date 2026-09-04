@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 소비·제조시한 12시간제 포맷 추가 v1.3.57
+- 기존 경로 확인: 제조시한·소비시한의 4자리 숫자 값은 공통 `DateManager.formatTimeValue()`를 거쳐 선택한 형식으로 출력되며, `TIME_FORMAT_COLON`에서는 `1600`이 `16:00`으로 이미 변환된다.
+- 누락 기능 확인: 현재 시간 형식에는 24시간제 콜론/한글과 시간만 표시가 있으나 요청 예시인 `오후 4시` 형태의 12시간제 선택지가 없다.
+- domain 편집 완료: `date_manager.dart`의 기존 DB enum 인덱스 0~4를 유지하고 끝에 `TIME_FORMAT_KOREAN_12H`를 추가했다. `1600`은 `오후 4시`, `1630`은 `오후 4시 30분`, 자정/정오는 각각 `오전 12시`/`오후 12시`로 변환한다.
+- 설정 UI 편집 완료: `date_type_setup_dialog.dart`의 제조시한·소비시한 형식 목록에 `오후 4시` 선택지를 추가했다.
+- 출력 테스트 추가: 12시간제 변환 경계값과 제조시한·소비시한 공통 projection을 검증한다. 수정 전 enum 부재 실패를 확인했고 구현 후 관련 16건 통과.
+- 설정 UI 테스트 추가: 새 포맷이 `오후 4시`로 표시되고 저장 결과 및 DB payload enum index가 `5`인지 검증한다. 최초 렌더 텍스트 개수 가정을 실제 구조에 맞춰 수정한 뒤 통과.
+- 버전 편집 완료: `1.3.56`에서 `1.3.57`로 갱신했다.
+- Dart 포맷 완료: production 2개 파일과 관련 테스트 3개 파일.
+- focused 검증 완료: `date_manager_test.dart`, `date_type_setup_dialog_test.dart`, `label_print_auto_increment_test.dart` 전체 19건 통과.
+- strict analyzer 및 diagnostics 완료: 변경 Dart 파일 5개 오류·경고 0건.
+- DTD 확인 완료: workspace DTD가 테스트 실행에서 남은 `flutter tester`만 반환했고 해당 대상 hot reload는 실패했다. 실제 Windows 실행 앱은 없어 런타임 hot reload 대상이 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 최종 점검 완료: EXE FileVersion/ProductVersion 모두 `1.3.57`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- stage/commit 대상: production 2개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: 검색출력 전용 모드 잠금 v1.3.56
 - 기존 경로 확인: 검색출력 설정은 `RICH_SEARCH_PRINT`를 저장하고, F12 모드의 검색 입력 Enter는 현재 라벨 규격에서 품목명 또는 선택 키워드 값의 exact-match 첫 품목을 찾아 기존 `_issueLabelPrint()` 경로로 즉시 발행한다.
 - 원인 확인: 현재 모드는 탭 이동과 F1/F2/F3만 차단한다. 브랜드·라벨 선택, 현재 탭의 편집 기능, 미리보기, 다른 메뉴 명령은 활성 상태이고 F12 진입 시 검색 입력으로 포커스도 이동하지 않아 스캐너 전용 모드 요구사항을 충족하지 못한다.
