@@ -15,6 +15,7 @@
 - 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - runtime 확인: 실행 중인 앱이 없어 제공 화면의 실제 TEST 항목으로 수동 확인은 수행하지 못했다. 연결 이미지 geometry 회귀 테스트와 Windows 빌드로 검증했다.
 - stage/commit 대상: production 3개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `d304063` (`연결 이미지와 항목 크기 동기화`).
 
 ## 완료: 접두어가 같은 공용라벨 키워드 치환 분리 v1.3.51
 - 제보/화면 확인: 원본 셀의 `#TEST #TEST2`가 출력 시 `1 12`로 표시된다. 기대값은 `1 2`이다.
