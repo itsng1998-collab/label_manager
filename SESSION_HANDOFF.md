@@ -15,6 +15,7 @@
 - Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
 - 최종 점검 완료: EXE FileVersion/ProductVersion 모두 `1.3.57`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - stage/commit 대상: production 2개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `186160b` (`소비 제조시한 12시간제 포맷 추가`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: 검색출력 전용 모드 잠금 v1.3.56
