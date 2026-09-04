@@ -16,6 +16,7 @@
 - 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - runtime 확인: 실행 중인 앱이 없어 실제 화면 더블클릭 수동 확인은 수행하지 못했다. 실제 테이블 콜백 payload 회귀 테스트와 Windows 빌드로 검증했다.
 - stage/commit 대상: `common_label_manage.dart`, `common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `8309d36` (`사용 항목 더블클릭 키워드 형식 수정`).
 
 ## 완료: 공용라벨 필수등록 누락 경고 후 저장 허용 v1.3.48
 - 제보/로그 확인: SWEIGHT·SPRICE 필수등록이 체크된 상태에서 시트의 두 키워드를 제거하고 저장하면 누락 경고 직후 흐름이 종료된다. 로그도 `saveLabelSheet missingRequiredKeywords=저울중량,최종가격`에서 끝난다.
