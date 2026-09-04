@@ -749,6 +749,78 @@ void main() {
     expect(saved?.updatedColumns.single.column.columnName, '적용한 이름');
   });
 
+  testWidgets('auto increment controls follow the legacy enable relationship', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'SERIAL').copyWith(
+          autoInc: false,
+          autoIncSize: 2,
+          autoIncSave: true,
+          autoIncRange: 3,
+          autoIncZeroDel: true,
+          autoIncUpdate: true,
+        ),
+      ],
+    );
+
+    expect(find.text('증가 단위'), findsOneWidget);
+    expect(find.text('자동 저장 여부'), findsOneWidget);
+    expect(find.text('증가 자릿수'), findsOneWidget);
+    expect(find.text('빈자리 0 제거'), findsOneWidget);
+    expect(find.text('증가값 즉시 저장'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const Key('label-column-auto-inc-size')),
+          )
+          .enabled,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<CheckboxListTile>(
+            find.byKey(const Key('label-column-auto-inc-save')),
+          )
+          .onChanged,
+      isNull,
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const Key('label-column-auto-inc')),
+    );
+
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const Key('label-column-auto-inc-size')),
+          )
+          .enabled,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const Key('label-column-auto-inc-size')),
+          )
+          .initialValue,
+      '2',
+    );
+    expect(
+      tester
+          .widget<CheckboxListTile>(
+            find.byKey(const Key('label-column-auto-inc-update')),
+          )
+          .onChanged,
+      isNotNull,
+    );
+  });
+
   testWidgets('date range fields explain and persist make-date day bounds', (
     tester,
   ) async {

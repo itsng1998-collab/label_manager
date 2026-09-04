@@ -1247,12 +1247,18 @@ class _PropertyFields extends StatelessWidget {
     child: SizedBox(height: height, child: child),
   );
 
-  Widget _text(String label, String value, ValueChanged<String> changed, {Key? key}) {
+  Widget _text(
+    String label,
+    String value,
+    ValueChanged<String> changed, {
+    Key? key,
+    bool? fieldEnabled,
+  }) {
     return _field(
       TextFormField(
         key: key,
         initialValue: value,
-        enabled: enabled,
+        enabled: fieldEnabled ?? enabled,
         style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
           labelText: label,
@@ -1265,18 +1271,38 @@ class _PropertyFields extends StatelessWidget {
     );
   }
 
-  Widget _integer(String label, int value, ValueChanged<int> changed) {
-    return _text(label, '$value', (text) => changed(int.tryParse(text) ?? 0));
+  Widget _integer(
+    String label,
+    int value,
+    ValueChanged<int> changed, {
+    Key? key,
+    bool? fieldEnabled,
+  }) {
+    return _text(
+      label,
+      '$value',
+      (text) => changed(int.tryParse(text) ?? 0),
+      key: key,
+      fieldEnabled: fieldEnabled,
+    );
   }
 
-  Widget _check(String label, bool value, ValueChanged<bool> changed) {
+  Widget _check(
+    String label,
+    bool value,
+    ValueChanged<bool> changed, {
+    Key? key,
+    bool? fieldEnabled,
+  }) {
+    final active = fieldEnabled ?? enabled;
     return _field(
       CheckboxListTile(
+        key: key,
         dense: true,
         contentPadding: EdgeInsets.zero,
         title: Text(label),
         value: value,
-        onChanged: enabled ? (next) => changed(next ?? false) : null,
+        onChanged: active ? (next) => changed(next ?? false) : null,
       ),
     );
   }
@@ -1421,12 +1447,12 @@ class _PropertyFields extends StatelessWidget {
   }
 
   List<Widget> _autoFields() => [
-    _check('자동 증가', column.autoInc, (value) => onChanged(column.copyWith(autoInc: value))),
-    _integer('자동 증가 크기', column.autoIncSize, (value) => onChanged(column.copyWith(autoIncSize: value))),
-    _check('자동 증가 저장', column.autoIncSave, (value) => onChanged(column.copyWith(autoIncSave: value))),
-    _integer('자동 증가 범위', column.autoIncRange, (value) => onChanged(column.copyWith(autoIncRange: value))),
-    _check('앞자리 0 제거', column.autoIncZeroDel, (value) => onChanged(column.copyWith(autoIncZeroDel: value))),
-    _check('자동 증가 갱신', column.autoIncUpdate, (value) => onChanged(column.copyWith(autoIncUpdate: value))),
+    _check('자동 증가', column.autoInc, (value) => onChanged(column.copyWith(autoInc: value)), key: const Key('label-column-auto-inc')),
+    _integer('증가 단위', column.autoIncSize, (value) => onChanged(column.copyWith(autoIncSize: value)), key: const Key('label-column-auto-inc-size'), fieldEnabled: enabled && column.autoInc),
+    _check('자동 저장 여부', column.autoIncSave, (value) => onChanged(column.copyWith(autoIncSave: value)), key: const Key('label-column-auto-inc-save'), fieldEnabled: enabled && column.autoInc),
+    _integer('증가 자릿수', column.autoIncRange, (value) => onChanged(column.copyWith(autoIncRange: value)), key: const Key('label-column-auto-inc-range'), fieldEnabled: enabled && column.autoInc),
+    _check('빈자리 0 제거', column.autoIncZeroDel, (value) => onChanged(column.copyWith(autoIncZeroDel: value)), key: const Key('label-column-auto-inc-zero-del'), fieldEnabled: enabled && column.autoInc),
+    _check('증가값 즉시 저장', column.autoIncUpdate, (value) => onChanged(column.copyWith(autoIncUpdate: value)), key: const Key('label-column-auto-inc-update'), fieldEnabled: enabled && column.autoInc),
   ];
 
   Widget _barcodeDropdown() {

@@ -6628,12 +6628,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         acceptedUnits.addAll(group.units);
       }
 
-      final autoIncrementValues = buildAcceptedAutoIncrementValues(
+      final autoIncrementPlan = buildAcceptedAutoIncrementValuePlan(
         acceptedUnits: acceptedUnits,
         columns: columns,
         columnContents: columnContents,
         referenceAt: requestedAt,
       );
+      final autoIncrementValues = autoIncrementPlan.persistenceValues;
       final historyParents = buildLabelPrintHistoryParents(
               acceptedUnits: acceptedUnits,
               columns: columns,
@@ -6681,6 +6682,10 @@ class _HomePageManagerState extends State<HomePageManager> {
           values: persistence.committedAutoIncrementValues,
         );
       }
+      _itemDraftController?.applyColumnValueDrafts(
+        autoIncrementPlan.draftValues,
+        skippedKeys: persistence.committedAutoIncrementValues.keys.toSet(),
+      );
       if (!mounted) return;
       final message = switch (persistence.state) {
         LabelPrintPersistenceState.failed =>
@@ -7164,12 +7169,13 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
 
       final acceptedLabelUnits = [for (final unit in acceptedUnits) unit.toLabelPrintUnit()];
-      final autoIncrementValues = buildAcceptedAutoIncrementValues(
+      final autoIncrementPlan = buildAcceptedAutoIncrementValuePlan(
         acceptedUnits: acceptedLabelUnits,
         columns: columns,
         columnContents: columnContents,
         referenceAt: requestedAt,
       );
+      final autoIncrementValues = autoIncrementPlan.persistenceValues;
       final historyParents = buildLabelPrintHistoryParents(
               acceptedUnits: acceptedLabelUnits,
               columns: columns,
@@ -7213,6 +7219,10 @@ class _HomePageManagerState extends State<HomePageManager> {
         TColumnContent.setDatas(scopedView.values);
         _itemDraftController?.replaceBaselineColumnContents(scopedView);
       }
+      _itemDraftController?.applyColumnValueDrafts(
+        autoIncrementPlan.draftValues,
+        skippedKeys: persistence.committedAutoIncrementValues.keys.toSet(),
+      );
       if (!mounted) return;
       final message = switch (persistence.state) {
         LabelPrintPersistenceState.failed =>

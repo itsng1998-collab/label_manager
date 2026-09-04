@@ -633,6 +633,29 @@ class ItemManagerDraftController extends ChangeNotifier {
     return true;
   }
 
+  void applyColumnValueDrafts(
+    Map<ColumnItemKey, String> values, {
+    Set<ColumnItemKey> skippedKeys = const {},
+  }) {
+    for (final entry in values.entries) {
+      if (skippedKeys.contains(entry.key)) continue;
+      final row = _rows
+          .where((candidate) => candidate.sourceItemId == entry.key.itemId)
+          .firstOrNull;
+      if (row == null) continue;
+      final baseline = scopedColumnContents.get(
+        entry.key.columnId,
+        entry.key.itemId,
+      );
+      updateColumnValue(
+        row.rowKey,
+        columnId: entry.key.columnId,
+        editable: baseline?.editable ?? true,
+        dataString: entry.value,
+      );
+    }
+  }
+
   ItemManagerSaveCommand toSaveCommand({
     required int labelSizeId,
     required List<int> targetMarketIds,

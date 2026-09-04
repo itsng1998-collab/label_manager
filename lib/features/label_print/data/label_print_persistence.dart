@@ -29,6 +29,17 @@ class LabelPrintPersistenceResult {
   final Map<ColumnItemKey, String> committedAutoIncrementValues;
 }
 
+@immutable
+class LabelAutoIncrementValuePlan {
+  const LabelAutoIncrementValuePlan({
+    required this.draftValues,
+    required this.persistenceValues,
+  });
+
+  final Map<ColumnItemKey, String> draftValues;
+  final Map<ColumnItemKey, String> persistenceValues;
+}
+
 typedef LabelPrintTransaction = Future<List<Object>> Function(
   List<DbTransactionStatement> statements,
 );
@@ -166,6 +177,7 @@ Map<ColumnItemKey, String> buildAcceptedAutoIncrementValues({
   required List<TColumn> columns,
   required Map<ColumnItemKey, TColumnContent> columnContents,
   required DateTime referenceAt,
+  bool Function(TColumn column)? includeColumn,
 }) {
   final maxCopyIndexByItem = <int, int>{};
   for (final unit in acceptedUnits) {
@@ -177,7 +189,7 @@ Map<ColumnItemKey, String> buildAcceptedAutoIncrementValues({
   }
   final updates = <ColumnItemKey, String>{};
   for (final column in columns) {
-    if (!column.autoInc) continue;
+    if (!column.autoInc || includeColumn?.call(column) == false) continue;
     for (final entry in maxCopyIndexByItem.entries) {
       final key = ColumnItemKey(columnId: column.columnId, itemId: entry.key);
       final original = columnContents[key]?.dataString ?? '';
@@ -202,6 +214,28 @@ Map<ColumnItemKey, String> buildAcceptedAutoIncrementValues({
   }
   return Map.unmodifiable(updates);
 }
+
+LabelAutoIncrementValuePlan buildAcceptedAutoIncrementValuePlan({
+  required List<LabelPrintUnit> acceptedUnits,
+  required List<TColumn> columns,
+  required Map<ColumnItemKey, TColumnContent> columnContents,
+  required DateTime referenceAt,
+}) => LabelAutoIncrementValuePlan(
+  draftValues: buildAcceptedAutoIncrementValues(
+    acceptedUnits: acceptedUnits,
+    columns: columns,
+    columnContents: columnContents,
+    referenceAt: referenceAt,
+    includeColumn: (column) => column.autoIncSave,
+  ),
+  persistenceValues: buildAcceptedAutoIncrementValues(
+    acceptedUnits: acceptedUnits,
+    columns: columns,
+    columnContents: columnContents,
+    referenceAt: referenceAt,
+    includeColumn: (column) => column.autoIncUpdate,
+  ),
+);
 
 class LabelPrintPersistenceService {
   LabelPrintPersistenceService({LabelPrintTransaction? transaction})

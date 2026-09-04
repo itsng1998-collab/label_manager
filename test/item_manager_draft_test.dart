@@ -209,6 +209,46 @@ void main() {
       expect(controller.isDirty, isFalse);
     });
 
+    test('applies auto increment values as drafts and skips committed keys', () {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket(itemId: 10, order: 1, name: '첫 품목')],
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: false,
+            dataString: '001',
+          ),
+          const ColumnItemKey(columnId: 8, itemId: 10): TColumnContent(
+            colContentId: 2,
+            columnId: 8,
+            itemId: 10,
+            editable: true,
+            dataString: '010',
+          ),
+        }),
+      );
+
+      controller.applyColumnValueDrafts(
+        {
+          const ColumnItemKey(columnId: 7, itemId: 10): '003',
+          const ColumnItemKey(columnId: 8, itemId: 10): '011',
+        },
+        skippedKeys: {const ColumnItemKey(columnId: 8, itemId: 10)},
+      );
+
+      expect(controller.columnValue(controller.rows.single, 7), '003');
+      expect(controller.columnValue(controller.rows.single, 8), '010');
+      final saved = controller
+          .toSaveCommand(labelSizeId: 4, targetMarketIds: const [3])
+          .columnValues
+          .single;
+      expect(saved.columnId, 7);
+      expect(saved.editable, isFalse);
+      expect(controller.isDirty, isTrue);
+    });
+
     test('builds existing rows without mutating display models', () {
       final first = _itemOfMarket(itemId: 10, order: 1, name: '첫 품목');
       final second = _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목');

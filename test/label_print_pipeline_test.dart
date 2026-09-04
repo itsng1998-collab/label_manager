@@ -1,8 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
+import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
+import 'package:label_manager/features/label_column/domain/column.dart';
+import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
+import 'package:label_manager/features/label_print/data/label_print_persistence.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
@@ -109,7 +114,75 @@ void main() {
 
     expect(groups.map((group) => group.units.length), [1, 1]);
   });
+
+  test('auto increment separates draft and immediate persistence values', () {
+    final row = _row(10, 2);
+    final columns = [
+      _column(1, autoIncSave: true, autoIncUpdate: false),
+      _column(2, autoIncSave: false, autoIncUpdate: true),
+      _column(3, autoIncSave: false, autoIncUpdate: false),
+      _column(4, autoIncSave: true, autoIncUpdate: true),
+    ];
+    final contents = <ColumnItemKey, TColumnContent>{
+      const ColumnItemKey(columnId: 1, itemId: 10): _content(1, '001'),
+      const ColumnItemKey(columnId: 2, itemId: 10): _content(2, '010'),
+      const ColumnItemKey(columnId: 3, itemId: 10): _content(3, '100'),
+      const ColumnItemKey(columnId: 4, itemId: 10): _content(4, '020'),
+    };
+    final units = expandLabelPrintUnits(
+      [row],
+      referenceAt: _referenceAt,
+      columns: columns,
+      columnContents: contents,
+    );
+
+    final plan = buildAcceptedAutoIncrementValuePlan(
+      acceptedUnits: units,
+      columns: columns,
+      columnContents: contents,
+      referenceAt: _referenceAt,
+    );
+
+    expect(plan.draftValues, {
+      const ColumnItemKey(columnId: 1, itemId: 10): '003',
+      const ColumnItemKey(columnId: 4, itemId: 10): '022',
+    });
+    expect(plan.persistenceValues, {
+      const ColumnItemKey(columnId: 2, itemId: 10): '011',
+      const ColumnItemKey(columnId: 4, itemId: 10): '022',
+    });
+  });
 }
+
+TColumn _column(
+  int id, {
+  required bool autoIncSave,
+  required bool autoIncUpdate,
+}) => TColumn(
+  columnType: const TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 1),
+  keyword: 'COL$id', columnName: '항목$id', useMissingKeywordCheck: false,
+  useMinColumnCheck: false, columnId: id, labelSizeId: 1, order: id,
+  width: 0, height: 0, barcodeType: BarcodeType.Code128,
+  useBarcodeCheckDigit: false, showBarcodeNum: true, showQRCodeText: false,
+  qrTextAlignment: QRTextAlignment.ALIGN_LEFT, useUserDefineQRData: false,
+  userDefineQRData: '', userDefineQRText: '', pixelSize: 0, title: '',
+  visible: true, qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
+  natriumJoinString: '', qrTextFontSize: 10, qrTextFontName: '',
+  qrCodeScalePercent: 100, timeBarcodeType: 0, autoInc: true,
+  autoIncSize: 1, autoIncSave: autoIncSave, autoIncRange: 3,
+  autoIncZeroDel: false, autoIncUpdate: autoIncUpdate, searchPrint: false,
+  userDefineBarcodeText: '', lineCheck: 0, lineSize: 0, gs1ai: '01',
+  formatOption: -1, useGS1Code: false, containColumns: '', showGS1Code: false,
+  rotate: 0, useDateRange: false, dateRange: '',
+);
+
+TColumnContent _content(int columnId, String value) => TColumnContent(
+  colContentId: columnId,
+  columnId: columnId,
+  itemId: 10,
+  editable: true,
+  dataString: value,
+);
 
 LabelPrintRowDraft _row(int itemId, int copies) {
   final source = ItemOfMarket(

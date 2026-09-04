@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 공용라벨 사용항목 자동 증가 설정 복원 v1.3.55
+- 기준 확인: `.tmp/라벨매니저 기능 상세서.pdf` 5페이지와 레거시 `ColumnSetupBasic/Barcode/Date/QRcode.cpp`, `LabelPrintModel.cpp`를 확인했다.
+- UI 편집 완료: `label_column_edit_dialog.dart`에서 `자동 증가`가 꺼지면 증가 단위·증가 자릿수·자동 저장 여부·빈자리 0 제거·증가값 즉시 저장을 비활성화하고 저장값은 유지한다. 상세서 명칭으로 교체했다.
+- 계산 편집 완료: `label_print_persistence.dart`의 `buildAcceptedAutoIncrementValuePlan()`이 자동 저장 여부의 품목 draft 값과 증가값 즉시 저장의 DB 값을 분리한다. 둘 다 켜면 다음 발행값을 양쪽에 반영하고, 둘 다 끄면 발행에만 증가를 적용한다.
+- 품목 draft 편집 완료: `item_manager_draft.dart`의 `applyColumnValueDrafts()`가 기존 editable 상태를 보존해 미저장 품목 값으로 반영하고, 이미 서버 커밋된 키는 제외한다.
+- 발행 경로 편집 완료: `home_page_manager.dart`의 일반 라벨·저울 라벨 발행이 DB 저장값만 persistence에 전달하고 자동 저장값은 품목 draft에 반영한다.
+- 테스트 추가: 자동 증가 하위 UI 종속 관계, 저장/즉시 저장 플래그별 값 분리와 동시 선택, draft dirty 반영 및 서버 커밋 키 제외를 검증한다. 신규 focused 테스트 3건 통과.
+- 버전 편집 완료: `1.3.54`에서 `1.3.55`로 갱신했다.
+- 관련 회귀 검증 완료: `test/label_column_edit_dialog_test.dart`, `test/label_print_pipeline_test.dart`, `test/label_print_persistence_test.dart`, `test/item_manager_draft_test.dart` 전체 68건 통과.
+- 변경 파일 엄격 분석 및 diagnostics 완료: production 4개 파일과 테스트 3개 파일 오류·경고 0건.
+- DTD/hot reload 완료: 실행 중인 Windows 테스트 앱에 변경을 hot reload했다.
+- runtime 종료 확인: 사용자가 hot reload 앱에서 `파일 → 종료`를 선택해 창과 프로세스가 정상 종료되는 것을 확인했다.
+- Windows 통합 검증 완료: 최초 실행 앱의 EXE 점유로 `LNK1168`이 발생했으나 정상 종료 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공.
+- 최종 점검 완료: EXE FileVersion/ProductVersion `1.3.55`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- stage/commit 대상: production 4개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: Windows 메뉴 종료 미동작 수정 v1.3.54
 - 최신 로그 확인: `.tmp/log/app_2026-09-04_12-59-10.log`에서 종료 선택 후 `_HomePageState._doLogout: End`까지 실행됐지만 `Window close start`가 기록되지 않고 프로세스가 남았다.
 - 원인 확인: 파일 메뉴의 `_requestExit()`이 Windows에서도 `SystemNavigator.pop()`을 호출했다. 창은 `setPreventClose(true)` 상태이므로 네이티브 `_AppWindowListener.onWindowClose()`가 실행되지 않아 prevent-close 해제와 실제 `windowManager.close()` 단계에 도달하지 못했다.
