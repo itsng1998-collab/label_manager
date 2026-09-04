@@ -29,6 +29,7 @@ import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/item/application/item_manager_save_service.dart';
 import 'package:label_manager/features/item/application/item_manager_order_service.dart';
 import 'package:label_manager/features/item/application/item_manager_xlsx.dart';
+import 'package:label_manager/features/item/application/item_image_preview.dart';
 import 'package:label_manager/features/item/domain/item_manager_rules.dart';
 import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/features/item/domain/item_manager_save_command.dart';
@@ -11023,7 +11024,7 @@ String? _itemImageDataUri(String fileNameWithoutExtension) {
   final file = File('C:\\ITS\\LabelManager\\bmp files\\$value.bmp');
   if (!file.existsSync()) return null;
   final bytes = file.readAsBytesSync();
-  return 'data:image/bmp;base64,${base64Encode(bytes)}';
+  return itemBmpPreviewDataUri(bytes);
 }
 
 fs.FortuneCell _replaceCellKeywords(

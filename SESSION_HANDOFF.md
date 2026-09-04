@@ -1,5 +1,24 @@
 # 현재 작업 상태
 
+## 완료: 품목 이미지 키워드의 일부 BMP 미리보기 누락 v1.3.45
+- 사용자 제공 파일은 모두 표준 `C:\ITS\LabelManager\bmp files` 폴더에 있으므로 경로/복사 문제는 제외했다. 잘못된 경로 가설로 만든 변경은 커밋하지 않고 전부 제거했다.
+- 샘플 분석: 제공 BMP는 `120x93`, 무압축 1-bit 흑백 팔레트이며 헤더/행 stride/픽셀 크기가 정상이다. 직접 Flutter codec 첫 frame decode 결과도 불투명 검정 3,044픽셀·흰색 8,116픽셀로 내용이 정상이다.
+- 코드 경로 확인: 품목 미리보기는 이미지 컬럼 키워드를 정상 분류하고 표준 폴더 파일을 BMP data URI로 FortuneSheet에 전달한다. 일부 Windows 런타임의 저비트 indexed BMP 렌더 호환성을 제거하기 위해 파일/DB 저장값은 유지하고 미리보기 경계에서만 1/4/8-bit BMP를 PNG로 정규화한다.
+- 구현 완료: `itemBmpPreviewDataUri()`를 추가하고 `_itemImageDataUri()`에서 사용한다. 24-bit 이상 BMP는 기존 `image/bmp` data URI를 유지한다.
+- 회귀 테스트 추가: 직접 구성한 1-bit BMP가 PNG로 정규화되어 크기를 유지하고, 24-bit BMP는 기존 BMP data URI를 유지하는지 검증한다.
+- focused 검증 완료: `test/item_image_preview_test.dart` 2건 통과. 신규 helper/test Dart 파일 포맷 완료.
+- 버전 편집 완료: 사용자에게 보이는 품목 이미지 미리보기 결함 수정이므로 PATCH 증가로 `1.3.44`에서 `1.3.45`로 갱신했다.
+- 품목 이미지 관련 통합 테스트 실행 예정: `flutter test test/item_image_preview_test.dart test/item_manager_draft_test.dart test/label_sheet_toolbar_test.dart`.
+- 품목 이미지 관련 통합 테스트 완료: 위 3개 테스트 파일 전체 228건 통과.
+- strict analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/item/application/item_image_preview.dart lib/home_page_manager.dart test/item_image_preview_test.dart`.
+- strict analyzer 완료: 변경 production/test Dart 3개 파일 오류·경고 0건.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 검증 예정: EXE FileVersion/ProductVersion `1.3.45` 확인, `git diff --check`, 관련 파일 diff 및 staging 범위 확인.
+- 최종 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.45`, `git diff --check` 통과. 폐기한 `item_manage.dart` 경로 복사 및 FortuneSheet package 변경은 남아 있지 않다.
+- 동작 범위: 1/4/8-bit BMP는 품목 미리보기 data URI에서만 PNG로 변환하고, 24-bit 이상 BMP와 파일명/DB/원본 파일은 변경하지 않는다.
+- 커밋 대상: `item_image_preview.dart`, `home_page_manager.dart`, `item_image_preview_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`와 lock 파일들은 제외한다.
+
 ## 완료: 일반 계정의 관리자용 일자 비밀번호 로그인 차단 v1.3.44
 - 사용자 제보 로그: `.tmp/test_log/1. 로그인_관리자PW로 로그인 가능 현상.log`의 앱 `1.3.5`에서 일반 사용자 `3575`가 관리자용 `00 + (월*3+일)` 비밀번호로 로그인된다.
 - 원인 확인: `loginAuthenticationModeFor()`가 `SYSTEM` 외 모든 계정에서 타계정 접속용 비밀번호뿐 아니라 관리자용 비밀번호도 `masterKey`로 분류한다. 이 동작은 `666f094`에서 추가됐다.
