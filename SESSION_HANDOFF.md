@@ -15,6 +15,7 @@
 - Windows 통합 검증 완료: 최초 실행 앱의 EXE 점유로 `LNK1168`이 발생했으나 정상 종료 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공.
 - 최종 점검 완료: EXE FileVersion/ProductVersion `1.3.55`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - stage/commit 대상: production 4개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `944df7e` (`공용라벨 자동 증가 동작 복원`).
 - 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
 
 ## 완료: Windows 메뉴 종료 미동작 수정 v1.3.54
