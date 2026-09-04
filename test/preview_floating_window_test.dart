@@ -76,4 +76,44 @@ void main() {
       const Rect.fromLTWH(500, 400, 300, 200),
     );
   });
+
+  testWidgets('adding a second portal host keeps the shown preview stable', (
+    tester,
+  ) async {
+    final first = PreviewFloatingWindow(usePortalHost: true);
+    final second = PreviewFloatingWindow(usePortalHost: true);
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    late StateSetter updateHost;
+    late BuildContext hostContext;
+    var includeSecond = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            updateHost = setState;
+            hostContext = context;
+            Widget child = first.wrapPortalHost(
+              child: const SizedBox.expand(),
+            );
+            if (includeSecond) {
+              child = second.wrapPortalHost(child: child);
+            }
+            return child;
+          },
+        ),
+      ),
+    );
+    first.show(hostContext, child: const Text('첫 미리보기'));
+    await tester.pump();
+
+    second.show(hostContext, child: const Text('둘째 미리보기'));
+    updateHost(() => includeSecond = true);
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('첫 미리보기'), findsOneWidget);
+    expect(find.text('둘째 미리보기'), findsOneWidget);
+  });
 }

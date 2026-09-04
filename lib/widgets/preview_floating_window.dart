@@ -96,6 +96,7 @@ class PreviewFloatingWindow {
   final ValueNotifier<bool> _visible = ValueNotifier<bool>(true);
   final ValueNotifier<double> _hideProgress;
   final OverlayPortalController _portalController = OverlayPortalController();
+  final GlobalKey _portalKey = GlobalKey();
   Rect? _hideTargetRect;
   _PreviewFloatingRoute? _route;
   bool _positionInitialized = false;
@@ -188,6 +189,7 @@ class PreviewFloatingWindow {
   Widget wrapPortalHost({required Widget child}) {
     assert(usePortalHost);
     return OverlayPortal(
+      key: _portalKey,
       controller: _portalController,
       overlayChildBuilder: (_) => _buildOverlayContent(),
       overlayLocation: OverlayChildLocation.rootOverlay,
