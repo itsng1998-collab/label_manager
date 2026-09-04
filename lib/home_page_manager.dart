@@ -11294,13 +11294,17 @@ String _replaceKeywordText(
   Map<String, String> replacements, {
   required VoidCallback onChanged,
 }) {
-  var next = value;
-  for (final entry in replacements.entries) {
-    if (!next.contains(entry.key)) continue;
-    next = next.replaceAll(entry.key, entry.value);
+  final keywords = replacements.keys.where((keyword) => keyword.isNotEmpty).toList()
+    ..sort((left, right) => right.length.compareTo(left.length));
+  if (keywords.isEmpty || !value.contains('#')) return value;
+
+  final pattern = RegExp(
+    '(?:${keywords.map(RegExp.escape).join('|')})(?![A-Za-z0-9])',
+  );
+  return value.replaceAllMapped(pattern, (match) {
     onChanged();
-  }
-  return next;
+    return replacements[match.group(0)!]!;
+  });
 }
 
 fs.FortuneCell _itemTextCell(String text, {fs.FortuneCell? base}) {

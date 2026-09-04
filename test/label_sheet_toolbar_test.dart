@@ -1640,6 +1640,30 @@ void main() {
     expect(resultRun.extraFields, keywordRun.extraFields);
   });
 
+  test('generic keyword replacement distinguishes shared prefixes', () {
+    final sheet = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#TEST #TEST2 #TEST20 #TEST상품',
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#TEST': '1', '#TEST2': '2'},
+    ).sheets.single;
+
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
+      '1 2 #TEST20 1상품',
+    );
+  });
+
   test('trailing keyword replacement removes only its leading whitespace', () {
     const leadingSpaces = '                              ';
     const noGapText = '알레르기유발물질우유, 밀, 계란, 호두 함유  ';

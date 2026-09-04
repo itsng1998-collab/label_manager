@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: 접두어가 같은 공용라벨 키워드 치환 분리 v1.3.51
+- 제보/화면 확인: 원본 셀의 `#TEST #TEST2`가 출력 시 `1 12`로 표시된다. 기대값은 `1 2`이다.
+- 원인 확인: 공용 미리보기·출력 materializer의 `_replaceKeywordText()`가 replacements map 순서대로 `replaceAll`하여 짧은 `#TEST`가 `#TEST2` 앞부분까지 먼저 치환했다.
+- 구현 완료: 알려진 키워드를 길이 내림차순 alternation과 키워드 문자 경계로 구성한 정규식으로 한 번만 치환한다. 짧은 키워드는 뒤에 허용 키워드 문자인 영문·숫자가 이어지면 매칭하지 않으며 치환 결과를 재치환하지 않는다.
+- 테스트 추가: `#TEST=1`, `#TEST2=2`일 때 `#TEST #TEST2 #TEST20 #TEST상품`이 `1 2 #TEST20 1상품`으로 치환되는지 검증한다.
+- 버전 편집 완료: `1.3.50`에서 `1.3.51`로 갱신했다.
+- focused 검증 완료: 신규 접두어 충돌 테스트 통과. 변경 파일 diagnostics 오류 없음.
+- Dart 포맷 완료: `home_page_manager.dart`, `label_sheet_toolbar_test.dart`.
+- 연관 회귀 검증 완료: `test/label_sheet_toolbar_test.dart` 전체 195건 통과.
+- 변경 파일 엄격 분석 완료: 오류·경고 0건.
+- DTD 확인 완료: 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.51`.
+- 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- runtime 확인: 실행 중인 앱이 없어 제공 화면의 실제 품목으로 수동 확인은 수행하지 못했다. 공용 materializer 회귀 테스트와 Windows 빌드로 검증했다.
+- stage/commit 대상: `home_page_manager.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 사용 항목 드래그 중괄호 제거 v1.3.50
 - 후속 요청: 사용 항목 드래그 삽입도 `{#TEST2}`가 아닌 `#TEST2` 형식으로 통일한다.
 - 구현 완료: `_CommonLabelTable`의 drag payload와 drag feedback 문구에서 중괄호를 제거했다. 더블클릭과 드래그가 모두 `#${row.keyword}`를 사용한다.
