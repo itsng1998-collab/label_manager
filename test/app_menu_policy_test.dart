@@ -201,6 +201,19 @@ void main() {
     expect(state(loggedIn, AppMenuCommandId.editItemInfo).enabled, isFalse);
   });
 
+  test('context block disables login and logout exception commands', () {
+    const loggedOut = AppMenuPolicyContext(
+      contextBlockedCommands: {AppMenuCommandId.login},
+    );
+    const loggedIn = AppMenuPolicyContext(
+      userGrade: UserGrade.MANAGER_USER,
+      contextBlockedCommands: {AppMenuCommandId.logout},
+    );
+
+    expect(state(loggedOut, AppMenuCommandId.login).enabled, isFalse);
+    expect(state(loggedIn, AppMenuCommandId.logout).enabled, isFalse);
+  });
+
   test('editable is based on the actual grade, not session flags', () {
     const clientConnect = AppMenuPolicyContext(
       userGrade: UserGrade.CLIENT_USER,

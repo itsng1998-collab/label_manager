@@ -1,5 +1,32 @@
 # 현재 작업 상태
 
+## 완료: 검색출력 전용 모드 잠금 v1.3.56
+- 기존 경로 확인: 검색출력 설정은 `RICH_SEARCH_PRINT`를 저장하고, F12 모드의 검색 입력 Enter는 현재 라벨 규격에서 품목명 또는 선택 키워드 값의 exact-match 첫 품목을 찾아 기존 `_issueLabelPrint()` 경로로 즉시 발행한다.
+- 원인 확인: 현재 모드는 탭 이동과 F1/F2/F3만 차단한다. 브랜드·라벨 선택, 현재 탭의 편집 기능, 미리보기, 다른 메뉴 명령은 활성 상태이고 F12 진입 시 검색 입력으로 포커스도 이동하지 않아 스캐너 전용 모드 요구사항을 충족하지 못한다.
+- 검색출력 정책 편집 완료: `search_print_command.dart`에 검색출력모드 명령만 제외한 전체 메뉴 차단 목록과 F1/F2/F3/F5 홈 단축키 차단 정책을 추가했다.
+- 홈 화면 편집 완료: `home_page_manager.dart`가 모드 진입 시 플로팅 미리보기를 숨기고, 상단 브랜드·라벨·설정과 탭 전체 조작을 차단한다. 검색 입력·발행 버튼과 F12 모드 해제만 활성으로 유지하며 모드 진입 및 발행 성공/실패 후 검색 입력 포커스를 복원한다.
+- 테스트 편집 완료: 메뉴 전체 중 F12 모드 해제만 허용하는지와 홈 기능 단축키 차단을 검증한다. 검색출력 기존 테스트 포함 11건 통과.
+- pointer barrier 1차 검증: 기존 단일 통과 키 참조의 컴파일 오류를 다중 키 API로 수정했다. 기존 자동품목갱신 미리보기 통과 회귀 테스트 통과, 변경 Dart 파일 strict analyzer 오류·경고 0건.
+- 화면 차단 테스트 추가: 검색 입력과 발행 버튼 두 영역은 클릭 가능하고 그 외 탭 화면 클릭은 barrier가 차단하는지 검증했다. 신규 widget 테스트 통과.
+- 버전 편집 완료: `1.3.55`에서 `1.3.56`으로 갱신했다.
+- focused 1차 검증: 검색출력 및 메뉴바를 포함해 32건 통과. `app_menu_controller_test.dart` 5건은 기존 `WidgetsBinding has not yet been initialized` 테스트 하네스 문제로 변경 코드에 도달하기 전에 실패했다. 수정 범위에서 제외한다.
+- focused 분리 검증 완료: `test/search_print_mode_test.dart`, `test/app_menu_bar_test.dart` 전체 32건 통과.
+- Dart 포맷 완료: production 2개 파일과 관련 테스트 2개 파일. diff는 검색출력 정책·화면 차단·테스트 구간에 한정된다.
+- 설정 포함 회귀 검증 완료: `test/search_print_mode_test.dart`, `test/search_print_settings_test.dart`, `test/app_menu_bar_test.dart` 전체 37건 통과.
+- strict analyzer 및 diagnostics 완료: production 2개 파일과 테스트 2개 파일 오류·경고 0건.
+- DTD 확인 완료: VS Code DTD에는 연결했으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- 포맷 후 barrier 재검증 완료: 기존 단일 통과 및 검색출력 입력·발행 다중 통과 widget 테스트 2건 통과.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 메뉴 정책 추가 확인: 로그인/로그아웃은 일반 context 차단보다 먼저 반환되어 검색출력 차단 목록을 무시하는 예외를 확인했다.
+- 메뉴 정책 편집 완료: `app_menu_policy.dart`의 로그인/로그아웃 enabled 계산도 `contextBlockedCommands`를 적용한다. 기존 work-block과 표시 정책은 유지한다.
+- 메뉴 정책 테스트 추가: 로그인 및 로그아웃 예외 명령의 context 차단 focused 테스트 통과.
+- 최종 관련 회귀 검증 완료: `app_menu_policy_test.dart`, `search_print_mode_test.dart`, `search_print_settings_test.dart`, `app_menu_bar_test.dart` 전체 50건 통과.
+- 최종 strict analyzer 및 diagnostics 완료: production 3개 파일과 테스트 3개 파일 오류·경고 0건.
+- Windows 최종 재검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 최종 점검 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.56`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- stage/commit 대상: production 3개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: 공용라벨 사용항목 자동 증가 설정 복원 v1.3.55
 - 기준 확인: `.tmp/라벨매니저 기능 상세서.pdf` 5페이지와 레거시 `ColumnSetupBasic/Barcode/Date/QRcode.cpp`, `LabelPrintModel.cpp`를 확인했다.
 - UI 편집 완료: `label_column_edit_dialog.dart`에서 `자동 증가`가 꺼지면 증가 단위·증가 자릿수·자동 저장 여부·빈자리 0 제거·증가값 즉시 저장을 비활성화하고 저장값은 유지한다. 상세서 명칭으로 교체했다.

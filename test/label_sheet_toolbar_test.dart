@@ -3000,6 +3000,73 @@ void main() {
     expect(blockedTapCount, 1);
   });
 
+  testWidgets('search print barrier allows input and issue controls only', (
+    tester,
+  ) async {
+    final inputKey = GlobalKey();
+    final issueKey = GlobalKey();
+    var inputTapCount = 0;
+    var issueTapCount = 0;
+    var blockedTapCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 100,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 20,
+                  top: 20,
+                  child: SizedBox(
+                    key: inputKey,
+                    width: 120,
+                    height: 40,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => inputTapCount += 1,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 160,
+                  top: 20,
+                  child: SizedBox(
+                    key: issueKey,
+                    width: 60,
+                    height: 40,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => issueTapCount += 1,
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: debugPointerBarrierExceptKeysForTesting(
+                    passthroughKeys: [inputKey, issueKey],
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => blockedTapCount += 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tapAt(tester.getCenter(find.byKey(inputKey)));
+    await tester.tapAt(tester.getCenter(find.byKey(issueKey)));
+    await tester.tapAt(const Offset(300, 80));
+
+    expect(inputTapCount, 1);
+    expect(issueTapCount, 1);
+    expect(blockedTapCount, 1);
+  });
+
   testWidgets('item output preview applies width fit only once', (
     tester,
   ) async {

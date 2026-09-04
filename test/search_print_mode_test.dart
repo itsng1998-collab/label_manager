@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
@@ -104,6 +105,48 @@ void main() {
       searchPrintModeShortcutPressed(
         key: LogicalKeyboardKey.f3,
         modifierPressed: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test('mode blocks every menu command except its own exit command', () {
+    final blocked = searchPrintModeBlockedMenuCommands(true);
+    expect(blocked, isNot(contains(AppMenuCommandId.searchPrintMode)));
+    expect(
+      blocked,
+      containsAll(
+        appMenuCommands
+            .map((command) => command.id)
+            .where((id) => id != AppMenuCommandId.searchPrintMode),
+      ),
+    );
+    expect(searchPrintModeBlockedMenuCommands(false), isEmpty);
+  });
+
+  test('mode blocks home function shortcuts except F12 exit', () {
+    for (final key in const [
+      LogicalKeyboardKey.f1,
+      LogicalKeyboardKey.f2,
+      LogicalKeyboardKey.f3,
+      LogicalKeyboardKey.f5,
+    ]) {
+      expect(
+        searchPrintModeBlocksHomeShortcut(active: true, key: key),
+        isTrue,
+      );
+    }
+    expect(
+      searchPrintModeBlocksHomeShortcut(
+        active: true,
+        key: LogicalKeyboardKey.f12,
+      ),
+      isFalse,
+    );
+    expect(
+      searchPrintModeBlocksHomeShortcut(
+        active: false,
+        key: LogicalKeyboardKey.f1,
       ),
       isFalse,
     );

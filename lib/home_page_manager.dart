@@ -475,6 +475,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   late TabbedViewController _tabController;
   Object? _searchPrintModeLockedTabValue;
   final TextEditingController _tabSearchController = TextEditingController();
+  final FocusNode _tabSearchFocusNode = FocusNode();
+  final GlobalKey _tabSearchFieldHitTestKey = GlobalKey();
+  final GlobalKey _tabSearchButtonHitTestKey = GlobalKey();
   final ItemManageController _itemManageController = ItemManageController();
   final AutoItemUpdatePageController _autoItemUpdatePageController =
       AutoItemUpdatePageController();
@@ -757,20 +760,27 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _syncAppMenuWorkState() {
+    final searchPrintModeActive = widget.searchPrintModeActive;
     widget.appMenuController.updateWorkState(
       hasScaleOutputLabelSize: _effectiveLabelSize != null,
-      workBlocked: appMenuWorkBlocked(
-        itemManagerQueryDepth: _itemManagerQueryDepth,
-        itemEditing: _itemManageController.hasActiveEditing,
-        autoItemUpdateEditing: _autoItemUpdatePageController.hasActiveEditing,
-        scaleOutputEditing: _scaleOutputPageController.hasActiveEditing,
-      ),
+      workBlocked:
+          !searchPrintModeActive &&
+          appMenuWorkBlocked(
+            itemManagerQueryDepth: _itemManagerQueryDepth,
+            itemEditing: _itemManageController.hasActiveEditing,
+            autoItemUpdateEditing:
+                _autoItemUpdatePageController.hasActiveEditing,
+            scaleOutputEditing: _scaleOutputPageController.hasActiveEditing,
+          ),
       busyCommands: {
         if (_labelPrintSessionController.busy)
           AppMenuCommandId.labelPrintSettings,
         if (_scaleOutputSessionController.busy)
           AppMenuCommandId.scaleOutputPrinterSettings,
       },
+      contextBlockedCommands: searchPrintModeBlockedMenuCommands(
+        searchPrintModeActive,
+      ),
     );
   }
 
@@ -1250,6 +1260,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     _attachAppMenuCommands();
     widget.onExitSnapshotProviderChanged?.call(_createExitSnapshot);
     HardwareKeyboard.instance.addHandler(_handleTabShortcutKeyEvent);
+    if (widget.searchPrintModeActive) {
+      _focusSearchPrintInput();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await _loadBrands();
@@ -1263,6 +1276,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       _searchPrintModeLockedTabValue = widget.searchPrintModeActive
           ? _selectedTabValue()
           : null;
+      if (widget.searchPrintModeActive) {
+        _hideFloatingWindows();
+        _focusSearchPrintInput();
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _syncPreviewWindowWithSelectedTab();
+        });
+      }
+      _syncAppMenuWorkState();
     }
     if (oldWidget.onExitSnapshotProviderChanged !=
         widget.onExitSnapshotProviderChanged) {
@@ -3228,10 +3250,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       widget.onToggleSearchPrintMode();
       return true;
     }
-    if (widget.searchPrintModeActive &&
-        (key == LogicalKeyboardKey.f1 ||
-            key == LogicalKeyboardKey.f2 ||
-            key == LogicalKeyboardKey.f3)) {
+    if (searchPrintModeBlocksHomeShortcut(
+      active: widget.searchPrintModeActive,
+      key: key,
+    )) {
       return true;
     }
     if (key == LogicalKeyboardKey.f5 &&
@@ -5618,6 +5640,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _itemElementPreviewZoomController.dispose();
     _itemOutputPreviewZoomController.dispose();
     _tabController.dispose();
+    _tabSearchFocusNode.dispose();
     _tabSearchController.dispose();
     _brandSettingsOverlayEntry?.remove();
     _brandSettingsOverlayEntry = null;
@@ -5670,6 +5693,8 @@ class _HomePageManagerState extends State<HomePageManager> {
             ..hideCurrentSnackBar()
             ..showSnackBar(SnackBar(content: Text('검색출력 실패: $error')));
         }
+      } finally {
+        _focusSearchPrintInput();
       }
       return;
     }
@@ -5764,6 +5789,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       case 'scale_output':
         _scaleOutputPageController.resetSearch();
     }
+  }
+
+  void _focusSearchPrintInput() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.searchPrintModeActive) {
+        _tabSearchFocusNode.requestFocus();
+      }
+    });
   }
 
   Widget _buildLabelPrintPreview(
@@ -7371,10 +7404,12 @@ class _HomePageManagerState extends State<HomePageManager> {
             Transform.translate(
               offset: const Offset(0, -1),
               child: SizedBox(
+                key: _tabSearchFieldHitTestKey,
                 width: fieldWidth,
                 child: TextField(
                   key: const ValueKey('item-manager-search-field'),
                   controller: _tabSearchController,
+                  focusNode: _tabSearchFocusNode,
                   style: const TextStyle(fontSize: 13),
                   textAlignVertical: TextAlignVertical.center,
                   textInputAction: TextInputAction.search,
@@ -7406,6 +7441,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             Transform.translate(
               offset: const Offset(0, -1),
               child: SizedBox(
+                key: _tabSearchButtonHitTestKey,
                 height: fieldHeight - lmSize(10),
                 child: FilledButton.icon(
                   key: const ValueKey('item-manager-search-button'),
@@ -7536,27 +7572,34 @@ class _HomePageManagerState extends State<HomePageManager> {
               borderRadius: BorderRadius.circular(10),
               side: const BorderSide(color: Color(0xFFE6E6E6)),
             ),
-            child: _TopControlArea(
-              onBrandChanged: _handleBrandChanged,
-              onLabelSizeChanged: _handleHeaderLabelSizeChanged,
-              onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
-              dropdownChangeBlocked: _homeDataContextChangeBlocked,
-              onBlockedDropdownTap: _blockHomeDataContextChange,
-              showSettingsControls: canEdit,
-              settingsEnabled: settingsEnabled,
-              onBrandSettingsPressed: settingsEnabled
-                  ? _openBrandSettingsDialog
-                  : null,
-              onLabelSettingsPressed: settingsEnabled
-                  ? _openLabelSettingsDialog
-                  : null,
-              onDateSettingsPressed: dateSettingsEnabled
-                  ? _openDateTypeSetupDialog
-                  : null,
-              brandItems: brandItems,
-              resolvedBrand: resolvedBrand,
-              labelItems: labelItems,
-              resolvedLabel: resolvedLabel,
+            child: Opacity(
+              opacity: widget.searchPrintModeActive ? 0.55 : 1,
+              child: AbsorbPointer(
+                absorbing: widget.searchPrintModeActive,
+                child: _TopControlArea(
+                  onBrandChanged: _handleBrandChanged,
+                  onLabelSizeChanged: _handleHeaderLabelSizeChanged,
+                  onDropdownMenuStateChanged:
+                      _handleTopDropdownMenuStateChanged,
+                  dropdownChangeBlocked: _homeDataContextChangeBlocked,
+                  onBlockedDropdownTap: _blockHomeDataContextChange,
+                  showSettingsControls: canEdit,
+                  settingsEnabled: settingsEnabled,
+                  onBrandSettingsPressed: settingsEnabled
+                      ? _openBrandSettingsDialog
+                      : null,
+                  onLabelSettingsPressed: settingsEnabled
+                      ? _openLabelSettingsDialog
+                      : null,
+                  onDateSettingsPressed: dateSettingsEnabled
+                      ? _openDateTypeSetupDialog
+                      : null,
+                  brandItems: brandItems,
+                  resolvedBrand: resolvedBrand,
+                  labelItems: labelItems,
+                  resolvedLabel: resolvedLabel,
+                ),
+              ),
             ),
           ),
         ),
@@ -7583,17 +7626,30 @@ class _HomePageManagerState extends State<HomePageManager> {
                             right: 0,
                             top: 0,
                             height: lmSize(_blockedHomeTabTapOverlayHeight),
-                            child: _PointerBarrierExceptGlobalKey(
-                              passthroughKey:
+                            child: _PointerBarrierExceptGlobalKeys(
+                              passthroughKeys:
                                   _itemPreviewRestoreButtonShouldShow(
-                                    _selectedTabValue(),
-                                  ) &&
+                                        _selectedTabValue(),
+                                      ) &&
                                       _selectedTabValue() == 'auto_update'
-                                  ? _itemPreviewButtonKey
-                                  : null,
+                                  ? [_itemPreviewButtonKey]
+                                  : const [],
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: _handleBlockedTabTap,
+                              ),
+                            ),
+                          ),
+                        if (widget.searchPrintModeActive)
+                          Positioned.fill(
+                            child: _PointerBarrierExceptGlobalKeys(
+                              passthroughKeys: [
+                                _tabSearchFieldHitTestKey,
+                                _tabSearchButtonHitTestKey,
+                              ],
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {},
                               ),
                             ),
                           ),
@@ -7818,44 +7874,46 @@ class _PreviewRestoreButtonState extends State<_PreviewRestoreButton> {
   }
 }
 
-class _PointerBarrierExceptGlobalKey extends SingleChildRenderObjectWidget {
-  const _PointerBarrierExceptGlobalKey({
-    required this.passthroughKey,
+class _PointerBarrierExceptGlobalKeys extends SingleChildRenderObjectWidget {
+  const _PointerBarrierExceptGlobalKeys({
+    required this.passthroughKeys,
     required super.child,
   });
 
-  final GlobalKey? passthroughKey;
+  final List<GlobalKey> passthroughKeys;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderPointerBarrierExceptGlobalKey(passthroughKey);
+      _RenderPointerBarrierExceptGlobalKeys(passthroughKeys);
 
   @override
   void updateRenderObject(
     BuildContext context,
-    _RenderPointerBarrierExceptGlobalKey renderObject,
+    _RenderPointerBarrierExceptGlobalKeys renderObject,
   ) {
-    renderObject.passthroughKey = passthroughKey;
+    renderObject.passthroughKeys = passthroughKeys;
   }
 }
 
-class _RenderPointerBarrierExceptGlobalKey extends RenderProxyBox {
-  _RenderPointerBarrierExceptGlobalKey(this.passthroughKey);
+class _RenderPointerBarrierExceptGlobalKeys extends RenderProxyBox {
+  _RenderPointerBarrierExceptGlobalKeys(this.passthroughKeys);
 
-  GlobalKey? passthroughKey;
+  List<GlobalKey> passthroughKeys;
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    final passthroughRenderObject = passthroughKey
-        ?.currentContext
-        ?.findRenderObject();
-    if (passthroughRenderObject is RenderBox &&
-        passthroughRenderObject.attached) {
-      final passthroughRect =
-          passthroughRenderObject.localToGlobal(Offset.zero) &
-          passthroughRenderObject.size;
-      if (passthroughRect.contains(localToGlobal(position))) {
-        return false;
+    final globalPosition = localToGlobal(position);
+    for (final passthroughKey in passthroughKeys) {
+      final passthroughRenderObject =
+          passthroughKey.currentContext?.findRenderObject();
+      if (passthroughRenderObject is RenderBox &&
+          passthroughRenderObject.attached) {
+        final passthroughRect =
+            passthroughRenderObject.localToGlobal(Offset.zero) &
+            passthroughRenderObject.size;
+        if (passthroughRect.contains(globalPosition)) {
+          return false;
+        }
       }
     }
     return super.hitTest(result, position: position);
@@ -7891,8 +7949,17 @@ Widget debugPreviewRestoreButtonForTesting({
 Widget debugPointerBarrierExceptForTesting({
   required GlobalKey passthroughKey,
   required Widget child,
-}) => _PointerBarrierExceptGlobalKey(
-  passthroughKey: passthroughKey,
+}) => _PointerBarrierExceptGlobalKeys(
+  passthroughKeys: [passthroughKey],
+  child: child,
+);
+
+@visibleForTesting
+Widget debugPointerBarrierExceptKeysForTesting({
+  required List<GlobalKey> passthroughKeys,
+  required Widget child,
+}) => _PointerBarrierExceptGlobalKeys(
+  passthroughKeys: passthroughKeys,
   child: child,
 );
 

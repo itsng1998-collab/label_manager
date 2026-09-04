@@ -82,13 +82,19 @@ class AppMenuPolicy {
     if (id == AppMenuCommandId.login) {
       return AppMenuCommandState(
         visible: !context.isLoggedIn,
-        enabled: !context.isLoggedIn && !context.workBlocked,
+        enabled:
+            !context.isLoggedIn &&
+            !context.workBlocked &&
+            !context.contextBlockedCommands.contains(id),
       );
     }
     if (id == AppMenuCommandId.logout) {
       return AppMenuCommandState(
         visible: context.isLoggedIn,
-        enabled: context.isLoggedIn && !context.workBlocked,
+        enabled:
+            context.isLoggedIn &&
+            !context.workBlocked &&
+            !context.contextBlockedCommands.contains(id),
       );
     }
     if (!allows(command.permission)) {
