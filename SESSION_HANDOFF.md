@@ -12,8 +12,9 @@
 - 최소 diff 및 최종 호환성 검증 완료: 관련 테스트 전체 29건 재통과, 변경 파일 엄격 분석 및 diagnostics 오류·경고 0건.
 - DTD 확인 완료: VS Code DTD에는 연결되어 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
 - Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.53`.
-- 최종 점검 예정: `git diff --check`, 관련 diff와 staging 범위 확인.
-- stage/commit 예정: 날짜 범위 production 2개 파일, 테스트 2개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 점검 완료: `git diff --check` 통과. 포맷 churn을 제거한 최소 diff와 staging 범위를 확인했다.
+- stage/commit 완료: 날짜 범위 production 2개 파일, 테스트 2개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외했다.
+- 구현 커밋: `ff43f76` (`날짜 범위 입력 UI 개선`).
 
 ## 완료: 연결 이미지와 라벨 항목 폭·높이 동기화 v1.3.52
 - 제보/화면 확인: 이미지 항목 TEST의 폭·높이는 20×5인데, 연결된 시트 이미지 객체는 30×30mm로 설정되어 두 속성 화면의 값이 일치하지 않는다.
