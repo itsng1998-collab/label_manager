@@ -19,6 +19,7 @@
 - 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.3.44`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
 - 동작 기준: `SYSTEM` 계정은 관리자용 `00 + (월*3+일)` 및 타계정 접속용 `일자(2) + (월*3+일자)`를 사용할 수 있다. 그 외 계정은 본인 비밀번호 또는 타계정 접속용 비밀번호만 사용할 수 있으며 관리자용 비밀번호는 거부한다.
 - stage/commit 대상: `lib/core/admin_connect_session.dart`, `test/admin_connect_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `lib/core/app.dart` 및 lock 파일 변경은 제외한다.
+- 기능 커밋: `8a94881` (`일반 계정 관리자 비밀번호 로그인 차단`).
 
 ## 완료: 시리얼 인증 후 로그인창 종료 및 재로그인 불가 v1.3.43
 - 사용자 제보/이미지: 로그인 및 우측 상단 메뉴 재로그인에서 시리얼 인증을 완료하면 로그인이 진행되지 않고 로그인창이 닫혀 빈 홈 화면만 남는다. 정상 로그인 후 같은 PC 재로그인은 시리얼 인증 없이 진행되어야 한다.
