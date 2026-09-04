@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료: Windows 메뉴 종료 미동작 수정 v1.3.54
+- 최신 로그 확인: `.tmp/log/app_2026-09-04_12-59-10.log`에서 종료 선택 후 `_HomePageState._doLogout: End`까지 실행됐지만 `Window close start`가 기록되지 않고 프로세스가 남았다.
+- 원인 확인: 파일 메뉴의 `_requestExit()`이 Windows에서도 `SystemNavigator.pop()`을 호출했다. 창은 `setPreventClose(true)` 상태이므로 네이티브 `_AppWindowListener.onWindowClose()`가 실행되지 않아 prevent-close 해제와 실제 `windowManager.close()` 단계에 도달하지 못했다.
+- 구현 완료: `requestApplicationExit()` 플랫폼 분기를 추가했다. Windows/macOS 메뉴 종료는 `windowManager.close()`로 네이티브 close listener에 위임하고, listener가 종료 검증·로그아웃·prevent-close 해제·실제 닫기를 한 번만 수행한다. 비데스크톱은 기존 lifecycle 승인 후 `SystemNavigator.pop()`을 유지한다.
+- 테스트 추가: 데스크톱 종료가 window close만 1회 호출하고 lifecycle/SystemNavigator 경로를 중복 호출하지 않는지, 비데스크톱은 lifecycle 승인 여부에 따라 닫히는지 검증한다.
+- 버전 편집 완료: `1.3.53`에서 `1.3.54`로 갱신했다.
+- 관련 검증 완료: `test/lifecycle_test.dart`, `test/app_menu_command_test.dart` 전체 9건 통과. 변경 파일 엄격 분석 및 diagnostics 오류·경고 0건.
+- 비관련 기존 테스트 상태: `test/app_menu_controller_test.dart` 5건은 `WidgetsBinding has not yet been initialized`로 실패했다. 종료 변경 코드에 도달하기 전 기존 테스트 하네스 초기화 문제이므로 수정 범위에서 제외했다.
+- DTD 확인 완료: 연결된 Flutter 앱이 없어 hot reload 대상은 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.54`.
+- 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- stage/commit 대상: `lib/core/lifecycle.dart`, `lib/home_page.dart`, `test/lifecycle_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 날짜 범위 입력 UI 개선 v1.3.53
 - 요청 확인: 제조일자는 `오늘 기준 과거 N일 ~ 미래 M일`, 소비기한은 `오프셋 -N ~ +M일` 의미를 고객이 이해할 수 있는 UI로 제공하고, `0,10` 같은 잘못된 값은 저장 전에 즉시 차단한다.
 - domain 편집 완료: `label_column_edit.dart`에 제조일자·소비기한 범위 지원 판별, 기존 `앞|뒤` 파서, 공통 오류 메시지 검증을 추가했다. 날짜 범위 사용 시 잘못된 값은 속성 적용 및 최종 저장 검증에서 차단하며, 기존 런타임과 동일하게 구분자 주변 공백은 허용한다.

@@ -2,6 +2,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/lifecycle.dart';
 
 void main() {
+  test('desktop exit delegates once to the native window close listener', () async {
+    var desktopCloseCount = 0;
+    var lifecycleRequestCount = 0;
+    var navigatorCloseCount = 0;
+
+    await requestApplicationExit(
+      isDesktop: true,
+      requestDesktopWindowClose: () => desktopCloseCount += 1,
+      requestNonDesktopExit: () async {
+        lifecycleRequestCount += 1;
+        return true;
+      },
+      closeNonDesktopApplication: () => navigatorCloseCount += 1,
+    );
+
+    expect(desktopCloseCount, 1);
+    expect(lifecycleRequestCount, 0);
+    expect(navigatorCloseCount, 0);
+  });
+
+  test('non-desktop exit closes only after lifecycle approval', () async {
+    var closeCount = 0;
+
+    await requestApplicationExit(
+      isDesktop: false,
+      requestDesktopWindowClose: () {},
+      requestNonDesktopExit: () async => false,
+      closeNonDesktopApplication: () => closeCount += 1,
+    );
+    expect(closeCount, 0);
+
+    await requestApplicationExit(
+      isDesktop: false,
+      requestDesktopWindowClose: () {},
+      requestNonDesktopExit: () async => true,
+      closeNonDesktopApplication: () => closeCount += 1,
+    );
+    expect(closeCount, 1);
+  });
+
   test('exit request stops when an observer rejects it', () async {
     final manager = LifecycleManager.instance;
     var laterObserverCalled = false;

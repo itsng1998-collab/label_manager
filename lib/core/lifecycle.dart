@@ -8,6 +8,20 @@ typedef LifecycleExitAction = FutureOr<void> Function();
 typedef LifecycleExitSnapshotProvider =
     FutureOr<LifecycleExitSnapshot> Function();
 
+Future<void> requestApplicationExit({
+  required bool isDesktop,
+  required LifecycleExitAction requestDesktopWindowClose,
+  required ExitRequestCallback requestNonDesktopExit,
+  required LifecycleExitAction closeNonDesktopApplication,
+}) async {
+  if (isDesktop) {
+    await requestDesktopWindowClose();
+    return;
+  }
+  if (!await requestNonDesktopExit()) return;
+  await closeNonDesktopApplication();
+}
+
 class LifecycleDirtyWork {
   const LifecycleDirtyWork({required this.name, required this.discard});
 

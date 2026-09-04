@@ -1,8 +1,10 @@
 // ignore_for_file: no_leading_underscores_for_local_identifiers
 
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'core/app_menu_controller.dart';
 import 'core/app_menu_policy.dart';
@@ -201,10 +203,17 @@ class _HomePageState extends State<HomePage> {
       : _loginToServerDB();
 
   Future<void> _requestExit() async {
-    final exitAllowed = await LifecycleManager.instance.notifyExitRequested();
-    if (!exitAllowed) return;
-    await Future.delayed(const Duration(milliseconds: 120));
-    await SystemNavigator.pop();
+    await requestApplicationExit(
+      isDesktop: !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS),
+      requestDesktopWindowClose: windowManager.close,
+      requestNonDesktopExit: LifecycleManager.instance.notifyExitRequested,
+      closeNonDesktopApplication: () async {
+        await Future.delayed(const Duration(milliseconds: 120));
+        await SystemNavigator.pop();
+      },
+    );
   }
 
   Future<bool> _guardExit(String action) async {
