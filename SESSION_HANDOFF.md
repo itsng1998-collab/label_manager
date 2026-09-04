@@ -20,6 +20,7 @@
 - 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.3.43`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
 - 동작 기준: 최초 시리얼 인증 성공 시 서버 접속 토큰과 이력, 로컬 토큰을 저장하고 로그인을 계속한다. 이후 같은 PC 재로그인은 서버/로컬 토큰 일치로 시리얼 dialog를 생략한다. 인증 또는 로그인 오류 시에는 로그인창을 유지하고 오류 내용을 표시한다.
 - stage/commit 대상: 로그인 DAO/presentation 2개, 관련 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `lib/core/app.dart` 및 lock 파일 변경은 제외한다.
+- 기능 커밋: `a70658a` (`시리얼 인증 후 로그인 흐름 수정`).
 
 ## 완료: 이전 공용라벨 RTF 불러오기 응답 없음 수정 v1.3.42
 - 사용자 제보 로그: `.tmp/3. 공용라벨관리_RTF 변환 응답없음.log`에서 저장하지 않은 레거시 RTF 양식을 불러오면 `RTF 변환 중` 상태에서 프로그램이 멈춘다.
