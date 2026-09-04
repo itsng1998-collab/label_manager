@@ -18,6 +18,7 @@
 - 최종 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.45`, `git diff --check` 통과. 폐기한 `item_manage.dart` 경로 복사 및 FortuneSheet package 변경은 남아 있지 않다.
 - 동작 범위: 1/4/8-bit BMP는 품목 미리보기 data URI에서만 PNG로 변환하고, 24-bit 이상 BMP와 파일명/DB/원본 파일은 변경하지 않는다.
 - 커밋 대상: `item_image_preview.dart`, `home_page_manager.dart`, `item_image_preview_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 unrelated `lib/core/app.dart`와 lock 파일들은 제외한다.
+- 구현 커밋: `a153054` (`저비트 BMP 품목 미리보기 호환 수정`).
 
 ## 완료: 일반 계정의 관리자용 일자 비밀번호 로그인 차단 v1.3.44
 - 사용자 제보 로그: `.tmp/test_log/1. 로그인_관리자PW로 로그인 가능 현상.log`의 앱 `1.3.5`에서 일반 사용자 `3575`가 관리자용 `00 + (월*3+일)` 비밀번호로 로그인된다.
