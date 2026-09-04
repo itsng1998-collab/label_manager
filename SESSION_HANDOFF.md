@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: 공용라벨 필수등록 누락 경고 후 저장 허용 v1.3.48
+- 제보/로그 확인: SWEIGHT·SPRICE 필수등록이 체크된 상태에서 시트의 두 키워드를 제거하고 저장하면 누락 경고 직후 흐름이 종료된다. 로그도 `saveLabelSheet missingRequiredKeywords=저울중량,최종가격`에서 끝난다.
+- 원인 확인: `LabelSheetPage._handleSaveLabelSheet()`가 누락 경고창을 닫은 직후 `LabelSheetSaveResult.notApplied`를 반환해 실제 저장 트랜잭션 진입을 차단했다.
+- 구현 완료: 누락 경고와 확인 동작은 유지하고, 확인 후 기존 저장 경로를 계속 실행하도록 조기 반환을 제거했다.
+- 테스트 추가: 저장 확인 → SWEIGHT·SPRICE 누락 경고 확인 후 테스트 persistence 콜백이 호출되고 저장 결과가 `applied`인지 검증한다.
+- 버전 편집 완료: `1.3.47`에서 `1.3.48`로 갱신했다.
+- 테스트 1차 결과: 실제 흐름은 `labelSize is null` 지점까지 진행했으나 공용 snackbar helper의 표시를 assertion해 1건 실패했다. DB 없이 저장 호출을 직접 관찰하도록 `@visibleForTesting persistLabelSheet` 콜백으로 변경했다.
+- focused 검증 완료: 신규 회귀 테스트 1건 및 `test/label_sheet_toolbar_test.dart` 전체 194건 통과. 변경 파일 diagnostics 오류 없음.
+- Dart 포맷 완료: `label_sheet_page.dart`, `label_sheet_toolbar_test.dart`.
+- 변경 파일 엄격 분석 완료: `flutter analyze --fatal-infos --fatal-warnings lib/features/label_sheet/presentation/label_sheet_page.dart test/label_sheet_toolbar_test.dart` 오류·경고 0건.
+- DTD 확인 완료: VS Code DTD에는 연결되어 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.48`.
+- 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- runtime 확인: 실행 중인 앱이 없어 실제 DB 저장 수동 확인은 수행하지 못했다. 경고 후 persistence 호출 회귀 테스트와 Windows 빌드로 검증했다.
+- stage/commit 대상: `label_sheet_page.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 공용라벨 필수등록 상태 재실행 복원 v1.3.47
 - 제보 확인: SWEIGHT·SPRICE 필수등록을 해제하고 저장하면 현재 실행에서는 해제되지만, 재실행 후 다시 체크된다.
 - 원인 확인: 필수등록 토글은 메모리의 `useMissingKeywordCheck`와 시트 dirty만 변경하고, 공용라벨 저장은 `BM_RICH_LABELSIZE_FORM`의 서식만 저장해 재실행 조회 원본인 `BM_RICH_CHECK_COLUMNS`가 갱신되지 않았다.

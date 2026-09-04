@@ -7108,6 +7108,62 @@ void main() {
     expect(missing, ['가격']);
   });
 
+  testWidgets('missing required keywords warn and continue saving', (
+    tester,
+  ) async {
+    var persisted = false;
+    final encodedWorkbook = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        sheets: [FortuneSheet(id: 's1', name: 'Required')],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelSheetPage(
+            labelSize: const LabelSize(
+              labelSizeId: 1,
+              brandId: 1,
+              labelSizeName: 'Required',
+              labelSizeCommon: LabelSizeCommon(width: 100, height: 100, rtf: ''),
+            ),
+            requiredKeywords: const [
+              LabelSheetRequiredKeyword(
+                keyword: 'SWEIGHT',
+                itemName: '저울중량',
+              ),
+              LabelSheetRequiredKeyword(
+                keyword: 'SPRICE',
+                itemName: '최종가격',
+              ),
+            ],
+            persistLabelSheet: (_, _, _, _, _) async {
+              persisted = true;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final workbench = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
+    );
+    final saveFuture = Future<LabelSheetSaveResult>.value(
+      workbench.onSave!(100, 100, encodedWorkbook),
+    );
+    await tester.pump();
+    await tester.tap(find.text('확인'));
+    await tester.pump();
+
+    expect(find.text("'저울중량,최종가격'이 누락되었습니다!"), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pump();
+
+    expect(await saveFuture, LabelSheetSaveResult.applied);
+    expect(persisted, isTrue);
+  });
+
   test(
     'item output excludes unresolved linked images but keeps fixed images',
     () {

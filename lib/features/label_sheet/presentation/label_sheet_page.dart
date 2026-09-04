@@ -121,6 +121,7 @@ class LabelSheetPage extends StatelessWidget {
     this.keywordInsertController,
     this.onDirtyChanged,
     this.onSaved,
+    this.persistLabelSheet,
   });
 
   final LabelSize? labelSize;
@@ -139,6 +140,14 @@ class LabelSheetPage extends StatelessWidget {
   final LabelSheetKeywordInsertController? keywordInsertController;
   final ValueChanged<bool>? onDirtyChanged;
   final ValueChanged<LabelSize>? onSaved;
+  @visibleForTesting
+  final Future<void> Function(
+    int labelSizeId,
+    int width,
+    int height,
+    String formData,
+    Iterable<LabelRequiredCheckSave> requiredChecks,
+  )? persistLabelSheet;
 
   @override
   Widget build(BuildContext context) {
@@ -236,7 +245,6 @@ class LabelSheetPage extends StatelessWidget {
           ),
         );
       }
-      return LabelSheetSaveResult.notApplied;
     }
 
     if (!context.mounted) return LabelSheetSaveResult.notApplied;
@@ -255,7 +263,7 @@ class LabelSheetPage extends StatelessWidget {
 
       final id = labelSize!.labelSizeId;
       debugLog('saving workbook for labelSizeId=$id, width=$width, height=$height');
-      await LabelSizeDAO.updateByLabelSizeId(
+      await (persistLabelSheet ?? LabelSizeDAO.updateByLabelSizeId)(
         id,
         width,
         height,
