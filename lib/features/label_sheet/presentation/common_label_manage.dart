@@ -482,7 +482,7 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                     : null,
                 dragData: index == 0
                     ? (row, rowIndex) =>
-                          LabelSheetKeywordDragData('{#${row.keyword}}')
+                      LabelSheetKeywordDragData('#${row.keyword}')
                     : null,
                 dragFeedbackBuilder: index == 0
                     ? (context, row, rowIndex) => Material(
@@ -493,7 +493,7 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                             horizontal: 10,
                             vertical: 6,
                           ),
-                          child: Text('{#${row.keyword}}'),
+                          child: Text('#${row.keyword}'),
                         ),
                       )
                     : null,

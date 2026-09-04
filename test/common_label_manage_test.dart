@@ -344,7 +344,7 @@ void main() {
       isA<LabelSheetKeywordDragData>().having(
         (data) => data.text,
         'text',
-        '{#SWEIGHT}',
+        '#SWEIGHT',
       ),
     );
     expect(table.columns[1].onDoubleTap, isNull);
