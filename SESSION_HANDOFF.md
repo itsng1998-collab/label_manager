@@ -1,5 +1,25 @@
 # 현재 작업 상태
 
+## 진행 중: 모든 플로팅 미리보기 팝업 크기 조절 급변 제거 v1.3.46
+- 제보 분석: FFmpeg 9.0.1로 62.4초/1900x982/약 30fps 영상을 판독하고 2초 간격 대표 프레임을 추출했다. 주원료 및 원산지와 라벨 출력 미리보기 모두 공용 `PreviewFloatingWindow`에서 축소·확대 중 의도하지 않은 반대 축 변화가 반복된다.
+- 원인 확인: 모서리 resize가 포인터의 가로·세로 이동을 독립 적용하지 않고 더 큰 축의 scale을 양축에 강제 적용하여, 한 축만 천천히 움직여도 다른 축 크기가 급격히 변한다. 현재 코드는 드래그 시작 rect와 전역 누적 포인터 delta를 이미 사용하므로 좌표 누적 문제는 제외했다.
+- 구현 완료: 네 모서리 모두 기존 `previewFloatingEdgeResizedRect()`에 가로·세로 delta를 독립 전달한다. 반대 모서리 anchor와 축별 최소 크기 제한은 유지한다.
+- 회귀 테스트 수정: 한 축만 드래그할 때 해당 축만 변하고 다른 축은 유지되는 일반 창 resize 동작을 검증한다.
+- 버전 편집 완료: 사용자 표시 동작 수정으로 PATCH 버전을 `1.3.45`에서 `1.3.46`으로 갱신했다.
+- focused 검증 예정: `flutter test test/preview_floating_window_test.dart test/label_sheet_toolbar_test.dart`.
+- focused 1차 검증: 197건 중 196건 통과. 실패 1건은 기존 비례 resize 계약에 따라 가로 추가 축소가 멈춘다고 기대한 테스트로, 축별 최소 크기 동작에 맞춰 가로만 더 줄고 세로는 유지되도록 기대값을 수정했다.
+- focused 재검증 완료: `preview_floating_window_test.dart`, `label_sheet_toolbar_test.dart` 전체 197건 통과.
+- 공용 플로팅 창 영향 검증 예정: 영양성분/RTF 미리보기 관련 테스트와 변경 Dart 파일 strict analyzer를 실행한다.
+- 공용 플로팅 창 영향 검증 완료: `nutrition_box_dialog_test.dart` 11건 통과. 변경 구현과 품목/영양성분 관련 테스트 strict analyzer 오류·경고 0건, 편집기 diagnostics 0건.
+- Dart 포맷 완료: `preview_floating_window.dart`, `label_sheet_toolbar_test.dart`.
+- DTD 연결 완료: VS Code DTD에는 연결했으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
+- Windows 통합 검증 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 실행 후 EXE FileVersion/ProductVersion `1.3.46`을 확인한다.
+- 적용 범위 전수 확인: 사용자가 테두리를 드래그해 크기를 조절할 수 있는 팝업은 모두 공용 `PreviewFloatingWindow`를 사용한다. 품목의 주원료·원산지/라벨 출력 미리보기, 공용라벨 RTF 미리보기, 영양성분 RTF 미리보기에 동일한 축별 독립 resize가 적용된다.
+- 제외 범위: `BlockingModelessDialogFrame` 기반 팝업은 고정 크기이며 resize 기능이 없고, 표 열/내부 pane splitter와 OS 기본 창 resize는 팝업 창 resize가 아니므로 변경하지 않는다.
+- 공용 overlay 회귀 검증 완료: `app_menu_bar_test.dart` 21건 통과.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 검증 예정: EXE FileVersion/ProductVersion `1.3.46`, `git diff --check`, 관련 diff와 staging 범위를 확인한다.
+
 ## 완료: 품목 이미지 키워드의 일부 BMP 미리보기 누락 v1.3.45
 - 사용자 제공 파일은 모두 표준 `C:\ITS\LabelManager\bmp files` 폴더에 있으므로 경로/복사 문제는 제외했다. 잘못된 경로 가설로 만든 변경은 커밋하지 않고 전부 제거했다.
 - 샘플 분석: 제공 BMP는 `120x93`, 무압축 1-bit 흑백 팔레트이며 헤더/행 stride/픽셀 크기가 정상이다. 직접 Flutter codec 첫 frame decode 결과도 불투명 검정 3,044픽셀·흰색 8,116픽셀로 내용이 정상이다.

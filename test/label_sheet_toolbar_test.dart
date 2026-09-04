@@ -7934,7 +7934,7 @@ void main() {
     expect(afterSize.height, greaterThan(beforeSize.height));
   });
 
-  testWidgets('floating preview corner resize grows both axes from one axis', (
+  testWidgets('floating preview corner resize changes only the dragged axis', (
     tester,
   ) async {
     final window = PreviewFloatingWindow(
@@ -7980,7 +7980,7 @@ void main() {
     final afterSize = tester.getSize(
       find.byKey(const ValueKey('floating-child')),
     );
-    expect(afterSize.width, greaterThan(beforeSize.width));
+    expect(afterSize.width, beforeSize.width);
     expect(afterSize.height, greaterThan(beforeSize.height));
   });
 
@@ -8137,7 +8137,7 @@ void main() {
     expect(expandedSize.height, greaterThan(beforeSize.height));
     expect(returnedSize.width, lessThan(expandedSize.width));
     expect(returnedSize.height, lessThan(expandedSize.height));
-    expect(crossedSize.width, returnedSize.width);
+    expect(crossedSize.width, lessThan(returnedSize.width));
     expect(crossedSize.height, returnedSize.height);
   });
 

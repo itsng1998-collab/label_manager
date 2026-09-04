@@ -628,8 +628,11 @@ class _FloatingCard extends StatelessWidget {
         key: const ValueKey('floating-resize-top-left'),
         name: 'top-left',
         rect: rect,
-        computeRect: (base, delta) =>
-            _buildProportionalCornerRect(base, delta, left: true, top: true),
+        computeRect: (base, delta) => _buildRectFromDeltas(
+          base,
+          left: delta.dx,
+          top: delta.dy,
+        ),
         cursor: SystemMouseCursors.resizeUpLeftDownRight,
         left: 0,
         top: 0,
@@ -644,8 +647,11 @@ class _FloatingCard extends StatelessWidget {
         key: const ValueKey('floating-resize-top-right'),
         name: 'top-right',
         rect: rect,
-        computeRect: (base, delta) =>
-            _buildProportionalCornerRect(base, delta, right: true, top: true),
+        computeRect: (base, delta) => _buildRectFromDeltas(
+          base,
+          top: delta.dy,
+          right: delta.dx,
+        ),
         cursor: SystemMouseCursors.resizeUpRightDownLeft,
         right: 0,
         top: 0,
@@ -660,8 +666,11 @@ class _FloatingCard extends StatelessWidget {
         key: const ValueKey('floating-resize-bottom-left'),
         name: 'bottom-left',
         rect: rect,
-        computeRect: (base, delta) =>
-            _buildProportionalCornerRect(base, delta, left: true, bottom: true),
+        computeRect: (base, delta) => _buildRectFromDeltas(
+          base,
+          left: delta.dx,
+          bottom: delta.dy,
+        ),
         cursor: SystemMouseCursors.resizeUpRightDownLeft,
         left: 0,
         bottom: 0,
@@ -676,11 +685,10 @@ class _FloatingCard extends StatelessWidget {
         key: const ValueKey('floating-resize-bottom-right'),
         name: 'bottom-right',
         rect: rect,
-        computeRect: (base, delta) => _buildProportionalCornerRect(
+        computeRect: (base, delta) => _buildRectFromDeltas(
           base,
-          delta,
-          right: true,
-          bottom: true,
+          right: delta.dx,
+          bottom: delta.dy,
         ),
         cursor: SystemMouseCursors.resizeUpLeftDownRight,
         right: 0,
@@ -772,33 +780,6 @@ class _FloatingCard extends StatelessWidget {
     );
   }
 
-  Rect _buildProportionalCornerRect(
-    Rect base,
-    Offset delta, {
-    bool left = false,
-    bool top = false,
-    bool right = false,
-    bool bottom = false,
-  }) {
-    final horizontalDelta = left ? -delta.dx : delta.dx;
-    final verticalDelta = top ? -delta.dy : delta.dy;
-    final scaleX = (base.width + horizontalDelta) / base.width;
-    final scaleY = (base.height + verticalDelta) / base.height;
-    final dominantScale = scaleX >= 1 || scaleY >= 1
-        ? max(scaleX, scaleY)
-        : min(scaleX, scaleY);
-    final minScale = max(
-      minSize.width / base.width,
-      minSize.height / base.height,
-    );
-    final scale = max(dominantScale, minScale);
-    final width = base.width * scale;
-    final height = base.height * scale;
-    final nextLeft = left ? base.right - width : base.left;
-    final nextTop = top ? base.bottom - height : base.top;
-
-    return Rect.fromLTWH(nextLeft, nextTop, width, height);
-  }
 }
 
 class _FloatingCloseButton extends StatefulWidget {
