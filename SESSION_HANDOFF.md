@@ -16,6 +16,7 @@
 - 최종 점검 완료: `git diff --check` 통과. 변경 diff와 staging 범위를 확인했다.
 - runtime 확인: 실행 중인 앱이 없어 실제 DB 저장·재실행 수동 확인은 수행하지 못했다. SQL payload/트랜잭션 테스트, analyzer, Windows 빌드로 검증했다.
 - stage/commit 대상: production 3개 파일, 테스트 2개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경인 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `afc42a4` (`공용라벨 필수등록 상태 저장 수정`).
 
 ## 진행 중: 모든 플로팅 미리보기 팝업 크기 조절 급변 제거 v1.3.46
 - 제보 분석: FFmpeg 9.0.1로 62.4초/1900x982/약 30fps 영상을 판독하고 2초 간격 대표 프레임을 추출했다. 주원료 및 원산지와 라벨 출력 미리보기 모두 공용 `PreviewFloatingWindow`에서 축소·확대 중 의도하지 않은 반대 축 변화가 반복된다.
