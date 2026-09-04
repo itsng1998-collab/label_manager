@@ -12,6 +12,7 @@
 - Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.54`.
 - 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - stage/commit 대상: `lib/core/lifecycle.dart`, `lib/home_page.dart`, `test/lifecycle_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `436d9cc` (`Windows 메뉴 종료 동작 수정`).
 
 ## 완료: 날짜 범위 입력 UI 개선 v1.3.53
 - 요청 확인: 제조일자는 `오늘 기준 과거 N일 ~ 미래 M일`, 소비기한은 `오프셋 -N ~ +M일` 의미를 고객이 이해할 수 있는 UI로 제공하고, `0,10` 같은 잘못된 값은 저장 전에 즉시 차단한다.
