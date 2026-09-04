@@ -9371,7 +9371,11 @@ String debugItemCodeErrorPlaceholderForTesting() =>
 fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
   fs.FortuneWorkbook workbook,
   Map<String, String> replacements,
-  {fs.FortuneCell? elementCell}
+  {
+  fs.FortuneCell? elementCell,
+  Map<String, String> keywordTitles = const <String, String>{},
+  Set<String> imageKeywords = const <String>{},
+}
 ) => workbook.copyWith(
   sheets: [
     for (final sheet in workbook.sheets)
@@ -9380,7 +9384,8 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
         replacements,
         settings: workbook.settings,
         elementCell: elementCell,
-        imageKeywords: const <String>{},
+        imageKeywords: imageKeywords,
+        keywordTitles: keywordTitles,
       ),
   ],
 );
@@ -9460,6 +9465,7 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
     final previewWorkbook = _replaceItemPreviewKeywords(
       _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
       replacements,
+      keywordTitles: _itemOutputPreviewKeywordTitles(),
       codeDataResolver: ItemCodeDataResolver(
         itemName: item.item.itemName,
         columns: columns,
@@ -9855,6 +9861,11 @@ Map<String, String> _itemOutputPreviewReplacements({
   };
 }
 
+Map<String, String> _itemOutputPreviewKeywordTitles() => {
+  for (final column in TColumn.datas ?? const <TColumn>[])
+    if (column.title.isNotEmpty) '#${column.keyword}': column.title,
+};
+
 Set<String> _itemOutputPreviewImageKeywords() {
   return <String>{
     for (final column in TColumn.datas ?? const <TColumn>[])
@@ -9866,6 +9877,7 @@ Set<String> _itemOutputPreviewImageKeywords() {
 fs.FortuneWorkbook _replaceItemPreviewKeywords(
   fs.FortuneWorkbook workbook,
   Map<String, String> replacements, {
+  required Map<String, String> keywordTitles,
   ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
@@ -9877,6 +9889,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
       _replaceSheetKeywords(
         sheet,
         replacements,
+        keywordTitles: keywordTitles,
         settings: workbook.settings,
         codeDataResolver: codeDataResolver,
         elementCell: elementCell,
@@ -9891,6 +9904,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
 fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneSheet sheet,
   Map<String, String> replacements, {
+  Map<String, String> keywordTitles = const <String, String>{},
   required fs.FortuneSettings settings,
   ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
@@ -9920,7 +9934,11 @@ fs.FortuneSheet _replaceSheetKeywords(
     final imageReplacement = _itemImageReplacementForCell(
       sheet,
       entry.key,
-      entry.value,
+      _removeEmptyTitledKeywords(
+        entry.value,
+        replacements,
+        keywordTitles,
+      ),
       replacements,
       imageKeywords,
     );
@@ -9954,6 +9972,7 @@ fs.FortuneSheet _replaceSheetKeywords(
     var nextCell = _replaceCellKeywords(
       entry.value,
       replacements,
+      keywordTitles: keywordTitles,
       elementCell: elementCell,
     );
     final renderedTextLayout = replacedKeywords.isEmpty
@@ -11107,11 +11126,17 @@ String? _itemImageDataUri(String fileNameWithoutExtension) {
 fs.FortuneCell _replaceCellKeywords(
   fs.FortuneCell cell,
   Map<String, String> replacements, {
+  required Map<String, String> keywordTitles,
   fs.FortuneCell? elementCell,
 }) {
+  final afterTitles = _removeEmptyTitledKeywords(
+    cell,
+    replacements,
+    keywordTitles,
+  );
   final afterElement = elementCell == null
-      ? cell
-      : _replaceElementKeywordInCell(cell, elementCell);
+      ? afterTitles
+      : _replaceElementKeywordInCell(afterTitles, elementCell);
   final target = afterElement;
   final targetRuns = target.inlineRuns;
   if (targetRuns != null && targetRuns.isNotEmpty) {
@@ -11138,6 +11163,34 @@ fs.FortuneCell _replaceCellKeywords(
     return target.copyWith();
   }
   return _itemTextCell(text, base: target);
+}
+
+fs.FortuneCell _removeEmptyTitledKeywords(
+  fs.FortuneCell cell,
+  Map<String, String> replacements,
+  Map<String, String> keywordTitles,
+) {
+  var result = cell;
+  for (final entry in replacements.entries) {
+    final title = keywordTitles[entry.key] ?? '';
+    if (entry.value.isNotEmpty || title.isEmpty) continue;
+    final pattern = RegExp(
+      '${RegExp.escape(title)}${RegExp.escape(entry.key)}(?![A-Za-z0-9])',
+    );
+    final matches = pattern.allMatches(result.renderedText).toList();
+    for (final match in matches.reversed) {
+      var start = match.start;
+      final text = result.renderedText;
+      if (start >= 2 && text.substring(start - 2, start) == '\r\n') {
+        start -= 2;
+      } else if (start > 0 &&
+          (text[start - 1] == '\r' || text[start - 1] == '\n')) {
+        start -= 1;
+      }
+      result = _removeItemCellTextRange(result, start, match.end);
+    }
+  }
+  return result;
 }
 
 fs.FortuneCell _trimOverflowingWhitespaceBeforeTrailingKeywordGroup(

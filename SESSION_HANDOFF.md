@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 빈 품목값의 제목·키워드 숨김 v1.3.58
+- 상세서 확인: `.tmp/라벨매니저 기능 상세서.pdf` 3페이지는 컬럼 `제목`에 `제조원 : ` 같은 키워드 앞 문자를 등록하고, 공용라벨에서 품목 내용의 빈칸 여부에 따라 제목 표시 여부를 결정하도록 요구한다.
+- 레거시 확인: `TableRowRTFMaker::CheckKeywordTitle()`/`ReplaceColumnInfoToCellValue()`는 제목이 `#키워드` 바로 앞에 정확히 일치하고 품목값이 비어 있으면 `제목+#키워드`와 제목 앞 줄바꿈을 제거하고, 값이 있으면 제목을 유지한 채 키워드만 치환한다.
+- 원인 확인: 현재 공용라벨 materializer는 키워드 값 map만 만들고 `TColumn.title`을 전달하지 않아 빈 값에서도 제목 문구가 남는다.
+- 출력 경로 편집 완료: `home_page_manager.dart`가 실제 `TColumn.title` map을 공용라벨 materializer에 전달한다. 품목값이 비어 있고 제목이 `#키워드` 바로 앞에 정확히 일치할 때만 제목·키워드와 바로 앞 줄바꿈을 제거하며, 값이 있거나 제목이 불일치하면 기존 문구를 유지한다.
+- 특수 경로 편집 완료: 일반 셀 및 서로 다른 inline run에 나뉜 제목/키워드를 지원하고, 이미지 컬럼도 타입별 이미지 처리 전에 동일한 제목 규칙을 적용한다.
+- 테스트 추가: 빈 값 제목 제거, 값 존재 시 제목 유지, 제목 불일치 유지, 앞 줄바꿈 제거, 서로 다른 inline run, 빈 이미지 컬럼 경로를 검증한다. focused 테스트 3건 통과.
+- 버전 편집 완료: `1.3.57`에서 `1.3.58`로 갱신했다.
+- Dart 포맷 완료: `home_page_manager.dart`, `label_sheet_toolbar_test.dart`. diff는 제목 map 전달·제거 helper와 테스트 구간에 한정된다.
+- 전체 관련 검증 완료: `label_sheet_toolbar_test.dart`, `label_print_pipeline_test.dart` 전체 204건 통과.
+- strict analyzer 및 diagnostics 완료: `home_page_manager.dart`, `label_sheet_toolbar_test.dart` 오류·경고 0건.
+- DTD 확인 완료: workspace DTD에는 테스트용 `flutter tester`만 있고 실제 Windows 실행 앱은 없어 hot reload 대상이 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 최종 점검 완료: EXE FileVersion/ProductVersion 모두 `1.3.58`, `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- stage/commit 대상: `home_page_manager.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: 소비·제조시한 12시간제 포맷 추가 v1.3.57
 - 기존 경로 확인: 제조시한·소비시한의 4자리 숫자 값은 공통 `DateManager.formatTimeValue()`를 거쳐 선택한 형식으로 출력되며, `TIME_FORMAT_COLON`에서는 `1600`이 `16:00`으로 이미 변환된다.
 - 누락 기능 확인: 현재 시간 형식에는 24시간제 콜론/한글과 시간만 표시가 있으나 요청 예시인 `오후 4시` 형태의 12시간제 선택지가 없다.

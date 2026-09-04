@@ -1664,6 +1664,83 @@ void main() {
     );
   });
 
+  test('empty titled keyword hides its exact title and keyword', () {
+    FortuneCell materialize(String text, String value) =>
+        debugMaterializeItemImagesForTesting(
+          FortuneWorkbook(
+            sheets: [
+              FortuneSheet(
+                id: 'label',
+                name: '라벨',
+                columnWidths: const {0: 500},
+                cells: {
+                  const FortuneCellCoord(0, 0): FortuneCell(value: text),
+                },
+              ),
+            ],
+          ),
+          {'#MAKER': value},
+          keywordTitles: const {'#MAKER': '제조원 : '},
+        ).sheets.single.cells[const FortuneCellCoord(0, 0)]!;
+
+    expect(materialize('제조원 : #MAKER', '').renderedText, isEmpty);
+    expect(materialize('제조원 : #MAKER', '아이티에스').renderedText,
+        '제조원 : 아이티에스');
+    expect(materialize('제조사 : #MAKER', '').renderedText, '제조사 : ');
+  });
+
+  test('empty titled keyword removes preceding line across inline runs', () {
+    final cell = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            cells: {
+              const FortuneCellCoord(0, 0): FortuneCell(
+                value: '원재료\n제조원 : #MAKER',
+                inlineRuns: [
+                  FortuneInlineTextRun(text: '원재료\n'),
+                  FortuneInlineTextRun(text: '제조원 : ', bold: true),
+                  FortuneInlineTextRun(text: '#MAKER'),
+                ],
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#MAKER': ''},
+      keywordTitles: const {'#MAKER': '제조원 : '},
+    ).sheets.single.cells[const FortuneCellCoord(0, 0)]!;
+
+    expect(cell.renderedText, '원재료');
+    expect(cell.inlineRuns, isNotNull);
+    expect(cell.inlineRuns!.first.text, '원재료');
+  });
+
+  test('empty titled image keyword hides its title before image handling', () {
+    final cell = debugMaterializeItemImagesForTesting(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '상품이미지 : #IMAGE',
+              ),
+            },
+          ),
+        ],
+      ),
+      const {'#IMAGE': ''},
+      keywordTitles: const {'#IMAGE': '상품이미지 : '},
+      imageKeywords: const {'#image'},
+    ).sheets.single.cells[const FortuneCellCoord(0, 0)]!;
+
+    expect(cell.renderedText, isEmpty);
+  });
+
   test('trailing keyword replacement removes only its leading whitespace', () {
     const leadingSpaces = '                              ';
     const noGapText = '알레르기유발물질우유, 밀, 계란, 호두 함유  ';
