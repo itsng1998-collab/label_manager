@@ -12,6 +12,7 @@
 - Windows 통합 검증 완료: `$env:CL='/WX'; flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.50`.
 - 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - stage/commit 대상: `common_label_manage.dart`, `common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `15f79b5` (`사용 항목 드래그 키워드 형식 수정`).
 
 ## 완료: 사용 항목 더블클릭 중괄호 제거 v1.3.49
 - 제보/화면 확인: 공용라벨 사용 항목 `TEST2`를 더블클릭하면 시트에 `{#TEST2}`가 삽입된다. 기존 라벨 키워드는 `#TEST2` 형식이다.
