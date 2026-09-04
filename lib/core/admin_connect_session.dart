@@ -31,7 +31,7 @@ LoginAuthenticationMode? loginAuthenticationModeFor({
         ? LoginAuthenticationMode.firstAdmin
         : LoginAuthenticationMode.regular;
   }
-  return inputPassword == directPassword || inputPassword == systemPassword
+  return inputPassword == directPassword
       ? LoginAuthenticationMode.masterKey
       : null;
 }

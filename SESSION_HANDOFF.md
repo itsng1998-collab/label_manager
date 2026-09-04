@@ -1,5 +1,25 @@
 # 현재 작업 상태
 
+## 완료: 일반 계정의 관리자용 일자 비밀번호 로그인 차단 v1.3.44
+- 사용자 제보 로그: `.tmp/test_log/1. 로그인_관리자PW로 로그인 가능 현상.log`의 앱 `1.3.5`에서 일반 사용자 `3575`가 관리자용 `00 + (월*3+일)` 비밀번호로 로그인된다.
+- 원인 확인: `loginAuthenticationModeFor()`가 `SYSTEM` 외 모든 계정에서 타계정 접속용 비밀번호뿐 아니라 관리자용 비밀번호도 `masterKey`로 분류한다. 이 동작은 `666f094`에서 추가됐다.
+- 레거시 계약 확인: `LoginDlg::CheckPasswordAndAdmin`은 `SYSTEM` 계정에만 `CPasswordManager::GetSystemPassword()`를 허용한다. 일반/관리자 계정은 본인 비밀번호 또는 `GetDirectPassword()`만 허용한다.
+- 회귀 테스트 추가: 일반 사용자와 시스템 관리자 등급의 비SYSTEM 계정에서 관리자용 비밀번호를 거부하고, 기존 SYSTEM 계정 관리자용 비밀번호와 타계정 접속용 비밀번호는 유지한다.
+- 수정 전 focused 테스트 결과: 비SYSTEM 계정의 관리자용 비밀번호가 `masterKey`로 분류되어 회귀 테스트가 예상대로 실패했다.
+- 구현 완료: 비SYSTEM 계정의 fallback 인증에서 `systemPassword` 조건을 제거했다. 본인 비밀번호, 타계정 접속용 `directPassword`, SYSTEM 계정의 관리자용/타계정용 비밀번호 처리는 유지한다.
+- focused 검증 완료: `test/admin_connect_session_test.dart` 전체 5건 통과. 변경 Dart 파일 포맷 완료.
+- 버전 편집 완료: 호환 가능한 로그인 인증 정책 결함 수정이므로 PATCH 증가로 `1.3.43`에서 `1.3.44`로 갱신했다.
+- 인증 관련 통합 테스트 실행 예정: `flutter test test/admin_connect_session_test.dart test/startup_login_service_test.dart test/user_access_service_test.dart test/startup_dialog_test.dart test/login_log_test.dart`.
+- 인증 관련 통합 테스트 완료: 위 5개 테스트 파일 전체 16건 통과.
+- strict analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/core/admin_connect_session.dart test/admin_connect_session_test.dart`.
+- strict analyzer 완료: 변경 production/test Dart 2개 파일 오류·경고 0건.
+- Windows 통합 검증 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 통합 검증 완료: `/WX` Debug 빌드 성공, `build/windows/x64/runner/Debug/label_manager.exe` 생성.
+- 최종 자동 검증 예정: Debug EXE FileVersion/ProductVersion `1.3.44`, 변경 파일 diagnostics, `git diff --check`를 확인한다.
+- 최종 자동 검증 완료: Debug EXE FileVersion/ProductVersion `1.3.44`, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 동작 기준: `SYSTEM` 계정은 관리자용 `00 + (월*3+일)` 및 타계정 접속용 `일자(2) + (월*3+일자)`를 사용할 수 있다. 그 외 계정은 본인 비밀번호 또는 타계정 접속용 비밀번호만 사용할 수 있으며 관리자용 비밀번호는 거부한다.
+- stage/commit 대상: `lib/core/admin_connect_session.dart`, `test/admin_connect_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `lib/core/app.dart` 및 lock 파일 변경은 제외한다.
+
 ## 완료: 시리얼 인증 후 로그인창 종료 및 재로그인 불가 v1.3.43
 - 사용자 제보/이미지: 로그인 및 우측 상단 메뉴 재로그인에서 시리얼 인증을 완료하면 로그인이 진행되지 않고 로그인창이 닫혀 빈 홈 화면만 남는다. 정상 로그인 후 같은 PC 재로그인은 시리얼 인증 없이 진행되어야 한다.
 - 로그 확인: 두 제출 로그 모두 시리얼 승인 후 `UserAccessDAO.saveAccess`가 `BM_USER_ACCESS_LOG.ACCESS_DATE`에서 SQL Server `207 (42S22)`로 실패하며 `StartupLoginService.login`과 `onLogin`에 도달하지 못한다.

@@ -53,7 +53,16 @@ void main() {
         directPassword: 'direct',
         systemPassword: 'system',
       ),
-      LoginAuthenticationMode.masterKey,
+      isNull,
+    );
+    expect(
+      loginAuthenticationModeFor(
+        user: _user('admin', UserGrade.SYSTEM_ADMIN_USER, 'own'),
+        inputPassword: 'system',
+        directPassword: 'direct',
+        systemPassword: 'system',
+      ),
+      isNull,
     );
     expect(
       loginAuthenticationModeFor(
