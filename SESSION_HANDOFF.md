@@ -15,6 +15,7 @@
 - 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - runtime 확인: 실행 중인 앱이 없어 제공 화면의 실제 품목으로 수동 확인은 수행하지 못했다. 공용 materializer 회귀 테스트와 Windows 빌드로 검증했다.
 - stage/commit 대상: `home_page_manager.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `0a58128` (`접두어가 같은 라벨 키워드 치환 수정`).
 
 ## 완료: 사용 항목 드래그 중괄호 제거 v1.3.50
 - 후속 요청: 사용 항목 드래그 삽입도 `{#TEST2}`가 아닌 `#TEST2` 형식으로 통일한다.
