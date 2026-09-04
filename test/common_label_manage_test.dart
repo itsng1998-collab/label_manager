@@ -276,6 +276,29 @@ void main() {
     expect(dirtyChanges, contains(true));
   });
 
+  test('required check save snapshot includes special and stored columns', () {
+    final saves = commonLabelRequiredCheckSaves(
+      [
+        _column('SWEIGHT', columnName: '저울중량'),
+        _column('SPRICE', columnName: '최종가격'),
+      ],
+      [
+        _storedColumn('CUSTOM', typeCode: TColumnType.TYPE_BASE)
+          ..useMissingKeywordCheck = true,
+      ],
+    );
+
+    expect(saves[0], (
+      columnId: -3,
+      keyword: 'SWEIGHT',
+      columnName: '저울중량',
+      checked: false,
+    ));
+    expect(saves[1].columnId, -4);
+    expect(saves[2].columnId, 1);
+    expect(saves[2].checked, isTrue);
+  });
+
   testWidgets('keyword column exposes double tap and drag token', (
     tester,
   ) async {

@@ -9,6 +9,8 @@ import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_column/domain/special_keyword.dart';
+import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_page.dart';
@@ -20,6 +22,33 @@ const double commonLabelRightPaneMinWidth = 350.0;
 const double commonLabelRowNumberWidth = 40.0;
 const double commonLabelRequiredColumnWidth = 70.0;
 const double _commonLabelFlexibleColumnMinWidth = 60.0;
+
+@visibleForTesting
+List<LabelRequiredCheckSave> commonLabelRequiredCheckSaves(
+  List<TColumnBase> specialColumns,
+  List<TColumn> columns,
+) {
+  final specialIdByKeyword = <String, int>{
+    for (final value in SpecalKeyword.values)
+      value.keyword.toUpperCase(): -(value.code + 1),
+  };
+  return <LabelRequiredCheckSave>[
+    for (final column in specialColumns)
+      (
+        columnId: specialIdByKeyword[column.keyword.toUpperCase()]!,
+        keyword: column.keyword,
+        columnName: column.columnName,
+        checked: column.useMissingKeywordCheck,
+      ),
+    for (final column in columns)
+      (
+        columnId: column.columnId,
+        keyword: column.keyword,
+        columnName: column.columnName,
+        checked: column.useMissingKeywordCheck,
+      ),
+  ];
+}
 
 @visibleForTesting
 List<double> commonLabelColumnWidthsForViewport(double viewportWidth) {
@@ -228,6 +257,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     imageObjectOptions: imageObjectOptions,
                     barcodeObjectOptions: barcodeObjectOptions,
                     requiredKeywords: requiredKeywords,
+                    requiredChecks: commonLabelRequiredCheckSaves(
+                      specialColumns,
+                      columns,
+                    ),
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,

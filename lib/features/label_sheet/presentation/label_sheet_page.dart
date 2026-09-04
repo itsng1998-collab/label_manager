@@ -111,6 +111,7 @@ class LabelSheetPage extends StatelessWidget {
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.requiredKeywords = const <LabelSheetRequiredKeyword>[],
+    this.requiredChecks = const <LabelRequiredCheckSave>[],
     this.onSheetReady,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -128,6 +129,7 @@ class LabelSheetPage extends StatelessWidget {
   final List<FortuneObjectConnectionOption> imageObjectOptions;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<LabelSheetRequiredKeyword> requiredKeywords;
+  final List<LabelRequiredCheckSave> requiredChecks;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -253,7 +255,13 @@ class LabelSheetPage extends StatelessWidget {
 
       final id = labelSize!.labelSizeId;
       debugLog('saving workbook for labelSizeId=$id, width=$width, height=$height');
-      await LabelSizeDAO.updateByLabelSizeId(id, width, height, encodedWorkbook);
+      await LabelSizeDAO.updateByLabelSizeId(
+        id,
+        width,
+        height,
+        encodedWorkbook,
+        requiredChecks,
+      );
       final updated = LabelSize.replaceCachedFormData(
         id,
         width,

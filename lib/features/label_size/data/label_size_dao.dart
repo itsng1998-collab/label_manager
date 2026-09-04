@@ -1,6 +1,8 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
+import 'dart:convert';
+
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/database/db_client.dart';
@@ -11,6 +13,27 @@ import 'package:label_manager/features/last_connect/data/last_connect_dao.dart';
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
+
+typedef LabelRequiredCheckSave = ({
+  int columnId,
+  String keyword,
+  String columnName,
+  bool checked,
+});
+
+String labelRequiredChecksXml(Iterable<LabelRequiredCheckSave> checks) {
+  const escape = HtmlEscape(HtmlEscapeMode.element);
+  final xml = StringBuffer('<checks>');
+  for (final check in checks) {
+    xml
+      ..write('<check columnId="${check.columnId}">')
+      ..write('<keyword>${escape.convert(check.keyword)}</keyword>')
+      ..write('<columnName>${escape.convert(check.columnName)}</columnName>')
+      ..write('<checked>${check.checked ? 1 : 0}</checked>')
+      ..write('</check>');
+  }
+  return (xml..write('</checks>')).toString();
+}
 
 LabelSize labelSizeFromRow(Map<String, dynamic> row) {
   String stringValue(String key) => (row[key] ?? '').toString();
@@ -144,6 +167,20 @@ class LabelSizeDAO extends DAO {
         BEGIN TRY
           DECLARE @logAffected INT = 0;
           DECLARE @updateAffected INT = 0;
+          DECLARE @RequiredChecksDocument XML = CONVERT(XML, @requiredChecksXml);
+          DECLARE @RequiredChecks TABLE (
+            RICH_COLUMN_ID INT PRIMARY KEY,
+            RICH_KEYWORD NVARCHAR(100) NOT NULL,
+            RICH_COLUMN_NAME NVARCHAR(50) NOT NULL,
+            RICH_CHECK_YN BIT NOT NULL
+          );
+          INSERT @RequiredChecks
+          SELECT
+            N.value('@columnId', 'INT'),
+            N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+            N.value('string((columnName/text())[1])', 'NVARCHAR(50)'),
+            N.value('(checked/text())[1]', 'BIT')
+          FROM @RequiredChecksDocument.nodes('/checks/check') X(N);
 
           BEGIN TRANSACTION;
 
@@ -156,6 +193,23 @@ class LabelSizeDAO extends DAO {
           SET @updateAffected = @@ROWCOUNT;
           IF @updateAffected <= 0
             THROW 51001, 'Update label size form failed.', 1;
+
+          MERGE BM_RICH_CHECK_COLUMNS AS T
+          USING @RequiredChecks AS S
+          ON T.RICH_LABELSIZE_ID=@labelSizeId
+            AND (T.RICH_COLUMN_ID=S.RICH_COLUMN_ID
+              OR (S.RICH_COLUMN_ID < 0 AND T.RICH_KEYWORD=S.RICH_KEYWORD))
+          WHEN MATCHED THEN UPDATE SET
+            T.RICH_KEYWORD=S.RICH_KEYWORD,
+            T.RICH_COLUMN_NAME=S.RICH_COLUMN_NAME,
+            T.RICH_CHECK_YN=S.RICH_CHECK_YN
+          WHEN NOT MATCHED THEN INSERT (
+            RICH_LABELSIZE_ID, RICH_COLUMN_ID, RICH_KEYWORD,
+            RICH_COLUMN_NAME, RICH_CHECK_YN
+          ) VALUES (
+            @labelSizeId, S.RICH_COLUMN_ID, S.RICH_KEYWORD,
+            S.RICH_COLUMN_NAME, S.RICH_CHECK_YN
+          );
 
           COMMIT TRANSACTION;
           SET NOCOUNT OFF;
@@ -244,6 +298,7 @@ class LabelSizeDAO extends DAO {
     int width,
     int height,
     String formData,
+    Iterable<LabelRequiredCheckSave> requiredChecks,
   ) async {
     debugLog('$START, labelSizeId:$labelSizeId, width:$width, height:$height');
 
@@ -256,6 +311,7 @@ class LabelSizeDAO extends DAO {
             'width': width,
             'height': height,
             'formData': formData,
+            'requiredChecksXml': labelRequiredChecksXml(requiredChecks),
             'userId': User.instance!.userId,
             'loginIP': hexLoginIP,
             'labelSizeId': labelSizeId,

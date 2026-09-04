@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: 공용라벨 필수등록 상태 재실행 복원 v1.3.47
+- 제보 확인: SWEIGHT·SPRICE 필수등록을 해제하고 저장하면 현재 실행에서는 해제되지만, 재실행 후 다시 체크된다.
+- 원인 확인: 필수등록 토글은 메모리의 `useMissingKeywordCheck`와 시트 dirty만 변경하고, 공용라벨 저장은 `BM_RICH_LABELSIZE_FORM`의 서식만 저장해 재실행 조회 원본인 `BM_RICH_CHECK_COLUMNS`가 갱신되지 않았다.
+- 구현 완료: 공용라벨의 특수/일반 항목 전체 체크 snapshot을 XML payload로 전달하고, 기존 라벨 서식 저장 SQL 트랜잭션 안에서 `BM_RICH_CHECK_COLUMNS`를 MERGE한다. 서식 또는 체크 저장 실패 시 함께 롤백된다.
+- 레거시 호환: 일반 항목은 column ID로, 음수 ID의 특수 항목은 column ID 또는 keyword로 기존 행을 찾아 과거 ID가 달라도 중복 INSERT 없이 갱신한다.
+- 테스트 추가: SWEIGHT·SPRICE 해제 XML, 체크 MERGE 및 특수 keyword 호환 SQL, 특수 항목 고정 ID 및 일반 항목 실제 ID snapshot을 검증한다.
+- 버전 편집 완료: 사용자 저장 결함 수정으로 PATCH 버전을 `1.3.46`에서 `1.3.47`로 갱신했다.
+- focused 검증 완료: `flutter test test/label_size_dao_test.dart test/common_label_manage_test.dart test/label_sheet_toolbar_test.dart` 최종 207건 통과. 변경 production 3개 파일 analyzer 및 변경 파일 diagnostics 오류 없음.
+- Dart 포맷 완료: production 3개 파일과 관련 테스트 2개 파일.
+- DTD 확인 완료: VS Code DTD에는 연결되어 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- 전체 정적 분석 결과: 신규 테스트의 잘못된 `TYPE_TEXT` 상수 1건을 `TYPE_BASE`로 수정했다. 나머지는 변경 범위 밖 `third_party/fortune_sheet`의 기존 unused 경고 10건이다.
+- 변경 파일 엄격 분석 완료: `flutter analyze --fatal-infos --fatal-warnings`에 production 3개와 테스트 2개 파일을 지정해 오류·경고 0건.
+- Windows 통합 검증 완료: `$env:CL='/WX'; flutter build windows --debug` 성공. 생성된 `label_manager.exe` FileVersion/ProductVersion 모두 `1.3.47`이다.
+- 최종 점검 완료: `git diff --check` 통과. 변경 diff와 staging 범위를 확인했다.
+- runtime 확인: 실행 중인 앱이 없어 실제 DB 저장·재실행 수동 확인은 수행하지 못했다. SQL payload/트랜잭션 테스트, analyzer, Windows 빌드로 검증했다.
+- stage/commit 대상: production 3개 파일, 테스트 2개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 변경인 `lib/core/app.dart`는 제외한다.
+
 ## 진행 중: 모든 플로팅 미리보기 팝업 크기 조절 급변 제거 v1.3.46
 - 제보 분석: FFmpeg 9.0.1로 62.4초/1900x982/약 30fps 영상을 판독하고 2초 간격 대표 프레임을 추출했다. 주원료 및 원산지와 라벨 출력 미리보기 모두 공용 `PreviewFloatingWindow`에서 축소·확대 중 의도하지 않은 반대 축 변화가 반복된다.
 - 원인 확인: 모서리 resize가 포인터의 가로·세로 이동을 독립 적용하지 않고 더 큰 축의 scale을 양축에 강제 적용하여, 한 축만 천천히 움직여도 다른 축 크기가 급격히 변한다. 현재 코드는 드래그 시작 rect와 전역 누적 포인터 delta를 이미 사용하므로 좌표 누적 문제는 제외했다.
