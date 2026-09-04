@@ -5,6 +5,29 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 
 enum LabelColumnEditMode { normal, reorder, userItemEdit }
 
+bool labelColumnSupportsDateRange(int typeCode) =>
+    typeCode == TColumnType.TYPE_MAKEDATE ||
+    typeCode == TColumnType.TYPE_VALIDDATE;
+
+({int before, int after})? parseLabelColumnDateRange(String value) {
+  final parts = value.split('|');
+  if (parts.length != 2) return null;
+  final before = int.tryParse(parts[0].trim());
+  final after = int.tryParse(parts[1].trim());
+  if (before == null || after == null || before < 0 || after < 0) return null;
+  return (before: before, after: after);
+}
+
+String? labelColumnDateRangeValidationMessage(TColumn column) {
+  if (!column.useDateRange ||
+      !labelColumnSupportsDateRange(column.columnType.code)) {
+    return null;
+  }
+  return parseLabelColumnDateRange(column.dateRange) == null
+      ? '앞|뒤 형식 또는 UI로 선택해 주세요.'
+      : null;
+}
+
 class LabelColumnDialogSaveCommand {
   const LabelColumnDialogSaveCommand({
     required this.labelSizeId,
@@ -458,6 +481,10 @@ class LabelColumnEditSession {
     }
     if (name.isEmpty) {
       throw const LabelColumnValidationException('항목명을 입력하세요.');
+    }
+    final dateRangeError = labelColumnDateRangeValidationMessage(draft.column);
+    if (dateRangeError != null) {
+      throw LabelColumnValidationException(dateRangeError);
     }
     final normalized = keyword.toUpperCase();
     final original = originalColumns.where((row) => row.key == draft.key).firstOrNull;

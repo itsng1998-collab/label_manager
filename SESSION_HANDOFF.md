@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 완료: 날짜 범위 입력 UI 개선 v1.3.53
+- 요청 확인: 제조일자는 `오늘 기준 과거 N일 ~ 미래 M일`, 소비기한은 `오프셋 -N ~ +M일` 의미를 고객이 이해할 수 있는 UI로 제공하고, `0,10` 같은 잘못된 값은 저장 전에 즉시 차단한다.
+- domain 편집 완료: `label_column_edit.dart`에 제조일자·소비기한 범위 지원 판별, 기존 `앞|뒤` 파서, 공통 오류 메시지 검증을 추가했다. 날짜 범위 사용 시 잘못된 값은 속성 적용 및 최종 저장 검증에서 차단하며, 기존 런타임과 동일하게 구분자 주변 공백은 허용한다.
+- UI 편집 완료: `label_column_edit_dialog.dart`의 원시 문자열 입력을 두 개의 비음수 일수 입력과 증감 버튼으로 교체했다. 제조일자·소비기한별 안내를 표시하고, 잘못된 기존 값은 즉시 오류 표시 및 적용 버튼 비활성화한다. 시간 타입에서는 사용되지 않는 날짜 범위 UI를 제거했다.
+- 테스트 편집 완료: `label_column_edit_dialog_test.dart`에 기존 `2|3` 표시·`4|5` 저장, 타입별 안내, `0,10` 즉시 오류와 적용 차단을 추가했다. `label_column_edit_test.dart`에는 UI를 우회한 잘못된 값의 domain 차단 테스트를 추가했다.
+- 버전 편집 완료: `1.3.52`에서 `1.3.53`으로 갱신했다.
+- focused 검증 완료: 날짜 범위 위젯 테스트 2건과 domain 테스트 1건 통과. production 변경 파일 정적 분석 오류 0건.
+- 포맷 점검 완료: 현재 Dart formatter가 기존 파일 전체 스타일을 대량 변경해 결과를 제거하고 기존 스타일의 최소 diff로 재적용했다.
+- 관련 회귀 검증 완료: `test/label_column_edit_test.dart`, `test/label_column_edit_dialog_test.dart` 전체 29건 통과.
+- 최소 diff 및 최종 호환성 검증 완료: 관련 테스트 전체 29건 재통과, 변경 파일 엄격 분석 및 diagnostics 오류·경고 0건.
+- DTD 확인 완료: VS Code DTD에는 연결되어 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.53`.
+- 최종 점검 예정: `git diff --check`, 관련 diff와 staging 범위 확인.
+- stage/commit 예정: 날짜 범위 production 2개 파일, 테스트 2개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 연결 이미지와 라벨 항목 폭·높이 동기화 v1.3.52
 - 제보/화면 확인: 이미지 항목 TEST의 폭·높이는 20×5인데, 연결된 시트 이미지 객체는 30×30mm로 설정되어 두 속성 화면의 값이 일치하지 않는다.
 - 기준 확인: 품목 미리보기와 실제 출력은 연결 이미지 객체 geometry를 그대로 사용하고 `TColumn.width/height`는 사용하지 않으므로, 이미지 객체의 mm 크기를 연결 컬럼에 반영하는 방향으로 통일한다.

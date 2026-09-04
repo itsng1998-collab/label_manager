@@ -1174,6 +1174,9 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   Widget _buildPropertyPanel() {
     final draft = _session.propertyDraft;
     final enabled = _normalEnabled && draft != null;
+    final propertyInputValid =
+        draft == null ||
+        labelColumnDateRangeValidationMessage(draft.column) == null;
     return Material(
       color: Colors.white.withValues(alpha: 0.55),
       borderRadius: BorderRadius.circular(6),
@@ -1211,7 +1214,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 const SizedBox(width: 6),
                 FilledButton(
                   key: const Key('label-column-property-apply'),
-                  onPressed: enabled && (_session.propertyDirty || _session.pendingInitialApplyColumnKeys.contains(draft.key))
+                  onPressed: enabled && propertyInputValid && (_session.propertyDirty || _session.pendingInitialApplyColumnKeys.contains(draft.key))
                       ? _applyProperty
                       : null,
                   child: const Text('적용'),
@@ -1386,13 +1389,27 @@ class _PropertyFields extends StatelessWidget {
           _check('GS1 code 사용', column.useGS1Code, (value) => onChanged(column.copyWith(useGS1Code: value))),
         ];
       case TColumnType.TYPE_VALIDDATE:
-      case TColumnType.TYPE_VALIDTIME:
       case TColumnType.TYPE_MAKEDATE:
+        return [
+          ..._autoFields(),
+          _check('날짜 범위 사용', column.useDateRange, (value) {
+            final initialRange = parseLabelColumnDateRange(column.dateRange);
+            onChanged(column.copyWith(
+              useDateRange: value,
+              dateRange: value && initialRange == null ? '0|0' : column.dateRange,
+            ));
+          }),
+          if (column.useDateRange)
+            _DateRangeFields(
+              column: column,
+              enabled: enabled,
+              onChanged: onChanged,
+            ),
+        ];
+      case TColumnType.TYPE_VALIDTIME:
       case TColumnType.TYPE_MAKETIME:
         return [
           ..._autoFields(),
-          _check('날짜 범위 사용', column.useDateRange, (value) => onChanged(column.copyWith(useDateRange: value))),
-          _text('날짜 범위', column.dateRange, (value) => onChanged(column.copyWith(dateRange: value))),
         ];
       default:
         return [
@@ -1439,6 +1456,160 @@ class _PropertyFields extends StatelessWidget {
       userDefineQRData: '',
       userDefineQRText: '',
       natriumJoinString: '',
+    );
+  }
+}
+
+class _DateRangeFields extends StatefulWidget {
+  const _DateRangeFields({
+    required this.column,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final TColumn column;
+  final bool enabled;
+  final ValueChanged<TColumn> onChanged;
+
+  @override
+  State<_DateRangeFields> createState() => _DateRangeFieldsState();
+}
+
+class _DateRangeFieldsState extends State<_DateRangeFields> {
+  late final TextEditingController _beforeController;
+  late final TextEditingController _afterController;
+
+  @override
+  void initState() {
+    super.initState();
+    final parts = _parts(widget.column.dateRange);
+    _beforeController = TextEditingController(text: parts.$1);
+    _afterController = TextEditingController(text: parts.$2);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DateRangeFields oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.column.dateRange == widget.column.dateRange) return;
+    final current = '${_beforeController.text}|${_afterController.text}';
+    if (current == widget.column.dateRange) return;
+    final parts = _parts(widget.column.dateRange);
+    _setText(_beforeController, parts.$1);
+    _setText(_afterController, parts.$2);
+  }
+
+  @override
+  void dispose() {
+    _beforeController.dispose();
+    _afterController.dispose();
+    super.dispose();
+  }
+
+  (String, String) _parts(String value) {
+    final parts = parseLabelColumnDateRange(value);
+    return parts == null
+        ? (value, '')
+        : (parts.before.toString(), parts.after.toString());
+  }
+
+  void _setText(TextEditingController controller, String value) {
+    controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  void _emit() {
+    widget.onChanged(widget.column.copyWith(
+      dateRange: '${_beforeController.text}|${_afterController.text}',
+    ));
+  }
+
+  void _step(TextEditingController controller, int delta) {
+    final current = int.tryParse(controller.text) ?? 0;
+    _setText(controller, (current + delta).clamp(0, 99999).toString());
+    _emit();
+  }
+
+  Widget _dayInput({
+    required Key key,
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              key: key,
+              controller: controller,
+              enabled: widget.enabled,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(5),
+              ],
+              decoration: InputDecoration(
+                labelText: label,
+                suffixText: '일',
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (_) => _emit(),
+            ),
+          ),
+          IconButton(
+            tooltip: '$label 1일 감소',
+            onPressed: widget.enabled ? () => _step(controller, -1) : null,
+            icon: const Icon(Icons.remove),
+          ),
+          IconButton(
+            tooltip: '$label 1일 증가',
+            onPressed: widget.enabled ? () => _step(controller, 1) : null,
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMakeDate = widget.column.columnType.code == TColumnType.TYPE_MAKEDATE;
+    final error = labelColumnDateRangeValidationMessage(widget.column);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _dayInput(
+            key: const Key('label-column-date-range-before'),
+            label: isMakeDate ? '과거 일수' : '이전 오프셋 일수',
+            controller: _beforeController,
+          ),
+          _dayInput(
+            key: const Key('label-column-date-range-after'),
+            label: isMakeDate ? '미래 일수' : '이후 오프셋 일수',
+            controller: _afterController,
+          ),
+          Text(
+            isMakeDate
+                ? '오늘 기준 과거 N일 ~ 미래 M일까지 입력 허용'
+                : '오프셋 -N ~ +M일까지 입력 허용',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                error,
+                key: const Key('label-column-date-range-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

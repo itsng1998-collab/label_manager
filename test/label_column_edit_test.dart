@@ -10,6 +10,11 @@ const barcodeType = TColumnType(
   name: '바코드',
   order: 2,
 );
+const makeDateType = TColumnType(
+  code: TColumnType.TYPE_MAKEDATE,
+  name: '제조일자',
+  order: 3,
+);
 
 TColumn column(int id, String keyword, {int order = 1}) {
   return TColumn(
@@ -82,6 +87,33 @@ void main() {
       final command = session.toSaveCommand();
       expect(command.updatedColumns.single.key, 'column:1');
       expect(command.changedKeysByColumnId[1], {'name'});
+    });
+
+    test('rejects an invalid enabled date range when applying properties', () {
+      var session = LabelColumnEditSession.fromColumns(
+        labelSizeId: 10,
+        columns: [column(1, 'MAKE_DATE')],
+      ).beginPropertyEdit();
+      session = session.updatePropertyDraft(
+        session.propertyDraft!.copyWith(
+          column: session.propertyDraft!.column.copyWith(
+            columnType: makeDateType,
+            useDateRange: true,
+            dateRange: '0,10',
+          ),
+        ),
+      );
+
+      expect(
+        session.applyProperty,
+        throwsA(
+          isA<LabelColumnValidationException>().having(
+            (error) => error.message,
+            'message',
+            '앞|뒤 형식 또는 UI로 선택해 주세요.',
+          ),
+        ),
+      );
     });
 
     test('requires initial apply and cancel removes a new special row', () {

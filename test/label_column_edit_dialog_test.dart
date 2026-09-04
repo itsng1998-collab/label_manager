@@ -27,6 +27,16 @@ const longQrColumnType = TColumnType(
   name: '2D 바코드(QR 코드)',
   order: 4,
 );
+const makeDateColumnType = TColumnType(
+  code: TColumnType.TYPE_MAKEDATE,
+  name: '제조일자',
+  order: 5,
+);
+const validDateColumnType = TColumnType(
+  code: TColumnType.TYPE_VALIDDATE,
+  name: '소비기한',
+  order: 6,
+);
 
 Future<TestGesture> _startRowDrag(
   WidgetTester tester,
@@ -737,6 +747,85 @@ void main() {
     await tester.pump();
 
     expect(saved?.updatedColumns.single.column.columnName, '적용한 이름');
+  });
+
+  testWidgets('date range fields explain and persist make-date day bounds', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    TColumnType.datas = [baseType, makeDateColumnType, validDateColumnType];
+    LabelColumnSaveCommand? saved;
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'MAKE_DATE').copyWith(
+          columnType: makeDateColumnType,
+          useDateRange: true,
+          dateRange: '2|3',
+        ),
+      ],
+      onSave: (command) async => saved = command,
+    );
+
+    expect(find.text('오늘 기준 과거 N일 ~ 미래 M일까지 입력 허용'), findsOneWidget);
+    final before = find.byKey(const Key('label-column-date-range-before'));
+    final after = find.byKey(const Key('label-column-date-range-after'));
+    expect(tester.widget<TextFormField>(before).controller!.text, '2');
+    expect(tester.widget<TextFormField>(after).controller!.text, '3');
+
+    await tester.enterText(before, '4');
+    await tester.enterText(after, '5');
+    await tester.pump();
+    tester
+        .widget<FilledButton>(
+          find.byKey(const Key('label-column-property-apply')),
+        )
+        .onPressed!();
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+
+    expect(saved?.updatedColumns.single.column.dateRange, '4|5');
+  });
+
+  testWidgets('invalid legacy date range is shown immediately and blocks apply', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    TColumnType.datas = [baseType, makeDateColumnType, validDateColumnType];
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'VALID_DATE').copyWith(
+          columnType: validDateColumnType,
+          useDateRange: true,
+          dateRange: '0,10',
+        ),
+      ],
+    );
+
+    expect(find.text('오프셋 -N ~ +M일까지 입력 허용'), findsOneWidget);
+    expect(find.text('앞|뒤 형식 또는 UI로 선택해 주세요.'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('label-column-name')),
+      '변경된 소비기한',
+    );
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('label-column-property-apply')),
+          )
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets('reorder cancel restores and apply persists stable-key order', (
