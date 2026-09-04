@@ -15,6 +15,7 @@
 - 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
 - runtime 확인: 실행 중인 앱이 없어 실제 DB 저장 수동 확인은 수행하지 못했다. 경고 후 persistence 호출 회귀 테스트와 Windows 빌드로 검증했다.
 - stage/commit 대상: `label_sheet_page.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 커밋: `9f236b6` (`공용라벨 필수항목 누락 시 저장 허용`).
 
 ## 완료: 공용라벨 필수등록 상태 재실행 복원 v1.3.47
 - 제보 확인: SWEIGHT·SPRICE 필수등록을 해제하고 저장하면 현재 실행에서는 해제되지만, 재실행 후 다시 체크된다.
