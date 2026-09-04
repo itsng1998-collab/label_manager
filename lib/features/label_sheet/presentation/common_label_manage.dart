@@ -144,6 +144,62 @@ List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
 }
 
 @visibleForTesting
+List<TColumn> commonLabelColumnsWithImageObjectSizes(
+  FortuneWorkbook workbook,
+  List<TColumn> columns,
+) {
+  final sizesByObjectId = <String, ({int width, int height})>{};
+  for (final sheet in workbook.sheets) {
+    for (final image in sheet.images) {
+      final objectId = '${image.extraFields[fortuneImageObjectIdExtraKey] ?? ''}'
+          .trim()
+          .toLowerCase();
+      if (objectId.isEmpty) continue;
+
+      double millimeters(Object? metadata, double logicalPixels) {
+        final value = metadata is num
+            ? metadata.toDouble()
+            : double.tryParse('$metadata');
+        return value != null && value > 0
+            ? value
+            : fortuneLogicalPixelsToMillimeters(logicalPixels);
+      }
+
+      sizesByObjectId[objectId] = (
+        width: millimeters(image.extraFields['widthMm'], image.width)
+            .round()
+            .clamp(1, 2147483647),
+        height: millimeters(image.extraFields['heightMm'], image.height)
+            .round()
+            .clamp(1, 2147483647),
+      );
+    }
+  }
+  final updated = <TColumn>[];
+  for (final column in columns) {
+    final objectId = '#${column.keyword.trim()}'.toLowerCase();
+    final size = column.columnType.code == TColumnType.TYPE_IMAGE
+        ? sizesByObjectId[objectId]
+        : null;
+    updated.add(
+      size == null ||
+              (column.width == size.width && column.height == size.height)
+          ? column
+          : column.copyWith(width: size.width, height: size.height),
+    );
+  }
+  return updated;
+}
+
+List<LabelImageColumnSizeSave> commonLabelImageColumnSizeSaves(
+  Iterable<TColumn> columns,
+) => [
+  for (final column in columns)
+    if (column.columnType.code == TColumnType.TYPE_IMAGE)
+      (columnId: column.columnId, width: column.width, height: column.height),
+];
+
+@visibleForTesting
 Widget commonLabelRequiredTableForTesting({
   required List<TColumnBase> columns,
   required VoidCallback onRequiredChanged,
@@ -261,6 +317,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                       specialColumns,
                       columns,
                     ),
+                    imageColumnSizes: commonLabelImageColumnSizeSaves(columns),
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,
@@ -270,6 +327,21 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                       widget.editingLifecycleController,
                     keywordInsertController: _keywordInsertController,
                     onDirtyChanged: widget.onSheetDirtyChanged,
+                    onWorkbookChanged: (workbook) {
+                      final current = TColumn.datas ?? const <TColumn>[];
+                      final updated = commonLabelColumnsWithImageObjectSizes(
+                        workbook,
+                        current,
+                      );
+                      if (updated.length == current.length &&
+                          updated.indexed.every(
+                            (entry) => identical(entry.$2, current[entry.$1]),
+                          )) {
+                        return;
+                      }
+                      TColumn.datas = updated;
+                      if (mounted) setState(() {});
+                    },
                     onSaved: widget.onLabelSaved,
                   ),
                 ),

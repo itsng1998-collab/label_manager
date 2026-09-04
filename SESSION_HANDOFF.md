@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: 연결 이미지와 라벨 항목 폭·높이 동기화 v1.3.52
+- 제보/화면 확인: 이미지 항목 TEST의 폭·높이는 20×5인데, 연결된 시트 이미지 객체는 30×30mm로 설정되어 두 속성 화면의 값이 일치하지 않는다.
+- 기준 확인: 품목 미리보기와 실제 출력은 연결 이미지 객체 geometry를 그대로 사용하고 `TColumn.width/height`는 사용하지 않으므로, 이미지 객체의 mm 크기를 연결 컬럼에 반영하는 방향으로 통일한다.
+- 실시간 구현 완료: workbook 변경 시 `fortuneImageObjectId`로 이미지 컬럼을 찾아 객체 `widthMm/heightMm`를 정수 컬럼 계약에 맞게 반올림하여 `TColumn.datas`에 반영한다. 값이 달라진 컬럼만 교체하며 비이미지 컬럼은 유지한다.
+- 영속화 구현 완료: 현재 이미지 컬럼 크기 snapshot을 XML로 전달하고 기존 라벨 서식 저장 트랜잭션에서 `BM_RICH_COLUMN.RICH_WIDTH/RICH_HEIGHT`를 함께 갱신한다. 누락 행이 있으면 오류로 전달하고 전체 트랜잭션을 롤백한다.
+- 테스트 추가: TEST 이미지 컬럼 20×5 + 연결 객체 30×30mm가 컬럼 30×30과 저장 snapshot으로 동기화되는지, 비이미지 컬럼은 유지되는지, SQL payload/update/실패 검사를 검증한다.
+- 버전 편집 완료: `1.3.51`에서 `1.3.52`로 갱신했다.
+- focused 검증 완료: `test/common_label_manage_test.dart`, `test/label_size_dao_test.dart`, `test/label_sheet_toolbar_test.dart` 전체 211건 통과.
+- Dart 포맷 완료: production 3개 파일과 관련 테스트 3개 파일.
+- 변경 파일 엄격 분석 및 diagnostics 완료: 오류·경고 0건.
+- DTD 확인 완료: 실행 중인 Flutter 앱이 없어 hot reload 대상은 없다.
+- Windows 통합 검증 완료: `$env:CL='/WX'; flutter build windows --debug` 성공. EXE FileVersion/ProductVersion 모두 `1.3.52`.
+- 최종 점검 완료: `git diff --check` 통과. 관련 diff와 staging 범위를 확인했다.
+- runtime 확인: 실행 중인 앱이 없어 제공 화면의 실제 TEST 항목으로 수동 확인은 수행하지 못했다. 연결 이미지 geometry 회귀 테스트와 Windows 빌드로 검증했다.
+- stage/commit 대상: production 3개 파일, 테스트 3개 파일, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ## 완료: 접두어가 같은 공용라벨 키워드 치환 분리 v1.3.51
 - 제보/화면 확인: 원본 셀의 `#TEST #TEST2`가 출력 시 `1 12`로 표시된다. 기대값은 `1 2`이다.
 - 원인 확인: 공용 미리보기·출력 materializer의 `_replaceKeywordText()`가 replacements map 순서대로 `replaceAll`하여 짧은 `#TEST`가 `#TEST2` 앞부분까지 먼저 치환했다.

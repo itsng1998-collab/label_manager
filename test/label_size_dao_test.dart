@@ -38,4 +38,27 @@ void main() {
       contains('S.RICH_COLUMN_ID < 0 AND T.RICH_KEYWORD=S.RICH_KEYWORD'),
     );
   });
+
+  test('이미지 컬럼 크기를 SQL Server XML payload로 보존한다', () {
+    final xml = labelImageColumnSizesXml(const [
+      (columnId: 27, width: 30, height: 30),
+    ]);
+
+    expect(
+      xml,
+      '<sizes><size columnId="27" width="30" height="30"/></sizes>',
+    );
+    expect(
+      LabelSizeDAO.UpdateFormDataTransactionSql,
+      contains('C.RICH_WIDTH=S.RICH_WIDTH'),
+    );
+    expect(
+      LabelSizeDAO.UpdateFormDataTransactionSql,
+      contains('C.RICH_HEIGHT=S.RICH_HEIGHT'),
+    );
+    expect(
+      LabelSizeDAO.UpdateFormDataTransactionSql,
+      contains("THROW 51002, 'Update image column size failed.', 1"),
+    );
+  });
 }

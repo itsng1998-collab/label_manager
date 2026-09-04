@@ -7161,7 +7161,7 @@ void main() {
                 itemName: '최종가격',
               ),
             ],
-            persistLabelSheet: (_, _, _, _, _) async {
+            persistLabelSheet: (_, _, _, _, _, _) async {
               persisted = true;
             },
           ),

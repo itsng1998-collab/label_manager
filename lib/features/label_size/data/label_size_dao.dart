@@ -21,6 +21,12 @@ typedef LabelRequiredCheckSave = ({
   bool checked,
 });
 
+typedef LabelImageColumnSizeSave = ({
+  int columnId,
+  int width,
+  int height,
+});
+
 String labelRequiredChecksXml(Iterable<LabelRequiredCheckSave> checks) {
   const escape = HtmlEscape(HtmlEscapeMode.element);
   final xml = StringBuffer('<checks>');
@@ -33,6 +39,16 @@ String labelRequiredChecksXml(Iterable<LabelRequiredCheckSave> checks) {
       ..write('</check>');
   }
   return (xml..write('</checks>')).toString();
+}
+
+String labelImageColumnSizesXml(Iterable<LabelImageColumnSizeSave> sizes) {
+  final xml = StringBuffer('<sizes>');
+  for (final size in sizes) {
+    xml.write(
+      '<size columnId="${size.columnId}" width="${size.width}" height="${size.height}"/>',
+    );
+  }
+  return (xml..write('</sizes>')).toString();
 }
 
 LabelSize labelSizeFromRow(Map<String, dynamic> row) {
@@ -168,6 +184,7 @@ class LabelSizeDAO extends DAO {
           DECLARE @logAffected INT = 0;
           DECLARE @updateAffected INT = 0;
           DECLARE @RequiredChecksDocument XML = CONVERT(XML, @requiredChecksXml);
+          DECLARE @ImageColumnSizesDocument XML = CONVERT(XML, @imageColumnSizesXml);
           DECLARE @RequiredChecks TABLE (
             RICH_COLUMN_ID INT PRIMARY KEY,
             RICH_KEYWORD NVARCHAR(100) NOT NULL,
@@ -181,6 +198,17 @@ class LabelSizeDAO extends DAO {
             N.value('string((columnName/text())[1])', 'NVARCHAR(50)'),
             N.value('(checked/text())[1]', 'BIT')
           FROM @RequiredChecksDocument.nodes('/checks/check') X(N);
+          DECLARE @ImageColumnSizes TABLE (
+            RICH_COLUMN_ID INT PRIMARY KEY,
+            RICH_WIDTH INT NOT NULL,
+            RICH_HEIGHT INT NOT NULL
+          );
+          INSERT @ImageColumnSizes
+          SELECT
+            N.value('@columnId', 'INT'),
+            N.value('@width', 'INT'),
+            N.value('@height', 'INT')
+          FROM @ImageColumnSizesDocument.nodes('/sizes/size') X(N);
 
           BEGIN TRANSACTION;
 
@@ -210,6 +238,15 @@ class LabelSizeDAO extends DAO {
             @labelSizeId, S.RICH_COLUMN_ID, S.RICH_KEYWORD,
             S.RICH_COLUMN_NAME, S.RICH_CHECK_YN
           );
+
+          UPDATE C SET
+            C.RICH_WIDTH=S.RICH_WIDTH,
+            C.RICH_HEIGHT=S.RICH_HEIGHT
+          FROM BM_RICH_COLUMN C
+          JOIN @ImageColumnSizes S ON S.RICH_COLUMN_ID=C.RICH_COLUMN_ID
+          WHERE C.RICH_LABELSIZE_ID=@labelSizeId;
+          IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @ImageColumnSizes)
+            THROW 51002, 'Update image column size failed.', 1;
 
           COMMIT TRANSACTION;
           SET NOCOUNT OFF;
@@ -299,6 +336,7 @@ class LabelSizeDAO extends DAO {
     int height,
     String formData,
     Iterable<LabelRequiredCheckSave> requiredChecks,
+    Iterable<LabelImageColumnSizeSave> imageColumnSizes,
   ) async {
     debugLog('$START, labelSizeId:$labelSizeId, width:$width, height:$height');
 
@@ -312,6 +350,7 @@ class LabelSizeDAO extends DAO {
             'height': height,
             'formData': formData,
             'requiredChecksXml': labelRequiredChecksXml(requiredChecks),
+            'imageColumnSizesXml': labelImageColumnSizesXml(imageColumnSizes),
             'userId': User.instance!.userId,
             'loginIP': hexLoginIP,
             'labelSizeId': labelSizeId,

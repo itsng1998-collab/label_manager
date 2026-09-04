@@ -112,6 +112,7 @@ class LabelSheetPage extends StatelessWidget {
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.requiredKeywords = const <LabelSheetRequiredKeyword>[],
     this.requiredChecks = const <LabelRequiredCheckSave>[],
+    this.imageColumnSizes = const <LabelImageColumnSizeSave>[],
     this.onSheetReady,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -120,6 +121,7 @@ class LabelSheetPage extends StatelessWidget {
     this.editingLifecycleController,
     this.keywordInsertController,
     this.onDirtyChanged,
+    this.onWorkbookChanged,
     this.onSaved,
     this.persistLabelSheet,
   });
@@ -131,6 +133,7 @@ class LabelSheetPage extends StatelessWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<LabelSheetRequiredKeyword> requiredKeywords;
   final List<LabelRequiredCheckSave> requiredChecks;
+  final List<LabelImageColumnSizeSave> imageColumnSizes;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -139,6 +142,7 @@ class LabelSheetPage extends StatelessWidget {
   final LabelSheetEditingLifecycleController? editingLifecycleController;
   final LabelSheetKeywordInsertController? keywordInsertController;
   final ValueChanged<bool>? onDirtyChanged;
+  final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
   final ValueChanged<LabelSize>? onSaved;
   @visibleForTesting
   final Future<void> Function(
@@ -147,6 +151,7 @@ class LabelSheetPage extends StatelessWidget {
     int height,
     String formData,
     Iterable<LabelRequiredCheckSave> requiredChecks,
+    Iterable<LabelImageColumnSizeSave> imageColumnSizes,
   )? persistLabelSheet;
 
   @override
@@ -185,6 +190,7 @@ class LabelSheetPage extends StatelessWidget {
         editingLifecycleController: editingLifecycleController,
         keywordInsertController: keywordInsertController,
         onDirtyChanged: onDirtyChanged,
+        onWorkbookChanged: onWorkbookChanged,
         hideStatisticBar: true,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),
@@ -269,6 +275,7 @@ class LabelSheetPage extends StatelessWidget {
         height,
         encodedWorkbook,
         requiredChecks,
+        imageColumnSizes,
       );
       final updated = LabelSize.replaceCachedFormData(
         id,

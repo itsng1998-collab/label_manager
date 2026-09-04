@@ -310,6 +310,49 @@ void main() {
     expect(saves[2].checked, isTrue);
   });
 
+  test('linked image size updates only its image column', () {
+    final imageColumn = _storedColumn(
+      'TEST',
+      typeCode: TColumnType.TYPE_IMAGE,
+    ).copyWith(width: 20, height: 5);
+    final textColumn = _storedColumn(
+      'TEXT',
+      typeCode: TColumnType.TYPE_BASE,
+    ).copyWith(width: 7, height: 8);
+    final updated = commonLabelColumnsWithImageObjectSizes(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            images: const [
+              FortuneImage(
+                id: 'image-1',
+                src: 'data:image/png;base64,AA==',
+                left: 0,
+                top: 0,
+                width: 120,
+                height: 120,
+                extraFields: {
+                  fortuneImageObjectIdExtraKey: '#TEST',
+                  'widthMm': 30.0,
+                  'heightMm': 30.0,
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+      [imageColumn, textColumn],
+    );
+
+    expect((updated[0].width, updated[0].height), (30, 30));
+    expect(identical(updated[1], textColumn), isTrue);
+    expect(commonLabelImageColumnSizeSaves(updated), [
+      (columnId: imageColumn.columnId, width: 30, height: 30),
+    ]);
+  });
+
   testWidgets('keyword column exposes double tap and drag token', (
     tester,
   ) async {
