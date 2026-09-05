@@ -1,5 +1,16 @@
 # 현재 작업 상태
 
+## 완료: EZPL 공식 매뉴얼 로컬 참조 문서화 v1.3.59
+- 목적: 온라인 조사 중 내려받은 GoDEX 공식 `EZPL_EN_J_20180226.pdf`를 `doc`에 보관하고, 저장소에서 검색 가능한 텍스트 추출본과 관련 기술 문서 출처·핵심 명령 메모를 함께 추가한다.
+- 원본 확인: 임시 다운로드 PDF는 2,318,076바이트이며 `pypdf`로 본문 추출이 가능하다.
+- 문서 편집 완료: `doc/EZPL_EN_J_20180226.pdf` 원본, 95페이지 UTF-8 검색용 `doc/EZPL_EN_J_20180226.txt`, 출처·체크섬·역상 명령·관련 공식 문서·프로젝트 연결 지점을 정리한 `doc/EZPL_PRINTING_REFERENCES.md`를 추가했다.
+- 원본 무결성 검증 완료: 다운로드본과 저장소 PDF의 SHA-256이 `6B0FAE74312BE174C4F74C2A061A780681DCC27A3D49B6EBEFA080D064C907B9`로 일치한다.
+- 검색 검증 완료: 텍스트 추출본에서 `^LI`, `rotation parameter ... I ... inverse font`, `Graphic driver format`을 검색할 수 있다.
+- 문서 검증 완료: 세 문서의 존재·크기와 참조 메모 핵심 항목을 확인했고 `git diff --check`를 통과했다.
+- 버전 판단: 실행 동작을 바꾸지 않는 문서 추가이므로 PATCH를 `1.3.58`에서 `1.3.59`로 증가한다.
+- stage/commit 대상: EZPL 문서 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: 빈 품목값의 제목·키워드 숨김 v1.3.58
 - 상세서 확인: `.tmp/라벨매니저 기능 상세서.pdf` 3페이지는 컬럼 `제목`에 `제조원 : ` 같은 키워드 앞 문자를 등록하고, 공용라벨에서 품목 내용의 빈칸 여부에 따라 제목 표시 여부를 결정하도록 요구한다.
 - 레거시 확인: `TableRowRTFMaker::CheckKeywordTitle()`/`ReplaceColumnInfoToCellValue()`는 제목이 `#키워드` 바로 앞에 정확히 일치하고 품목값이 비어 있으면 `제목+#키워드`와 제목 앞 줄바꿈을 제거하고, 값이 있으면 제목을 유지한 채 키워드만 치환한다.
