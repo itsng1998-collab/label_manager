@@ -14,6 +14,7 @@
 - 실물 재검증 기준: 출력물 우하단 `v1.3.63`, 로그의 `nativeTextWhiteRender=getGlyphOutlineGgoBitmap1bpp`, `nativeTextWhiteGlyphBitmaps`, `nativeTextWhiteKnockoutPixels`를 확인한다.
 - 남은 실물 검증: 같은 라벨을 출력해 두 역상 행의 획 연속성과 DirectWrite 2,703픽셀 대비 knockout 수를 비교한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `windows/runner/CMakeLists.txt`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `bb2435b` (`역상 글자를 GDI 1비트 글리프로 출력`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: Windows DirectWrite 1-bit 역상 글자 출력 v1.3.62
