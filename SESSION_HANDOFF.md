@@ -1,6 +1,26 @@
 # 현재 작업 상태
 
-## 진행 중: 역상 행 전체 boxed header fallback v1.3.78
+## 진행 중: G500 PDF direct spool 분리 실험 v1.3.79
+- 실물 확인: `.tmp/IMG_20260905_0016.png`에서 두 black band가 흰 boxed header로 정확히 바뀌고 검정 글자가 출력됐지만 사용자가 요구한 원래 역상 품질 개선은 아니어서 기각한다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-36-38.log`에서 `v1.3.78`, `inverseRowFallbackDescriptors=2`, `inverseRowFallbackBands=2`, `inverseRowClearedPixels=45880`, `nativeTextDrawn=35`, 실패 0, `monoScanLines=480`을 확인했다. full-row 변환은 실제 적용됐다.
+- 결론: rasterizer, RAW/EZPL, GDI/EMF/1bpp, 열량, 극성, 글꼴 크기와 레이아웃 fallback까지 모두 개선되지 않았다. 동일 Windows bitmap 경로 내부의 추가 가공은 종료한다.
+- 다음 방식: G500 물리 포트만 기존 Windows bitmap backend 대신 `Printing.directPrintPdf`로 지정 프린터에 직접 보낸다. 현재 PDF는 PNG embedded raster지만 PDFium/Windows PDF spool pipeline 자체는 G500 물리 출력에서 미시험이다.
+- 판별 기준: 로그 `backend=pdf`, `payload backend=pdf`, 출력물 우하단 `v1.3.79`로 PDF direct 경로를 확인한다. 결과가 같으면 raster PDF를 종료하고 오픈 한글 font를 포함한 vector PDF만 다음 후보로 남긴다.
+- 수정 예정 파일: `label_print_dispatcher.dart`에서 G500 physical을 PDF로 라우팅하고 dispatcher 테스트를 갱신한다. `label_sheet_print_job.dart` PDF 페이지에 `v1.3.79` watermark를 추가하며 `pubspec.yaml`과 본 문서를 갱신한다.
+- dispatcher 편집 완료: FILE/PORTPROMPT 분기 뒤 G500 profile의 모든 물리 포트를 `LabelPrintBackend.pdf`로 전환하고 다른 printer는 `windowsDriver`를 유지한다.
+- PDF 편집 완료: 기존 PNG embedded PDF 페이지 우하단에 ASCII `v1.3.79` watermark를 5pt로 추가했다. 물리 전송은 기존 `Printing.directPrintPdf(printer: printer, dynamicLayout: false)` 경로를 사용한다.
+- 테스트 편집 완료: G500 USB/null port는 PDF, 일반 printer physical port는 Windows driver라는 기대값으로 갱신했다. focused dispatcher 테스트 7건 통과.
+- Dart format 완료: dispatcher, print job, dispatcher test.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 27건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 빌드 완료: 위 `/WX` Debug 빌드 성공.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.79`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_17-42-23.log`에서 `DebugLogger version: 1.3.79` 확인.
+- 실물 판별 기준: 로그 `labelPrintQuality start ... backend=pdf`, `payload backend=pdf ... pdfBytes=...`, `dispatch backend=pdf accepted=true`와 출력물 우하단 `v1.3.79`. Windows `gdiPage/gdiDispatch` 로그가 없어야 한다.
+- stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `test/label_print_dispatcher_test.dart`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 역상 행 전체 boxed header fallback v1.3.78
 - 실물 확인: `.tmp/IMG_20260905_0015.png`에서도 검정 바 안 흰 한글 획이 크게 탈락해 20dot 확대 효과가 없었다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-30-49.log`에서 `v1.3.77`, `inverseReadabilityDescriptors=2`, `inverseMinimumFontDots=20`, `inverseTextWidthFitted=2`, `nativeTextDrawn=35`, 실패 0, `monoScanLines=480`을 확인했다. 두 역상 글자 모두 높이 보존 폭 fit이 실제 실행됐으므로 기각한다.
 - 다음 방식: 각 흰 descriptor 중심이 속한 final bitmap의 연속 solid-black band를 찾아 행 전체를 흰색으로 비우고 1dot 검정 box를 복원한 뒤, 원래 크기의 검정 글자로 출력한다.

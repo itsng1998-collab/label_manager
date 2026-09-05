@@ -1541,6 +1541,8 @@ double _metadataDouble(Object? value, double fallback) {
 String _escapeEzplText(String value) =>
     value.replaceAll('\r', ' ').replaceAll('\n', ' ');
 
+const String _pdfPrintTestWatermark = 'v1.3.79';
+
 Future<Uint8List> buildLabelSheetPdfGroupBytes(
   List<LabelSheetRenderedPage> pages,
 ) async {
@@ -1635,6 +1637,14 @@ pw.Widget _buildPdfPageContent({
               ],
             ),
           ),
+        ),
+      ),
+      pw.Positioned(
+        right: _mmToPdfPoints(1),
+        bottom: _mmToPdfPoints(1),
+        child: pw.Text(
+          _pdfPrintTestWatermark,
+          style: const pw.TextStyle(fontSize: 5),
         ),
       ),
     ],

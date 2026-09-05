@@ -16,6 +16,9 @@ LabelPrintBackend resolveLabelPrintBackend({
   final normalizedPort = portName?.trim().toUpperCase();
   final isFilePort = normalizedPort == 'FILE:' || normalizedPort == 'PORTPROMPT:';
   if (isFilePort) return LabelPrintBackend.pdf;
+  if (profile.vendor == 'GoDEX' && profile.model == 'G500') {
+    return LabelPrintBackend.pdf;
+  }
   return LabelPrintBackend.windowsDriver;
 }
 

@@ -24,7 +24,7 @@ void main() {
     expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 300), 300);
   });
 
-  test('backend maps physical printer ports to Windows driver', () {
+  test('backend maps physical G500 to PDF direct spool', () {
     final godex = detectPrinterProfile(
       const Printer(url: 'Godex G500', name: 'Godex G500'),
     );
@@ -34,7 +34,7 @@ void main() {
     for (final port in ['USB001', null]) {
       expect(
         resolveLabelPrintBackend(profile: godex, portName: port),
-        LabelPrintBackend.windowsDriver,
+        LabelPrintBackend.pdf,
       );
       expect(
         resolveLabelPrintBackend(profile: other, portName: port),
