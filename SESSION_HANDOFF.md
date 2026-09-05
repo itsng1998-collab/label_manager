@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: G500 인쇄방향 선행 열 차단 v1.3.83
+## 완료·실물 검증 대기: G500 인쇄방향 선행 열 차단 v1.3.83
 - 실물 확인: `.tmp/IMG_20260905_0020.png`은 정상 레이아웃의 역상판처럼 대부분 검정으로 출력됐고 흰 글자도 계속 소실됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-09-01.log`에서 `v1.3.82`, `backend=ezplWholeInverse`, `sourcePreInverted=true`, encoded dark dots `243059`, RAW `38478/38478` bytes를 확인했다. `^LI`가 Q bitmap data를 반전하지 않아 pre-inverted Q가 그대로 출력된 것으로 판정한다.
 - 결론: per-text `I`와 label-level `^LI` 모두 Q bitmap과 조합할 수 없어 firmware inverse 계열을 종료한다.
@@ -17,6 +17,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_18-15-02.log`에서 `DebugLogger version: 1.3.83`과 DB 연결 성공을 확인했다.
 - 실물 판별 기준: 로그 `backend=ezplDirectionalRelief`, `transport=EZPL_Q_DIRECTIONAL_RELIEF`, `feedDirection=increasingY`, `leadReliefDots=2`, `darkBands>0`, `clearedLeadPixels>0`, `printWatermark=v1.3.83`, `directionalReliefDispatch ... requestedBytes=... writtenBytes=...`. 실물에서 전체 레이아웃 유지와 흰 한글 획 시작부 개선을 확인한다.
 - stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 구현 커밋 완료: `dcdd968` (`G500 역상 획에 방향성 열 보정 적용`). 다음 작업은 실행 중인 v1.3.83에서 실제 라벨을 발행하고 `darkBands`/`clearedLeadPixels` 및 흰 획 시작부 품질을 판정하는 것이다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: G500 전체 label inverse 출력 v1.3.82
