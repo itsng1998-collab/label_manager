@@ -1,6 +1,24 @@
 # 현재 작업 상태
 
-## 진행 중: G500 PDF direct spool 분리 실험 v1.3.79
+## 진행 중: G500 EZPL 저장 BMP 출력 v1.3.80
+- 실물 확인: `.tmp/IMG_20260905_0017.png`는 라벨 상단 일부만 확대·절단되어 출력됐고 정상 페이지가 아니었다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-42-23.log`에서 `v1.3.79`, `backend=pdf`, capture `641x481`, PDF `13313` bytes, dispatch accepted=true를 확인했다. PDF direct spool이 실제 실행됐지만 page transform 회귀가 발생해 즉시 기각한다.
+- 다음 방식: 공식 EZPL `~EB,name,size`로 전체 1bpp BMP를 printer memory에 다운로드하고 `Y0,0,name`으로 출력한다. 기존 실패 `Q` row-pattern parser, Windows GDI와 PDF spool을 모두 우회한다.
+- BMP payload 편집 완료: BITMAPINFOHEADER 기반 bottom-up 1bpp BMP, 4-byte row stride, palette index 0=black/1=white를 생성한다. `~MDELG,LM1380` → `~EB,LM1380,size` → BMP → label setup → `Y0,0,LM1380` → watermark `v1.3.80` 순서다.
+- diagnostics 추가: `transport=EZPL_STORED_BMP`, graphic name, raster/BMP bytes, 1bpp palette, bottom-up rows, command order, watermark, payload bytes를 기록한다.
+- focused 테스트 추가: 80x8 raster가 158-byte 1bpp BMP가 되고 `BM`, bpp=1, `Y0,0,LM1380`을 포함하는지 검증한다.
+- backend 편집 완료: `ezplStoredGraphic`을 추가하고 G500 physical port를 이 backend로 라우팅했다. FILE/PORTPROMPT는 PDF, 다른 physical printer는 Windows driver를 유지한다.
+- 발행 흐름 편집 완료: 일반 발행, 스케일 발행, 라벨 시트 작업대가 plain PNG capture → `buildLabelSheetStoredGraphicEzplBytes` → `RawPrinterWin32.sendRaw` 순서로 동작하며 quality/payload/raw dispatch diagnostics를 남긴다.
+- focused 검증 완료: G500 stored backend 라우팅과 1bpp BMP payload 테스트 2건 통과.
+- 전체 관련 검증 완료: dispatcher/print job/font provisioner 테스트 28건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.80`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_17-50-50.log`에서 `DebugLogger version: 1.3.80`과 DB 연결 성공을 확인했다.
+- 실물 판별 기준: 로그 `backend=ezplStoredGraphic`, `transport=EZPL_STORED_BMP`, `graphicName=LM1380`, `bmpBpp=1`, `printWatermark=v1.3.80`, `storedGraphicDispatch ... writtenBytes=...`. 출력물에서는 전체 80x60mm 레이아웃과 역상 흰 한글 획을 확인한다.
+- stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: G500 PDF direct spool 분리 실험 v1.3.79
 - 실물 확인: `.tmp/IMG_20260905_0016.png`에서 두 black band가 흰 boxed header로 정확히 바뀌고 검정 글자가 출력됐지만 사용자가 요구한 원래 역상 품질 개선은 아니어서 기각한다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-36-38.log`에서 `v1.3.78`, `inverseRowFallbackDescriptors=2`, `inverseRowFallbackBands=2`, `inverseRowClearedPixels=45880`, `nativeTextDrawn=35`, 실패 0, `monoScanLines=480`을 확인했다. full-row 변환은 실제 적용됐다.
 - 결론: rasterizer, RAW/EZPL, GDI/EMF/1bpp, 열량, 극성, 글꼴 크기와 레이아웃 fallback까지 모두 개선되지 않았다. 동일 Windows bitmap 경로 내부의 추가 가공은 종료한다.

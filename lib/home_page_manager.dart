@@ -6412,7 +6412,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                       koreanFontProvision?.canUseKoreanAsianFont ?? false,
                 )
               : null;
-            final capture = backend == LabelPrintBackend.pdf
+                final capture = backend == LabelPrintBackend.pdf ||
+                  backend == LabelPrintBackend.ezplStoredGraphic
               ? await _labelPrintCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
@@ -6446,7 +6447,8 @@ class _HomePageManagerState extends State<HomePageManager> {
             driverBorderDescriptors[unit] = windowsCapture.borderDescriptors;
           }
           if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
-          if (backend == LabelPrintBackend.pdf) {
+            if (backend == LabelPrintBackend.pdf ||
+              backend == LabelPrintBackend.ezplStoredGraphic) {
             renderedPages[unit] = LabelSheetRenderedPage(
               pngBytes: capture!.pngBytes,
               metrics: metrics,
@@ -6567,6 +6569,27 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
+        } else if (backend == LabelPrintBackend.ezplStoredGraphic) {
+          final bytes = BytesBuilder(copy: false);
+          for (final unit in group.units) {
+            final page = renderedPages[unit]!;
+            bytes.add(
+              await buildLabelSheetStoredGraphicEzplBytes(
+                pngBytes: page.pngBytes,
+                metrics: page.metrics,
+                options: page.options,
+                onDiagnostics: (diagnostics) => debugLog(
+                  'labelPrintQuality storedGraphic unit=${unit.copyIndex + 1} '
+                  '$diagnostics',
+                ),
+              ),
+            );
+          }
+          payloads[group] = bytes.takeBytes();
+          debugLog(
+            'labelPrintQuality payload backend=${backend.name} '
+            'units=${group.units.length} rawBytes=${payloads[group]!.length}',
+          );
         } else if (backend == LabelPrintBackend.ezplRaw) {
           final bytes = BytesBuilder(copy: false);
           for (final unit in group.units) {
@@ -6645,6 +6668,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             LabelPrintBackend.ezplRaw => await (() async {
               final result = await RawPrinterWin32.sendRaw(printer, payload);
               debugLog('labelPrintQuality rawDispatch ${result.diagnostics}');
+              return true;
+            })(),
+            LabelPrintBackend.ezplStoredGraphic => await (() async {
+              final result = await RawPrinterWin32.sendRaw(printer, payload);
+              debugLog(
+                'labelPrintQuality storedGraphicDispatch '
+                '${result.diagnostics}',
+              );
               return true;
             })(),
           };
@@ -6951,7 +6982,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                       koreanFontProvision?.canUseKoreanAsianFont ?? false,
                 )
               : null;
-            final capture = backend == LabelPrintBackend.pdf
+                final capture = backend == LabelPrintBackend.pdf ||
+                  backend == LabelPrintBackend.ezplStoredGraphic
               ? await _scaleOutputCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
@@ -6985,7 +7017,8 @@ class _HomePageManagerState extends State<HomePageManager> {
             driverBorderDescriptors[unit] = windowsCapture.borderDescriptors;
           }
           if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
-          if (backend == LabelPrintBackend.pdf) {
+            if (backend == LabelPrintBackend.pdf ||
+              backend == LabelPrintBackend.ezplStoredGraphic) {
             renderedPages[unit] = LabelSheetRenderedPage(
               pngBytes: capture!.pngBytes,
               metrics: metrics,
@@ -7107,6 +7140,27 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
+        } else if (backend == LabelPrintBackend.ezplStoredGraphic) {
+          final bytes = BytesBuilder(copy: false);
+          for (final unit in sourceUnits) {
+            final page = renderedPages[unit]!;
+            bytes.add(
+              await buildLabelSheetStoredGraphicEzplBytes(
+                pngBytes: page.pngBytes,
+                metrics: page.metrics,
+                options: page.options,
+                onDiagnostics: (diagnostics) => debugLog(
+                  'scalePrintQuality storedGraphic unit=${unit.copyIndex + 1} '
+                  '$diagnostics',
+                ),
+              ),
+            );
+          }
+          payloads[group] = bytes.takeBytes();
+          debugLog(
+            'scalePrintQuality payload backend=${backend.name} '
+            'units=${sourceUnits.length} rawBytes=${payloads[group]!.length}',
+          );
         } else if (backend == LabelPrintBackend.ezplRaw) {
           final bytes = BytesBuilder(copy: false);
           for (final unit in sourceUnits) {
@@ -7187,6 +7241,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             LabelPrintBackend.ezplRaw => await (() async {
               final result = await RawPrinterWin32.sendRaw(printer, payload);
               debugLog('scalePrintQuality rawDispatch ${result.diagnostics}');
+              return true;
+            })(),
+            LabelPrintBackend.ezplStoredGraphic => await (() async {
+              final result = await RawPrinterWin32.sendRaw(printer, payload);
+              debugLog(
+                'scalePrintQuality storedGraphicDispatch '
+                '${result.diagnostics}',
+              );
               return true;
             })(),
           };

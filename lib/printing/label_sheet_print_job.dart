@@ -1391,6 +1391,111 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
   return payload;
 }
 
+Future<Uint8List> buildLabelSheetStoredGraphicEzplBytes({
+  required Uint8List pngBytes,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  void Function(String diagnostics)? onDiagnostics,
+}) async {
+  final source = img.decodePng(pngBytes);
+  if (source == null) {
+    throw StateError('라벨 이미지를 EZPL 저장 그래픽으로 변환할 수 없습니다.');
+  }
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
+  final raster = img.Image(
+    width: metrics.dotsFromMm(metrics.pageWidthMm(options)),
+    height: metrics.dotsFromMm(metrics.pageHeightMm(options)),
+  );
+  img.fill(raster, color: img.ColorRgb8(255, 255, 255));
+  final oriented = options.rotateQuarterTurns
+      ? img.copyRotate(source, angle: 90)
+      : source;
+  final content = img.copyResize(
+    oriented,
+    width: metrics.dotsFromMm(layout.contentWidthMm),
+    height: metrics.dotsFromMm(layout.contentHeightMm),
+    interpolation: img.Interpolation.average,
+  );
+  img.compositeImage(
+    raster,
+    content,
+    dstX: metrics.signedDotsFromMm(layout.contentLeftMm),
+    dstY: metrics.signedDotsFromMm(layout.contentTopMm),
+  );
+  _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
+
+  final bitmap = _encodeMonochromeBmp(raster);
+  const graphicName = 'LM1380';
+  final commands = BytesBuilder(copy: false)
+    ..add(ascii.encode('~MDELG,$graphicName\r\n'))
+    ..add(ascii.encode('~EB,$graphicName,${bitmap.length}\r\n'))
+    ..add(bitmap)
+    ..add(ascii.encode('\r\n'))
+    ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
+    ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
+    ..add(ascii.encode('^P${options.copies}\r\n'))
+    ..add(ascii.encode('^L\r\n'))
+    ..add(ascii.encode('Y0,0,$graphicName\r\n'))
+    ..add(
+      ascii.encode(
+        'AT,${math.max(0, raster.width - 48)},${math.max(0, raster.height - 8)},'
+        '7,7,0,0E,0,0,v1.3.80\r\n',
+      ),
+    )
+    ..add(ascii.encode('E\r\n'));
+  final payload = commands.takeBytes();
+  onDiagnostics?.call(
+    'transport=EZPL_STORED_BMP graphicName=$graphicName '
+    'source=${source.width}x${source.height} '
+    'raster=${raster.width}x${raster.height} bmpBytes=${bitmap.length} '
+    'bmpBpp=1 bmpPalette=zeroBlackOneWhite bmpRows=bottomUp '
+    'commandOrder=delete>downloadBmp>setup>recall>E '
+    'printWatermark=v1.3.80 payloadBytes=${payload.length}',
+  );
+  return payload;
+}
+
+Uint8List _encodeMonochromeBmp(img.Image raster) {
+  const fileHeaderBytes = 14;
+  const infoHeaderBytes = 40;
+  const paletteBytes = 8;
+  const pixelOffset = fileHeaderBytes + infoHeaderBytes + paletteBytes;
+  final rowStride = ((raster.width + 31) ~/ 32) * 4;
+  final pixelBytes = rowStride * raster.height;
+  final bytes = Uint8List(pixelOffset + pixelBytes);
+  final data = ByteData.sublistView(bytes);
+  bytes[0] = 0x42;
+  bytes[1] = 0x4d;
+  data.setUint32(2, bytes.length, Endian.little);
+  data.setUint32(10, pixelOffset, Endian.little);
+  data.setUint32(14, infoHeaderBytes, Endian.little);
+  data.setInt32(18, raster.width, Endian.little);
+  data.setInt32(22, raster.height, Endian.little);
+  data.setUint16(26, 1, Endian.little);
+  data.setUint16(28, 1, Endian.little);
+  data.setUint32(34, pixelBytes, Endian.little);
+  data.setInt32(38, 8000, Endian.little);
+  data.setInt32(42, 8000, Endian.little);
+  data.setUint32(46, 2, Endian.little);
+  data.setUint32(50, 2, Endian.little);
+  bytes.fillRange(58, 62, 0xff);
+  bytes.fillRange(pixelOffset, bytes.length, 0xff);
+  for (var y = 0; y < raster.height; y += 1) {
+    final bmpRow = raster.height - 1 - y;
+    final rowOffset = pixelOffset + bmpRow * rowStride;
+    for (var x = 0; x < raster.width; x += 1) {
+      if (img.getLuminance(raster.getPixel(x, y)) <=
+          _labelSheetEzplInkLuminanceThreshold) {
+        bytes[rowOffset + x ~/ 8] &= ~(1 << (7 - (x % 8)));
+      }
+    }
+  }
+  return bytes;
+}
+
 void _clipEzplRasterToLabelArea(
   img.Image raster, {
   required LabelSheetPrintPageMetrics metrics,

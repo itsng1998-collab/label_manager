@@ -2221,7 +2221,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 koreanFontProvision?.canUseKoreanAsianFont ?? false,
           )
         : null;
-    final capture = backend == LabelPrintBackend.pdf
+    final capture = backend == LabelPrintBackend.pdf ||
+        backend == LabelPrintBackend.ezplStoredGraphic
         ? await _controller.captureRangeAsPng(
             labelSheetPrintRange(sheet, physicalSize),
             pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
@@ -2316,6 +2317,23 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
       final result = await RawPrinterWin32.sendRaw(printer, rawBytes);
       debugLog('labelSheetPrint rawDispatch ${result.diagnostics}');
+      return;
+    }
+
+    if (backend == LabelPrintBackend.ezplStoredGraphic) {
+      final rawBytes = await buildLabelSheetStoredGraphicEzplBytes(
+        pngBytes: capture!.pngBytes,
+        metrics: metrics,
+        options: options,
+        onDiagnostics: (diagnostics) =>
+            debugLog('labelSheetPrint storedGraphicQuality $diagnostics'),
+      );
+      debugLog(
+        'labelSheetPrint storedGraphicPayload bytes=${rawBytes.length} '
+        'pngBytes=${capture.pngBytes.length}',
+      );
+      final result = await RawPrinterWin32.sendRaw(printer, rawBytes);
+      debugLog('labelSheetPrint storedGraphicDispatch ${result.diagnostics}');
       return;
     }
 

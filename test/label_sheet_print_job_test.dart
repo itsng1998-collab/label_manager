@@ -901,6 +901,43 @@ void main() {
     expect(diagnostics, contains('native=AT:0,AZ1:0,inverse:0,geometry:0'));
   });
 
+  test('Godex stored graphic payload downloads a monochrome BMP', () async {
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final source = img.Image(width: 80, height: 8);
+    img.fill(source, color: img.ColorRgb8(255, 255, 255));
+    source.setPixelRgb(0, 0, 0, 0, 0);
+    String? diagnostics;
+
+    final bytes = await buildLabelSheetStoredGraphicEzplBytes(
+      pngBytes: Uint8List.fromList(img.encodePng(source)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 10,
+        labelHeightMm: 1,
+        dpi: 203.2,
+      ),
+      options: options,
+      onDiagnostics: (value) => diagnostics = value,
+    );
+
+    final downloadHeader = ascii.encode('~EB,LM1380,158\r\n');
+    final headerStart = _indexOfBytes(bytes, downloadHeader);
+    expect(headerStart, greaterThanOrEqualTo(0));
+    final bitmapStart = headerStart + downloadHeader.length;
+    expect(bytes.sublist(bitmapStart, bitmapStart + 2), <int>[0x42, 0x4d]);
+    expect(bytes[bitmapStart + 28], 1);
+    expect(bytes[bitmapStart + 29], 0);
+    expect(_containsBytes(bytes, ascii.encode('Y0,0,LM1380\r\n')), isTrue);
+    expect(diagnostics, contains('transport=EZPL_STORED_BMP'));
+    expect(diagnostics, contains('bmpBpp=1'));
+  });
+
   test('Godex EZPL keeps unsupported white Korean text in raster', () {
     const options = LabelSheetPrintOptions(
       copies: 1,
