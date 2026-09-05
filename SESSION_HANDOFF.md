@@ -14,6 +14,7 @@
 - 산출물 확인 완료: `build/windows/x64/runner/Debug/label_manager.exe`의 FileVersion/ProductVersion 모두 `1.3.67`.
 - 실행 확인 완료: 기존 실행 프로세스가 없어 새 Debug EXE를 실행했고 `.tmp/log/app_2026-09-05_16-09-25.log`에서 `DebugLogger version: 1.3.67` 확인.
 - stage/commit 대상: dispatcher/print job 및 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `29246e6` (`GoDEX 역상 한글을 펌웨어 글꼴로 출력`).
 - 실물 판별 기준: 로그 `backend=ezplRaw`, `native=...AZ1:...,inverse:2`, `rawDispatch`, `printWatermark=v1.3.67`; 출력물 우하단 `v1.3.67` 및 두 역상 행의 획 연속성을 확인한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
