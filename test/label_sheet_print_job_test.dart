@@ -918,7 +918,7 @@ void main() {
     expect(diagnostics, contains('bmpBpp=1'));
   });
 
-  test('Godex whole-label inverse pre-inverts Q bitmap data', () async {
+  test('Godex directional relief clears two feed-leading dots', () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -928,11 +928,11 @@ void main() {
       orientation: LabelSheetPrintOrientation.horizontal,
     );
     final source = img.Image(width: 80, height: 8);
-    img.fill(source, color: img.ColorRgb8(255, 255, 255));
-    source.setPixelRgb(0, 0, 0, 0, 0);
+    img.fill(source, color: img.ColorRgb8(0, 0, 0));
+    source.setPixelRgb(0, 4, 255, 255, 255);
     String? diagnostics;
 
-    final bytes = await buildLabelSheetWholeInverseEzplBytes(
+    final bytes = await buildLabelSheetDirectionalReliefEzplBytes(
       pngBytes: Uint8List.fromList(img.encodePng(source)),
       metrics: const LabelSheetPrintPageMetrics(
         labelWidthMm: 10,
@@ -943,15 +943,19 @@ void main() {
       onDiagnostics: (value) => diagnostics = value,
     );
 
-    final patternHeader = ascii.encode('^LI\r\nQ0,0,10,8\r\n');
+    final patternHeader = ascii.encode('^L\r\nQ0,0,10,8\r\n');
     final headerStart = _indexOfBytes(bytes, patternHeader);
     expect(headerStart, greaterThanOrEqualTo(0));
     final patternStart = headerStart + patternHeader.length;
-    expect(bytes[patternStart], 0x80);
-    expect(_containsBytes(bytes, ascii.encode('^L\r\n')), isFalse);
-    expect(diagnostics, contains('transport=EZPL_Q_WHOLE_INVERSE'));
-    expect(diagnostics, contains('sourcePreInverted=true'));
-    expect(diagnostics, contains('printWatermark=v1.3.82'));
+    expect(bytes[patternStart], 0x00);
+    expect(bytes[patternStart + 20], 0x80);
+    expect(bytes[patternStart + 30], 0x80);
+    expect(bytes[patternStart + 40], 0x80);
+    expect(_containsBytes(bytes, ascii.encode('^LI\r\n')), isFalse);
+    expect(diagnostics, contains('transport=EZPL_Q_DIRECTIONAL_RELIEF'));
+    expect(diagnostics, contains('leadReliefDots=2'));
+    expect(diagnostics, contains('clearedLeadPixels=2'));
+    expect(diagnostics, contains('printWatermark=v1.3.83'));
   });
 
   test('Godex EZPL rejects unsupported white and mixed-color text', () {

@@ -1,6 +1,25 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: G500 전체 label inverse 출력 v1.3.82
+## 진행 중: G500 인쇄방향 선행 열 차단 v1.3.83
+- 실물 확인: `.tmp/IMG_20260905_0020.png`은 정상 레이아웃의 역상판처럼 대부분 검정으로 출력됐고 흰 글자도 계속 소실됐다.
+- 로그 확인: `.tmp/log/app_2026-09-05_18-09-01.log`에서 `v1.3.82`, `backend=ezplWholeInverse`, `sourcePreInverted=true`, encoded dark dots `243059`, RAW `38478/38478` bytes를 확인했다. `^LI`가 Q bitmap data를 반전하지 않아 pre-inverted Q가 그대로 출력된 것으로 판정한다.
+- 결론: per-text `I`와 label-level `^LI` 모두 Q bitmap과 조합할 수 없어 firmware inverse 계열을 종료한다.
+- 다음 방식: 정상 `^L`/Q 극성으로 복귀하고, 60% 이상 검정인 연속 행 구간 내부의 흰 획마다 인쇄 진행방향 직전 2dot만 흰색으로 비운다. 기존 대칭 dilation/edge relief와 달리 잔열이 흰 획 시작부로 유입되는 방향만 보정한다.
+- backend 편집 완료: `ezplDirectionalRelief`를 추가하고 G500 physical port를 라우팅했다. 세 발행 흐름은 plain PNG capture → 방향성 열 보정 Q payload → RAW 전송을 사용한다.
+- payload 편집 완료: `^Q/^W/^P/^L` → 정상 극성 contiguous Q bitmap → `v1.3.83` watermark → `E`. diagnostics는 `transport=EZPL_Q_DIRECTIONAL_RELIEF`, feed direction, dark band 수, 제거한 선행 pixel 수를 기록한다.
+- 버전 편집 완료: `1.3.83`.
+- payload 테스트 완료: 검정 8행 raster의 y=4 흰 1dot에 대해 y=2,3만 흰색으로 선행 확장되고 y=1은 검정으로 유지되는지 Q byte로 검증했다.
+- 관련 전체 검증 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 32건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 빌드 완료: 위 `/WX` Debug 빌드 성공.
+- 최종 실행 검증 예정: Debug EXE FileVersion/ProductVersion `1.3.83` 확인 후 기존 프로세스를 종료하고 새 EXE를 실행해 startup 로그 버전을 확인한다.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.83`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_18-15-02.log`에서 `DebugLogger version: 1.3.83`과 DB 연결 성공을 확인했다.
+- 실물 판별 기준: 로그 `backend=ezplDirectionalRelief`, `transport=EZPL_Q_DIRECTIONAL_RELIEF`, `feedDirection=increasingY`, `leadReliefDots=2`, `darkBands>0`, `clearedLeadPixels>0`, `printWatermark=v1.3.83`, `directionalReliefDispatch ... requestedBytes=... writtenBytes=...`. 실물에서 전체 레이아웃 유지와 흰 한글 획 시작부 개선을 확인한다.
+- stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: G500 전체 label inverse 출력 v1.3.82
 - 실물 확인: `.tmp/IMG_20260905_0019.png`는 라벨 대부분이 검정으로 오염되고 일부 흰 영역과 깨진 영문만 남아 정상 출력이 아니었다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-02-01.log`에서 `v1.3.81`, `backend=ezplRaw`, text candidate 31/31, `AT:31`, `AZ1:0`, `inverse:2`, RAW `45152/45152` bytes를 확인했다. 전송은 성공했지만 `AT` style에는 `I`가 정의되지 않아 format 해석이 오염된 것으로 판정한다.
 - 공식 문서 확인: `I` inverse는 `At`의 `rotationInverse`에만 정의되고 `AT`/`ATt` style은 `B/T/U`만 지원한다. 따라서 다운로드 TTF도 흰 glyph 문제를 직접 해결하지 못하며 v1.3.81은 기각한다.

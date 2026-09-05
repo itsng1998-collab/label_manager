@@ -2206,7 +2206,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           )
         : null;
     final capture = backend == LabelPrintBackend.pdf ||
-        backend == LabelPrintBackend.ezplWholeInverse
+        backend == LabelPrintBackend.ezplDirectionalRelief
         ? await _controller.captureRangeAsPng(
             labelSheetPrintRange(sheet, physicalSize),
             pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
@@ -2300,20 +2300,22 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
 
-    if (backend == LabelPrintBackend.ezplWholeInverse) {
-      final rawBytes = await buildLabelSheetWholeInverseEzplBytes(
+    if (backend == LabelPrintBackend.ezplDirectionalRelief) {
+      final rawBytes = await buildLabelSheetDirectionalReliefEzplBytes(
         pngBytes: capture!.pngBytes,
         metrics: metrics,
         options: options,
         onDiagnostics: (diagnostics) =>
-            debugLog('labelSheetPrint wholeInverseQuality $diagnostics'),
+            debugLog('labelSheetPrint directionalReliefQuality $diagnostics'),
       );
       debugLog(
-        'labelSheetPrint wholeInversePayload bytes=${rawBytes.length} '
+        'labelSheetPrint directionalReliefPayload bytes=${rawBytes.length} '
         'pngBytes=${capture.pngBytes.length}',
       );
       final result = await RawPrinterWin32.sendRaw(printer, rawBytes);
-      debugLog('labelSheetPrint wholeInverseDispatch ${result.diagnostics}');
+      debugLog(
+        'labelSheetPrint directionalReliefDispatch ${result.diagnostics}',
+      );
       return;
     }
 

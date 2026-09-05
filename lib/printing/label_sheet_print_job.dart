@@ -1432,7 +1432,7 @@ Future<Uint8List> buildLabelSheetStoredGraphicEzplBytes({
   return payload;
 }
 
-Future<Uint8List> buildLabelSheetWholeInverseEzplBytes({
+Future<Uint8List> buildLabelSheetDirectionalReliefEzplBytes({
   required Uint8List pngBytes,
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
@@ -1440,7 +1440,7 @@ Future<Uint8List> buildLabelSheetWholeInverseEzplBytes({
 }) async {
   final source = img.decodePng(pngBytes);
   if (source == null) {
-    throw StateError('라벨 이미지를 EZPL 전체 역상 출력으로 변환할 수 없습니다.');
+    throw StateError('라벨 이미지를 EZPL 방향성 열 보정 출력으로 변환할 수 없습니다.');
   }
   final layout = LabelSheetPrintLayout.resolve(
     metrics: metrics,
@@ -1467,31 +1467,85 @@ Future<Uint8List> buildLabelSheetWholeInverseEzplBytes({
     dstY: metrics.signedDotsFromMm(layout.contentTopMm),
   );
   _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
+  final relief = _applyFeedLeadWhiteRelief(raster, reliefDots: 2);
 
   final commands = BytesBuilder(copy: false)
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
     ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
-    ..add(ascii.encode('^LI\r\n'));
-  final rasterStats = _addEzplRasterGraphic(commands, raster, invert: true);
+    ..add(ascii.encode('^L\r\n'));
+  final rasterStats = _addEzplRasterGraphic(commands, raster);
   commands
     ..add(
       ascii.encode(
         'AT,${math.max(0, raster.width - 48)},${math.max(0, raster.height - 8)},'
-        '7,7,0,0E,0,0,v1.3.82\r\n',
+        '7,7,0,0E,0,0,v1.3.83\r\n',
       ),
     )
     ..add(ascii.encode('E\r\n'));
   final payload = commands.takeBytes();
   onDiagnostics?.call(
-    'transport=EZPL_Q_WHOLE_INVERSE source=${source.width}x${source.height} '
+    'transport=EZPL_Q_DIRECTIONAL_RELIEF source=${source.width}x${source.height} '
     'raster=${raster.width}x${raster.height} '
-    'labelInverse=^LI sourcePreInverted=true '
+    'feedDirection=increasingY leadReliefDots=2 '
+    'darkBands=${relief.bands} clearedLeadPixels=${relief.clearedPixels} '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
-    'encodedDarkDots=${rasterStats.inkDots} '
-    'printWatermark=v1.3.82 payloadBytes=${payload.length}',
+    'inkDots=${rasterStats.inkDots} '
+    'printWatermark=v1.3.83 payloadBytes=${payload.length}',
   );
   return payload;
+}
+
+({int bands, int clearedPixels}) _applyFeedLeadWhiteRelief(
+  img.Image raster, {
+  required int reliefDots,
+}) {
+  final darkRows = List<bool>.filled(raster.height, false);
+  for (var y = 0; y < raster.height; y += 1) {
+    var darkPixels = 0;
+    for (var x = 0; x < raster.width; x += 1) {
+      if (img.getLuminance(raster.getPixel(x, y)) <=
+          _labelSheetEzplInkLuminanceThreshold) {
+        darkPixels += 1;
+      }
+    }
+    darkRows[y] = darkPixels >= raster.width * 0.6;
+  }
+
+  var bands = 0;
+  var insideBand = false;
+  for (final darkRow in darkRows) {
+    if (darkRow && !insideBand) bands += 1;
+    insideBand = darkRow;
+  }
+
+  final whitePixels = <int>[];
+  for (var y = 0; y < raster.height; y += 1) {
+    if (!darkRows[y]) continue;
+    for (var x = 0; x < raster.width; x += 1) {
+      if (img.getLuminance(raster.getPixel(x, y)) >
+          _labelSheetEzplInkLuminanceThreshold) {
+        whitePixels.add(y * raster.width + x);
+      }
+    }
+  }
+
+  final white = img.ColorRgb8(255, 255, 255);
+  var clearedPixels = 0;
+  for (final offset in whitePixels) {
+    final x = offset % raster.width;
+    final y = offset ~/ raster.width;
+    for (var delta = 1; delta <= reliefDots; delta += 1) {
+      final targetY = y - delta;
+      if (targetY < 0 || !darkRows[targetY]) break;
+      if (img.getLuminance(raster.getPixel(x, targetY)) <=
+          _labelSheetEzplInkLuminanceThreshold) {
+        raster.setPixel(x, targetY, white);
+        clearedPixels += 1;
+      }
+    }
+  }
+  return (bands: bands, clearedPixels: clearedPixels);
 }
 
 Uint8List _encodeMonochromeBmp(img.Image raster) {

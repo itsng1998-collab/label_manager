@@ -24,7 +24,7 @@ void main() {
     expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 300), 300);
   });
 
-  test('backend maps physical G500 to EZPL whole-label inverse', () {
+  test('backend maps physical G500 to EZPL directional relief', () {
     final godex = detectPrinterProfile(
       const Printer(url: 'Godex G500', name: 'Godex G500'),
     );
@@ -34,7 +34,7 @@ void main() {
     for (final port in ['USB001', null]) {
       expect(
         resolveLabelPrintBackend(profile: godex, portName: port),
-        LabelPrintBackend.ezplWholeInverse,
+        LabelPrintBackend.ezplDirectionalRelief,
       );
       expect(
         resolveLabelPrintBackend(profile: other, portName: port),
@@ -66,7 +66,7 @@ void main() {
     expect(LabelPrintBackend.windowsDriver.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.pdf.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.ezplRaw.usesCanvasCapture, isFalse);
-    expect(LabelPrintBackend.ezplWholeInverse.usesCanvasCapture, isTrue);
+    expect(LabelPrintBackend.ezplDirectionalRelief.usesCanvasCapture, isTrue);
     expect(
       labelPrintRenderDpi(
         backend: LabelPrintBackend.windowsDriver,
