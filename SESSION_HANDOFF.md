@@ -1,6 +1,19 @@
 # 현재 작업 상태
 
-## 진행 중: 역상 한글 Q raster fallback v1.3.69
+## 진행 중: Q zero-black + inverse native 제거 조합 v1.3.70
+- 실물 확인: `.tmp/IMG_20260905_0007.png`도 라벨 전체가 검정으로 출력됐다. 이번에는 `AZ1 0I`가 완전히 제거됐으므로 v1.3.69의 실패는 `oneBlackZeroWhite` 자체가 G500의 Q 해석과 반대였음을 확정한다.
+- 로그 확인: `.tmp/log/app_2026-09-05_16-28-43.log`에서 `v1.3.69`, `backend=ezplRaw`, `polarity=oneBlackZeroWhite`, `inverse:0`, `AZ1:23`, RAW `44612/44612`, accepted=true를 확인했다.
+- 다음 조합: Q bitmap을 `0=검정, 1=흰색`으로 복원하되 `AZ1 0I`는 계속 금지한다. v1.3.67은 zero-black이었지만 inverse native 2건이 함께 있어 이 조합은 아직 실물 검증되지 않았다.
+- 수정 완료: Q row를 `0xff`로 시작하고 ink bit만 clear하는 `zeroBlackOneWhite`로 변경했다. 역상 한글은 `firmwareInverseCorruptsFormat`으로 raster에 남고 일반 검정 한글만 `AZ1`을 사용한다.
+- 관련 검증 완료: Q byte polarity, 역상 raster fallback, 일반 AZ1/font provisioner 및 dispatcher 테스트 전체 27건 통과. 수정 파일 diagnostics 오류 0건.
+- 버전/워터마크 수정 완료: 앱, RAW payload, Windows fallback을 `v1.3.70`으로 증가했다.
+- 최종 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.70`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-35-33.log`에서 `DebugLogger version: 1.3.70` 확인.
+- stage/commit 대상: print job, 관련 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=ezplRaw`, `polarity=zeroBlackOneWhite`, `inverse:0`, `firmwareInverseCorruptsFormat:2`, `printWatermark=v1.3.70`. 출력물 전체 배경이 정상화된 뒤 두 역상 행의 Q raster 글자 품질을 확인한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 역상 한글 Q raster fallback v1.3.69
 - 실물 확인: `.tmp/IMG_20260905_0006.png`도 전체 라벨 면이 검정으로 오염되어 `v1.3.68`의 반대 Q polarity로도 복구되지 않았다.
 - 로그 확인: `.tmp/log/app_2026-09-05_16-20-21.log`에서 `v1.3.68`, `backend=ezplRaw`, `polarity=oneBlackZeroWhite`, `AZ1:25`, `inverse:2`, RAW `44832/44832`, accepted=true를 확인했다.
 - 결론: `zeroBlackOneWhite`와 `oneBlackZeroWhite` 모두 `AZ1 0I`가 포함된 실제 format에서 전체 검정이 됐다. polarity 왕복은 원인이 아니며 두 버전의 공통 요소인 firmware inverse를 기각한다.

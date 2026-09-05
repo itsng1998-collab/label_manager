@@ -12,7 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 const num _labelSheetEzplInkLuminanceThreshold = 200;
 const num _labelSheetWindowsInkLuminanceThreshold = 200;
-const String _labelSheetPrintTestWatermark = 'v1.3.69';
+const String _labelSheetPrintTestWatermark = 'v1.3.70';
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -1369,7 +1369,7 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     'labelMm=${metrics.pageWidthMm(options)}x${metrics.pageHeightMm(options)} '
     'labelDots=${raster.width}x${raster.height} copies=${options.copies} '
     'threshold=$_labelSheetEzplInkLuminanceThreshold '
-    'polarity=oneBlackZeroWhite framing=QPatternContiguous '
+    'polarity=zeroBlackOneWhite framing=QPatternContiguous '
     'commandOrder=setup>^L>QPattern+native>E formatCount=1 '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
     'inkDots=${rasterStats.inkDots}/${raster.width * raster.height} '
@@ -1443,13 +1443,13 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   );
   commands.add(patternHeader);
   for (var y = 0; y < raster.height; y += 1) {
-    // v1.3.67 실물에서 Q의 1 bit가 검정으로 인쇄됨을 다시 확인했다.
-    final row = Uint8List(bytesPerRow);
+    // v1.3.69에서 inverse 명령 없이 0 bit 영역이 검정으로 출력됐다.
+    final row = Uint8List(bytesPerRow)..fillRange(0, bytesPerRow, 0xff);
     var rowInkDots = 0;
     for (var x = 0; x < raster.width; x += 1) {
       if (img.getLuminance(raster.getPixel(x, y)) <=
           _labelSheetEzplInkLuminanceThreshold) {
-        row[x ~/ 8] |= 1 << (7 - (x % 8));
+        row[x ~/ 8] &= ~(1 << (7 - (x % 8)));
         rowInkDots += 1;
       }
     }

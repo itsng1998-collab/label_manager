@@ -22,7 +22,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.69";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.70";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1689,7 +1689,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
               << " nativeTextWhiteRender=freeTypeMonoStrongHinting"
-              << " printWatermark=v1.3.69"
+              << " printWatermark=v1.3.70"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
