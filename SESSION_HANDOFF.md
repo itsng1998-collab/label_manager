@@ -12,6 +12,7 @@
 - 최종 검증 완료: 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.73`.
 - 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_17-06-00.log`에서 `DebugLogger version: 1.3.73` 확인.
 - stage/commit 대상: Windows EMF page spool, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `6498b79` (`라벨 전체를 EMF 페이지로 출력`).
 - 실물 판별 기준: 로그 `backend=windowsDriver`, `spoolFormat=EMF_PAGE`, `emfPlayResult=1`, direct 2건, 실패 0, `printWatermark=v1.3.73`. 일반 요소와 역상 획을 v1.3.72와 비교한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
