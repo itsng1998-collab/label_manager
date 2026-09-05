@@ -1,6 +1,21 @@
 # 현재 작업 상태
 
-## 진행 중: FreeType 공백 glyph 발행 실패 수정 v1.3.65
+## 완료: FreeType TTC 원본 face 로드 수정 v1.3.66
+- 실패 로그 확인: `app_2026-09-05_15-53-01.log`에서 `v1.3.65` 발행은 프린터 bitmap 전송까지 성공했지만 흰색 descriptor 2개가 모두 실패했다. `nativeTextWhiteBitmapDrawn=0`, `nativeTextWhiteGlyphBitmaps=0`, `nativeTextFailed=2`로 기록됐다.
+- 재현 완료: 앱과 같은 GDI font 추출을 probe한 결과 실제 굴림 선택 시 `GetFontData`가 원본 `gulim.ttc` 13,531,200바이트보다 TTC header 40바이트가 빠진 13,531,160바이트를 반환했고, `FT_New_Memory_Face`가 error 8로 거부했다. 원본 `C:/Windows/Fonts/gulim.ttc`는 4개 face 모두 한글 mono glyph 로드에 성공했다.
+- Windows 편집 완료: 굴림/굴림체/돋움/돋움체의 실제 `gulim.ttc`를 Windows Fonts에서 직접 열고 각각 face index 0/1/2/3을 선택한다. GDI가 변형한 TTC bytes는 FreeType에 전달하지 않는다.
+- 경계 정리 완료: 원본 font file 직접 로드로 불필요해진 printer-compatible memory DC 생성도 제거했다.
+- 스타일 편집 완료: 원본 TTC가 regular face이므로 bold/italic descriptor는 FreeType synthesis를 glyph outline에 적용한 뒤 mono 렌더링한다.
+- 1차 검증 완료: Windows `/WX` debug build 성공.
+- 버전 편집 완료: native 발행 실패 수정이므로 PATCH를 `1.3.65`에서 `1.3.66`으로 증가하고 watermark/diagnostics를 함께 갱신했다.
+- 검증 완료: 관련 인쇄 테스트 3개 전체 20건 통과, 변경 파일 diagnostics 오류 0건, 임시 probe source/EXE/object 정리, `git diff --check` 통과, 최종 Windows `/WX` debug build 성공.
+- 실행 검증 완료: 새 Debug EXE FileVersion/ProductVersion과 startup 로그가 모두 `1.3.66`이며 프로세스가 응답 중이다.
+- 실물 재검증 기준: 같은 라벨 발행이 접수되고 로그에 `gdiDispatch`, `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteGlyphBitmaps`, `nativeTextFailed=0`, `printWatermark=v1.3.66`이 기록되는지 확인한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료: FreeType 공백 glyph 발행 실패 수정 v1.3.65
+- 실물 결과: `v1.3.65`에서도 발행이 실패했다. 공백 처리는 수정됐지만 실제 원인은 GDI `GetFontData`가 반환한 불완전한 TTC 데이터였으며 `v1.3.66`에서 원본 font file 로드로 교체했다.
 - 실패 로그 확인: `app_2026-09-05_15-44-41.log`에서 `v1.3.64` 실제 발행이 두 번 모두 `gdiPage`까지 진행했지만 `gdiDispatch`가 기록되지 않아 Windows native 반환이 실패했다.
 - 원인 확인: FreeType에서 공백은 정상 glyph이지만 bitmap 크기가 `0x0`이고 pixel mode가 mono가 아닐 수 있다. 기존 코드는 bitmap이 없는 공백도 `FT_PIXEL_MODE_MONO`가 아니라는 이유로 descriptor 실패 처리해 전체 발행을 거부했다.
 - Windows 편집 완료: `FT_Load_Char` 성공 후 bitmap이 존재하는 glyph에만 mono pixel mode를 요구하고, 공백 같은 빈 glyph는 advance만 적용한다.

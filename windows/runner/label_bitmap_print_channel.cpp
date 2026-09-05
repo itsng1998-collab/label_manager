@@ -7,6 +7,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_SYNTHESIS_H
 
 #include <algorithm>
 #include <memory>
@@ -21,7 +22,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.65";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.66";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -265,6 +266,29 @@ struct NativeTextRenderStats {
   size_t bitmap_changed_pixels = 0;
   size_t characters = 0;
 };
+
+bool ResolveWindowsFontFile(const std::wstring& family,
+                            std::string& path, FT_Long& face_index) {
+  if (family != L"굴림" && family != L"Gulim" && family != L"굴림체" &&
+      family != L"GulimChe" && family != L"돋움" && family != L"Dotum" &&
+      family != L"돋움체" && family != L"DotumChe") {
+    return false;
+  }
+  if (family == L"굴림체" || family == L"GulimChe") {
+    face_index = 1;
+  } else if (family == L"돋움" || family == L"Dotum") {
+    face_index = 2;
+  } else if (family == L"돋움체" || family == L"DotumChe") {
+    face_index = 3;
+  } else {
+    face_index = 0;
+  }
+  char windows_directory[MAX_PATH]{};
+  const UINT length = GetWindowsDirectoryA(windows_directory, MAX_PATH);
+  if (length == 0 || length >= MAX_PATH) return false;
+  path = std::string(windows_directory, length) + "\\Fonts\\gulim.ttc";
+  return GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+}
 
 #if 0
 // Retired after the v1.3.62 physical print lost substantially more white
@@ -975,13 +999,7 @@ bool RenderWhiteTextIntoBitmap(
     error = "FT_Init_FreeType failed";
     return false;
   }
-  HDC memory_dc = CreateCompatibleDC(printer_dc);
-  if (memory_dc == nullptr) {
-    FT_Done_FreeType(library);
-    error = "CreateCompatibleDC for FreeType font extraction failed: " +
-            std::to_string(GetLastError());
-    return false;
-  }
+  (void)printer_dc;
   std::vector<uint8_t> white_mask(
       static_cast<size_t>(target_width) * target_height, uint8_t{0});
 
@@ -997,47 +1015,19 @@ bool RenderWhiteTextIntoBitmap(
         std::max<LONG>(1, text_rect.right - text_rect.left);
     int font_height = std::max(
         1, MulDiv(descriptor.font_pixel_height, target_height, source_height));
-    HFONT font = CreateFontW(
-        -font_height, 0, 0, 0,
-        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
-        descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
-        OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
-    if (font == nullptr) {
-      ++stats.failed;
-      continue;
-    }
-    HGDIOBJ previous_font = SelectObject(memory_dc, font);
-    if (previous_font == nullptr || previous_font == HGDI_ERROR) {
-      DeleteObject(font);
-      ++stats.failed;
-      continue;
-    }
-    const DWORD font_data_size = GetFontData(memory_dc, 0, 0, nullptr, 0);
-    std::vector<uint8_t> font_data(
-        font_data_size == GDI_ERROR ? 0 : font_data_size);
-    const bool font_data_ok =
-        !font_data.empty() &&
-        GetFontData(memory_dc, 0, 0, font_data.data(), font_data_size) !=
-            GDI_ERROR;
-    SelectObject(memory_dc, previous_font);
-    DeleteObject(font);
-    if (!font_data_ok) {
+    FT_Face face = nullptr;
+    std::string font_path;
+    FT_Long face_index = 0;
+    if (!ResolveWindowsFontFile(descriptor.font_family, font_path,
+                               face_index) ||
+        FT_New_Face(library, font_path.c_str(), face_index, &face) != 0 ||
+        FT_Select_Charmap(face, FT_ENCODING_UNICODE) != 0) {
+      if (face != nullptr) FT_Done_Face(face);
       ++stats.no_outline_fonts;
       ++stats.failed;
       continue;
     }
     ++stats.outline_fonts;
-
-    FT_Face face = nullptr;
-    if (FT_New_Memory_Face(library, font_data.data(),
-                           static_cast<FT_Long>(font_data.size()), 0,
-                           &face) != 0 ||
-        FT_Select_Charmap(face, FT_ENCODING_UNICODE) != 0) {
-      if (face != nullptr) FT_Done_Face(face);
-      ++stats.failed;
-      continue;
-    }
 
     auto measure_text = [&](int pixel_height, LONG& advance) {
       if (FT_Set_Pixel_Sizes(face, 0, static_cast<FT_UInt>(pixel_height)) !=
@@ -1093,7 +1083,13 @@ bool RenderWhiteTextIntoBitmap(
     if (descriptor_ok) {
       for (wchar_t character : descriptor.text) {
         if (FT_Load_Char(face, static_cast<FT_ULong>(character),
-                         FT_LOAD_RENDER | FT_LOAD_TARGET_MONO) != 0) {
+                         FT_LOAD_DEFAULT | FT_LOAD_TARGET_MONO) != 0) {
+          descriptor_ok = false;
+          break;
+        }
+        if (descriptor.bold) FT_GlyphSlot_Embolden(face->glyph);
+        if (descriptor.italic) FT_GlyphSlot_Oblique(face->glyph);
+        if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_MONO) != 0) {
           descriptor_ok = false;
           break;
         }
@@ -1141,7 +1137,6 @@ bool RenderWhiteTextIntoBitmap(
     }
     FT_Done_Face(face);
   }
-  DeleteDC(memory_dc);
   FT_Done_FreeType(library);
 
   for (int y = 0; y < target_height; ++y) {
@@ -1694,7 +1689,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
               << " nativeTextWhiteRender=freeTypeMonoStrongHinting"
-              << " printWatermark=v1.3.65"
+              << " printWatermark=v1.3.66"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
