@@ -10,6 +10,7 @@
 - 실행 검증 완료: 새 Debug EXE FileVersion/ProductVersion과 startup 로그가 모두 `1.3.65`이며 프로세스가 응답 중이다. DTD에는 연결된 앱이 없어 hot restart 대신 native 변경이 포함된 EXE를 새로 실행했다.
 - 실물 재검증 기준: 같은 라벨 발행이 접수되고 로그에 `gdiDispatch`, `nativeTextWhiteRender=freeTypeMonoStrongHinting`, `nativeTextFailed=0`, `printWatermark=v1.3.65`가 기록되는지 확인한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `lib/home_page_manager.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `208e40d` (`FreeType 공백 글리프 발행 실패 수정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: FreeType mono strong hinting 역상 글자 출력 v1.3.64
