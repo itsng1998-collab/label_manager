@@ -6656,6 +6656,10 @@ class _HomePageManagerState extends State<HomePageManager> {
           if (!accepted) dispatchError = StateError('프린터가 인쇄 요청을 접수하지 않았습니다.');
         } catch (error) {
           dispatchError = error;
+          debugLog(
+            'labelPrintQuality dispatchFailed backend=${backend.name} '
+            'error=$error',
+          );
         }
         if (!accepted) break;
         acceptedUnits.addAll(group.units);

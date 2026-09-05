@@ -21,7 +21,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.64";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.65";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1093,12 +1093,16 @@ bool RenderWhiteTextIntoBitmap(
     if (descriptor_ok) {
       for (wchar_t character : descriptor.text) {
         if (FT_Load_Char(face, static_cast<FT_ULong>(character),
-                         FT_LOAD_RENDER | FT_LOAD_TARGET_MONO) != 0 ||
-            face->glyph->bitmap.pixel_mode != FT_PIXEL_MODE_MONO) {
+                         FT_LOAD_RENDER | FT_LOAD_TARGET_MONO) != 0) {
           descriptor_ok = false;
           break;
         }
         const FT_Bitmap& glyph_bitmap = face->glyph->bitmap;
+        const bool has_bitmap = glyph_bitmap.width > 0 && glyph_bitmap.rows > 0;
+        if (has_bitmap && glyph_bitmap.pixel_mode != FT_PIXEL_MODE_MONO) {
+          descriptor_ok = false;
+          break;
+        }
         const LONG glyph_left = pen_x + face->glyph->bitmap_left;
         const LONG glyph_top = baseline_y - face->glyph->bitmap_top;
         const int pitch = glyph_bitmap.pitch;
@@ -1124,9 +1128,7 @@ bool RenderWhiteTextIntoBitmap(
                        target_x] = 1;
           }
         }
-        if (glyph_bitmap.width > 0 && glyph_bitmap.rows > 0) {
-          ++stats.white_glyph_bitmaps;
-        }
+        if (has_bitmap) ++stats.white_glyph_bitmaps;
         pen_x += static_cast<LONG>(face->glyph->advance.x >> 6);
       }
     }
@@ -1692,7 +1694,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
               << " nativeTextWhiteRender=freeTypeMonoStrongHinting"
-              << " printWatermark=v1.3.63"
+              << " printWatermark=v1.3.65"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";

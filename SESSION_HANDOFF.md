@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 진행 중: FreeType 공백 glyph 발행 실패 수정 v1.3.65
+- 실패 로그 확인: `app_2026-09-05_15-44-41.log`에서 `v1.3.64` 실제 발행이 두 번 모두 `gdiPage`까지 진행했지만 `gdiDispatch`가 기록되지 않아 Windows native 반환이 실패했다.
+- 원인 확인: FreeType에서 공백은 정상 glyph이지만 bitmap 크기가 `0x0`이고 pixel mode가 mono가 아닐 수 있다. 기존 코드는 bitmap이 없는 공백도 `FT_PIXEL_MODE_MONO`가 아니라는 이유로 descriptor 실패 처리해 전체 발행을 거부했다.
+- Windows 편집 완료: `FT_Load_Char` 성공 후 bitmap이 존재하는 glyph에만 mono pixel mode를 요구하고, 공백 같은 빈 glyph는 advance만 적용한다.
+- 로그 편집 완료: Windows dispatch 예외를 `labelPrintQuality dispatchFailed`로 기록해 native 오류가 다시 누락되지 않게 했다.
+- 버전 편집 완료: 발행 실패 수정이므로 PATCH를 `1.3.64`에서 `1.3.65`로 증가하고 watermark/diagnostics를 함께 갱신했다.
+- 검증 완료: Windows `/WX` debug build 성공, 관련 인쇄 테스트 3개 전체 20건 통과, 변경 파일 diagnostics 오류 0건, Dart 포맷 및 `git diff --check` 통과.
+- 실행 검증 완료: 새 Debug EXE FileVersion/ProductVersion과 startup 로그가 모두 `1.3.65`이며 프로세스가 응답 중이다. DTD에는 연결된 앱이 없어 hot restart 대신 native 변경이 포함된 EXE를 새로 실행했다.
+- 실물 재검증 기준: 같은 라벨 발행이 접수되고 로그에 `gdiDispatch`, `nativeTextWhiteRender=freeTypeMonoStrongHinting`, `nativeTextFailed=0`, `printWatermark=v1.3.65`가 기록되는지 확인한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `lib/home_page_manager.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: FreeType mono strong hinting 역상 글자 출력 v1.3.64
 - 실물 확인: `.tmp/IMG_20260905_0003.png` 우하단 `v1.3.63`을 확인했고, 두 역상 행의 흰 글자 획 탈락이 계속되어 GGO 1-bit 결과도 부적합하다.
 - 로그 확인: `app_2026-09-05_15-34-39.log`에서 `backend=windowsDriver`, `nativeTextWhiteRender=getGlyphOutlineGgoBitmap1bpp`, glyph bitmap 49개, knockout 2,381픽셀이 기록됐다. DirectWrite 2,703픽셀보다 더 감소해 실물 획 손실과 일치한다.
