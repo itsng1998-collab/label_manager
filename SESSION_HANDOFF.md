@@ -1,6 +1,22 @@
 # 현재 작업 상태
 
-## 진행 중: Q zero-black + inverse native 제거 조합 v1.3.70
+## 진행 중: 레거시 RichEdit 역상 셀 렌더링 v1.3.71
+- 실물 확인: `.tmp/IMG_20260905_0008.png`도 전체 라벨이 검정으로 출력되어 `zeroBlackOneWhite + inverse:0` 조합까지 실패했다. Q RAW production 경로는 종료한다.
+- 로그 확인: `.tmp/log/app_2026-09-05_16-35-33.log`에서 `v1.3.70`, `backend=ezplRaw`, `polarity=zeroBlackOneWhite`, `inverse:0`, RAW `44612/44612`, accepted=true를 확인했다.
+- 레거시 근거: `.tmp/LabelManager/LabelManagerLib/PrintManager.cpp`는 원본 RTF를 RichEdit `FormatRange`/`DisplayBand`로 printer DC에 출력한다. 현재 앱에도 `label_rtf_open_xml_channel.cpp`에 `EM_FORMATRANGE` 캡처 구현이 존재한다.
+- backend 수정 완료: GoDEX 물리 포트를 `windowsDriver`로 복귀시켜 실패한 RAW/Q/AZ1 production 경로를 차단했다. FILE/PORTPROMPT PDF 분기는 유지한다.
+- Windows 편집 완료: 역상 흰 descriptor만 hidden RichEdit 50W에 Unicode text/font/style/alignment를 설정하고 검정 device-sized DIB에 `EM_FORMATRANGE`로 렌더한다. 얻은 흰 pixel mask만 기존 검정 배경에서 knockout한다.
+- 기존 실패와 차이: v1.3.7은 printer DC에 `DrawTextW + OPAQUE`를 후처리했고, 이번 방식은 레거시 RichEdit layout/render engine을 memory DIB에서 먼저 합성한다. 일반 검정 텍스트, border, barcode, 최종 bitmap 구조는 유지한다.
+- 실패 경로 격리: FreeType mono active 경로를 제거하고 diagnostics를 `nativeTextWhiteRender=richEditFormatRangeLegacy`로 변경했다. 과거 실험 코드는 기존 `#if 0` 상태를 유지한다.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 전체 27건 통과, 수정 파일 diagnostics 오류 0건. RichEdit C++ 첫 `/WX` Debug 빌드 성공.
+- 버전/워터마크 수정 완료: 앱과 Windows 출력 watermark를 `v1.3.71`로 증가했다.
+- 최종 검증 완료: 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.71`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-46-52.log`에서 `DebugLogger version: 1.3.71` 확인.
+- stage/commit 대상: dispatcher, dispatcher 테스트, Windows RichEdit renderer, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=windowsDriver`, `nativeTextWhiteRender=richEditFormatRangeLegacy`, 흰 descriptor 2건, 실패 0, `printWatermark=v1.3.71`. 전체 라벨 정상 출력과 두 역상 행의 획 연속성을 확인한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: Q zero-black + inverse native 제거 조합 v1.3.70
 - 실물 확인: `.tmp/IMG_20260905_0007.png`도 라벨 전체가 검정으로 출력됐다. 이번에는 `AZ1 0I`가 완전히 제거됐으므로 v1.3.69의 실패는 `oneBlackZeroWhite` 자체가 G500의 Q 해석과 반대였음을 확정한다.
 - 로그 확인: `.tmp/log/app_2026-09-05_16-28-43.log`에서 `v1.3.69`, `backend=ezplRaw`, `polarity=oneBlackZeroWhite`, `inverse:0`, `AZ1:23`, RAW `44612/44612`, accepted=true를 확인했다.
 - 다음 조합: Q bitmap을 `0=검정, 1=흰색`으로 복원하되 `AZ1 0I`는 계속 금지한다. v1.3.67은 zero-black이었지만 inverse native 2건이 함께 있어 이 조합은 아직 실물 검증되지 않았다.

@@ -3,6 +3,7 @@
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
+#include <richedit.h>
 #include <windows.h>
 
 #include <ft2build.h>
@@ -22,7 +23,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.70";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.71";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -993,15 +994,34 @@ bool RenderWhiteTextIntoBitmap(
         return descriptor.color == RGB(255, 255, 255);
       });
   if (!has_white_text) return true;
-
-  FT_Library library = nullptr;
-  if (FT_Init_FreeType(&library) != 0) {
-    error = "FT_Init_FreeType failed";
+  HMODULE rich_edit_module = LoadLibraryW(L"Msftedit.dll");
+  if (rich_edit_module == nullptr) {
+    error = "LoadLibraryW Msftedit.dll failed: " +
+            std::to_string(GetLastError());
     return false;
   }
-  (void)printer_dc;
+  HWND host = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                              L"STATIC", L"", WS_POPUP, 0, 0,
+                              target_width, target_height, nullptr, nullptr,
+                              GetModuleHandle(nullptr), nullptr);
+  HWND rich_edit = host == nullptr
+                       ? nullptr
+                       : CreateWindowExW(
+                             0, L"RICHEDIT50W", L"",
+                             WS_CHILD | WS_VISIBLE | ES_MULTILINE, 0, 0,
+                             target_width, target_height, host, nullptr,
+                             GetModuleHandle(nullptr), nullptr);
+  if (rich_edit == nullptr) {
+    if (host != nullptr) DestroyWindow(host);
+    FreeLibrary(rich_edit_module);
+    error = "CreateWindowExW RichEdit failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
   std::vector<uint8_t> white_mask(
       static_cast<size_t>(target_width) * target_height, uint8_t{0});
+  const int dpi_x = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSX));
+  const int dpi_y = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSY));
 
   for (const auto& descriptor : text_descriptors) {
     if (descriptor.color != RGB(255, 255, 255)) continue;
@@ -1011,133 +1031,118 @@ bool RenderWhiteTextIntoBitmap(
         MulDiv(descriptor.rect.right, target_width, source_width),
         MulDiv(descriptor.rect.bottom, target_height, source_height),
     };
-    const LONG available_width =
-        std::max<LONG>(1, text_rect.right - text_rect.left);
-    int font_height = std::max(
+    const int cell_width = std::max<LONG>(1, text_rect.right - text_rect.left);
+    const int cell_height =
+        std::max<LONG>(1, text_rect.bottom - text_rect.top);
+    const int font_height = std::max(
         1, MulDiv(descriptor.font_pixel_height, target_height, source_height));
-    FT_Face face = nullptr;
-    std::string font_path;
-    FT_Long face_index = 0;
-    if (!ResolveWindowsFontFile(descriptor.font_family, font_path,
-                               face_index) ||
-        FT_New_Face(library, font_path.c_str(), face_index, &face) != 0 ||
-        FT_Select_Charmap(face, FT_ENCODING_UNICODE) != 0) {
-      if (face != nullptr) FT_Done_Face(face);
-      ++stats.no_outline_fonts;
+    SetWindowPos(rich_edit, nullptr, 0, 0, cell_width, cell_height,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowTextW(rich_edit, descriptor.text.c_str());
+    SendMessageW(rich_edit, EM_SETBKGNDCOLOR, FALSE, RGB(0, 0, 0));
+    SendMessageW(rich_edit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, 0);
+    RECT format_rect{0, 0, cell_width, cell_height};
+    SendMessageW(rich_edit, EM_SETRECTNP, 0,
+                 reinterpret_cast<LPARAM>(&format_rect));
+    SendMessageW(rich_edit, EM_SETSEL, 0, -1);
+    CHARFORMAT2W character_format{};
+    character_format.cbSize = sizeof(character_format);
+    character_format.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR |
+                              CFM_BACKCOLOR | CFM_BOLD | CFM_ITALIC |
+                              CFM_UNDERLINE | CFM_STRIKEOUT;
+    character_format.dwEffects = 0;
+    if (descriptor.bold) character_format.dwEffects |= CFE_BOLD;
+    if (descriptor.italic) character_format.dwEffects |= CFE_ITALIC;
+    if (descriptor.underline) character_format.dwEffects |= CFE_UNDERLINE;
+    if (descriptor.strike_through) {
+      character_format.dwEffects |= CFE_STRIKEOUT;
+    }
+    character_format.yHeight = MulDiv(font_height, 1440, dpi_y);
+    character_format.crTextColor = RGB(255, 255, 255);
+    character_format.crBackColor = RGB(0, 0, 0);
+    wcsncpy_s(character_format.szFaceName, LF_FACESIZE,
+              descriptor.font_family.c_str(), _TRUNCATE);
+    SendMessageW(rich_edit, EM_SETCHARFORMAT, SCF_SELECTION,
+                 reinterpret_cast<LPARAM>(&character_format));
+    PARAFORMAT2 paragraph_format{};
+    paragraph_format.cbSize = sizeof(paragraph_format);
+    paragraph_format.dwMask = PFM_ALIGNMENT;
+    paragraph_format.wAlignment = descriptor.horizontal_align == "0"
+                                      ? PFA_CENTER
+                                      : descriptor.horizontal_align == "2"
+                                            ? PFA_RIGHT
+                                            : PFA_LEFT;
+    SendMessageW(rich_edit, EM_SETPARAFORMAT, 0,
+                 reinterpret_cast<LPARAM>(&paragraph_format));
+
+    BITMAPINFO bitmap_info{};
+    bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmap_info.bmiHeader.biWidth = cell_width;
+    bitmap_info.bmiHeader.biHeight = -cell_height;
+    bitmap_info.bmiHeader.biPlanes = 1;
+    bitmap_info.bmiHeader.biBitCount = 32;
+    bitmap_info.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    HDC memory_dc = CreateCompatibleDC(printer_dc);
+    HBITMAP dib = CreateDIBSection(printer_dc, &bitmap_info, DIB_RGB_COLORS,
+                                   &bits, nullptr, 0);
+    if (memory_dc == nullptr || dib == nullptr || bits == nullptr) {
+      if (dib != nullptr) DeleteObject(dib);
+      if (memory_dc != nullptr) DeleteDC(memory_dc);
       ++stats.failed;
       continue;
     }
-    ++stats.outline_fonts;
-
-    auto measure_text = [&](int pixel_height, LONG& advance) {
-      if (FT_Set_Pixel_Sizes(face, 0, static_cast<FT_UInt>(pixel_height)) !=
-          0) {
-        return false;
-      }
-      advance = 0;
-      for (wchar_t character : descriptor.text) {
-        if (FT_Load_Char(face, static_cast<FT_ULong>(character),
-                         FT_LOAD_DEFAULT | FT_LOAD_TARGET_MONO) != 0) {
-          return false;
+    HGDIOBJ previous_bitmap = SelectObject(memory_dc, dib);
+    FillRect(memory_dc, &format_rect,
+             reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+    FORMATRANGE format_range{};
+    format_range.hdc = memory_dc;
+    format_range.hdcTarget = printer_dc;
+    format_range.rc = {0, 0, MulDiv(cell_width, 1440, dpi_x),
+                       MulDiv(cell_height, 1440, dpi_y)};
+    format_range.rcPage = format_range.rc;
+    format_range.chrg.cpMin = 0;
+    format_range.chrg.cpMax = -1;
+    const LRESULT formatted_until = SendMessageW(
+        rich_edit, EM_FORMATRANGE, TRUE,
+        reinterpret_cast<LPARAM>(&format_range));
+    SendMessageW(rich_edit, EM_FORMATRANGE, FALSE, 0);
+    GdiFlush();
+    int descriptor_pixels = 0;
+    const auto* pixels = static_cast<const uint8_t*>(bits);
+    for (int y = 0; y < cell_height; ++y) {
+      const int target_y = text_rect.top + y;
+      if (target_y < 0 || target_y >= target_height) continue;
+      for (int x = 0; x < cell_width; ++x) {
+        const size_t source_offset =
+            (static_cast<size_t>(y) * cell_width + x) * 4;
+        if (pixels[source_offset] < 128 ||
+            pixels[source_offset + 1] < 128 ||
+            pixels[source_offset + 2] < 128) {
+          continue;
         }
-        advance += static_cast<LONG>(face->glyph->advance.x >> 6);
-      }
-      return true;
-    };
-
-    LONG total_advance = 0;
-    bool descriptor_ok = false;
-    bool fitted = false;
-    for (int attempt = 0; attempt < 5; ++attempt) {
-      if (!measure_text(font_height, total_advance)) break;
-      descriptor_ok = true;
-      if (descriptor.wrap || total_advance <= available_width ||
-          font_height <= 1) {
-        break;
-      }
-      font_height = std::max(
-          1, MulDiv(font_height, std::max<LONG>(1, available_width - 1),
-                    total_advance));
-      fitted = true;
-    }
-    if (fitted) ++stats.fitted;
-
-    LONG pen_x = text_rect.left;
-    if (descriptor.horizontal_align == "0") {
-      pen_x += std::max<LONG>(0, (available_width - total_advance) / 2);
-    } else if (descriptor.horizontal_align == "2") {
-      pen_x += std::max<LONG>(0, available_width - total_advance);
-    }
-    const LONG ascender = static_cast<LONG>(face->size->metrics.ascender >> 6);
-    const LONG text_height = std::max<LONG>(
-        1, static_cast<LONG>(face->size->metrics.height >> 6));
-    LONG line_top = text_rect.top;
-    if (descriptor.vertical_align == "2") {
-      line_top = std::max(text_rect.top, text_rect.bottom - text_height);
-    } else if (descriptor.vertical_align != "1") {
-      line_top += std::max<LONG>(
-          0, (text_rect.bottom - text_rect.top - text_height) / 2);
-    }
-    const LONG baseline_y = line_top + ascender;
-
-    if (descriptor_ok) {
-      for (wchar_t character : descriptor.text) {
-        if (FT_Load_Char(face, static_cast<FT_ULong>(character),
-                         FT_LOAD_DEFAULT | FT_LOAD_TARGET_MONO) != 0) {
-          descriptor_ok = false;
-          break;
-        }
-        if (descriptor.bold) FT_GlyphSlot_Embolden(face->glyph);
-        if (descriptor.italic) FT_GlyphSlot_Oblique(face->glyph);
-        if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_MONO) != 0) {
-          descriptor_ok = false;
-          break;
-        }
-        const FT_Bitmap& glyph_bitmap = face->glyph->bitmap;
-        const bool has_bitmap = glyph_bitmap.width > 0 && glyph_bitmap.rows > 0;
-        if (has_bitmap && glyph_bitmap.pixel_mode != FT_PIXEL_MODE_MONO) {
-          descriptor_ok = false;
-          break;
-        }
-        const LONG glyph_left = pen_x + face->glyph->bitmap_left;
-        const LONG glyph_top = baseline_y - face->glyph->bitmap_top;
-        const int pitch = glyph_bitmap.pitch;
-        for (unsigned int y = 0; y < glyph_bitmap.rows; ++y) {
-          const LONG target_y = glyph_top + static_cast<LONG>(y);
-          if (target_y < text_rect.top || target_y >= text_rect.bottom ||
-              target_y < 0 || target_y >= target_height) {
-            continue;
-          }
-          const unsigned int source_y =
-              pitch >= 0 ? y : glyph_bitmap.rows - 1 - y;
-          const uint8_t* row = glyph_bitmap.buffer +
-                               static_cast<size_t>(source_y) *
-                                   static_cast<size_t>(std::abs(pitch));
-          for (unsigned int x = 0; x < glyph_bitmap.width; ++x) {
-            if ((row[x / 8] & (0x80 >> (x % 8))) == 0) continue;
-            const LONG target_x = glyph_left + static_cast<LONG>(x);
-            if (target_x < text_rect.left || target_x >= text_rect.right ||
-                target_x < 0 || target_x >= target_width) {
-              continue;
-            }
-            white_mask[static_cast<size_t>(target_y) * target_width +
-                       target_x] = 1;
-          }
-        }
-        if (has_bitmap) ++stats.white_glyph_bitmaps;
-        pen_x += static_cast<LONG>(face->glyph->advance.x >> 6);
+        const int target_x = text_rect.left + x;
+        if (target_x < 0 || target_x >= target_width) continue;
+        white_mask[static_cast<size_t>(target_y) * target_width + target_x] =
+            1;
+        ++descriptor_pixels;
       }
     }
-    if (descriptor_ok) {
+    SelectObject(memory_dc, previous_bitmap);
+    DeleteObject(dib);
+    DeleteDC(memory_dc);
+    if (formatted_until > 0 && descriptor_pixels > 0) {
       ++stats.drawn;
       ++stats.white_bitmap_drawn;
+      stats.white_glyph_bitmaps += descriptor.text.size();
       stats.characters += descriptor.text.size();
     } else {
       ++stats.failed;
     }
-    FT_Done_Face(face);
   }
-  FT_Done_FreeType(library);
+  DestroyWindow(rich_edit);
+  DestroyWindow(host);
+  FreeLibrary(rich_edit_module);
 
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
@@ -1688,8 +1693,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=freeTypeMonoStrongHinting"
-              << " printWatermark=v1.3.70"
+              << " nativeTextWhiteRender=richEditFormatRangeLegacy"
+              << " printWatermark=v1.3.71"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
