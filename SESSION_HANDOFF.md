@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: G500 내장 TrueType UTF-8 역상 출력 v1.3.81
+## 완료·실물 검증 대기: G500 내장 TrueType UTF-8 역상 출력 v1.3.81
 - 실물 확인: `.tmp/IMG_20260905_0018.png`에서 저장 BMP의 전체 80x60mm 레이아웃과 좌표는 정상으로 복원됐지만, 검정 배경의 흰 한글 획 소실은 그대로였다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-50-50.log`에서 `v1.3.80`, `backend=ezplStoredGraphic`, `raster=640x480`, `bmpBytes=38462`, `bmpBpp=1`, RAW `38572/38572` bytes를 확인했다. `~EB/Y` 전송은 정상이며 동일 1bpp 열점 결과의 물리 품질 한계로 기각한다.
 - 다음 방식: 공식 EZPL 내장 TrueType `AT`의 UTF-8(`E`)와 inverse(`I`)를 사용한다. 검정 배경/도형은 Q raster로 유지하고 승인된 한글 셀 텍스트는 `AT,...,0I...E,0,0,<UTF-8>`로 firmware FreeType가 직접 합성한다.
@@ -18,6 +18,7 @@
 - 최종 재실행 완료: watermark 포함 Debug EXE FileVersion/ProductVersion 모두 `1.3.81`. `.tmp/log/app_2026-09-05_18-02-01.log`에서 `DebugLogger version: 1.3.81`, DB 연결 성공을 확인했고 프로세스가 응답 중이다. DTD 연결 앱이 없어 hot restart 대신 새 EXE 프로세스 재실행으로 반영했다.
 - 실물 판별 기준: 로그 `backend=ezplRaw`, `font=AT:UTF8`, `atTextDescriptors>0`, `inverseTextDescriptors>0`, payload diagnostics `native=AT:...,AZ1:0,inverse:...`, `printWatermark=v1.3.81`, RAW `requestedBytes=writtenBytes`. 실물에서는 전체 레이아웃 유지와 검정 band 안 흰 한글 획을 확인한다.
 - stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 구현 커밋 완료: `68e405e` (`G500 한글을 내장 트루타입으로 출력`). 다음 작업은 실행 중인 v1.3.81에서 실제 라벨을 발행하고 AT UTF-8 inverse 지원 여부와 흰 한글 획 품질을 판정하는 것이다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: G500 EZPL 저장 BMP 출력 v1.3.80
