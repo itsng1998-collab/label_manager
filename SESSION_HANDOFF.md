@@ -1,5 +1,14 @@
 # 현재 작업 상태
 
+## 완료: 미사용 기존 업무 매뉴얼 정리 v1.3.60
+- 범위 확인: `doc`의 기존 TXT 업무 문서 9개는 저장소 코드·README·인수인계에서 참조되지 않고, `label_print_modify.txt`의 `label_print.txt` 내부 참조만 남아 있다.
+- 삭제 완료: `app_menu_porting.txt`, `automatic_item_update.txt`, `item_manager.txt`, `item_manager_modify.txt`, `label_line_panel.txt`, `label_print.txt`, `label_print_modify.txt`, `scale_output.txt`, `user_item_modify.txt`.
+- 유지: 공식 EZPL 문서 3개와 매뉴얼이 아닌 SQL 스키마·쿼리 자료 3개.
+- 검증 완료: `doc` 잔존 파일 6개와 삭제 문서명의 끊어진 참조가 없음을 확인했고 `git diff --check`를 통과했다.
+- 버전 판단: 저장소 문서 정리이므로 PATCH를 `1.3.59`에서 `1.3.60`으로 증가한다.
+- stage/commit 대상: 기존 TXT 업무 매뉴얼 9개 삭제, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: EZPL 공식 매뉴얼 로컬 참조 문서화 v1.3.59
 - 목적: 온라인 조사 중 내려받은 GoDEX 공식 `EZPL_EN_J_20180226.pdf`를 `doc`에 보관하고, 저장소에서 검색 가능한 텍스트 추출본과 관련 기술 문서 출처·핵심 명령 메모를 함께 추가한다.
 - 원본 확인: 임시 다운로드 PDF는 2,318,076바이트이며 `pypdf`로 본문 추출이 가능하다.
