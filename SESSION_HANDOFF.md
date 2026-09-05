@@ -16,6 +16,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_17-25-48.log`에서 `DebugLogger version: 1.3.76` 확인.
 - 실물 판별 기준: 출력물 우하단 `v1.3.76`, 로그 `nativeTextWhiteRender=polarityFallbackBlackOnWhite`, `nativeTextComposite=localPolarityFallbackMonoDib`, `inversePolarityFallbackRects=2`, `inversePolarityPanelPadding=1`, `coolingPattern=disabledAfterPhysicalFailure`, `monoScanLines=480`. 두 검정 행은 유지되되 글자 tight bounds가 흰 panel + 검정 한글로 출력되는지 확인한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `674d7f3` (`역상 글자를 국부 흑백 전환으로 출력`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: 역상 배경 75% ordered cooling pattern v1.3.75
