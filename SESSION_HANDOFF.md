@@ -12,6 +12,7 @@
 - 실행 검증 완료: 새 Debug EXE FileVersion/ProductVersion과 startup 로그가 모두 `1.3.66`이며 프로세스가 응답 중이다.
 - 실물 재검증 기준: 같은 라벨 발행이 접수되고 로그에 `gdiDispatch`, `nativeTextWhiteBitmapDrawn=2`, `nativeTextWhiteGlyphBitmaps`, `nativeTextFailed=0`, `printWatermark=v1.3.66`이 기록되는지 확인한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `8ded98c` (`FreeType 굴림 TTC 원본 로드 수정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: FreeType 공백 glyph 발행 실패 수정 v1.3.65
