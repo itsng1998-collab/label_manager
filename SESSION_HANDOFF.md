@@ -1,6 +1,24 @@
 # 현재 작업 상태
 
+## 진행 중: GoDEX firmware native inverse 실물 출력 v1.3.67
+- 실물 확인: `.tmp/IMG_20260905_0004.png` 우하단 `v1.3.66`을 확인했고 두 역상 행의 흰 글자 획 탈락이 계속돼 FreeType mono도 품질 개선에 실패했다.
+- 로그 확인: `app_2026-09-05_16-00-23.log`에서 `backend=windowsDriver`, FreeType glyph 49개, 실패 0, knockout 2,703픽셀이 기록됐다. DirectWrite와 동일한 dot 수라 host glyph rasterizer 교체 효과가 없었다.
+- 다음 방식: 이전 `v1.3.61`의 `AZ1 ... 0I`는 구현됐지만 실제 출력 backend가 `windowsDriver`라 실물에서 한 번도 실행되지 않았다. 이번에는 G500 물리 포트를 `ezplRaw`로 라우팅해 firmware native inverse를 실제 검증한다.
+- backend 편집 완료: FILE/PORTPROMPT는 PDF, G500 등 GoDEX 물리 포트는 EZPL RAW, 나머지는 Windows driver를 사용한다.
+- inverse 편집 완료: 불투명 검정 배경·흰 글자·한글 Asian font 조건을 만족하는 셀만 native 후보로 승인하고 `AZ1` 회전 인자 `0I`와 CP949 data를 출력한다. 비검정 배경과 혼합색 inline run은 raster fallback을 유지한다.
+- 워터마크 편집 완료: EZPL label format 우하단에 `v1.3.67` AT 명령을 추가하고 payload diagnostics에도 같은 버전을 기록했다.
+- 테스트 편집 완료: inverse native 승인, `AZ1 0I`, CP949 data, RAW 워터마크와 diagnostics를 검증하고 비검정 배경/혼합 inline fallback 기대값을 유지했다.
+- 관련 검증 완료: `label_print_dispatcher_test.dart`, `label_sheet_print_job_test.dart`, `godex_korean_font_provisioner_test.dart` 총 27건 통과.
+- 버전 편집 완료: 출력 backend와 firmware inverse 변경이므로 PATCH를 `1.3.66`에서 `1.3.67`로 증가했다.
+- 최종 검증 완료: Dart 포맷 및 수정 파일 diagnostics 오류 0건. `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 산출물 확인 완료: `build/windows/x64/runner/Debug/label_manager.exe`의 FileVersion/ProductVersion 모두 `1.3.67`.
+- 실행 확인 완료: 기존 실행 프로세스가 없어 새 Debug EXE를 실행했고 `.tmp/log/app_2026-09-05_16-09-25.log`에서 `DebugLogger version: 1.3.67` 확인.
+- stage/commit 대상: dispatcher/print job 및 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=ezplRaw`, `native=...AZ1:...,inverse:2`, `rawDispatch`, `printWatermark=v1.3.67`; 출력물 우하단 `v1.3.67` 및 두 역상 행의 획 연속성을 확인한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: FreeType TTC 원본 face 로드 수정 v1.3.66
+- 실물 결과: `.tmp/IMG_20260905_0004.png`에서 품질 개선이 없었다. FreeType 경로는 성공했지만 knockout이 DirectWrite와 동일한 2,703픽셀이어서 host rasterizer 교체를 종료한다.
 - 실패 로그 확인: `app_2026-09-05_15-53-01.log`에서 `v1.3.65` 발행은 프린터 bitmap 전송까지 성공했지만 흰색 descriptor 2개가 모두 실패했다. `nativeTextWhiteBitmapDrawn=0`, `nativeTextWhiteGlyphBitmaps=0`, `nativeTextFailed=2`로 기록됐다.
 - 재현 완료: 앱과 같은 GDI font 추출을 probe한 결과 실제 굴림 선택 시 `GetFontData`가 원본 `gulim.ttc` 13,531,200바이트보다 TTC header 40바이트가 빠진 13,531,160바이트를 반환했고, `FT_New_Memory_Face`가 error 8로 거부했다. 원본 `C:/Windows/Fonts/gulim.ttc`는 4개 face 모두 한글 mono glyph 로드에 성공했다.
 - Windows 편집 완료: 굴림/굴림체/돋움/돋움체의 실제 `gulim.ttc`를 Windows Fonts에서 직접 열고 각각 face index 0/1/2/3을 선택한다. GDI가 변형한 TTC bytes는 FreeType에 전달하지 않는다.
