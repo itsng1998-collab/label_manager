@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: G500 Q bit 극성 교정 v1.3.84
+## 완료·실물 검증 대기: G500 Q bit 극성 교정 v1.3.84
 - 실물 확인: `.tmp/IMG_20260905_0021.png`은 v1.3.82와 마찬가지로 원본의 역상에 가까운 검정 면적과 소실된 흰 글자를 보였다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-15-02.log`에서 `v1.3.83`, `backend=ezplDirectionalRelief`, dark bands `8`, cleared lead pixels `1210`, encoded ink dots `62931`, RAW `38477/38477` bytes를 확인했다. 방향성 보정은 실제 적용됐으나 개선되지 않았다.
 - 핵심 판정: encoded ink dots는 전체 307200 중 62931인데 실물 검정 면적은 그 보수에 가까우므로 이 G500 Q parser는 현재 payload에서 `1=black`, `0=white`로 해석한다. 기존 helper의 `0=black` 전제가 반대였다.
@@ -18,6 +18,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_18-20-07.log`에서 `DebugLogger version: 1.3.84`와 DB 연결 성공을 확인했다.
 - 실물 판별 기준: 로그 `backend=ezplDirectBitmap`, `transport=EZPL_Q_DIRECT_BITMAP`, `bitPolarity=oneBlackZeroWhite`, `nativeCommands=0`, `relief=none`, `printWatermark=v1.3.84`, `directBitmapDispatch ... requestedBytes=... writtenBytes=...`. 실물에서 흰 배경/검정 선의 정상 극성과 역상 band의 흰 글자를 확인한다.
 - stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 구현 커밋 완료: `c2a899e` (`G500 Q 비트 극성을 실제 출력에 맞게 교정`). 다음 작업은 실행 중인 v1.3.84에서 실제 라벨을 발행하고 정상 극성 복원 및 역상 흰 글자 품질을 판정하는 것이다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: G500 인쇄방향 선행 열 차단 v1.3.83
