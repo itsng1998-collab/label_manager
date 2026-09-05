@@ -16,6 +16,7 @@
 - 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.87`; `.tmp/log/app_2026-09-05_19-02-47.log`에서 `DebugLogger version: 1.3.87`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
 - DTD 확인: standalone Debug EXE에는 active app connection이 없어 hot restart 대신 `/WX` 재빌드·프로세스 재실행으로 변경을 반영했다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/printing/label_print_dispatcher.dart`, `pubspec.yaml`, `test/label_print_dispatcher_test.dart`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 구현 커밋: `a935c64 G500 일반 출력을 v1.3.58 경로로 복원`.
 - 실물 검증 포인트: 출력 로그에서 `backend=windowsDriver`, `outputMode=driverDirect32V1358`, `spoolFormat=DIB_32BPP_DRIVER_DIRECT`, `inversePolarity=originalWhiteOnBlack`, `printWatermark=v1.3.87`을 확인한다. 우선 일반 한글·숫자·표선이 v1.3.58 품질로 복원됐는지 판정하고, 역상 품질은 별도로 평가한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
