@@ -1,6 +1,21 @@
 # 현재 작업 상태
 
-## 진행 중: GoDEX Q pattern 실기기 polarity 재수정 v1.3.68
+## 진행 중: 역상 한글 Q raster fallback v1.3.69
+- 실물 확인: `.tmp/IMG_20260905_0006.png`도 전체 라벨 면이 검정으로 오염되어 `v1.3.68`의 반대 Q polarity로도 복구되지 않았다.
+- 로그 확인: `.tmp/log/app_2026-09-05_16-20-21.log`에서 `v1.3.68`, `backend=ezplRaw`, `polarity=oneBlackZeroWhite`, `AZ1:25`, `inverse:2`, RAW `44832/44832`, accepted=true를 확인했다.
+- 결론: `zeroBlackOneWhite`와 `oneBlackZeroWhite` 모두 `AZ1 0I`가 포함된 실제 format에서 전체 검정이 됐다. polarity 왕복은 원인이 아니며 두 버전의 공통 요소인 firmware inverse를 기각한다.
+- 수정 완료: 검정 배경·흰 한글은 `firmwareInverseCorruptsFormat` 사유로 native 후보에서 제외해 원본 capture raster에 남긴다. `AZ1 ... 0I` 생성 경로와 inverse descriptor 상태를 제거했고 일반 검정 한글 `AZ1`은 유지한다.
+- 출력 방식: Windows driver의 620x480 scaling/knockout을 사용하지 않고, 역상 셀이 포함된 640x480 단일 Q raster를 G500에 직접 전송한다. 이전 host native knockout과 다른 미시험 조합이다.
+- 테스트 수정 완료: 역상 셀 raster fallback, `0I`/CP949 native data 부재, `firmwareInverseCorruptsFormat`, 일반 CP949 AZ1 유지를 검증한다.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 전체 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 버전/워터마크 수정 완료: 앱, RAW payload, Windows fallback을 `v1.3.69`로 증가했다.
+- 최종 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.69`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-28-43.log`에서 `DebugLogger version: 1.3.69` 확인.
+- stage/commit 대상: print job, 관련 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=ezplRaw`, `inverse:0`, `textReject=firmwareInverseCorruptsFormat:2`, `printWatermark=v1.3.69`, RAW requested/written 일치. 출력물 전체 배경 정상 여부와 두 역상 행의 raster 글자 품질을 확인한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: GoDEX Q pattern 실기기 polarity 재수정 v1.3.68
 - 실물 확인: `.tmp/IMG_20260905_0005.png`는 원본 약 14.93% ink와 반대로 라벨 면 대부분이 검정으로 출력돼 단순 역상 글자 품질 저하가 아니라 전체 Q raster 반전이다.
 - 로그 확인: `.tmp/log/app_2026-09-05_16-09-25.log`에서 `v1.3.67`, `backend=ezplRaw`, `AZ1:25`, `inverse:2`, RAW `44832/44832`, accepted=true를 확인했다. firmware inverse 경로와 payload 전송은 실제 실행됐다.
 - 원인: v1.3.67은 흰 배경을 Q bit `1`, ink를 `0`으로 보냈지만 이번 G500 실물은 `1=검정`, `0=흰색`으로 출력했다. `zeroBlackOneWhite`는 현재 장치에서 전체 반전을 일으킨 실패 방식이므로 재사용하지 않는다.

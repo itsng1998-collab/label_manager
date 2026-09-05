@@ -12,7 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 const num _labelSheetEzplInkLuminanceThreshold = 200;
 const num _labelSheetWindowsInkLuminanceThreshold = 200;
-const String _labelSheetPrintTestWatermark = 'v1.3.68';
+const String _labelSheetPrintTestWatermark = 'v1.3.69';
 
 class LabelSheetWindowsDriverPage {
   const LabelSheetWindowsDriverPage({
@@ -340,7 +340,6 @@ class LabelSheetEzplNativeDescriptor {
     required this.kind,
     this.utf8 = false,
     this.koreanAsian = false,
-    this.inverse = false,
     this.textCharacters = 0,
     this.fontHeightDots,
     this.lineCount = 0,
@@ -353,7 +352,6 @@ class LabelSheetEzplNativeDescriptor {
   final FortuneNativeCandidateKind kind;
   final bool utf8;
   final bool koreanAsian;
-  final bool inverse;
   final int textCharacters;
   final int? fontHeightDots;
   final int lineCount;
@@ -1086,11 +1084,15 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       final usesKoreanAsianFont = cell.renderedText.runes.any(
         (rune) => rune > 0x7f,
       );
-      final inverse = usesKoreanAsianFont &&
+      final firmwareInverse = usesKoreanAsianFont &&
           cell.background?.toARGB32() == 0xff000000 &&
           cell.foreground.toARGB32() == 0xffffffff;
-      if (cell.strikeThrough ||
-          (cell.foreground.toARGB32() != 0xff000000 && !inverse)) {
+      if (firmwareInverse) {
+        // G500의 AZ1 0I는 Q bitmap을 포함한 label format 전체를 검정으로 오염시킨다.
+        reject('firmwareInverseCorruptsFormat');
+        continue;
+      }
+      if (cell.strikeThrough || cell.foreground.toARGB32() != 0xff000000) {
         reject('unsupportedTextDecoration');
         continue;
       }
@@ -1127,9 +1129,7 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       if (fragments.isEmpty ||
           fragments.any(
             (fragment) =>
-              fragment.strikeThrough ||
-              fragment.colorArgb !=
-                (inverse ? 0xffffffff : 0xff000000),
+                fragment.strikeThrough || fragment.colorArgb != 0xff000000,
           )) {
         reject('unsupportedInlineDecoration');
         continue;
@@ -1152,7 +1152,7 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
         if (usesKoreanAsianFont) {
           command.write(
             'AZ1,${footprint.left.round()},${footprint.top.round()},'
-            '$fontDots,$fontDots,0,${inverse ? '0I' : '0'},'
+            '$fontDots,$fontDots,0,0,'
             '${_escapeEzplText(fragment.text)}\r\n',
           );
         } else {
@@ -1177,7 +1177,6 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
           kind: FortuneNativeCandidateKind.cellText,
           utf8: !usesKoreanAsianFont,
           koreanAsian: usesKoreanAsianFont,
-          inverse: inverse,
           textCharacters: cell.renderedText.runes.length,
           fontHeightDots: math.max(
             8,
@@ -1331,7 +1330,6 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
   final emittedTokens = <String>{};
   var emittedAtDescriptors = 0;
   var emittedAz1Descriptors = 0;
-  var emittedInverseDescriptors = 0;
   var emittedGeometryDescriptors = 0;
   for (final candidate in plan.candidates) {
     if (!emittedTokens.add(candidate.token)) continue;
@@ -1340,7 +1338,6 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
             const <LabelSheetEzplNativeDescriptor>[]) {
       if (descriptor.koreanAsian) {
         emittedAz1Descriptors += 1;
-        if (descriptor.inverse) emittedInverseDescriptors += 1;
         commands.add(
           await CharsetConverter.encode('949', descriptor.command),
         );
@@ -1388,7 +1385,7 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     'patternFnv64=${rasterStats.fnv64Hex} '
     'approvedTokens=${plan.approvedCandidateTokens.length} '
     'native=AT:$emittedAtDescriptors,AZ1:$emittedAz1Descriptors,'
-    'inverse:$emittedInverseDescriptors,geometry:$emittedGeometryDescriptors '
+    'inverse:0,geometry:$emittedGeometryDescriptors '
     'printWatermark=$_labelSheetPrintTestWatermark payloadBytes=${payload.length}',
   );
   return payload;
