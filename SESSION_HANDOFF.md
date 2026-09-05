@@ -7,6 +7,7 @@
 - 검증 완료: `doc` 잔존 파일 6개와 삭제 문서명의 끊어진 참조가 없음을 확인했고 `git diff --check`를 통과했다.
 - 버전 판단: 저장소 문서 정리이므로 PATCH를 `1.3.59`에서 `1.3.60`으로 증가한다.
 - stage/commit 대상: 기존 TXT 업무 매뉴얼 9개 삭제, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 문서 정리 커밋: `8453d1b` (`미사용 업무 매뉴얼 정리`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: EZPL 공식 매뉴얼 로컬 참조 문서화 v1.3.59
