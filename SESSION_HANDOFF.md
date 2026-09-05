@@ -11,6 +11,7 @@
 - 최종 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.68`.
 - 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-20-21.log`에서 `DebugLogger version: 1.3.68` 확인.
 - stage/commit 대상: print job, 관련 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `a02f30a` (`GoDEX Q 패턴 비트 극성을 실기기에 맞춤`).
 - 실물 판별 기준: 로그 `backend=ezplRaw`, `polarity=oneBlackZeroWhite`, `inverse:2`, `printWatermark=v1.3.68`, RAW requested/written 일치. 출력물은 전체 흰 배경이 복원된 상태에서 두 검정 행의 흰 한글 획을 비교한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
