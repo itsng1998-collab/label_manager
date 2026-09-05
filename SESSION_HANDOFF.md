@@ -14,6 +14,7 @@
 - 버전 편집 완료: Windows 역상 glyph rasterizer 교체이므로 PATCH를 `1.3.63`에서 `1.3.64`로 증가했다.
 - 실물 재검증 기준: 출력물 우하단 `v1.3.64`, 로그의 `nativeTextWhiteRender=freeTypeMonoStrongHinting`, glyph bitmap 수와 knockout 수를 확인한다. 동일 라벨에서 GGO 2,381픽셀보다 회복되는지와 획 연속성을 함께 비교한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `windows/runner/CMakeLists.txt`, `tools/build_native_freetype.ps1`, `third_party/native/freetype.zip`, `third_party/native/README.md`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `dda1677` (`역상 글자를 FreeType 단색 글리프로 출력`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: Windows GDI grid-fitted 1-bit 역상 글자 출력 v1.3.63
