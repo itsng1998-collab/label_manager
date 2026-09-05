@@ -23,7 +23,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.75";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.76";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -98,6 +98,9 @@ struct InverseCoolingStats {
   size_t pixels_modified = 0;
 };
 
+#if 0
+// v1.3.75 physical output changed 4,740 black pixels but did not recover
+// inverse Korean strokes. Keep the failed cooling experiment retired.
 InverseCoolingStats ApplyInverseBackgroundCoolingPattern(
     void* mono_bits, int target_width, int target_height,
     int source_width, int source_height,
@@ -130,6 +133,35 @@ InverseCoolingStats ApplyInverseBackgroundCoolingPattern(
     }
   }
   return stats;
+}
+#endif
+
+struct InversePolarityFallbackStats {
+  int panel_rects = 0;
+};
+
+std::vector<NativeTextDescriptor> PrepareInversePolarityFallback(
+    HDC page_dc, int target_width, int target_height, int source_width,
+    int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    InversePolarityFallbackStats& stats) {
+  auto fallback_descriptors = text_descriptors;
+  for (auto& descriptor : fallback_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    RECT panel_rect{
+        std::max(0, MulDiv(descriptor.rect.left, target_width, source_width) - 1),
+        std::max(0, MulDiv(descriptor.rect.top, target_height, source_height) - 1),
+        std::min(target_width,
+                 MulDiv(descriptor.rect.right, target_width, source_width) + 1),
+        std::min(target_height,
+                 MulDiv(descriptor.rect.bottom, target_height, source_height) + 1),
+    };
+    FillRect(page_dc, &panel_rect,
+             reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+    descriptor.color = RGB(0, 0, 0);
+    ++stats.panel_rects;
+  }
+  return fallback_descriptors;
 }
 
 std::vector<uint8_t> ComposeFinalDeviceBitmap(
@@ -1681,9 +1713,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=printerDcRichEditWhite+printerDcBlackText"
-              << " nativeTextWhiteRender=richEditFormatRangePrinterDc"
-              << " printWatermark=v1.3.75"
+              << " nativeTextRaster=localWhitePanel+printerDcBlackText"
+              << " nativeTextWhiteRender=polarityFallbackBlackOnWhite"
+              << " printWatermark=v1.3.76"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1764,13 +1796,13 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
-      if (!RenderWhiteTextIntoBitmap(
+      InversePolarityFallbackStats inverse_polarity_stats;
+      const auto fallback_text_descriptors = PrepareInversePolarityFallback(
+          page_dc, target_width, target_height, source_width, source_height,
+          text_descriptors, inverse_polarity_stats);
+      if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
-                    source_height, text_descriptors, page_dc,
-              native_text_stats, error)) {
-                  } else if (!RenderNativeTextToPrinterDc(
-              composed_bitmap, target_width, target_height, source_width,
-                    source_height, text_descriptors, page_dc,
+            source_height, fallback_text_descriptors, page_dc,
               native_text_stats, error)) {
                   } else if (!DrawPrintTestWatermark(
                     page_dc, destination_x, destination_y, target_width,
@@ -1882,7 +1914,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicSplit"
-                  << " nativeTextComposite=singleDeviceMonoDib"
+                  << " nativeTextComposite=localPolarityFallbackMonoDib"
+                  << " inversePolarityFallbackRects="
+                  << inverse_polarity_stats.panel_rects
+                  << " inversePolarityPanelPadding=1"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
@@ -1897,12 +1932,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       }
     }
     GdiFlush();
-    InverseCoolingStats cooling_stats;
-    if (error.empty()) {
-      cooling_stats = ApplyInverseBackgroundCoolingPattern(
-          mono_bits, target_width, target_height, source_width, source_height,
-          text_descriptors);
-    }
     int mono_scan_lines = 0;
     if (error.empty()) {
       mono_scan_lines = SetDIBitsToDevice(
@@ -1918,10 +1947,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                 << " monoStride=" << ((target_width + 31) / 32) * 4
                 << " monoScanLines=" << mono_scan_lines
                 << " monoPalette=zeroWhiteOneBlack"
-                << " coolingPattern=ordered2x2_75PercentBlack"
-                << " coolingInverseRects=" << cooling_stats.inverse_rects
-                << " coolingPixelsModified="
-                << cooling_stats.pixels_modified;
+                << " coolingPattern=disabledAfterPhysicalFailure";
     SelectObject(page_dc, previous_page_bitmap);
     DeleteObject(mono_bitmap);
     DeleteDC(page_dc);

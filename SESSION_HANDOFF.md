@@ -1,6 +1,24 @@
 # 현재 작업 상태
 
-## 진행 중: 역상 배경 75% ordered cooling pattern v1.3.75
+## 진행 중: 역상 글자 국부 극성 전환 fallback v1.3.76
+- 실물 확인: `.tmp/IMG_20260905_0013.png`에서도 두 역상 행의 흰 한글 획 메움이 계속됐다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-20-08.log`에서 `v1.3.75`, `spoolFormat=DIB_1BPP_DEVICE`, `coolingInverseRects=2`, `coolingPixelsModified=4740`, `monoScanLines=480`, 발행 성공을 확인했다. 25% cooling pattern이 실제 적용됐지만 개선이 없어 기각한다.
+- 다음 방식: 검정 바 전체는 유지하되 흰 text descriptor의 tight bounds만 1 device dot 여유로 흰 panel을 만들고 동일 text를 검정으로 바꿔 일반 GDI text 경로로 출력한다. 역상 디자인 변화는 해당 글자 bounds에만 제한한다.
+- 기존 방식과 차이: 흰 glyph를 검정 면의 hole로 출력하는 모든 이전 경로와 달리, 실물에서 가독성이 확인된 white background + black glyph 극성을 역상 글자 위치에 국부 적용한다. cooling/morphology/rasterizer 변경은 하지 않는다.
+- 판별 기준: 일반 검정 글자와 동일한 물리 극성으로 바꾼 두 행의 한글 획이 연속적으로 출력되는지 확인한다. 이 방식에서도 탈락하면 역상 극성이 아닌 layout/font 크기 원인으로 범위를 이동한다.
+- 수정 예정 파일: `windows/runner/label_bitmap_print_channel.cpp` active path에서 실패한 cooling/RichEdit-white 호출을 제거하고 white panel + black descriptor 변환 helper, diagnostics, `v1.3.76` watermark를 추가한다. `pubspec.yaml` 버전과 본 문서를 함께 갱신한다.
+- Windows 편집 완료: `PrepareInversePolarityFallback`이 흰 descriptor의 target rectangle을 사방 1dot 확장해 흰색으로 비우고 descriptor color를 검정으로 바꾼다. 변환 descriptor는 일반 `RenderNativeTextToPrinterDc`에 합류하며 기존 RichEdit-white와 cooling helper는 active path에서 제거했다.
+- 실패 코드 재사용 방지: v1.3.75 cooling helper는 실물 실패 사유 주석과 `#if 0`으로 격리했다.
+- diagnostics/버전 편집 완료: `nativeTextWhiteRender=polarityFallbackBlackOnWhite`, `nativeTextComposite=localPolarityFallbackMonoDib`, `inversePolarityFallbackRects`, `inversePolarityPanelPadding=1`, `coolingPattern=disabledAfterPhysicalFailure`, watermark `v1.3.76`을 기록한다. 앱 버전도 `1.3.76`으로 증가했다.
+- 1차 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.76`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_17-25-48.log`에서 `DebugLogger version: 1.3.76` 확인.
+- 실물 판별 기준: 출력물 우하단 `v1.3.76`, 로그 `nativeTextWhiteRender=polarityFallbackBlackOnWhite`, `nativeTextComposite=localPolarityFallbackMonoDib`, `inversePolarityFallbackRects=2`, `inversePolarityPanelPadding=1`, `coolingPattern=disabledAfterPhysicalFailure`, `monoScanLines=480`. 두 검정 행은 유지되되 글자 tight bounds가 흰 panel + 검정 한글로 출력되는지 확인한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 역상 배경 75% ordered cooling pattern v1.3.75
 - 실물 확인: `.tmp/IMG_20260905_0012.png`에서도 두 역상 행의 흰 한글 획이 메워져 품질 개선이 없었다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-13-01.log`에서 `v1.3.74`, `backend=windowsDriver`, `spoolFormat=DIB_1BPP_DEVICE`, `monoStride=80`, `monoScanLines=480`, 흰 descriptor 2건, 실패 0을 확인했다. exact-device 단일 1bpp DIB가 실제 전송됐지만 개선이 없어 기각한다.
 - 다음 방식: 최종 620x480 1bpp buffer에서 흰 text descriptor rectangle 내부의 현재 검정 픽셀만 2x2당 1개씩 흰색으로 바꿔 75% black ordered cooling pattern을 만든다. 이미 흰 글자 픽셀과 일반 셀은 변경하지 않는다.
