@@ -12,6 +12,7 @@
 - 최종 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.69`.
 - 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-28-43.log`에서 `DebugLogger version: 1.3.69` 확인.
 - stage/commit 대상: print job, 관련 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `9b38c86` (`GoDEX 역상 한글을 Q 비트맵으로 출력`).
 - 실물 판별 기준: 로그 `backend=ezplRaw`, `inverse:0`, `textReject=firmwareInverseCorruptsFormat:2`, `printWatermark=v1.3.69`, RAW requested/written 일치. 출력물 전체 배경 정상 여부와 두 역상 행의 raster 글자 품질을 확인한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
