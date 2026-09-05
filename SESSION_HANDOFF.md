@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: G500 EZPL 저장 BMP 출력 v1.3.80
+## 완료·실물 검증 대기: G500 EZPL 저장 BMP 출력 v1.3.80
 - 실물 확인: `.tmp/IMG_20260905_0017.png`는 라벨 상단 일부만 확대·절단되어 출력됐고 정상 페이지가 아니었다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-42-23.log`에서 `v1.3.79`, `backend=pdf`, capture `641x481`, PDF `13313` bytes, dispatch accepted=true를 확인했다. PDF direct spool이 실제 실행됐지만 page transform 회귀가 발생해 즉시 기각한다.
 - 다음 방식: 공식 EZPL `~EB,name,size`로 전체 1bpp BMP를 printer memory에 다운로드하고 `Y0,0,name`으로 출력한다. 기존 실패 `Q` row-pattern parser, Windows GDI와 PDF spool을 모두 우회한다.
@@ -16,6 +16,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_17-50-50.log`에서 `DebugLogger version: 1.3.80`과 DB 연결 성공을 확인했다.
 - 실물 판별 기준: 로그 `backend=ezplStoredGraphic`, `transport=EZPL_STORED_BMP`, `graphicName=LM1380`, `bmpBpp=1`, `printWatermark=v1.3.80`, `storedGraphicDispatch ... writtenBytes=...`. 출력물에서는 전체 80x60mm 레이아웃과 역상 흰 한글 획을 확인한다.
 - stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 구현 커밋 완료: `e12cebe` (`G500 라벨을 EZPL 저장 그래픽으로 출력`). 다음 작업은 앱에서 실제 라벨을 발행한 뒤 위 diagnostics와 출력 품질을 판정하는 것이다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: G500 PDF direct spool 분리 실험 v1.3.79
