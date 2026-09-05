@@ -14,6 +14,7 @@
 - 버전 편집 완료: 출력 동작의 국소 개선이므로 PATCH를 `1.3.60`에서 `1.3.61`로 증가했다.
 - 남은 실물 검증: G500에서 검정 배경 raster 뒤의 `AZ1 ... 0I` 합성 결과와 좌표·글꼴 크기를 실제 라벨로 확인해야 한다.
 - stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `20f61a7` (`GoDEX 역상 한글 네이티브 출력 추가`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: 미사용 기존 업무 매뉴얼 정리 v1.3.60
