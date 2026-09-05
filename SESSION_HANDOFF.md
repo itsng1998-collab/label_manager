@@ -13,6 +13,7 @@
 - native 조건문 정리 후 최종 Windows `/WX` 재빌드 성공.
 - 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.88`; `.tmp/log/app_2026-09-05_20-13-52.log`에서 `DebugLogger version: 1.3.88`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `pubspec.yaml`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 구현 커밋: `ac9ca77 G500 역상 배경을 드라이버 망점으로 출력`.
 - 실물 검증 포인트: 출력 로그에서 `outputMode=driverDirect32V1358`, `printWatermark=disabled`, `nativeBorderComposite=captureOnly`, `nativeBordersDrawn=0`, `inverseDriverGrayRects>0`, `inverseDriverGrayPixels>0`, `inverseDriverGrayLevel=96`을 확인한다. 사진에서는 우하단 `v1.3.78` 표식과 중성지방 행 ㄷ자 선이 사라졌는지, 역상 흰 획이 개선되는지 각각 판정한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
