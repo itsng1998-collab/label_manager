@@ -15,6 +15,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_17-20-08.log`에서 `DebugLogger version: 1.3.75` 확인.
 - 실물 판별 기준: 출력물 우하단 `v1.3.75`, 로그 `spoolFormat=DIB_1BPP_DEVICE`, `coolingPattern=ordered2x2_75PercentBlack`, `coolingInverseRects=2`, `coolingPixelsModified>0`, `monoScanLines=480`. 역상 배경의 규칙적인 미세 cooling dot과 흰 한글 획 연속성을 v1.3.74와 비교한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `2db7775` (`역상 배경 열량을 냉각 패턴으로 낮춤`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: exact-device 단일 1bpp DIB 출력 v1.3.74
