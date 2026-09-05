@@ -57,7 +57,10 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
   if (source == null) {
     throw StateError('라벨 이미지를 Windows 프린터 출력 이미지로 변환할 수 없습니다.');
   }
-  final layout = LabelSheetPrintLayout.resolve(metrics: metrics, options: options);
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
   int renderDots(num millimeters) =>
       math.max(0, (millimeters * metrics.dpi / 25.4).round());
   final page = img.Image(
@@ -152,18 +155,21 @@ LabelSheetWindowsDriverPage prepareLabelSheetWindowsDriverPage({
     pixelIndex += 1;
   }
   var isolatedInkPixels = 0;
-  bool isInk(int x, int y) =>
-      bgraBytes[(y * page.width + x) * 4] == 0;
+  bool isInk(int x, int y) => bgraBytes[(y * page.width + x) * 4] == 0;
   for (var y = 0; y < page.height; y += 1) {
     for (var x = 0; x < page.width; x += 1) {
       if (!isInk(x, y)) continue;
       var hasInkNeighbor = false;
-      for (var neighborY = math.max(0, y - 1);
-          neighborY <= math.min(page.height - 1, y + 1);
-          neighborY += 1) {
-        for (var neighborX = math.max(0, x - 1);
-            neighborX <= math.min(page.width - 1, x + 1);
-            neighborX += 1) {
+      for (
+        var neighborY = math.max(0, y - 1);
+        neighborY <= math.min(page.height - 1, y + 1);
+        neighborY += 1
+      ) {
+        for (
+          var neighborX = math.max(0, x - 1);
+          neighborX <= math.min(page.width - 1, x + 1);
+          neighborX += 1
+        ) {
           if ((neighborX != x || neighborY != y) &&
               isInk(neighborX, neighborY)) {
             hasInkNeighbor = true;
@@ -214,7 +220,8 @@ class LabelSheetPrintOptions {
   final int? autoSpacingPercent;
   final LabelSheetPrintOrientation orientation;
 
-  bool get rotateQuarterTurns => orientation == LabelSheetPrintOrientation.vertical;
+  bool get rotateQuarterTurns =>
+      orientation == LabelSheetPrintOrientation.vertical;
 }
 
 enum LabelSheetPrintOrientation { horizontal, vertical }
@@ -275,8 +282,7 @@ class LabelSheetPrintPageMetrics {
   int dotsFromMm(num millimeters) =>
       math.max(0, (millimeters * dpi / 25.4).round());
 
-  int signedDotsFromMm(num millimeters) =>
-      (millimeters * dpi / 25.4).round();
+  int signedDotsFromMm(num millimeters) => (millimeters * dpi / 25.4).round();
 }
 
 FortuneRange labelSheetPrintRange(
@@ -358,11 +364,10 @@ class LabelSheetEzplNativeDescriptor {
   final int lineCount;
   final List<ui.Rect> textLineFootprints;
 
-  FortuneNativeCandidateApproval get approval =>
-      FortuneNativeCandidateApproval(
-        candidateToken: candidateToken,
-        predictedPaintedFootprint: predictedPaintedFootprint,
-      );
+  FortuneNativeCandidateApproval get approval => FortuneNativeCandidateApproval(
+    candidateToken: candidateToken,
+    predictedPaintedFootprint: predictedPaintedFootprint,
+  );
 }
 
 class LabelSheetEzplPrintPreparation {
@@ -466,14 +471,8 @@ LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
   final sourceBounds = ui.Rect.fromLTRB(
     sheetMetrics.columnStart(columnStart),
     sheetMetrics.rowStart(rowStart),
-    math.min(
-      sheetMetrics.columnEnd(columnEnd),
-      physicalSize.logicalSize.width,
-    ),
-    math.min(
-      sheetMetrics.rowEnd(rowEnd),
-      physicalSize.logicalSize.height,
-    ),
+    math.min(sheetMetrics.columnEnd(columnEnd), physicalSize.logicalSize.width),
+    math.min(sheetMetrics.rowEnd(rowEnd), physicalSize.logicalSize.height),
   );
   final resolvedMetrics = LabelSheetPrintPageMetrics(
     labelWidthMm: metrics.labelWidthMm,
@@ -614,11 +613,10 @@ class LabelSheetWindowsTextDescriptor {
   final bool wrap;
   final ui.Rect predictedPaintedFootprint;
 
-  FortuneNativeCandidateApproval get approval =>
-      FortuneNativeCandidateApproval(
-        candidateToken: candidateToken,
-        predictedPaintedFootprint: predictedPaintedFootprint,
-      );
+  FortuneNativeCandidateApproval get approval => FortuneNativeCandidateApproval(
+    candidateToken: candidateToken,
+    predictedPaintedFootprint: predictedPaintedFootprint,
+  );
 
   Map<String, Object?> toChannelMap() => <String, Object?>{
     'text': text,
@@ -723,8 +721,12 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       final footprint = geometry.transform.logicalRectToPrinterDots(
         candidate.logicalPaintedFootprint,
       );
-      final left = horizontal ? footprint.left.round() : footprint.center.dx.round();
-      final top = horizontal ? footprint.center.dy.round() : footprint.top.round();
+      final left = horizontal
+          ? footprint.left.round()
+          : footprint.center.dx.round();
+      final top = horizontal
+          ? footprint.center.dy.round()
+          : footprint.top.round();
       final right = horizontal ? footprint.right.round() : left + 1;
       final bottom = horizontal ? top + 1 : footprint.bottom.round();
       if (right <= left || bottom <= top) continue;
@@ -866,8 +868,7 @@ bool _windowsInlineRunsSupported(FortuneCell cell) {
         run.extraFields['script'] == null &&
         run.extraFields['fontScale'] == null &&
         run.extraFields['letterSpacing'] == null &&
-        (run.fontSize == null ||
-            (run.fontSize!.isFinite && run.fontSize! > 0)),
+        (run.fontSize == null || (run.fontSize!.isFinite && run.fontSize! > 0)),
   );
 }
 
@@ -1079,7 +1080,8 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
         reject('unsupportedTextLayout');
         continue;
       }
-      final firmwareInverse = cell.background?.toARGB32() == 0xff000000 &&
+      final firmwareInverse =
+          cell.background?.toARGB32() == 0xff000000 &&
           cell.foreground.toARGB32() == 0xffffffff;
       if (cell.strikeThrough ||
           (cell.foreground.toARGB32() != 0xff000000 && !firmwareInverse)) {
@@ -1114,9 +1116,10 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       final fragments = _labelSheetTextFragments(cell, layout, settings);
       if (fragments.isEmpty ||
           fragments.any(
-            (fragment) => fragment.strikeThrough ||
-              fragment.colorArgb !=
-                (firmwareInverse ? 0xffffffff : 0xff000000),
+            (fragment) =>
+                fragment.strikeThrough ||
+                fragment.colorArgb !=
+                    (firmwareInverse ? 0xffffffff : 0xff000000),
           )) {
         reject('unsupportedInlineDecoration');
         continue;
@@ -1192,10 +1195,7 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       final wide = math.max(narrow + 1, (narrow * 2.5).round());
       final height = math.max(
         8,
-        (_metadataDouble(
-                  image.extraFields['barcodeBarHeight'],
-                  image.height,
-                ) *
+        (_metadataDouble(image.extraFields['barcodeBarHeight'], image.height) *
                 transform.dotsPerLogicalPixel)
             .round(),
       );
@@ -1203,7 +1203,8 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       descriptors.add(
         LabelSheetEzplNativeDescriptor(
           candidateToken: candidate.token,
-          command: '$barcodeCommand${target.left.round()},'
+          command:
+              '$barcodeCommand${target.left.round()},'
               '${target.top.round()},$narrow,$wide,$height,0,0,'
               '${_escapeEzplText(text)}\r\n',
           predictedPaintedFootprint: target,
@@ -1213,14 +1214,16 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       continue;
     }
     final strokeWidthMm = switch (candidate.kind) {
-      FortuneNativeCandidateKind.line => sheet.lines
-          .where((line) => line.id == candidate.objectKey!.id)
-          .map((line) => line.strokeWidthMm)
-          .firstOrNull,
-      FortuneNativeCandidateKind.rectangle => sheet.shapes
-          .where((shape) => shape.id == candidate.objectKey!.id)
-          .map((shape) => shape.strokeWidthMm)
-          .firstOrNull,
+      FortuneNativeCandidateKind.line =>
+        sheet.lines
+            .where((line) => line.id == candidate.objectKey!.id)
+            .map((line) => line.strokeWidthMm)
+            .firstOrNull,
+      FortuneNativeCandidateKind.rectangle =>
+        sheet.shapes
+            .where((shape) => shape.id == candidate.objectKey!.id)
+            .map((shape) => shape.strokeWidthMm)
+            .firstOrNull,
       FortuneNativeCandidateKind.cellBorder =>
         math.min(
               candidate.printerPaintedFootprint.width,
@@ -1239,7 +1242,8 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
     descriptors.add(
       LabelSheetEzplNativeDescriptor(
         candidateToken: candidate.token,
-        command: 'R${target.left.round()},${target.top.round()},'
+        command:
+            'R${target.left.round()},${target.top.round()},'
             '${target.right.round()},${target.bottom.round()},'
             '$strokeDots,$strokeDots\r\n',
         predictedPaintedFootprint: target,
@@ -1274,7 +1278,10 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
         )
         .add(descriptor);
   }
-  final layout = LabelSheetPrintLayout.resolve(metrics: metrics, options: options);
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
   final raster = img.Image(
     width: metrics.dotsFromMm(metrics.pageWidthMm(options)),
     height: metrics.dotsFromMm(metrics.pageHeightMm(options)),
@@ -1295,11 +1302,7 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     dstX: metrics.signedDotsFromMm(layout.contentLeftMm),
     dstY: metrics.signedDotsFromMm(layout.contentTopMm),
   );
-  _clipEzplRasterToLabelArea(
-    raster,
-    metrics: metrics,
-    options: options,
-  );
+  _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
 
   final commands = BytesBuilder(copy: false)
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
@@ -1313,8 +1316,8 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
   var emittedGeometryDescriptors = 0;
   for (final candidate in plan.candidates) {
     if (!emittedTokens.add(candidate.token)) continue;
-    for (final descriptor in
-        descriptorByToken[candidate.token] ??
+    for (final descriptor
+        in descriptorByToken[candidate.token] ??
             const <LabelSheetEzplNativeDescriptor>[]) {
       if (descriptor.kind == FortuneNativeCandidateKind.cellText) {
         emittedAtDescriptors += 1;
@@ -1432,7 +1435,7 @@ Future<Uint8List> buildLabelSheetStoredGraphicEzplBytes({
   return payload;
 }
 
-Future<Uint8List> buildLabelSheetDirectBitmapEzplBytes({
+Future<Uint8List> buildLabelSheetBandHalftoneEzplBytes({
   required Uint8List pngBytes,
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
@@ -1440,7 +1443,7 @@ Future<Uint8List> buildLabelSheetDirectBitmapEzplBytes({
 }) async {
   final source = img.decodePng(pngBytes);
   if (source == null) {
-    throw StateError('라벨 이미지를 EZPL 직접 bitmap 출력으로 변환할 수 없습니다.');
+    throw StateError('라벨 이미지를 EZPL band 망점 출력으로 변환할 수 없습니다.');
   }
   final layout = LabelSheetPrintLayout.resolve(
     metrics: metrics,
@@ -1467,6 +1470,7 @@ Future<Uint8List> buildLabelSheetDirectBitmapEzplBytes({
     dstY: metrics.signedDotsFromMm(layout.contentTopMm),
   );
   _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
+  final halftone = _applyDarkBandCheckerboard(raster);
 
   final commands = BytesBuilder(copy: false)
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
@@ -1478,20 +1482,67 @@ Future<Uint8List> buildLabelSheetDirectBitmapEzplBytes({
     ..add(
       ascii.encode(
         'AT,${math.max(0, raster.width - 48)},${math.max(0, raster.height - 8)},'
-        '7,7,0,0E,0,0,v1.3.84\r\n',
+        '7,7,0,0E,0,0,v1.3.85\r\n',
       ),
     )
     ..add(ascii.encode('E\r\n'));
   final payload = commands.takeBytes();
   onDiagnostics?.call(
-    'transport=EZPL_Q_DIRECT_BITMAP source=${source.width}x${source.height} '
+    'transport=EZPL_Q_BAND_HALFTONE source=${source.width}x${source.height} '
     'raster=${raster.width}x${raster.height} '
-    'bitPolarity=oneBlackZeroWhite nativeCommands=0 relief=none '
+    'bitPolarity=oneBlackZeroWhite nativeCommands=0 '
+    'halftone=checkerboard50 darkBands=${halftone.bands} '
+    'halftonePixels=${halftone.modifiedPixels} '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
-    'encodedOneDots=${rasterStats.inkDots} '
-    'printWatermark=v1.3.84 payloadBytes=${payload.length}',
+    'encodedZeroDots=${rasterStats.inkDots} '
+    'printWatermark=v1.3.85 payloadBytes=${payload.length}',
   );
   return payload;
+}
+
+({int bands, int modifiedPixels}) _applyDarkBandCheckerboard(img.Image raster) {
+  final darkRows = List<bool>.filled(raster.height, false);
+  for (var y = 0; y < raster.height; y += 1) {
+    var darkPixels = 0;
+    for (var x = 0; x < raster.width; x += 1) {
+      if (img.getLuminance(raster.getPixel(x, y)) <=
+          _labelSheetEzplInkLuminanceThreshold) {
+        darkPixels += 1;
+      }
+    }
+    darkRows[y] = darkPixels >= raster.width * 0.6;
+  }
+
+  final white = img.ColorRgb8(255, 255, 255);
+  var bands = 0;
+  var modifiedPixels = 0;
+  var start = 0;
+  while (start < raster.height) {
+    if (!darkRows[start]) {
+      start += 1;
+      continue;
+    }
+    var end = start + 1;
+    while (end < raster.height && darkRows[end]) {
+      end += 1;
+    }
+    if (end - start >= 4) {
+      bands += 1;
+      for (var y = start; y < end; y += 1) {
+        for (var x = 0; x < raster.width; x += 1) {
+          if (((x + y) & 1) == 0 ||
+              img.getLuminance(raster.getPixel(x, y)) >
+                  _labelSheetEzplInkLuminanceThreshold) {
+            continue;
+          }
+          raster.setPixel(x, y, white);
+          modifiedPixels += 1;
+        }
+      }
+    }
+    start = end;
+  }
+  return (bands: bands, modifiedPixels: modifiedPixels);
 }
 
 // v1.3.83의 진행방향 선행 보정은 실물에서 개선되지 않아 재사용하지 않는다.
@@ -1621,8 +1672,7 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   BytesBuilder commands,
   img.Image raster, {
   bool invert = false,
-}
-) {
+}) {
   final bytesPerRow = (raster.width + 7) ~/ 8;
   var inkDots = 0;
   var rowsWithInk = 0;
@@ -1634,18 +1684,17 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   var fnv64 = BigInt.parse('cbf29ce484222325', radix: 16);
   final fnv64Prime = BigInt.parse('100000001b3', radix: 16);
   final fnv64Mask = BigInt.parse('ffffffffffffffff', radix: 16);
-  final patternHeader = ascii.encode(
-    'Q0,0,$bytesPerRow,${raster.height}\r\n',
-  );
+  final patternHeader = ascii.encode('Q0,0,$bytesPerRow,${raster.height}\r\n');
   commands.add(patternHeader);
   for (var y = 0; y < raster.height; y += 1) {
     // v1.3.69에서 inverse 명령 없이 0 bit 영역이 검정으로 출력됐다.
     final row = Uint8List(bytesPerRow)..fillRange(0, bytesPerRow, 0xff);
     var rowInkDots = 0;
     for (var x = 0; x < raster.width; x += 1) {
-        final isDark = img.getLuminance(raster.getPixel(x, y)) <=
+      final isDark =
+          img.getLuminance(raster.getPixel(x, y)) <=
           _labelSheetEzplInkLuminanceThreshold;
-        if (invert ? !isDark : isDark) {
+      if (invert ? !isDark : isDark) {
         row[x ~/ 8] &= ~(1 << (7 - (x % 8)));
         rowInkDots += 1;
       }
@@ -1718,10 +1767,7 @@ class _LabelSheetEzplRasterStats {
 }
 
 String? _ezplBarcodeCommandForFormat(String format) {
-  final normalized = format.toLowerCase().replaceAll(
-    RegExp(r'[^a-z0-9]'),
-    '',
-  );
+  final normalized = format.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   if (normalized.contains('code128')) return 'BQ';
   if (normalized.contains('code39')) return 'BA';
   if (normalized.contains('ean13')) return 'BE';
@@ -1848,5 +1894,4 @@ pw.Widget _buildPdfPageContent({
   );
 }
 
-double _mmToPdfPoints(num millimeters) =>
-    millimeters * PdfPageFormat.mm;
+double _mmToPdfPoints(num millimeters) => millimeters * PdfPageFormat.mm;

@@ -1,6 +1,29 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: G500 Q bit 극성 교정 v1.3.84
+## 완료·실물 검증 대기: G500 역상 band 50% 망점 출력 v1.3.85
+- 실물 확인: `.tmp/IMG_20260905_0022.png`에서 흰 배경/검정 선의 전체 극성은 정상으로 복원됐지만 solid-black band 안 흰 한글 획은 여전히 크게 소실됐다.
+- 로그 확인: `.tmp/log/app_2026-09-05_18-20-07.log`에서 `v1.3.84`, `backend=ezplDirectBitmap`, `bitPolarity=oneBlackZeroWhite`, encoded one dots `243059`, RAW `38477/38477` bytes를 확인했다. Q bit 극성은 해결됐고 남은 문제는 solid-black 열 부하다.
+- 결론: Q/driver/firmware transport와 polarity 변경은 종료한다. 동일한 solid-black 물리 조건에서는 흰 획이 복원되지 않는다.
+- 다음 방식: 60% 이상 검정 행이 4행 이상 연속된 band만 50% checkerboard로 바꿔 검정 배경 열 부하를 절반으로 낮춘다. 단일 표 테두리 행과 흰 글자 픽셀은 변경하지 않는다.
+- 기존 v1.3.75와 차이: 이전 cooling은 text descriptor 사각형 내부에서 4개 중 1개만 제거한 75% 검정이며 4740픽셀 변경에 그쳤다. 이번에는 solid band 전체를 50% 교차망점으로 변환한다.
+- backend 편집 완료: G500 physical port를 `ezplBandHalftone`으로 라우팅하고 세 발행 흐름을 band halftone builder에 연결했다.
+- payload 편집 완료: 정상 `^L`, `1=black/0=white` Q bitmap을 유지하며 diagnostics에 `halftone=checkerboard50`, dark band 수, 변경 pixel 수, watermark `v1.3.85`를 기록한다.
+- diagnostics 정리: `invert:true` 통계는 clear된 0 bit 수이므로 기존 `encodedOneDots`를 `encodedZeroDots`로 바로잡았다.
+- 버전 편집 완료: `1.3.85`.
+- payload 테스트 완료: 80x8 solid-black band가 교차 Q byte `0xAA/0x55`로 변환되고 `darkBands=1`, `halftonePixels=320`인지 검증했다.
+- 관련 전체 검증 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 32건 통과, 수정 파일 diagnostics 오류 0건.
+- diagnostics 명칭 정리 후 동일 관련 테스트 32건 재통과.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 빌드 완료: 위 `/WX` Debug 빌드 성공.
+- 최종 diagnostics 소스 반영 후 `/WX` Debug 재빌드 성공.
+- 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.85`; 프로젝트 루트에서 재실행한 `.tmp/log/app_2026-09-05_18-26-42.log`에서 `DebugLogger version: 1.3.85`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
+- DTD 확인: standalone Debug EXE에는 active VM service 연결이 없어 hot restart는 수행할 수 없었으며, 최종 재빌드·프로세스 재실행으로 Dart 변경을 반영했다.
+- 임시 산출물: 별도 테스트 임시 파일 없음. Debug build 산출물과 startup 로그만 생성됐다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/features/label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart`, `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `pubspec.yaml`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`.
+- 실물 검증 포인트: 새 출력 로그에서 `backend=ezplBandHalftone`, `transport=EZPL_Q_BAND_HALFTONE`, `halftone=checkerboard50`, `darkBands>0`, `halftonePixels>0`, `printWatermark=v1.3.85`를 확인하고 역상 band의 흰 한글 획과 망점 가독성을 비교한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: G500 Q bit 극성 교정 v1.3.84
 - 실물 확인: `.tmp/IMG_20260905_0021.png`은 v1.3.82와 마찬가지로 원본의 역상에 가까운 검정 면적과 소실된 흰 글자를 보였다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-15-02.log`에서 `v1.3.83`, `backend=ezplDirectionalRelief`, dark bands `8`, cleared lead pixels `1210`, encoded ink dots `62931`, RAW `38477/38477` bytes를 확인했다. 방향성 보정은 실제 적용됐으나 개선되지 않았다.
 - 핵심 판정: encoded ink dots는 전체 307200 중 62931인데 실물 검정 면적은 그 보수에 가까우므로 이 G500 Q parser는 현재 payload에서 `1=black`, `0=white`로 해석한다. 기존 helper의 `0=black` 전제가 반대였다.

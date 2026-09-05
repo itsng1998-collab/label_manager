@@ -24,7 +24,7 @@ void main() {
     expect(resolveLabelPrinterDpi(profile: profile, deviceDpi: 300), 300);
   });
 
-  test('backend maps physical G500 to EZPL direct bitmap', () {
+  test('backend maps physical G500 to EZPL band halftone', () {
     final godex = detectPrinterProfile(
       const Printer(url: 'Godex G500', name: 'Godex G500'),
     );
@@ -34,7 +34,7 @@ void main() {
     for (final port in ['USB001', null]) {
       expect(
         resolveLabelPrintBackend(profile: godex, portName: port),
-        LabelPrintBackend.ezplDirectBitmap,
+        LabelPrintBackend.ezplBandHalftone,
       );
       expect(
         resolveLabelPrintBackend(profile: other, portName: port),
@@ -66,7 +66,7 @@ void main() {
     expect(LabelPrintBackend.windowsDriver.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.pdf.usesCanvasCapture, isTrue);
     expect(LabelPrintBackend.ezplRaw.usesCanvasCapture, isFalse);
-    expect(LabelPrintBackend.ezplDirectBitmap.usesCanvasCapture, isTrue);
+    expect(LabelPrintBackend.ezplBandHalftone.usesCanvasCapture, isTrue);
     expect(
       labelPrintRenderDpi(
         backend: LabelPrintBackend.windowsDriver,

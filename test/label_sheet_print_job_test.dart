@@ -918,7 +918,7 @@ void main() {
     expect(diagnostics, contains('bmpBpp=1'));
   });
 
-  test('Godex direct bitmap uses one-black zero-white Q polarity', () async {
+  test('Godex band halftone uses 50 percent checkerboard', () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -928,11 +928,10 @@ void main() {
       orientation: LabelSheetPrintOrientation.horizontal,
     );
     final source = img.Image(width: 80, height: 8);
-    img.fill(source, color: img.ColorRgb8(255, 255, 255));
-    source.setPixelRgb(0, 0, 0, 0, 0);
+    img.fill(source, color: img.ColorRgb8(0, 0, 0));
     String? diagnostics;
 
-    final bytes = await buildLabelSheetDirectBitmapEzplBytes(
+    final bytes = await buildLabelSheetBandHalftoneEzplBytes(
       pngBytes: Uint8List.fromList(img.encodePng(source)),
       metrics: const LabelSheetPrintPageMetrics(
         labelWidthMm: 10,
@@ -947,13 +946,16 @@ void main() {
     final headerStart = _indexOfBytes(bytes, patternHeader);
     expect(headerStart, greaterThanOrEqualTo(0));
     final patternStart = headerStart + patternHeader.length;
-    expect(bytes[patternStart], 0x80);
-    expect(bytes[patternStart + 10], 0x00);
+    expect(bytes[patternStart], 0xaa);
+    expect(bytes[patternStart + 10], 0x55);
     expect(_containsBytes(bytes, ascii.encode('^LI\r\n')), isFalse);
-    expect(diagnostics, contains('transport=EZPL_Q_DIRECT_BITMAP'));
+    expect(diagnostics, contains('transport=EZPL_Q_BAND_HALFTONE'));
     expect(diagnostics, contains('bitPolarity=oneBlackZeroWhite'));
     expect(diagnostics, contains('nativeCommands=0'));
-    expect(diagnostics, contains('printWatermark=v1.3.84'));
+    expect(diagnostics, contains('halftone=checkerboard50'));
+    expect(diagnostics, contains('darkBands=1'));
+    expect(diagnostics, contains('halftonePixels=320'));
+    expect(diagnostics, contains('printWatermark=v1.3.85'));
   });
 
   test('Godex EZPL rejects unsupported white and mixed-color text', () {
