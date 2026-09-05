@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: Windows GDI grid-fitted 1-bit 역상 글자 출력 v1.3.63
+- 실물 확인: `.tmp/IMG_20260905_0002.png` 우하단 `v1.3.62`를 확인했고, 두 역상 행의 흰 글자 획이 이전보다 더 크게 탈락해 DirectWrite aliased 결과도 부적합하다.
+- 로그 확인: `app_2026-09-05_15-28-25.log`에서 `backend=windowsDriver`, `nativeTextWhiteRender=directWriteAliased1x1`, glyph run 2개, knockout 2,703픽셀이 기록됐다. 기존 supersample의 4,137픽셀보다 크게 줄어든 수치가 실물 획 탈락과 일치한다.
+- 구현 예정: DirectWrite 경로를 실패 주석과 `#if 0`으로 격리하고, 최종 장치 dot 크기의 `HFONT`에서 `GetGlyphIndicesW` + `GetGlyphOutlineW(GGO_BITMAP | GGO_GLYPH_INDEX)`로 Windows grid-fitted 1-bit glyph를 얻어 baseline/advance 기준으로 조립한다.
+- Windows 편집 완료: 굴림 `HFONT`를 최종 프린터 dot 높이로 만들고 GDI 측정 결과로 폭을 맞춘 뒤, glyph index별 `GGO_BITMAP` 1-bit 데이터를 `gmptGlyphOrigin`, baseline, `gmCellIncX` 기준으로 final bitmap에 조립한다. 검정 배경 픽셀만 흰색으로 knockout한다.
+- 재사용 방지 완료: 실패한 DirectWrite renderer와 함수는 실패 사유 주석 및 `#if 0`으로 격리했고 `dwrite.lib` 링크를 제거했다.
+- diagnostics 편집 완료: `nativeTextWhiteRender=getGlyphOutlineGgoBitmap1bpp`, `nativeTextWhiteGlyphBitmaps`, `printWatermark=v1.3.63`으로 교체했다.
+- 1차 검증 완료: Windows `/WX` debug build 성공, 관련 인쇄 테스트 20건 통과, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 최종 검증 완료: 보완 후 Windows `/WX` debug build 성공, 관련 인쇄 테스트 20건 통과, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과.
+- 버전 편집 완료: Windows 역상 glyph rasterizer 교체이므로 PATCH를 `1.3.62`에서 `1.3.63`으로 증가했다.
+- 실행 검증 완료: 새 Debug EXE FileVersion/ProductVersion과 startup 로그가 모두 `1.3.63`이며 해당 프로세스가 응답 중이다.
+- 실물 재검증 기준: 출력물 우하단 `v1.3.63`, 로그의 `nativeTextWhiteRender=getGlyphOutlineGgoBitmap1bpp`, `nativeTextWhiteGlyphBitmaps`, `nativeTextWhiteKnockoutPixels`를 확인한다.
+- 남은 실물 검증: 같은 라벨을 출력해 두 역상 행의 획 연속성과 DirectWrite 2,703픽셀 대비 knockout 수를 비교한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `windows/runner/CMakeLists.txt`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: Windows DirectWrite 1-bit 역상 글자 출력 v1.3.62
 - 실물 확인: `.tmp/IMG_20260905_0001.png`의 두 역상 행 모두 흰 글자 획이 계속 끊기고 뭉쳐 품질 개선이 없었다.
 - 로그 확인: `app_2026-09-05_15-13-32.log`는 앱 `v1.3.61`, backend `windowsDriver`, `AZ1=0`, 흰 글자 descriptor 2개, 기존 `supersample8xCoverage48EdgeRelief25` knockout 4,137픽셀을 기록했다. 따라서 해당 출력에는 EZPL `0I`가 사용되지 않았고 Windows 흰 글자 bitmap 경로가 실제 제어 지점이다.
