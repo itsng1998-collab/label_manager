@@ -1,6 +1,21 @@
 # 현재 작업 상태
 
-## 진행 중: 레거시 RichEdit 역상 셀 렌더링 v1.3.71
+## 진행 중: RichEdit printer DC 직접 역상 출력 v1.3.72
+- 실물 확인: `.tmp/IMG_20260905_0009.png`에서 전체 라벨과 일반 문자는 복구됐지만 두 검정 행의 흰 한글 획 탈락은 계속됐다.
+- 로그 확인: `.tmp/log/app_2026-09-05_16-51-52.log`에서 `v1.3.71`, `backend=windowsDriver`, `nativeTextWhiteRender=richEditFormatRangeLegacy`, 흰 descriptor 2건, 실패 0, knockout 3,219픽셀을 확인했다. RichEdit memory-mask 경로는 정상 실행됐지만 품질 개선이 없어 기각한다.
+- 다음 방식: RichEdit font/layout 설정은 유지하되 중간 32bpp DIB, luminance threshold, white mask와 knockout 합성을 모두 제거한다. base bitmap 전송 직후 레거시처럼 `EM_FORMATRANGE`의 `hdc/hdcTarget`을 실제 printer DC로 지정해 역상 셀을 직접 출력한다.
+- 기존 실패와 차이: v1.3.7은 `DrawTextW + OPAQUE`, v1.3.71은 RichEdit memory mask였다. 이번 방식은 RichEdit가 printer DC에 직접 spool drawing을 생성하므로 host mask 픽셀 결과를 거치지 않는다.
+- Windows 편집 완료: 각 역상 descriptor의 device rect로 printer DC를 clip하고 absolute twip `FORMATRANGE`를 사용한다. RichEdit direct 출력은 `StretchDIBits` 뒤, 일반 검정 `DrawTextW` 앞에 실행한다.
+- diagnostics 편집 완료: `nativeTextWhiteRender=richEditFormatRangePrinterDc`, `nativeTextWhiteDirectDrawn`, `nativeTextComposite=bitmapThenRichEditWhiteThenBlackPrinterDc`를 기록한다.
+- 관련 검증 완료: 수정 직후 Windows `/WX` Debug 빌드 성공. dispatcher/print job/font provisioner 테스트 전체 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 버전/워터마크 수정 완료: 앱과 Windows 출력 watermark를 `v1.3.72`로 증가했다.
+- 최종 검증 완료: 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.72`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-58-49.log`에서 `DebugLogger version: 1.3.72` 확인.
+- stage/commit 대상: Windows RichEdit direct renderer, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=windowsDriver`, `nativeTextWhiteRender=richEditFormatRangePrinterDc`, `nativeTextWhiteDirectDrawn=2`, 실패 0, knockout 0, `printWatermark=v1.3.72`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 레거시 RichEdit 역상 셀 렌더링 v1.3.71
 - 실물 확인: `.tmp/IMG_20260905_0008.png`도 전체 라벨이 검정으로 출력되어 `zeroBlackOneWhite + inverse:0` 조합까지 실패했다. Q RAW production 경로는 종료한다.
 - 로그 확인: `.tmp/log/app_2026-09-05_16-35-33.log`에서 `v1.3.70`, `backend=ezplRaw`, `polarity=zeroBlackOneWhite`, `inverse:0`, RAW `44612/44612`, accepted=true를 확인했다.
 - 레거시 근거: `.tmp/LabelManager/LabelManagerLib/PrintManager.cpp`는 원본 RTF를 RichEdit `FormatRange`/`DisplayBand`로 printer DC에 출력한다. 현재 앱에도 `label_rtf_open_xml_channel.cpp`에 `EM_FORMATRANGE` 캡처 구현이 존재한다.

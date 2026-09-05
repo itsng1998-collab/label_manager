@@ -23,7 +23,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.71";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.72";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1018,8 +1018,6 @@ bool RenderWhiteTextIntoBitmap(
             std::to_string(GetLastError());
     return false;
   }
-  std::vector<uint8_t> white_mask(
-      static_cast<size_t>(target_width) * target_height, uint8_t{0});
   const int dpi_x = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSX));
   const int dpi_y = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSY));
 
@@ -1075,31 +1073,20 @@ bool RenderWhiteTextIntoBitmap(
     SendMessageW(rich_edit, EM_SETPARAFORMAT, 0,
                  reinterpret_cast<LPARAM>(&paragraph_format));
 
-    BITMAPINFO bitmap_info{};
-    bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bitmap_info.bmiHeader.biWidth = cell_width;
-    bitmap_info.bmiHeader.biHeight = -cell_height;
-    bitmap_info.bmiHeader.biPlanes = 1;
-    bitmap_info.bmiHeader.biBitCount = 32;
-    bitmap_info.bmiHeader.biCompression = BI_RGB;
-    void* bits = nullptr;
-    HDC memory_dc = CreateCompatibleDC(printer_dc);
-    HBITMAP dib = CreateDIBSection(printer_dc, &bitmap_info, DIB_RGB_COLORS,
-                                   &bits, nullptr, 0);
-    if (memory_dc == nullptr || dib == nullptr || bits == nullptr) {
-      if (dib != nullptr) DeleteObject(dib);
-      if (memory_dc != nullptr) DeleteDC(memory_dc);
+    const int printer_state = SaveDC(printer_dc);
+    if (printer_state == 0) {
       ++stats.failed;
       continue;
     }
-    HGDIOBJ previous_bitmap = SelectObject(memory_dc, dib);
-    FillRect(memory_dc, &format_rect,
-             reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+    IntersectClipRect(printer_dc, text_rect.left, text_rect.top,
+                      text_rect.right, text_rect.bottom);
     FORMATRANGE format_range{};
-    format_range.hdc = memory_dc;
+    format_range.hdc = printer_dc;
     format_range.hdcTarget = printer_dc;
-    format_range.rc = {0, 0, MulDiv(cell_width, 1440, dpi_x),
-                       MulDiv(cell_height, 1440, dpi_y)};
+    format_range.rc = {MulDiv(text_rect.left, 1440, dpi_x),
+                       MulDiv(text_rect.top, 1440, dpi_y),
+                       MulDiv(text_rect.right, 1440, dpi_x),
+                       MulDiv(text_rect.bottom, 1440, dpi_y)};
     format_range.rcPage = format_range.rc;
     format_range.chrg.cpMin = 0;
     format_range.chrg.cpMax = -1;
@@ -1108,30 +1095,8 @@ bool RenderWhiteTextIntoBitmap(
         reinterpret_cast<LPARAM>(&format_range));
     SendMessageW(rich_edit, EM_FORMATRANGE, FALSE, 0);
     GdiFlush();
-    int descriptor_pixels = 0;
-    const auto* pixels = static_cast<const uint8_t*>(bits);
-    for (int y = 0; y < cell_height; ++y) {
-      const int target_y = text_rect.top + y;
-      if (target_y < 0 || target_y >= target_height) continue;
-      for (int x = 0; x < cell_width; ++x) {
-        const size_t source_offset =
-            (static_cast<size_t>(y) * cell_width + x) * 4;
-        if (pixels[source_offset] < 128 ||
-            pixels[source_offset + 1] < 128 ||
-            pixels[source_offset + 2] < 128) {
-          continue;
-        }
-        const int target_x = text_rect.left + x;
-        if (target_x < 0 || target_x >= target_width) continue;
-        white_mask[static_cast<size_t>(target_y) * target_width + target_x] =
-            1;
-        ++descriptor_pixels;
-      }
-    }
-    SelectObject(memory_dc, previous_bitmap);
-    DeleteObject(dib);
-    DeleteDC(memory_dc);
-    if (formatted_until > 0 && descriptor_pixels > 0) {
+    RestoreDC(printer_dc, printer_state);
+    if (formatted_until > 0) {
       ++stats.drawn;
       ++stats.white_bitmap_drawn;
       stats.white_glyph_bitmaps += descriptor.text.size();
@@ -1143,22 +1108,7 @@ bool RenderWhiteTextIntoBitmap(
   DestroyWindow(rich_edit);
   DestroyWindow(host);
   FreeLibrary(rich_edit_module);
-
-  for (int y = 0; y < target_height; ++y) {
-    for (int x = 0; x < target_width; ++x) {
-      const size_t mask_offset = static_cast<size_t>(y) * target_width + x;
-      if (white_mask[mask_offset] == 0) continue;
-      const size_t target_offset = mask_offset * 4;
-      if (bitmap[target_offset] >= 128 || bitmap[target_offset + 1] >= 128 ||
-          bitmap[target_offset + 2] >= 128) {
-        continue;
-      }
-      bitmap[target_offset] = 255;
-      bitmap[target_offset + 1] = 255;
-      bitmap[target_offset + 2] = 255;
-      ++stats.white_knockout_pixels;
-    }
-  }
+  (void)bitmap;
   return true;
 }
 
@@ -1692,9 +1642,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=richEditFormatRangeLegacy"
-              << " printWatermark=v1.3.71"
+              << " nativeTextRaster=printerDcRichEditWhite+printerDcBlackText"
+              << " nativeTextWhiteRender=richEditFormatRangePrinterDc"
+              << " printWatermark=v1.3.72"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1723,12 +1673,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
     NativeTextRenderStats native_text_stats;
-    if (!RenderWhiteTextIntoBitmap(
-        composed_bitmap, target_width, target_height, source_width,
-        source_height, text_descriptors, printer_dc,
-        native_text_stats, error)) {
-      break;
-    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -1751,6 +1695,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
+      if (!RenderWhiteTextIntoBitmap(
+              composed_bitmap, target_width, target_height, source_width,
+              source_height, text_descriptors, printer_dc,
+              native_text_stats, error)) {
+        break;
+      }
       if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
               source_height, text_descriptors, printer_dc,
@@ -1856,6 +1806,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextFitted=" << native_text_stats.fitted
                   << " nativeTextWhiteBitmapDrawn="
                   << native_text_stats.white_bitmap_drawn
+                  << " nativeTextWhiteDirectDrawn="
+                  << native_text_stats.white_bitmap_drawn
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
                   << " nativeTextWhiteGlyphBitmaps="
@@ -1866,7 +1818,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicSplit"
-                  << " nativeTextComposite=whiteInFinalBitmap+blackPrinterDc"
+                  << " nativeTextComposite=bitmapThenRichEditWhiteThenBlackPrinterDc"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
