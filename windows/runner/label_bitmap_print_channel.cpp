@@ -5,6 +5,9 @@
 #include <flutter/standard_method_codec.h>
 #include <windows.h>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #include <algorithm>
 #include <memory>
 #include <sstream>
@@ -18,7 +21,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.63";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.64";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -746,7 +749,11 @@ bool RenderWhiteTextIntoBitmapDirectWriteExperiment(
 }
 #endif
 
-bool RenderWhiteTextIntoBitmap(
+#if 0
+// Retired after the v1.3.63 physical print produced only 2,381 knockout
+// pixels and still showed severe inverse glyph loss. Keep this failed GGO
+// bitmap experiment isolated so it cannot be reused.
+bool RenderWhiteTextIntoBitmapGgoExperiment(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
     int source_width, int source_height,
     const std::vector<NativeTextDescriptor>& text_descriptors,
@@ -931,6 +938,209 @@ bool RenderWhiteTextIntoBitmap(
     DeleteObject(font);
   }
   DeleteDC(memory_dc);
+
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      const size_t mask_offset = static_cast<size_t>(y) * target_width + x;
+      if (white_mask[mask_offset] == 0) continue;
+      const size_t target_offset = mask_offset * 4;
+      if (bitmap[target_offset] >= 128 || bitmap[target_offset + 1] >= 128 ||
+          bitmap[target_offset + 2] >= 128) {
+        continue;
+      }
+      bitmap[target_offset] = 255;
+      bitmap[target_offset + 1] = 255;
+      bitmap[target_offset + 2] = 255;
+      ++stats.white_knockout_pixels;
+    }
+  }
+  return true;
+}
+#endif
+
+bool RenderWhiteTextIntoBitmap(
+    std::vector<uint8_t>& bitmap, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    HDC printer_dc, NativeTextRenderStats& stats, std::string& error) {
+  const bool has_white_text = std::any_of(
+      text_descriptors.begin(), text_descriptors.end(),
+      [](const NativeTextDescriptor& descriptor) {
+        return descriptor.color == RGB(255, 255, 255);
+      });
+  if (!has_white_text) return true;
+
+  FT_Library library = nullptr;
+  if (FT_Init_FreeType(&library) != 0) {
+    error = "FT_Init_FreeType failed";
+    return false;
+  }
+  HDC memory_dc = CreateCompatibleDC(printer_dc);
+  if (memory_dc == nullptr) {
+    FT_Done_FreeType(library);
+    error = "CreateCompatibleDC for FreeType font extraction failed: " +
+            std::to_string(GetLastError());
+    return false;
+  }
+  std::vector<uint8_t> white_mask(
+      static_cast<size_t>(target_width) * target_height, uint8_t{0});
+
+  for (const auto& descriptor : text_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    RECT text_rect{
+        MulDiv(descriptor.rect.left, target_width, source_width),
+        MulDiv(descriptor.rect.top, target_height, source_height),
+        MulDiv(descriptor.rect.right, target_width, source_width),
+        MulDiv(descriptor.rect.bottom, target_height, source_height),
+    };
+    const LONG available_width =
+        std::max<LONG>(1, text_rect.right - text_rect.left);
+    int font_height = std::max(
+        1, MulDiv(descriptor.font_pixel_height, target_height, source_height));
+    HFONT font = CreateFontW(
+        -font_height, 0, 0, 0,
+        descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
+        descriptor.underline, descriptor.strike_through, DEFAULT_CHARSET,
+        OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, descriptor.font_family.c_str());
+    if (font == nullptr) {
+      ++stats.failed;
+      continue;
+    }
+    HGDIOBJ previous_font = SelectObject(memory_dc, font);
+    if (previous_font == nullptr || previous_font == HGDI_ERROR) {
+      DeleteObject(font);
+      ++stats.failed;
+      continue;
+    }
+    const DWORD font_data_size = GetFontData(memory_dc, 0, 0, nullptr, 0);
+    std::vector<uint8_t> font_data(
+        font_data_size == GDI_ERROR ? 0 : font_data_size);
+    const bool font_data_ok =
+        !font_data.empty() &&
+        GetFontData(memory_dc, 0, 0, font_data.data(), font_data_size) !=
+            GDI_ERROR;
+    SelectObject(memory_dc, previous_font);
+    DeleteObject(font);
+    if (!font_data_ok) {
+      ++stats.no_outline_fonts;
+      ++stats.failed;
+      continue;
+    }
+    ++stats.outline_fonts;
+
+    FT_Face face = nullptr;
+    if (FT_New_Memory_Face(library, font_data.data(),
+                           static_cast<FT_Long>(font_data.size()), 0,
+                           &face) != 0 ||
+        FT_Select_Charmap(face, FT_ENCODING_UNICODE) != 0) {
+      if (face != nullptr) FT_Done_Face(face);
+      ++stats.failed;
+      continue;
+    }
+
+    auto measure_text = [&](int pixel_height, LONG& advance) {
+      if (FT_Set_Pixel_Sizes(face, 0, static_cast<FT_UInt>(pixel_height)) !=
+          0) {
+        return false;
+      }
+      advance = 0;
+      for (wchar_t character : descriptor.text) {
+        if (FT_Load_Char(face, static_cast<FT_ULong>(character),
+                         FT_LOAD_DEFAULT | FT_LOAD_TARGET_MONO) != 0) {
+          return false;
+        }
+        advance += static_cast<LONG>(face->glyph->advance.x >> 6);
+      }
+      return true;
+    };
+
+    LONG total_advance = 0;
+    bool descriptor_ok = false;
+    bool fitted = false;
+    for (int attempt = 0; attempt < 5; ++attempt) {
+      if (!measure_text(font_height, total_advance)) break;
+      descriptor_ok = true;
+      if (descriptor.wrap || total_advance <= available_width ||
+          font_height <= 1) {
+        break;
+      }
+      font_height = std::max(
+          1, MulDiv(font_height, std::max<LONG>(1, available_width - 1),
+                    total_advance));
+      fitted = true;
+    }
+    if (fitted) ++stats.fitted;
+
+    LONG pen_x = text_rect.left;
+    if (descriptor.horizontal_align == "0") {
+      pen_x += std::max<LONG>(0, (available_width - total_advance) / 2);
+    } else if (descriptor.horizontal_align == "2") {
+      pen_x += std::max<LONG>(0, available_width - total_advance);
+    }
+    const LONG ascender = static_cast<LONG>(face->size->metrics.ascender >> 6);
+    const LONG text_height = std::max<LONG>(
+        1, static_cast<LONG>(face->size->metrics.height >> 6));
+    LONG line_top = text_rect.top;
+    if (descriptor.vertical_align == "2") {
+      line_top = std::max(text_rect.top, text_rect.bottom - text_height);
+    } else if (descriptor.vertical_align != "1") {
+      line_top += std::max<LONG>(
+          0, (text_rect.bottom - text_rect.top - text_height) / 2);
+    }
+    const LONG baseline_y = line_top + ascender;
+
+    if (descriptor_ok) {
+      for (wchar_t character : descriptor.text) {
+        if (FT_Load_Char(face, static_cast<FT_ULong>(character),
+                         FT_LOAD_RENDER | FT_LOAD_TARGET_MONO) != 0 ||
+            face->glyph->bitmap.pixel_mode != FT_PIXEL_MODE_MONO) {
+          descriptor_ok = false;
+          break;
+        }
+        const FT_Bitmap& glyph_bitmap = face->glyph->bitmap;
+        const LONG glyph_left = pen_x + face->glyph->bitmap_left;
+        const LONG glyph_top = baseline_y - face->glyph->bitmap_top;
+        const int pitch = glyph_bitmap.pitch;
+        for (unsigned int y = 0; y < glyph_bitmap.rows; ++y) {
+          const LONG target_y = glyph_top + static_cast<LONG>(y);
+          if (target_y < text_rect.top || target_y >= text_rect.bottom ||
+              target_y < 0 || target_y >= target_height) {
+            continue;
+          }
+          const unsigned int source_y =
+              pitch >= 0 ? y : glyph_bitmap.rows - 1 - y;
+          const uint8_t* row = glyph_bitmap.buffer +
+                               static_cast<size_t>(source_y) *
+                                   static_cast<size_t>(std::abs(pitch));
+          for (unsigned int x = 0; x < glyph_bitmap.width; ++x) {
+            if ((row[x / 8] & (0x80 >> (x % 8))) == 0) continue;
+            const LONG target_x = glyph_left + static_cast<LONG>(x);
+            if (target_x < text_rect.left || target_x >= text_rect.right ||
+                target_x < 0 || target_x >= target_width) {
+              continue;
+            }
+            white_mask[static_cast<size_t>(target_y) * target_width +
+                       target_x] = 1;
+          }
+        }
+        if (glyph_bitmap.width > 0 && glyph_bitmap.rows > 0) {
+          ++stats.white_glyph_bitmaps;
+        }
+        pen_x += static_cast<LONG>(face->glyph->advance.x >> 6);
+      }
+    }
+    if (descriptor_ok) {
+      ++stats.drawn;
+      ++stats.white_bitmap_drawn;
+      stats.characters += descriptor.text.size();
+    } else {
+      ++stats.failed;
+    }
+    FT_Done_Face(face);
+  }
+  DeleteDC(memory_dc);
+  FT_Done_FreeType(library);
 
   for (int y = 0; y < target_height; ++y) {
     for (int x = 0; x < target_width; ++x) {
@@ -1481,7 +1691,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=getGlyphOutlineGgoBitmap1bpp"
+              << " nativeTextWhiteRender=freeTypeMonoStrongHinting"
               << " printWatermark=v1.3.63"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {

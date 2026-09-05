@@ -1,6 +1,23 @@
 # 현재 작업 상태
 
+## 완료: FreeType mono strong hinting 역상 글자 출력 v1.3.64
+- 실물 확인: `.tmp/IMG_20260905_0003.png` 우하단 `v1.3.63`을 확인했고, 두 역상 행의 흰 글자 획 탈락이 계속되어 GGO 1-bit 결과도 부적합하다.
+- 로그 확인: `app_2026-09-05_15-34-39.log`에서 `backend=windowsDriver`, `nativeTextWhiteRender=getGlyphOutlineGgoBitmap1bpp`, glyph bitmap 49개, knockout 2,381픽셀이 기록됐다. DirectWrite 2,703픽셀보다 더 감소해 실물 획 손실과 일치한다.
+- 재사용 방지 완료: 실패한 GGO renderer는 실패 사유 주석 및 `#if 0`으로 격리했다.
+- 구현 완료: GDI가 실제 선택한 굴림 font bytes를 `GetFontData`로 가져와 FreeType memory face를 생성하고, 최종 장치 dot 크기에서 `FT_LOAD_TARGET_MONO`와 `FT_RENDER_MODE_MONO`에 해당하는 `FT_LOAD_RENDER` 조합으로 strong-hinted 1-bit glyph를 조립한다.
+- 의존성 편집 완료: FreeType `VER-2-13-3`을 선택 기능 없이 Debug/Release 정적 라이브러리로 빌드하며, 추적 archive와 `tools/build_native_freetype.ps1`로 재현한다.
+- archive 검증 완료: `third_party/native/freetype.zip`은 2,898,122바이트, SHA-256 `985D3D9A58BC9718BAFF9415F853D2156BDF4677BB25CC7EBD67534186AD9F90`이며 `tools/build_native_freetype.ps1 -SkipClone`으로 Debug/Release 재빌드에 성공했다.
+- diagnostics 편집 완료: `nativeTextWhiteRender=freeTypeMonoStrongHinting`, `nativeTextWhiteGlyphBitmaps`, `nativeTextWhiteKnockoutPixels`, `printWatermark=v1.3.64`를 기록한다.
+- 1차 검증 완료: Windows `/WX` debug build 성공.
+- 최종 검증 완료: 관련 인쇄 테스트 3개 전체 20건 통과, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, 변경 파일 diagnostics 오류 0건, `git diff --check` 통과, EXE FileVersion/ProductVersion `1.3.64` 확인.
+- 실행 검증 완료: `build/windows/x64/runner/Debug/label_manager.exe` 프로세스가 응답 중이며 startup 로그 `app_2026-09-05_15-44-41.log`에서 `DebugLogger version: 1.3.64`를 확인했다.
+- 버전 편집 완료: Windows 역상 glyph rasterizer 교체이므로 PATCH를 `1.3.63`에서 `1.3.64`로 증가했다.
+- 실물 재검증 기준: 출력물 우하단 `v1.3.64`, 로그의 `nativeTextWhiteRender=freeTypeMonoStrongHinting`, glyph bitmap 수와 knockout 수를 확인한다. 동일 라벨에서 GGO 2,381픽셀보다 회복되는지와 획 연속성을 함께 비교한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `windows/runner/CMakeLists.txt`, `tools/build_native_freetype.ps1`, `third_party/native/freetype.zip`, `third_party/native/README.md`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: Windows GDI grid-fitted 1-bit 역상 글자 출력 v1.3.63
+- 실물 결과: `.tmp/IMG_20260905_0003.png`에서 품질 개선이 없었고 knockout은 2,381픽셀로 DirectWrite 2,703픽셀보다 감소했다. 이 경로는 `v1.3.64`에서 실패 코드로 격리했다.
 - 실물 확인: `.tmp/IMG_20260905_0002.png` 우하단 `v1.3.62`를 확인했고, 두 역상 행의 흰 글자 획이 이전보다 더 크게 탈락해 DirectWrite aliased 결과도 부적합하다.
 - 로그 확인: `app_2026-09-05_15-28-25.log`에서 `backend=windowsDriver`, `nativeTextWhiteRender=directWriteAliased1x1`, glyph run 2개, knockout 2,703픽셀이 기록됐다. 기존 supersample의 4,137픽셀보다 크게 줄어든 수치가 실물 획 탈락과 일치한다.
 - 구현 예정: DirectWrite 경로를 실패 주석과 `#if 0`으로 격리하고, 최종 장치 dot 크기의 `HFONT`에서 `GetGlyphIndicesW` + `GetGlyphOutlineW(GGO_BITMAP | GGO_GLYPH_INDEX)`로 Windows grid-fitted 1-bit glyph를 얻어 baseline/advance 기준으로 조립한다.

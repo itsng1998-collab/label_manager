@@ -40,6 +40,17 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 set(LABEL_MANAGER_NATIVE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/native")
+set(LABEL_MANAGER_FREETYPE_SOURCE "${LABEL_MANAGER_NATIVE_ROOT}/freetype")
+set(LABEL_MANAGER_FREETYPE_BUILD "${LABEL_MANAGER_NATIVE_ROOT}/build/freetype")
+if(NOT EXISTS "${LABEL_MANAGER_FREETYPE_SOURCE}/include/ft2build.h")
+  message(FATAL_ERROR "FreeType source is missing. Run tools/build_native_freetype.ps1 -SkipClone.")
+endif()
+target_include_directories(${BINARY_NAME} PRIVATE
+  "${LABEL_MANAGER_FREETYPE_SOURCE}/include")
+target_link_libraries(${BINARY_NAME} PRIVATE
+  "$<$<CONFIG:Debug>:${LABEL_MANAGER_FREETYPE_BUILD}/Debug/freetyped.lib>"
+  "$<$<NOT:$<CONFIG:Debug>>:${LABEL_MANAGER_FREETYPE_BUILD}/Release/freetype.lib>")
+
 set(LABEL_MANAGER_NATIVE_DEFAULT_CONFIG "Release")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(LABEL_MANAGER_NATIVE_DEFAULT_CONFIG "Debug")
