@@ -1,6 +1,21 @@
 # 현재 작업 상태
 
-## 진행 중: 전체 페이지 EMF spool 출력 v1.3.73
+## 진행 중: exact-device 단일 1bpp DIB 출력 v1.3.74
+- 실물 확인: `.tmp/IMG_20260905_0011.png`에서도 역상 흰 한글 획 탈락이 계속됐다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-06-00.log`에서 `v1.3.73`, `backend=windowsDriver`, `spoolFormat=EMF_PAGE`, `emfPlayResult=1`, direct 2건, 실패 0을 확인했다. 전체 페이지 EMF가 실제 재생됐지만 개선이 없어 기각한다.
+- 다음 방식: 현재 최종 device 크기 620x480의 printer-compatible 1bpp top-down DIB를 만들고 base bitmap, RichEdit 흰 글자, 일반 검정 글자, 워터마크를 모두 해당 단색 DC에 합성한 뒤 `SetDIBitsToDevice`로 1:1 전송한다.
+- 기존 방식과 차이: RAW Q는 펌웨어 binary pattern, Windows 기존 경로는 32bpp/벡터·EMF 혼합이었다. 이번에는 Windows 드라이버에 stride 80의 최종 단색 device bitmap 하나만 전달한다. 새 텍스트 rasterizer나 morphology는 추가하지 않는다.
+- Windows 편집 완료: 1bpp palette index 0=흰색, 1=검정, 32-bit aligned stride를 사용한다. EMF 생성/재생 코드는 제거하고 1bpp DIB 생성·전체 drawing·`SetDIBitsToDevice`로 교체했다.
+- diagnostics 추가: `spoolFormat=DIB_1BPP_DEVICE`, `monoStride=80`, `monoScanLines`, `monoPalette=zeroWhiteOneBlack`, `nativeTextComposite=singleDeviceMonoDib`를 기록한다.
+- 관련 검증 완료: 수정 직후 Windows `/WX` Debug 빌드 성공. dispatcher/print job/font provisioner 테스트 전체 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 버전/워터마크 수정 완료: 앱과 Windows 출력 watermark를 `v1.3.74`로 증가했다.
+- 최종 검증 완료: 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.74`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_17-13-01.log`에서 `DebugLogger version: 1.3.74` 확인.
+- stage/commit 대상: Windows exact-device 1bpp page, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=windowsDriver`, `spoolFormat=DIB_1BPP_DEVICE`, `monoStride=80`, `monoScanLines=480`, direct 2건, 실패 0, `printWatermark=v1.3.74`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 전체 페이지 EMF spool 출력 v1.3.73
 - 실물 확인: `.tmp/IMG_20260905_0010.png`에서도 두 역상 행의 흰 한글 획 탈락이 계속됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_16-58-49.log`에서 `v1.3.72`, `backend=windowsDriver`, `nativeTextWhiteRender=richEditFormatRangePrinterDc`, direct 2건, 실패 0, knockout 0을 확인했다. RichEdit printer DC 직접 출력도 정상 실행됐지만 품질 개선이 없어 텍스트 렌더러 교체 실험을 종료한다.
 - 다음 방식: base 32bpp bitmap, RichEdit 역상 흰 글자, 일반 검정 글자, 워터마크를 printer-reference enhanced metafile DC 한 페이지에 모두 기록하고 닫힌 EMF를 실제 printer DC에 한 번 재생한다.

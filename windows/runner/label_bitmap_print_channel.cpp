@@ -23,7 +23,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.73";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.74";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1644,7 +1644,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcRichEditWhite+printerDcBlackText"
               << " nativeTextWhiteRender=richEditFormatRangePrinterDc"
-              << " printWatermark=v1.3.73"
+              << " printWatermark=v1.3.74"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1669,15 +1669,36 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       error = "StartPage failed: " + std::to_string(GetLastError());
       break;
     }
-    RECT emf_frame{0, 0, static_cast<LONG>(page_width_mm * 100.0 + 0.5),
-                   static_cast<LONG>(page_height_mm * 100.0 + 0.5)};
-    HDC page_dc = CreateEnhMetaFileW(printer_dc, nullptr, &emf_frame,
-                                     L"ITSnG\0Label page\0\0");
-    if (page_dc == nullptr) {
-      error = "CreateEnhMetaFileW failed: " +
+    struct MonoBitmapInfo {
+      BITMAPINFOHEADER header{};
+      RGBQUAD colors[2]{};
+    } mono_info;
+    mono_info.header.biSize = sizeof(BITMAPINFOHEADER);
+    mono_info.header.biWidth = target_width;
+    mono_info.header.biHeight = -target_height;
+    mono_info.header.biPlanes = 1;
+    mono_info.header.biBitCount = 1;
+    mono_info.header.biCompression = BI_RGB;
+    mono_info.header.biClrUsed = 2;
+    mono_info.header.biClrImportant = 2;
+    mono_info.colors[0] = RGBQUAD{255, 255, 255, 0};
+    mono_info.colors[1] = RGBQUAD{0, 0, 0, 0};
+    void* mono_bits = nullptr;
+    HDC page_dc = CreateCompatibleDC(printer_dc);
+    HBITMAP mono_bitmap = CreateDIBSection(
+        printer_dc, reinterpret_cast<BITMAPINFO*>(&mono_info), DIB_RGB_COLORS,
+        &mono_bits, nullptr, 0);
+    if (page_dc == nullptr || mono_bitmap == nullptr || mono_bits == nullptr) {
+      if (mono_bitmap != nullptr) DeleteObject(mono_bitmap);
+      if (page_dc != nullptr) DeleteDC(page_dc);
+      error = "CreateDIBSection 1bpp page failed: " +
               std::to_string(GetLastError());
       break;
     }
+    HGDIOBJ previous_page_bitmap = SelectObject(page_dc, mono_bitmap);
+    RECT page_rect{0, 0, target_width, target_height};
+    FillRect(page_dc, &page_rect,
+             reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
@@ -1822,7 +1843,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicSplit"
-                  << " nativeTextComposite=bitmapThenRichEditWhiteThenBlackPrinterDc"
+                  << " nativeTextComposite=singleDeviceMonoDib"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
@@ -1836,28 +1857,25 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       }
       }
     }
-    HENHMETAFILE page_metafile = CloseEnhMetaFile(page_dc);
-    if (page_metafile == nullptr) {
-      if (error.empty()) {
-        error = "CloseEnhMetaFile failed: " +
+    GdiFlush();
+    int mono_scan_lines = 0;
+    if (error.empty()) {
+      mono_scan_lines = SetDIBitsToDevice(
+          printer_dc, destination_x, destination_y, target_width,
+          target_height, 0, 0, 0, target_height, mono_bits,
+          reinterpret_cast<BITMAPINFO*>(&mono_info), DIB_RGB_COLORS);
+      if (mono_scan_lines == 0 || mono_scan_lines == GDI_ERROR) {
+        error = "SetDIBitsToDevice 1bpp failed: " +
                 std::to_string(GetLastError());
       }
-    } else {
-      const RECT play_rect{destination_x, destination_y,
-                           destination_x + target_width,
-                           destination_y + target_height};
-      const BOOL played = error.empty()
-                              ? PlayEnhMetaFile(printer_dc, page_metafile,
-                                                &play_rect)
-                              : FALSE;
-      diagnostics << " spoolFormat=EMF_PAGE"
-                  << " emfPlayResult=" << (played ? 1 : 0);
-      if (error.empty() && !played) {
-        error = "PlayEnhMetaFile failed: " +
-                std::to_string(GetLastError());
-      }
-      DeleteEnhMetaFile(page_metafile);
     }
+    diagnostics << " spoolFormat=DIB_1BPP_DEVICE"
+                << " monoStride=" << ((target_width + 31) / 32) * 4
+                << " monoScanLines=" << mono_scan_lines
+                << " monoPalette=zeroWhiteOneBlack";
+    SelectObject(page_dc, previous_page_bitmap);
+    DeleteObject(mono_bitmap);
+    DeleteDC(page_dc);
     if (error.empty() && EndPage(printer_dc) <= 0) {
       error = "EndPage failed: " + std::to_string(GetLastError());
     }
