@@ -1,5 +1,24 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: G500 v1.3.58 일반 출력 품질 복원 v1.3.87
+- 사용자 기준: 역상 품질 개선 대상 외의 일반 글자·표선은 v1.3.58 출력 품질이 좋았다.
+- 실물 확인: `.tmp/IMG_20260905_0024.png`에서도 일반 한글, 숫자, 표선까지 거칠고 뭉쳐 전체 품질 회귀가 명확하다.
+- 로그 확인: `.tmp/log/app_2026-09-05_18-49-22.log`에서 v1.3.86 Q 전체 bitmap 전송과 역상 band 1곳의 `coolingPixels=10852`를 확인했다. 냉각 범위 밖 일반 영역도 나쁘므로 Q 전체 bitmap 경로를 종료한다.
+- 기준 커밋: `d7d17a4`가 v1.3.58이며 G500도 `windowsDriver`로 라우팅했다.
+- native 차이: v1.3.58은 32-bit `StretchDIBits`를 printer DC에 직접 전송한 뒤 원본 descriptor를 `DrawTextW`로 출력했다. 현재 1-bit 중간 DIB와 `PrepareInverseRowFallback`은 v1.3.78 이후 변경이라 단순 dispatcher 복귀만으로는 동일하지 않다.
+- backend 편집 완료: G500 physical port를 다시 `windowsDriver`로 라우팅한다.
+- native 편집 완료: G500에만 `driverDirect32V1358` 모드를 적용해 1-bit 중간 DIB와 흰 박스 fallback을 건너뛰고 32-bit bitmap 및 native text를 printer DC에 직접 출력한다. 다른 프린터 경로와 과거 실패 코드는 유지한다.
+- 버전 편집 완료: `1.3.87`.
+- focused 검증 완료: G500 physical port가 `windowsDriver`로 매핑되는 테스트 통과.
+- 관련 전체 검증 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 33건 통과, 수정 Dart 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows `/WX` Debug 빌드 완료: 성공.
+- 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.87`; `.tmp/log/app_2026-09-05_19-02-47.log`에서 `DebugLogger version: 1.3.87`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
+- DTD 확인: standalone Debug EXE에는 active app connection이 없어 hot restart 대신 `/WX` 재빌드·프로세스 재실행으로 변경을 반영했다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/printing/label_print_dispatcher.dart`, `pubspec.yaml`, `test/label_print_dispatcher_test.dart`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 실물 검증 포인트: 출력 로그에서 `backend=windowsDriver`, `outputMode=driverDirect32V1358`, `spoolFormat=DIB_32BPP_DRIVER_DIRECT`, `inversePolarity=originalWhiteOnBlack`, `printWatermark=v1.3.87`을 확인한다. 우선 일반 한글·숫자·표선이 v1.3.58 품질로 복원됐는지 판정하고, 역상 품질은 별도로 평가한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료·실물 검증 대기: G500 역상 band 수평 냉각행 출력 v1.3.86
 - 실물 확인: `.tmp/IMG_20260905_0023.png`은 50% checkerboard 때문에 역상 배경과 하단 검정 띠가 거칠어져 전체 품질이 나빠졌다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-26-42.log`에서 `v1.3.85`, `darkBands=2`, `halftonePixels=22221`, RAW `38477/38477` bytes, `accepted=true`를 확인했다. 역상 제목 외 하단 solid bar까지 두 번째 band로 오인했다.

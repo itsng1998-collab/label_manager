@@ -1675,6 +1675,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                                               : *legacy_printer_type_arg;
   const bool bixolon = legacy_printer_type == "bixolon";
   const bool citizen = legacy_printer_type == "citizen";
+  const bool godex_v1358_driver_direct = legacy_printer_type == "godex";
   const auto pixels_iter = args.find(EncodableValue("bgra"));
   const auto text_descriptors = TextDescriptorsArg(args);
   const auto border_descriptors = BorderDescriptorsArg(args);
@@ -1812,9 +1813,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=boxedHeaderBlackOnWhite"
-              << " nativeTextWhiteRender=fullRowPolarityFallback"
-              << " printWatermark=v1.3.78"
+                    << " outputMode="
+                    << (godex_v1358_driver_direct ? "driverDirect32V1358"
+                           : "monoDibBoxedHeader")
+                    << " nativeTextRaster="
+                    << (godex_v1358_driver_direct
+                      ? "printerDcDirect32+nativeText"
+                      : "boxedHeaderBlackOnWhite")
+                    << " nativeTextWhiteRender="
+                    << (godex_v1358_driver_direct ? "printerDcDirect"
+                           : "fullRowPolarityFallback")
+                    << " printWatermark=v1.3.87"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1854,21 +1863,27 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     mono_info.colors[0] = RGBQUAD{255, 255, 255, 0};
     mono_info.colors[1] = RGBQUAD{0, 0, 0, 0};
     void* mono_bits = nullptr;
-    HDC page_dc = CreateCompatibleDC(printer_dc);
-    HBITMAP mono_bitmap = CreateDIBSection(
-        printer_dc, reinterpret_cast<BITMAPINFO*>(&mono_info), DIB_RGB_COLORS,
-        &mono_bits, nullptr, 0);
-    if (page_dc == nullptr || mono_bitmap == nullptr || mono_bits == nullptr) {
-      if (mono_bitmap != nullptr) DeleteObject(mono_bitmap);
-      if (page_dc != nullptr) DeleteDC(page_dc);
-      error = "CreateDIBSection 1bpp page failed: " +
-              std::to_string(GetLastError());
-      break;
+    HDC page_dc = godex_v1358_driver_direct
+                      ? printer_dc
+                      : CreateCompatibleDC(printer_dc);
+    HBITMAP mono_bitmap = nullptr;
+    HGDIOBJ previous_page_bitmap = nullptr;
+    if (!godex_v1358_driver_direct) {
+      mono_bitmap = CreateDIBSection(
+          printer_dc, reinterpret_cast<BITMAPINFO*>(&mono_info), DIB_RGB_COLORS,
+          &mono_bits, nullptr, 0);
+      if (page_dc == nullptr || mono_bitmap == nullptr || mono_bits == nullptr) {
+        if (mono_bitmap != nullptr) DeleteObject(mono_bitmap);
+        if (page_dc != nullptr) DeleteDC(page_dc);
+        error = "CreateDIBSection 1bpp page failed: " +
+                std::to_string(GetLastError());
+        break;
+      }
+      previous_page_bitmap = SelectObject(page_dc, mono_bitmap);
+      RECT page_rect{0, 0, target_width, target_height};
+      FillRect(page_dc, &page_rect,
+               reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     }
-    HGDIOBJ previous_page_bitmap = SelectObject(page_dc, mono_bitmap);
-    RECT page_rect{0, 0, target_width, target_height};
-    FillRect(page_dc, &page_rect,
-             reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
@@ -1895,13 +1910,16 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
-          InverseRowFallbackStats inverse_row_fallback_stats;
-          const auto row_fallback_text_descriptors = PrepareInverseRowFallback(
+      InverseRowFallbackStats inverse_row_fallback_stats;
+      auto render_text_descriptors = text_descriptors;
+      if (!godex_v1358_driver_direct) {
+        render_text_descriptors = PrepareInverseRowFallback(
             page_dc, composed_bitmap, target_width, target_height, source_width,
             source_height, text_descriptors, inverse_row_fallback_stats);
+      }
       if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
-                source_height, row_fallback_text_descriptors, page_dc,
+              source_height, render_text_descriptors, page_dc,
               native_text_stats, error)) {
                   } else if (!DrawPrintTestWatermark(
                     page_dc, destination_x, destination_y, target_width,
@@ -2037,7 +2055,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     }
     GdiFlush();
     int mono_scan_lines = 0;
-    if (error.empty()) {
+    if (error.empty() && !godex_v1358_driver_direct) {
       mono_scan_lines = SetDIBitsToDevice(
           printer_dc, destination_x, destination_y, target_width,
           target_height, 0, 0, 0, target_height, mono_bits,
@@ -2047,15 +2065,21 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                 std::to_string(GetLastError());
       }
     }
-    diagnostics << " spoolFormat=DIB_1BPP_DEVICE"
+    diagnostics << " spoolFormat="
+                << (godex_v1358_driver_direct ? "DIB_32BPP_DRIVER_DIRECT"
+                                               : "DIB_1BPP_DEVICE")
                 << " monoStride=" << ((target_width + 31) / 32) * 4
                 << " monoScanLines=" << mono_scan_lines
                 << " monoPalette=zeroWhiteOneBlack"
-                << " inversePolarity=boxedHeaderBlackOnWhite"
+                << " inversePolarity="
+                << (godex_v1358_driver_direct ? "originalWhiteOnBlack"
+                                               : "boxedHeaderBlackOnWhite")
                 << " coolingPattern=disabledAfterPhysicalFailure";
-    SelectObject(page_dc, previous_page_bitmap);
-    DeleteObject(mono_bitmap);
-    DeleteDC(page_dc);
+    if (!godex_v1358_driver_direct) {
+      SelectObject(page_dc, previous_page_bitmap);
+      DeleteObject(mono_bitmap);
+      DeleteDC(page_dc);
+    }
     if (error.empty() && EndPage(printer_dc) <= 0) {
       error = "EndPage failed: " + std::to_string(GetLastError());
     }
