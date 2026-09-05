@@ -1,6 +1,21 @@
 # 현재 작업 상태
 
-## 진행 중: RichEdit printer DC 직접 역상 출력 v1.3.72
+## 진행 중: 전체 페이지 EMF spool 출력 v1.3.73
+- 실물 확인: `.tmp/IMG_20260905_0010.png`에서도 두 역상 행의 흰 한글 획 탈락이 계속됐다.
+- 로그 확인: `.tmp/log/app_2026-09-05_16-58-49.log`에서 `v1.3.72`, `backend=windowsDriver`, `nativeTextWhiteRender=richEditFormatRangePrinterDc`, direct 2건, 실패 0, knockout 0을 확인했다. RichEdit printer DC 직접 출력도 정상 실행됐지만 품질 개선이 없어 텍스트 렌더러 교체 실험을 종료한다.
+- 다음 방식: base 32bpp bitmap, RichEdit 역상 흰 글자, 일반 검정 글자, 워터마크를 printer-reference enhanced metafile DC 한 페이지에 모두 기록하고 닫힌 EMF를 실제 printer DC에 한 번 재생한다.
+- 기존 방식과 차이: v1.3.72까지는 bitmap과 텍스트 GDI 명령이 printer DC에 분리 전송됐다. 이번에는 드라이버가 페이지 전체를 단일 EMF spool 표현으로 수신한다. 32bpp 620x480 1:1 전송이라 효과 없는 stretch mode 변경은 하지 않는다.
+- Windows 편집 완료: `CreateEnhMetaFileW(printer_dc)` → 전체 기존 drawing → `CloseEnhMetaFile` → `PlayEnhMetaFile(printer_dc)` 순서로 변경했다. 생성·종료·재생 실패는 fallback 없이 인쇄 오류로 전달한다.
+- diagnostics 추가: `spoolFormat=EMF_PAGE`, `emfPlayResult=1`을 기록한다.
+- 관련 검증 완료: 수정 직후 Windows `/WX` Debug 빌드 성공. dispatcher/print job/font provisioner 테스트 전체 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 버전/워터마크 수정 완료: 앱과 Windows 출력 watermark를 `v1.3.73`으로 증가했다.
+- 최종 검증 완료: 버전 반영 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 재실행 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.73`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_17-06-00.log`에서 `DebugLogger version: 1.3.73` 확인.
+- stage/commit 대상: Windows EMF page spool, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=windowsDriver`, `spoolFormat=EMF_PAGE`, `emfPlayResult=1`, direct 2건, 실패 0, `printWatermark=v1.3.73`. 일반 요소와 역상 획을 v1.3.72와 비교한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: RichEdit printer DC 직접 역상 출력 v1.3.72
 - 실물 확인: `.tmp/IMG_20260905_0009.png`에서 전체 라벨과 일반 문자는 복구됐지만 두 검정 행의 흰 한글 획 탈락은 계속됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_16-51-52.log`에서 `v1.3.71`, `backend=windowsDriver`, `nativeTextWhiteRender=richEditFormatRangeLegacy`, 흰 descriptor 2건, 실패 0, knockout 3,219픽셀을 확인했다. RichEdit memory-mask 경로는 정상 실행됐지만 품질 개선이 없어 기각한다.
 - 다음 방식: RichEdit font/layout 설정은 유지하되 중간 32bpp DIB, luminance threshold, white mask와 knockout 합성을 모두 제거한다. base bitmap 전송 직후 레거시처럼 `EM_FORMATRANGE`의 `hdc/hdcTarget`을 실제 printer DC로 지정해 역상 셀을 직접 출력한다.

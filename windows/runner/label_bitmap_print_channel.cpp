@@ -23,7 +23,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.72";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.73";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1644,7 +1644,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcRichEditWhite+printerDcBlackText"
               << " nativeTextWhiteRender=richEditFormatRangePrinterDc"
-              << " printWatermark=v1.3.72"
+              << " printWatermark=v1.3.73"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1669,6 +1669,15 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       error = "StartPage failed: " + std::to_string(GetLastError());
       break;
     }
+    RECT emf_frame{0, 0, static_cast<LONG>(page_width_mm * 100.0 + 0.5),
+                   static_cast<LONG>(page_height_mm * 100.0 + 0.5)};
+    HDC page_dc = CreateEnhMetaFileW(printer_dc, nullptr, &emf_frame,
+                                     L"ITSnG\0Label page\0\0");
+    if (page_dc == nullptr) {
+      error = "CreateEnhMetaFileW failed: " +
+              std::to_string(GetLastError());
+      break;
+    }
     auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
@@ -1680,9 +1689,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = 32;
     bitmap_info.bmiHeader.biCompression = BI_RGB;
-    const int previous_mode = SetStretchBltMode(printer_dc, COLORONCOLOR);
+    const int previous_mode = SetStretchBltMode(page_dc, COLORONCOLOR);
     const int scan_lines = StretchDIBits(
-        printer_dc, destination_x, destination_y, target_width, target_height,
+      page_dc, destination_x, destination_y, target_width, target_height,
         0, 0, target_width, target_height, composed_bitmap.data(),
         &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
@@ -1697,21 +1706,16 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     } else {
       if (!RenderWhiteTextIntoBitmap(
               composed_bitmap, target_width, target_height, source_width,
-              source_height, text_descriptors, printer_dc,
+                    source_height, text_descriptors, page_dc,
               native_text_stats, error)) {
-        break;
-      }
-      if (!RenderNativeTextToPrinterDc(
+                  } else if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
-              source_height, text_descriptors, printer_dc,
+                    source_height, text_descriptors, page_dc,
               native_text_stats, error)) {
-        break;
-      }
-      if (!DrawPrintTestWatermark(
-              printer_dc, destination_x, destination_y, target_width,
+                  } else if (!DrawPrintTestWatermark(
+                    page_dc, destination_x, destination_y, target_width,
               target_height, error)) {
-        break;
-      }
+                  } else {
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
@@ -1830,6 +1834,29 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         error = "Native text rendering failed: " +
                 std::to_string(native_text_stats.failed);
       }
+      }
+    }
+    HENHMETAFILE page_metafile = CloseEnhMetaFile(page_dc);
+    if (page_metafile == nullptr) {
+      if (error.empty()) {
+        error = "CloseEnhMetaFile failed: " +
+                std::to_string(GetLastError());
+      }
+    } else {
+      const RECT play_rect{destination_x, destination_y,
+                           destination_x + target_width,
+                           destination_y + target_height};
+      const BOOL played = error.empty()
+                              ? PlayEnhMetaFile(printer_dc, page_metafile,
+                                                &play_rect)
+                              : FALSE;
+      diagnostics << " spoolFormat=EMF_PAGE"
+                  << " emfPlayResult=" << (played ? 1 : 0);
+      if (error.empty() && !played) {
+        error = "PlayEnhMetaFile failed: " +
+                std::to_string(GetLastError());
+      }
+      DeleteEnhMetaFile(page_metafile);
     }
     if (error.empty() && EndPage(printer_dc) <= 0) {
       error = "EndPage failed: " + std::to_string(GetLastError());
