@@ -24,7 +24,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.77";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.78";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -174,6 +174,9 @@ struct InverseReadabilityStats {
   int descriptors = 0;
 };
 
+#if 0
+// v1.3.77 applied 20-dot height-preserving width fit to both inverse rows,
+// but the physical print still lost the same Korean strokes.
 std::vector<NativeTextDescriptor> PrepareInverseReadabilityDescriptors(
     int source_height,
     const std::vector<NativeTextDescriptor>& text_descriptors,
@@ -192,6 +195,63 @@ std::vector<NativeTextDescriptor> PrepareInverseReadabilityDescriptors(
     ++stats.descriptors;
   }
   return readability_descriptors;
+}
+#endif
+
+struct InverseRowFallbackStats {
+  int descriptors = 0;
+  int bands = 0;
+  size_t cleared_pixels = 0;
+};
+
+std::vector<NativeTextDescriptor> PrepareInverseRowFallback(
+    HDC page_dc, const std::vector<uint8_t>& bitmap, int target_width,
+    int target_height, int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    InverseRowFallbackStats& stats) {
+  auto fallback_descriptors = text_descriptors;
+  std::vector<RECT> cleared_bands;
+  const auto row_is_black_band = [&](int y) {
+    int dark_pixels = 0;
+    for (int x = 0; x < target_width; ++x) {
+      const size_t offset =
+          (static_cast<size_t>(y) * target_width + x) * 4;
+      if (bitmap[offset] < 128 && bitmap[offset + 1] < 128 &&
+          bitmap[offset + 2] < 128) {
+        ++dark_pixels;
+      }
+    }
+    return dark_pixels * 5 >= target_width * 3;
+  };
+  for (auto& descriptor : fallback_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    ++stats.descriptors;
+    descriptor.color = RGB(0, 0, 0);
+    const int center_y = std::clamp(
+        MulDiv((descriptor.rect.top + descriptor.rect.bottom) / 2,
+               target_height, source_height),
+        0, target_height - 1);
+    const bool already_cleared = std::any_of(
+        cleared_bands.begin(), cleared_bands.end(),
+        [center_y](const RECT& band) {
+          return center_y >= band.top && center_y < band.bottom;
+        });
+    if (already_cleared || !row_is_black_band(center_y)) continue;
+    int top = center_y;
+    int bottom = center_y + 1;
+    while (top > 0 && row_is_black_band(top - 1)) --top;
+    while (bottom < target_height && row_is_black_band(bottom)) ++bottom;
+    RECT band{0, top, target_width, bottom};
+    FillRect(page_dc, &band,
+             reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+    FrameRect(page_dc, &band,
+              reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+    cleared_bands.push_back(band);
+    ++stats.bands;
+    stats.cleared_pixels +=
+        static_cast<size_t>(target_width) * (bottom - top);
+  }
+  return fallback_descriptors;
 }
 
 std::vector<uint8_t> ComposeFinalDeviceBitmap(
@@ -1752,9 +1812,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontQuality=DEFAULT_QUALITY"
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
-              << " nativeTextRaster=printerDcInverseMin20Dot"
-              << " nativeTextWhiteRender=gdiWhiteMin20DotWidthFit"
-              << " printWatermark=v1.3.77"
+              << " nativeTextRaster=boxedHeaderBlackOnWhite"
+              << " nativeTextWhiteRender=fullRowPolarityFallback"
+              << " printWatermark=v1.3.78"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1835,13 +1895,13 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
     } else {
-        InverseReadabilityStats inverse_readability_stats;
-        const auto readability_text_descriptors =
-          PrepareInverseReadabilityDescriptors(
-            source_height, text_descriptors, inverse_readability_stats);
+          InverseRowFallbackStats inverse_row_fallback_stats;
+          const auto row_fallback_text_descriptors = PrepareInverseRowFallback(
+            page_dc, composed_bitmap, target_width, target_height, source_width,
+            source_height, text_descriptors, inverse_row_fallback_stats);
       if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
-              source_height, readability_text_descriptors, page_dc,
+                source_height, row_fallback_text_descriptors, page_dc,
               native_text_stats, error)) {
                   } else if (!DrawPrintTestWatermark(
                     page_dc, destination_x, destination_y, target_width,
@@ -1955,11 +2015,13 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicSplit"
-                  << " nativeTextComposite=inverseMin20DotMonoDib"
-                  << " inverseReadabilityDescriptors="
-                  << inverse_readability_stats.descriptors
-                  << " inverseMinimumFontDots="
-                  << kInverseMinimumFontDots
+                  << " nativeTextComposite=boxedHeaderMonoDib"
+                  << " inverseRowFallbackDescriptors="
+                  << inverse_row_fallback_stats.descriptors
+                  << " inverseRowFallbackBands="
+                  << inverse_row_fallback_stats.bands
+                  << " inverseRowClearedPixels="
+                  << inverse_row_fallback_stats.cleared_pixels
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
@@ -1989,7 +2051,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                 << " monoStride=" << ((target_width + 31) / 32) * 4
                 << " monoScanLines=" << mono_scan_lines
                 << " monoPalette=zeroWhiteOneBlack"
-                << " inversePolarity=whiteOnBlackRestored"
+                << " inversePolarity=boxedHeaderBlackOnWhite"
                 << " coolingPattern=disabledAfterPhysicalFailure";
     SelectObject(page_dc, previous_page_bitmap);
     DeleteObject(mono_bitmap);

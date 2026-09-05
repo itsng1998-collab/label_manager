@@ -1,6 +1,24 @@
 # 현재 작업 상태
 
-## 진행 중: 역상 한글 20dot 세로 해상도 보존 v1.3.77
+## 진행 중: 역상 행 전체 boxed header fallback v1.3.78
+- 실물 확인: `.tmp/IMG_20260905_0015.png`에서도 검정 바 안 흰 한글 획이 크게 탈락해 20dot 확대 효과가 없었다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-30-49.log`에서 `v1.3.77`, `inverseReadabilityDescriptors=2`, `inverseMinimumFontDots=20`, `inverseTextWidthFitted=2`, `nativeTextDrawn=35`, 실패 0, `monoScanLines=480`을 확인했다. 두 역상 글자 모두 높이 보존 폭 fit이 실제 실행됐으므로 기각한다.
+- 다음 방식: 각 흰 descriptor 중심이 속한 final bitmap의 연속 solid-black band를 찾아 행 전체를 흰색으로 비우고 1dot 검정 box를 복원한 뒤, 원래 크기의 검정 글자로 출력한다.
+- 기존 방식과 차이: v1.3.76은 text tight bounds만 흰 panel로 바꿔 주변 solid black 열영역이 남았다. 이번에는 역상 행 전체의 넓은 검정 면을 제거해 일반 행과 같은 black-on-white 물리 조건으로 만든다.
+- 판별 기준: 로그에서 흰 descriptor 2개와 탐지된 black band 2개, 비운 pixel 면적을 확인한다. 실물에서는 기존 두 검정 바가 흰색 boxed header로 바뀌고 검정 한글이 일반 행 수준으로 출력되는지 본다.
+- 수정 예정 파일: `windows/runner/label_bitmap_print_channel.cpp`에 black-band 탐지, full-row clear, 1dot frame, black descriptor 변환과 diagnostics, `v1.3.78` watermark를 추가한다. `pubspec.yaml` 버전과 본 문서를 함께 갱신한다.
+- Windows 편집 완료: 흰 descriptor의 target 중심 행에서 dark pixel 비율 60% 이상인 연속 y band를 탐지하고, 동일 band 중복을 제거한 뒤 전체 폭을 흰색으로 비우고 1dot 검정 frame을 그린다. 해당 descriptor는 원래 font size의 검정 글자로 일반 GDI 경로에 합류한다.
+- 실패 코드 재사용 방지: v1.3.77 최소 20dot helper는 실물 실패 사유 주석과 `#if 0`으로 격리했다.
+- diagnostics/버전 편집 완료: `nativeTextWhiteRender=fullRowPolarityFallback`, `nativeTextComposite=boxedHeaderMonoDib`, `inverseRowFallbackDescriptors`, `inverseRowFallbackBands`, `inverseRowClearedPixels`, `inversePolarity=boxedHeaderBlackOnWhite`, watermark `v1.3.78`을 기록한다. 앱 버전도 `1.3.78`로 증가했다.
+- Windows 빌드 검증 완료: 최초 및 diagnostics 경로명 수정 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 모두 성공.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.78`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_17-36-38.log`에서 `DebugLogger version: 1.3.78` 확인.
+- 실물 판별 기준: 출력물 우하단 `v1.3.78`, 로그 `nativeTextWhiteRender=fullRowPolarityFallback`, `nativeTextComposite=boxedHeaderMonoDib`, `inverseRowFallbackDescriptors=2`, `inverseRowFallbackBands=2`, `inverseRowClearedPixels>0`, `inversePolarity=boxedHeaderBlackOnWhite`, `monoScanLines=480`. 두 역상 행 전체가 흰 boxed header와 검정 글자로 바뀌는지 확인한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 역상 한글 20dot 세로 해상도 보존 v1.3.77
 - 실물 확인: `.tmp/IMG_20260905_0014.png`에서 국부 흰 panel + 검정 글자가 실제 출력됐지만 한글 획 끊김이 일반 영역과 함께 남았고 역상 디자인도 훼손돼 개선안으로 사용할 수 없다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-25-48.log`에서 `v1.3.76`, `nativeTextWhiteRender=polarityFallbackBlackOnWhite`, `inversePolarityFallbackRects=2`, `nativeTextDrawn=35`, 실패 0, `monoScanLines=480`을 확인했다. 국부 극성 전환은 정상 실행됐으므로 기각한다.
 - 다음 방식: 검정 바 + 흰 글자 원래 극성을 복원하고 흰 descriptor 2개만 최소 20dot font height를 확보한다. 폭 초과 시 기존처럼 font height를 줄이지 않고 `LOGFONT.lfWidth`만 반복 보정해 세로 glyph grid를 보존한다.
