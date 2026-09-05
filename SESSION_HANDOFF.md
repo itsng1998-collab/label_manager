@@ -1,6 +1,25 @@
 # 현재 작업 상태
 
-## 진행 중: 역상 글자 국부 극성 전환 fallback v1.3.76
+## 진행 중: 역상 한글 20dot 세로 해상도 보존 v1.3.77
+- 실물 확인: `.tmp/IMG_20260905_0014.png`에서 국부 흰 panel + 검정 글자가 실제 출력됐지만 한글 획 끊김이 일반 영역과 함께 남았고 역상 디자인도 훼손돼 개선안으로 사용할 수 없다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-25-48.log`에서 `v1.3.76`, `nativeTextWhiteRender=polarityFallbackBlackOnWhite`, `inversePolarityFallbackRects=2`, `nativeTextDrawn=35`, 실패 0, `monoScanLines=480`을 확인했다. 국부 극성 전환은 정상 실행됐으므로 기각한다.
+- 다음 방식: 검정 바 + 흰 글자 원래 극성을 복원하고 흰 descriptor 2개만 최소 20dot font height를 확보한다. 폭 초과 시 기존처럼 font height를 줄이지 않고 `LOGFONT.lfWidth`만 반복 보정해 세로 glyph grid를 보존한다.
+- 기존 방식과 차이: v1.0.55는 모든 글자의 point→dot 크기를 올려 전체 레이아웃이 틀어졌지만, 이번에는 역상 descriptor 2개만 제한하고 일반 33개 descriptor의 크기와 기존 uniform fit을 유지한다.
+- 판별 기준: 로그에서 역상 descriptor 2개와 20dot, height-preserving width fit 적용 건수를 확인하고, 원래 검정 바 안 흰 한글의 세로·가로 획 연속성이 v1.3.75 이전보다 회복되는지 비교한다.
+- 수정 예정 파일: `windows/runner/label_bitmap_print_channel.cpp`에 역상 전용 readability descriptor와 width-only fit 분기, diagnostics, `v1.3.77` watermark를 추가한다. `pubspec.yaml` 버전과 본 문서를 함께 갱신한다.
+- Windows 편집 완료: 흰 descriptor에만 `preserve_height_fit`을 설정하고 font height를 최소 20dot로 올리며 증가분만큼 text rect를 세로 확장한다. 일반 descriptor는 변경하지 않는다.
+- fit 편집 완료: 역상 text가 폭을 넘을 때 `lfHeight=-20` 이상을 유지하고 `lfWidth`만 최대 4회 반복 측정·보정한다. 일반 text는 기존 font height 축소 fit을 그대로 사용한다.
+- 실패 코드 재사용 방지: v1.3.76 국부 white-panel helper는 실물 실패 사유 주석과 `#if 0`으로 격리했다.
+- diagnostics/버전 편집 완료: `nativeTextWhiteRender=gdiWhiteMin20DotWidthFit`, `nativeTextComposite=inverseMin20DotMonoDib`, `inverseReadabilityDescriptors`, `inverseMinimumFontDots=20`, `inverseTextWidthFitted`, `inversePolarity=whiteOnBlackRestored`, watermark `v1.3.77`을 기록한다. 앱 버전도 `1.3.77`로 증가했다.
+- 1차 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.77`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_17-30-49.log`에서 `DebugLogger version: 1.3.77` 확인.
+- 실물 판별 기준: 출력물 우하단 `v1.3.77`, 로그 `nativeTextWhiteRender=gdiWhiteMin20DotWidthFit`, `nativeTextComposite=inverseMin20DotMonoDib`, `inverseReadabilityDescriptors=2`, `inverseMinimumFontDots=20`, `inverseTextWidthFitted`, `inversePolarity=whiteOnBlackRestored`, `monoScanLines=480`. 검정 바 안 흰 글자의 높이·장평·획 연속성을 확인한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: 역상 글자 국부 극성 전환 fallback v1.3.76
 - 실물 확인: `.tmp/IMG_20260905_0013.png`에서도 두 역상 행의 흰 한글 획 메움이 계속됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-20-08.log`에서 `v1.3.75`, `spoolFormat=DIB_1BPP_DEVICE`, `coolingInverseRects=2`, `coolingPixelsModified=4740`, `monoScanLines=480`, 발행 성공을 확인했다. 25% cooling pattern이 실제 적용됐지만 개선이 없어 기각한다.
 - 다음 방식: 검정 바 전체는 유지하되 흰 text descriptor의 tight bounds만 1 device dot 여유로 흰 panel을 만들고 동일 text를 검정으로 바꿔 일반 GDI text 경로로 출력한다. 역상 디자인 변화는 해당 글자 bounds에만 제한한다.
