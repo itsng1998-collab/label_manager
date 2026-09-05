@@ -15,6 +15,7 @@
 - 실물 재검증 기준: 출력 로그에 `backend=windowsDriver`, `nativeTextWhiteRender=directWriteAliased1x1`, `nativeTextWhiteBilevelGlyphRuns` 및 `printWatermark=v1.3.62`가 표시되고 출력물 우하단 워터마크가 `v1.3.62`인지 확인한다.
 - 남은 실물 검증: 새 실행 앱에서 같은 라벨을 출력해 두 역상 행의 획 연속성과 뭉침을 비교한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `windows/runner/CMakeLists.txt`, `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `3378453` (`역상 글자를 DirectWrite 1비트로 출력`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: GoDEX EZPL 네이티브 역상 한글 출력 v1.3.61
