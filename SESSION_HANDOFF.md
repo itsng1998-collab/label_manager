@@ -17,6 +17,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_17-30-49.log`에서 `DebugLogger version: 1.3.77` 확인.
 - 실물 판별 기준: 출력물 우하단 `v1.3.77`, 로그 `nativeTextWhiteRender=gdiWhiteMin20DotWidthFit`, `nativeTextComposite=inverseMin20DotMonoDib`, `inverseReadabilityDescriptors=2`, `inverseMinimumFontDots=20`, `inverseTextWidthFitted`, `inversePolarity=whiteOnBlackRestored`, `monoScanLines=480`. 검정 바 안 흰 글자의 높이·장평·획 연속성을 확인한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `6a10d7f` (`역상 한글의 세로 해상도를 보존`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: 역상 글자 국부 극성 전환 fallback v1.3.76
