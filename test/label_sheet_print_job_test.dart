@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:image/image.dart' as img;
@@ -97,7 +97,7 @@ void main() {
     expect(geometry.range.columnEnd, 2);
     expect(
       geometry.transform.sourceLogicalBounds,
-      Rect.fromLTWH(
+      ui.Rect.fromLTWH(
         0,
         0,
         fs.fortuneMillimetersToLogicalPixels(10),
@@ -166,7 +166,7 @@ void main() {
           fontFamily: 'Arial',
           fontSize: 10,
           bold: true,
-          foreground: Color(0xff123456),
+          foreground: ui.Color(0xff123456),
           horizontalAlign: '2',
           verticalAlign: '2',
           textWrap: '2',
@@ -299,7 +299,7 @@ void main() {
           fs.FortuneBorderInfo(
             rangeType: 'range',
             borderType: 'border-all',
-            color: Color(0xff000000),
+            color: ui.Color(0xff000000),
             style: 1,
             ranges: [
               fs.FortuneRange(
@@ -379,7 +379,7 @@ void main() {
           fs.FortuneBorderInfo(
             rangeType: 'range',
             borderType: 'border-all',
-            color: Color(0xff000000),
+            color: ui.Color(0xff000000),
             style: 1,
             ranges: [
               fs.FortuneRange(
@@ -676,7 +676,7 @@ void main() {
   });
 
   test(
-    'Godex EZPL keeps Korean text in raster fallback until Asian font is available',
+    'Godex EZPL uses built-in TrueType UTF-8 for Korean text',
     () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
@@ -715,18 +715,16 @@ void main() {
       options: options,
     );
 
-    expect(
-      preparation.descriptors.where(
-        (descriptor) =>
-            descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
-      ),
-      isEmpty,
+    final descriptor = preparation.descriptors.singleWhere(
+      (descriptor) =>
+          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
     );
-    expect(preparation.plan.approvedCandidateTokens, isEmpty);
-    expect(
-      preparation.textRejectionCounts,
-      containsPair('koreanAsianFontUnavailable', 1),
-    );
+    expect(descriptor.command, contains('AT,'));
+    expect(descriptor.command, contains('0BE,0,0,원재료명 한글 출력'));
+    expect(descriptor.utf8, isTrue);
+    expect(descriptor.koreanAsian, isFalse);
+    expect(preparation.plan.approvedCandidateTokens, isNotEmpty);
+    expect(preparation.textRejectionCounts, isEmpty);
 
     final blank = img.Image(width: 240, height: 80);
     img.fill(blank, color: img.ColorRgb8(255, 255, 255));
@@ -740,25 +738,13 @@ void main() {
     final payload = utf8.decode(bytes, allowMalformed: true);
 
     expect(payload, startsWith('^Q10,0,0\r\n^W 30\r\n^P1\r\n^L\r\nQ0,0,30,80\r\n'));
-    expect(payload, contains('AT,192,72,7,7,0,0E,0,0,v1.3.70\r\n'));
-    expect(payload, isNot(contains('원재료명 한글 출력')));
+    expect(payload, contains('AT,192,72,7,7,0,0E,0,0,v1.3.81\r\n'));
+    expect(payload, contains('원재료명 한글 출력'));
     expect(payload, endsWith('E\r\n'));
     },
   );
 
-  test('Godex EZPL uses provisioned AZ1 Korean font with CP949 data', () async {
-    const charsetChannel = MethodChannel('charset_converter');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(charsetChannel, (call) async {
-          expect(call.method, 'encode');
-          final arguments = call.arguments as Map<Object?, Object?>;
-          expect(arguments['charset'], '949');
-          return _encodeTestCp949(arguments['data']! as String);
-        });
-    addTearDown(
-      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(charsetChannel, null),
-    );
+  test('Godex EZPL does not use AZ1 or CP949 for Korean text', () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -793,16 +779,15 @@ void main() {
         dpi: 203.2,
       ),
       options: options,
-      koreanAsianFontAvailable: true,
     );
 
     final descriptor = preparation.descriptors.singleWhere(
       (descriptor) =>
           descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
     );
-    expect(descriptor.koreanAsian, isTrue);
-    expect(descriptor.utf8, isFalse);
-    expect(descriptor.command, contains('AZ1,'));
+    expect(descriptor.koreanAsian, isFalse);
+    expect(descriptor.utf8, isTrue);
+    expect(descriptor.command, contains('AT,'));
     expect(descriptor.command, contains('원재료명 PET'));
     expect(preparation.textRejectionCounts, isEmpty);
 
@@ -815,7 +800,6 @@ void main() {
       plan: preparation.plan,
       descriptors: preparation.descriptors,
     );
-    final cp949Text = _encodeTestCp949('원재료명 PET');
     final patternHeader = ascii.encode('Q0,0,30,80\r\n');
     final patternHeaderStart = _indexOfBytes(bytes, patternHeader);
     final patternDataEnd = patternHeaderStart + patternHeader.length + 30 * 80;
@@ -823,15 +807,14 @@ void main() {
     expect(patternHeaderStart, greaterThanOrEqualTo(0));
     expect(bytes.sublist(patternDataEnd, patternDataEnd + 2), <int>[0x0d, 0x0a]);
     expect(
-      bytes.sublist(patternDataEnd + 2, patternDataEnd + 6),
-      ascii.encode('AZ1,'),
+      bytes.sublist(patternDataEnd + 2, patternDataEnd + 5),
+      ascii.encode('AT,'),
     );
-    expect(_containsBytes(bytes, ascii.encode('AZ1,')), isTrue);
-    expect(_containsBytes(bytes, cp949Text), isTrue);
-    expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
+    expect(_containsBytes(bytes, ascii.encode('AZ1,')), isFalse);
+    expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isTrue);
   });
 
-  test('Godex EZPL keeps inverse Korean text in Q raster', () async {
+  test('Godex EZPL emits inverse built-in TrueType Korean text', () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -869,21 +852,18 @@ void main() {
         dpi: 203.2,
       ),
       options: options,
-      koreanAsianFontAvailable: true,
     );
 
-    expect(
-      preparation.descriptors.where(
-        (descriptor) =>
-            descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
-      ),
-      isEmpty,
+    final descriptor = preparation.descriptors.singleWhere(
+      (descriptor) =>
+          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
     );
-    expect(preparation.plan.approvedCellTextCoords, isEmpty);
-    expect(
-      preparation.textRejectionCounts,
-      containsPair('firmwareInverseCorruptsFormat', 1),
-    );
+    expect(descriptor.command, contains('AT,'));
+    expect(descriptor.command, contains(',0IBE,0,0,원재료명 PET'));
+    expect(descriptor.utf8, isTrue);
+    expect(descriptor.inverse, isTrue);
+    expect(preparation.plan.approvedCellTextCoords, isNotEmpty);
+    expect(preparation.textRejectionCounts, isEmpty);
 
     final blackBackground = img.Image(width: 240, height: 80);
     img.fill(blackBackground, color: img.ColorRgb8(0, 0, 0));
@@ -896,9 +876,9 @@ void main() {
       descriptors: preparation.descriptors,
       onDiagnostics: (value) => diagnostics = value,
     );
-    expect(_containsBytes(bytes, ascii.encode(',0,0I,')), isFalse);
-    expect(_containsBytes(bytes, _encodeTestCp949('원재료명 PET')), isFalse);
-    expect(diagnostics, contains('native=AT:0,AZ1:0,inverse:0,geometry:0'));
+    expect(_containsBytes(bytes, ascii.encode(',0IBE,0,0,')), isTrue);
+    expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isTrue);
+    expect(diagnostics, contains('native=AT:1,AZ1:0,inverse:1,geometry:0'));
   });
 
   test('Godex stored graphic payload downloads a monochrome BMP', () async {
@@ -938,7 +918,7 @@ void main() {
     expect(diagnostics, contains('bmpBpp=1'));
   });
 
-  test('Godex EZPL keeps unsupported white Korean text in raster', () {
+  test('Godex EZPL rejects unsupported white and mixed-color text', () {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -991,7 +971,6 @@ void main() {
         dpi: 203.2,
       ),
       options: options,
-      koreanAsianFontAvailable: true,
     );
 
     expect(
@@ -1007,7 +986,7 @@ void main() {
     );
     expect(
       preparation.textRejectionCounts,
-      containsPair('firmwareInverseCorruptsFormat', 1),
+      containsPair('unsupportedInlineDecoration', 1),
     );
   });
 
@@ -1135,27 +1114,3 @@ int _indexOfBytes(List<int> source, List<int> pattern) {
   return -1;
 }
 
-Uint8List _encodeTestCp949(String input) {
-  const koreanText = '원재료명 PET';
-  const koreanBytes = <int>[
-    0xbf,
-    0xf8,
-    0xc0,
-    0xe7,
-    0xb7,
-    0xe1,
-    0xb8,
-    0xed,
-    0x20,
-    0x50,
-    0x45,
-    0x54,
-  ];
-  final offset = input.indexOf(koreanText);
-  if (offset < 0) return Uint8List.fromList(ascii.encode(input));
-  return Uint8List.fromList(<int>[
-    ...ascii.encode(input.substring(0, offset)),
-    ...koreanBytes,
-    ...ascii.encode(input.substring(offset + koreanText.length)),
-  ]);
-}

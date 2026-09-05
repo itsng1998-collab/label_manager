@@ -19,7 +19,7 @@ LabelPrintBackend resolveLabelPrintBackend({
   final isFilePort = normalizedPort == 'FILE:' || normalizedPort == 'PORTPROMPT:';
   if (isFilePort) return LabelPrintBackend.pdf;
   if (profile.vendor == 'GoDEX' && profile.model == 'G500') {
-    return LabelPrintBackend.ezplStoredGraphic;
+    return LabelPrintBackend.ezplRaw;
   }
   return LabelPrintBackend.windowsDriver;
 }

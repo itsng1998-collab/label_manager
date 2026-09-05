@@ -1,6 +1,26 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: G500 EZPL 저장 BMP 출력 v1.3.80
+## 진행 중: G500 내장 TrueType UTF-8 역상 출력 v1.3.81
+- 실물 확인: `.tmp/IMG_20260905_0018.png`에서 저장 BMP의 전체 80x60mm 레이아웃과 좌표는 정상으로 복원됐지만, 검정 배경의 흰 한글 획 소실은 그대로였다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-50-50.log`에서 `v1.3.80`, `backend=ezplStoredGraphic`, `raster=640x480`, `bmpBytes=38462`, `bmpBpp=1`, RAW `38572/38572` bytes를 확인했다. `~EB/Y` 전송은 정상이며 동일 1bpp 열점 결과의 물리 품질 한계로 기각한다.
+- 다음 방식: 공식 EZPL 내장 TrueType `AT`의 UTF-8(`E`)와 inverse(`I`)를 사용한다. 검정 배경/도형은 Q raster로 유지하고 승인된 한글 셀 텍스트는 `AT,...,0I...E,0,0,<UTF-8>`로 firmware FreeType가 직접 합성한다.
+- 기존 실패와 차이: `AZ1 0I + CP949`는 format 전체를 오염시켜 폐기했다. 이번 경로는 AZ1과 CP949를 사용하지 않고 내장 TrueType AT UTF-8만 사용한다.
+- 핵심 편집 완료: 한글 포함 모든 셀 텍스트를 `AT` UTF-8 descriptor로 만들고, 순수 검정 배경+흰 전경 셀에는 `I` style을 부여한다. payload는 CP949 변환 없이 UTF-8로 기록하며 diagnostics에 AT/inverse descriptor 수를 기록한다.
+- backend 편집 완료: G500 physical port를 hybrid `ezplRaw`로 전환했다. 저장 BMP backend 코드는 실물 실패 이력 보존을 위해 남기되 라우팅하지 않는다.
+- 버전 편집 완료: `1.3.81`.
+- 테스트 편집 완료: G500 `ezplRaw` 라우팅, 일반 한글 `AT` UTF-8, 역상 한글 `AT ... 0I...E`, AZ1/CP949 미사용, 혼합 전경색 fallback을 고정했다.
+- focused 검증 완료: 새 동작 테스트 5건 통과.
+- 관련 전체 검증 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 31건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 빌드 완료: 위 `/WX` Debug 빌드 성공. watermark 갱신 후 관련 테스트 31건과 `/WX` 빌드도 재실행해 성공했다.
+- 최종 실행 검증 완료: 최초 Debug EXE FileVersion/ProductVersion 모두 `1.3.81`, `.tmp/log/app_2026-09-05_18-00-42.log`에서 `DebugLogger version: 1.3.81`과 프로세스 응답 상태를 확인했다. watermark 포함 최종 재빌드 EXE로 다시 교체한다.
+- payload 판별 편집 완료: hybrid EZPL 우하단 watermark를 과거 `v1.3.70`에서 `v1.3.81`로 갱신했다.
+- 최종 재실행 완료: watermark 포함 Debug EXE FileVersion/ProductVersion 모두 `1.3.81`. `.tmp/log/app_2026-09-05_18-02-01.log`에서 `DebugLogger version: 1.3.81`, DB 연결 성공을 확인했고 프로세스가 응답 중이다. DTD 연결 앱이 없어 hot restart 대신 새 EXE 프로세스 재실행으로 반영했다.
+- 실물 판별 기준: 로그 `backend=ezplRaw`, `font=AT:UTF8`, `atTextDescriptors>0`, `inverseTextDescriptors>0`, payload diagnostics `native=AT:...,AZ1:0,inverse:...`, `printWatermark=v1.3.81`, RAW `requestedBytes=writtenBytes`. 실물에서는 전체 레이아웃 유지와 검정 band 안 흰 한글 획을 확인한다.
+- stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: G500 EZPL 저장 BMP 출력 v1.3.80
 - 실물 확인: `.tmp/IMG_20260905_0017.png`는 라벨 상단 일부만 확대·절단되어 출력됐고 정상 페이지가 아니었다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-42-23.log`에서 `v1.3.79`, `backend=pdf`, capture `641x481`, PDF `13313` bytes, dispatch accepted=true를 확인했다. PDF direct spool이 실제 실행됐지만 page transform 회귀가 발생해 즉시 기각한다.
 - 다음 방식: 공식 EZPL `~EB,name,size`로 전체 1bpp BMP를 printer memory에 다운로드하고 `Y0,0,name`으로 출력한다. 기존 실패 `Q` row-pattern parser, Windows GDI와 PDF spool을 모두 우회한다.
