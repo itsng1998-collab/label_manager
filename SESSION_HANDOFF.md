@@ -18,6 +18,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_17-42-23.log`에서 `DebugLogger version: 1.3.79` 확인.
 - 실물 판별 기준: 로그 `labelPrintQuality start ... backend=pdf`, `payload backend=pdf ... pdfBytes=...`, `dispatch backend=pdf accepted=true`와 출력물 우하단 `v1.3.79`. Windows `gdiPage/gdiDispatch` 로그가 없어야 한다.
 - stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `test/label_print_dispatcher_test.dart`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `3ccca30` (`G500 출력을 PDF 직접 스풀로 전환`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: 역상 행 전체 boxed header fallback v1.3.78
