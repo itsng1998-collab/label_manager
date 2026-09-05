@@ -16,6 +16,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_17-36-38.log`에서 `DebugLogger version: 1.3.78` 확인.
 - 실물 판별 기준: 출력물 우하단 `v1.3.78`, 로그 `nativeTextWhiteRender=fullRowPolarityFallback`, `nativeTextComposite=boxedHeaderMonoDib`, `inverseRowFallbackDescriptors=2`, `inverseRowFallbackBands=2`, `inverseRowClearedPixels>0`, `inversePolarity=boxedHeaderBlackOnWhite`, `monoScanLines=480`. 두 역상 행 전체가 흰 boxed header와 검정 글자로 바뀌는지 확인한다.
 - stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 구현 커밋 완료: `446afe7` (`역상 행을 흰색 박스 형식으로 출력`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: 역상 한글 20dot 세로 해상도 보존 v1.3.77
