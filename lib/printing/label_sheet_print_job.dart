@@ -339,6 +339,7 @@ class LabelSheetEzplNativeDescriptor {
     required this.kind,
     this.utf8 = false,
     this.koreanAsian = false,
+    this.inverse = false,
     this.textCharacters = 0,
     this.fontHeightDots,
     this.lineCount = 0,
@@ -351,6 +352,7 @@ class LabelSheetEzplNativeDescriptor {
   final FortuneNativeCandidateKind kind;
   final bool utf8;
   final bool koreanAsian;
+  final bool inverse;
   final int textCharacters;
   final int? fontHeightDots;
   final int lineCount;
@@ -1080,7 +1082,14 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
         reject('unsupportedTextLayout');
         continue;
       }
-      if (cell.strikeThrough || cell.foreground.toARGB32() != 0xff000000) {
+      final usesKoreanAsianFont = cell.renderedText.runes.any(
+        (rune) => rune > 0x7f,
+      );
+      final inverse = usesKoreanAsianFont &&
+          cell.background?.toARGB32() == 0xff000000 &&
+          cell.foreground.toARGB32() == 0xffffffff;
+      if (cell.strikeThrough ||
+          (cell.foreground.toARGB32() != 0xff000000 && !inverse)) {
         reject('unsupportedTextDecoration');
         continue;
       }
@@ -1088,9 +1097,6 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
         reject('customOffsetY');
         continue;
       }
-      final usesKoreanAsianFont = cell.renderedText.runes.any(
-        (rune) => rune > 0x7f,
-      );
       if (usesKoreanAsianFont && !koreanAsianFontAvailable) {
         reject('koreanAsianFontUnavailable');
         continue;
@@ -1120,7 +1126,9 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       if (fragments.isEmpty ||
           fragments.any(
             (fragment) =>
-                fragment.strikeThrough || fragment.colorArgb != 0xff000000,
+            fragment.strikeThrough ||
+            fragment.colorArgb !=
+              (inverse ? 0xffffffff : 0xff000000),
           )) {
         reject('unsupportedInlineDecoration');
         continue;
@@ -1143,7 +1151,8 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
         if (usesKoreanAsianFont) {
           command.write(
             'AZ1,${footprint.left.round()},${footprint.top.round()},'
-            '$fontDots,$fontDots,0,0,${_escapeEzplText(fragment.text)}\r\n',
+            '$fontDots,$fontDots,0,${inverse ? '0I' : '0'},'
+            '${_escapeEzplText(fragment.text)}\r\n',
           );
         } else {
           final style = StringBuffer('0');
@@ -1167,6 +1176,7 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
           kind: FortuneNativeCandidateKind.cellText,
           utf8: !usesKoreanAsianFont,
           koreanAsian: usesKoreanAsianFont,
+          inverse: inverse,
           textCharacters: cell.renderedText.runes.length,
           fontHeightDots: math.max(
             8,
@@ -1320,12 +1330,16 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
   final emittedTokens = <String>{};
   var emittedAtDescriptors = 0;
   var emittedAz1Descriptors = 0;
+  var emittedInverseDescriptors = 0;
   var emittedGeometryDescriptors = 0;
   for (final candidate in plan.candidates) {
     if (!emittedTokens.add(candidate.token)) continue;
     for (final descriptor in
         descriptorByToken[candidate.token] ??
             const <LabelSheetEzplNativeDescriptor>[]) {
+        if (descriptor.inverse) {
+          emittedInverseDescriptors += 1;
+        }
       if (descriptor.koreanAsian) {
         emittedAz1Descriptors += 1;
         commands.add(
@@ -1369,7 +1383,8 @@ Future<Uint8List> buildLabelSheetPlannedEzplBytes({
     'patternFnv64=${rasterStats.fnv64Hex} '
     'approvedTokens=${plan.approvedCandidateTokens.length} '
     'native=AT:$emittedAtDescriptors,AZ1:$emittedAz1Descriptors,'
-    'geometry:$emittedGeometryDescriptors payloadBytes=${payload.length}',
+    'inverse:$emittedInverseDescriptors,geometry:$emittedGeometryDescriptors '
+    'payloadBytes=${payload.length}',
   );
   return payload;
 }

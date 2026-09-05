@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -830,6 +831,168 @@ void main() {
     expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
   });
 
+  test('Godex EZPL uses AZ1 inverse font for white Korean text on black', () async {
+    const charsetChannel = MethodChannel('charset_converter');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(charsetChannel, (call) async {
+          final arguments = call.arguments as Map<Object?, Object?>;
+          return _encodeTestCp949(arguments['data']! as String);
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(charsetChannel, null),
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetEzplPrint(
+      sheet: fs.FortuneSheet(
+        id: 'ezpl-korean-inverse',
+        name: 'EZPL Korean Inverse',
+        rowCount: 2,
+        columnCount: 2,
+        defaultRowHeight: 32,
+        defaultColWidth: 100,
+        cells: <fs.FortuneCellCoord, fs.FortuneCell>{
+          fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
+            value: '원재료명 PET',
+            background: ui.Color(0xff000000),
+            foreground: ui.Color(0xffffffff),
+            fontSize: 10,
+            bold: true,
+          ),
+        },
+      ),
+      settings: const fs.FortuneSettings(defaultFontSize: 10),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 30,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 30,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: options,
+      koreanAsianFontAvailable: true,
+    );
+
+    final descriptor = preparation.descriptors.singleWhere(
+      (descriptor) =>
+          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
+    );
+    expect(descriptor.koreanAsian, isTrue);
+    expect(descriptor.inverse, isTrue);
+    expect(descriptor.command, contains('AZ1,'));
+    expect(descriptor.command, contains(',0,0I,원재료명 PET\r\n'));
+    expect(preparation.plan.approvedCellTextCoords, {
+      const fs.FortuneCellCoord(0, 0),
+    });
+    expect(preparation.textRejectionCounts, isEmpty);
+
+    final blackBackground = img.Image(width: 240, height: 80);
+    img.fill(blackBackground, color: img.ColorRgb8(0, 0, 0));
+    String? diagnostics;
+    final bytes = await buildLabelSheetPlannedEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(blackBackground)),
+      metrics: preparation.geometry.metrics,
+      options: options,
+      plan: preparation.plan,
+      descriptors: preparation.descriptors,
+      onDiagnostics: (value) => diagnostics = value,
+    );
+    final patternHeader = ascii.encode('Q0,0,30,80\r\n');
+    final patternDataEnd =
+        _indexOfBytes(bytes, patternHeader) + patternHeader.length + 30 * 80;
+
+    expect(bytes.sublist(patternDataEnd, patternDataEnd + 2), <int>[0x0d, 0x0a]);
+    expect(
+      _containsBytes(bytes, ascii.encode('AZ1,')),
+      isTrue,
+    );
+    expect(_containsBytes(bytes, ascii.encode(',0,0I,')), isTrue);
+    expect(_containsBytes(bytes, _encodeTestCp949('원재료명 PET')), isTrue);
+    expect(diagnostics, contains('native=AT:0,AZ1:1,inverse:1,geometry:0'));
+  });
+
+  test('Godex EZPL keeps unsupported white Korean text in raster', () {
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final preparation = prepareLabelSheetEzplPrint(
+      sheet: fs.FortuneSheet(
+        id: 'ezpl-korean-inverse-rejections',
+        name: 'EZPL Korean Inverse Rejections',
+        rowCount: 2,
+        columnCount: 2,
+        defaultRowHeight: 32,
+        defaultColWidth: 100,
+        cells: <fs.FortuneCellCoord, fs.FortuneCell>{
+          fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
+            value: '배경색',
+            background: ui.Color(0xffff0000),
+            foreground: ui.Color(0xffffffff),
+            fontSize: 10,
+          ),
+          fs.FortuneCellCoord(1, 0): const fs.FortuneCell(
+            value: '한글혼합',
+            background: ui.Color(0xff000000),
+            foreground: ui.Color(0xffffffff),
+            fontSize: 10,
+            inlineRuns: <fs.FortuneInlineTextRun>[
+              fs.FortuneInlineTextRun(
+                text: '한글',
+                foreground: ui.Color(0xffffffff),
+              ),
+              fs.FortuneInlineTextRun(
+                text: '혼합',
+                foreground: ui.Color(0xff000000),
+              ),
+            ],
+          ),
+        },
+      ),
+      settings: const fs.FortuneSettings(defaultFontSize: 10),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 30,
+        heightMm: 10,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 30,
+        labelHeightMm: 10,
+        dpi: 203.2,
+      ),
+      options: options,
+      koreanAsianFontAvailable: true,
+    );
+
+    expect(
+      preparation.descriptors.where(
+        (descriptor) =>
+            descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
+      ),
+      isEmpty,
+    );
+    expect(
+      preparation.textRejectionCounts,
+      containsPair('unsupportedTextDecoration', 1),
+    );
+    expect(
+      preparation.textRejectionCounts,
+      containsPair('unsupportedInlineDecoration', 1),
+    );
+  });
+
   test('Godex EZPL hybrid uses contiguous Q pattern data', () async {
     final blank = img.Image(width: 640, height: 8);
     img.fill(blank, color: img.ColorRgb8(255, 255, 255));
@@ -900,7 +1063,7 @@ void main() {
     expect(diagnostics, contains('patternDataBytes=640'));
     expect(diagnostics, contains('patternBytes=zero:0,full:639,mixed:1'));
     expect(diagnostics, contains(RegExp(r'patternFnv64=[0-9a-f]{16}')));
-    expect(diagnostics, contains('native=AT:0,AZ1:0,geometry:0'));
+    expect(diagnostics, contains('native=AT:0,AZ1:0,inverse:0,geometry:0'));
     expect(diagnostics, contains('payloadBytes=${bytes.length}'));
   });
 

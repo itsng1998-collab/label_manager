@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료: GoDEX EZPL 네이티브 역상 한글 출력 v1.3.61
+- 목표: 검정 배경·흰색 한글 셀을 raster fallback 대신 GoDEX 공식 `AZ1 ... 0I` inverse font 명령으로 출력한다.
+- 제어 경로 확인: EZPL preflight는 현재 검정색이 아닌 모든 글자를 `unsupportedTextDecoration`으로 제외한다. 승인된 `cellText`는 hybrid capture에서 글자만 생략하고 셀 배경은 raster에 유지된다.
+- 구현 완료: 셀 배경이 불투명 검정, 셀 및 모든 inline fragment 글자색이 불투명 흰색, 한글 Asian font 사용 가능 조건을 모두 만족할 때만 native 후보를 승인하고 `AZ1` 회전 매개변수를 `0I`로 출력한다. 다른 색상·배경은 기존 raster fallback을 유지한다.
+- diagnostics 완료: EZPL payload 로그에 `inverse` native descriptor 수를 추가했다.
+- 테스트 추가: 역상 descriptor 승인, `AZ1 ... 0I`, CP949 payload, raster 다음 native 명령 순서, 비검정 배경 및 혼합색 inline run fallback을 검증한다.
+- focused 검증 완료: 신규 역상·fallback 테스트 2건 통과. `label_sheet_print_job_test.dart` 전체 20건 통과.
+- 관련 회귀 검증 완료: `label_sheet_print_job_test.dart`, `godex_korean_font_provisioner_test.dart`, `label_print_dispatcher_test.dart` 실행 결과 20건 통과.
+- 정적 검증 완료: 변경 production 및 테스트 파일 Flutter analyzer와 diagnostics 오류·경고 0건.
+- DTD/hot reload 완료: 실행 중인 Windows `label_manager` 앱에 변경을 hot reload했고 runtime 오류가 없다.
+- 최종 점검 완료: `git diff --check` 통과, 버전 `1.3.61`, 관련 변경 파일과 기존 사용자 변경 분리 상태를 확인했다.
+- 버전 편집 완료: 출력 동작의 국소 개선이므로 PATCH를 `1.3.60`에서 `1.3.61`로 증가했다.
+- 남은 실물 검증: G500에서 검정 배경 raster 뒤의 `AZ1 ... 0I` 합성 결과와 좌표·글꼴 크기를 실제 라벨로 확인해야 한다.
+- stage/commit 대상: `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: 미사용 기존 업무 매뉴얼 정리 v1.3.60
 - 범위 확인: `doc`의 기존 TXT 업무 문서 9개는 저장소 코드·README·인수인계에서 참조되지 않고, `label_print_modify.txt`의 `label_print.txt` 내부 참조만 남아 있다.
 - 삭제 완료: `app_menu_porting.txt`, `automatic_item_update.txt`, `item_manager.txt`, `item_manager_modify.txt`, `label_line_panel.txt`, `label_print.txt`, `label_print_modify.txt`, `scale_output.txt`, `user_item_modify.txt`.
