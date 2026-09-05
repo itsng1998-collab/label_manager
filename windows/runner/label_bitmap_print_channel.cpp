@@ -100,6 +100,43 @@ struct InverseCoolingStats {
   size_t pixels_modified = 0;
 };
 
+InverseCoolingStats ApplyInverseDriverGray(
+    std::vector<uint8_t>& bitmap, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors) {
+  InverseCoolingStats stats;
+  constexpr uint8_t kDriverGray = 96;
+  for (const auto& descriptor : text_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    ++stats.inverse_rects;
+    const RECT rect{
+        std::clamp(MulDiv(descriptor.rect.left, target_width, source_width),
+                   0, target_width),
+        std::clamp(MulDiv(descriptor.rect.top, target_height, source_height),
+                   0, target_height),
+        std::clamp(MulDiv(descriptor.rect.right, target_width, source_width),
+                   0, target_width),
+        std::clamp(MulDiv(descriptor.rect.bottom, target_height, source_height),
+                   0, target_height),
+    };
+    for (int y = rect.top; y < rect.bottom; ++y) {
+      for (int x = rect.left; x < rect.right; ++x) {
+        const size_t offset =
+            (static_cast<size_t>(y) * target_width + x) * 4;
+        if (bitmap[offset] != 0 || bitmap[offset + 1] != 0 ||
+            bitmap[offset + 2] != 0) {
+          continue;
+        }
+        bitmap[offset] = kDriverGray;
+        bitmap[offset + 1] = kDriverGray;
+        bitmap[offset + 2] = kDriverGray;
+        ++stats.pixels_modified;
+      }
+    }
+  }
+  return stats;
+}
+
 #if 0
 // v1.3.75 physical output changed 4,740 black pixels but did not recover
 // inverse Korean strokes. Keep the failed cooling experiment retired.
@@ -1821,9 +1858,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                       ? "printerDcDirect32+nativeText"
                       : "boxedHeaderBlackOnWhite")
                     << " nativeTextWhiteRender="
-                    << (godex_v1358_driver_direct ? "printerDcDirect"
+                    << (godex_v1358_driver_direct ? "driverGrayBackground"
                            : "fullRowPolarityFallback")
-                    << " printWatermark=v1.3.87"
+                    << " printWatermark="
+                    << (godex_v1358_driver_direct ? "disabled" : "v1.3.78")
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1884,9 +1922,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       FillRect(page_dc, &page_rect,
                reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     }
+    const std::vector<NativeBorderDescriptor> no_border_descriptors;
     auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
-        border_descriptors);
+      godex_v1358_driver_direct ? no_border_descriptors
+                    : border_descriptors);
+    InverseCoolingStats inverse_driver_gray_stats;
+    if (godex_v1358_driver_direct) {
+      inverse_driver_gray_stats = ApplyInverseDriverGray(
+        composed_bitmap, target_width, target_height, source_width,
+        source_height, text_descriptors);
+    }
     NativeTextRenderStats native_text_stats;
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -1921,7 +1967,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               composed_bitmap, target_width, target_height, source_width,
               source_height, render_text_descriptors, page_dc,
               native_text_stats, error)) {
-                  } else if (!DrawPrintTestWatermark(
+                  } else if (!godex_v1358_driver_direct &&
+                             !DrawPrintTestWatermark(
                     page_dc, destination_x, destination_y, target_width,
               target_height, error)) {
                   } else {
@@ -1929,34 +1976,36 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
       device_borders.reserve(border_descriptors.size());
-      for (const auto& descriptor : border_descriptors) {
-        const LONG left = destination_x +
-            MulDiv(descriptor.rect.left, target_width, source_width);
-        const LONG top = destination_y +
-            MulDiv(descriptor.rect.top, target_height, source_height);
-        const LONG mapped_right = destination_x +
-            MulDiv(descriptor.rect.right, target_width, source_width);
-        const LONG mapped_bottom = destination_y +
-            MulDiv(descriptor.rect.bottom, target_height, source_height);
-        const LONG thickness = std::max(
-            1L, static_cast<LONG>(MulDiv(
-                    descriptor.thickness_dots,
-                    descriptor.horizontal ? target_height : target_width,
-                    descriptor.horizontal ? source_height : source_width)));
-        RECT device_rect{};
-        if (descriptor.horizontal) {
-          device_rect.left = left;
-          device_rect.top = top - thickness / 2;
-          device_rect.right = std::max(left + 1, mapped_right);
-          device_rect.bottom = device_rect.top + thickness;
-        } else {
-          device_rect.left = left - thickness / 2;
-          device_rect.top = top;
-          device_rect.right = device_rect.left + thickness;
-          device_rect.bottom = std::max(top + 1, mapped_bottom);
+      if (!godex_v1358_driver_direct) {
+        for (const auto& descriptor : border_descriptors) {
+          const LONG left = destination_x +
+              MulDiv(descriptor.rect.left, target_width, source_width);
+          const LONG top = destination_y +
+              MulDiv(descriptor.rect.top, target_height, source_height);
+          const LONG mapped_right = destination_x +
+              MulDiv(descriptor.rect.right, target_width, source_width);
+          const LONG mapped_bottom = destination_y +
+              MulDiv(descriptor.rect.bottom, target_height, source_height);
+          const LONG thickness = std::max(
+              1L, static_cast<LONG>(MulDiv(
+                      descriptor.thickness_dots,
+                      descriptor.horizontal ? target_height : target_width,
+                      descriptor.horizontal ? source_height : source_width)));
+          RECT device_rect{};
+          if (descriptor.horizontal) {
+            device_rect.left = left;
+            device_rect.top = top - thickness / 2;
+            device_rect.right = std::max(left + 1, mapped_right);
+            device_rect.bottom = device_rect.top + thickness;
+          } else {
+            device_rect.left = left - thickness / 2;
+            device_rect.top = top;
+            device_rect.right = device_rect.left + thickness;
+            device_rect.bottom = std::max(top + 1, mapped_bottom);
+          }
+          device_borders.push_back(
+              DeviceBorderRect{device_rect, descriptor.horizontal, 1});
         }
-        device_borders.push_back(
-            DeviceBorderRect{device_rect, descriptor.horizontal, 1});
       }
       std::sort(
           device_borders.begin(), device_borders.end(),
@@ -2011,7 +2060,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         }
         merged_device_borders.push_back(border);
       }
-      native_borders_drawn = static_cast<int>(border_descriptors.size());
+        native_borders_drawn = godex_v1358_driver_direct
+          ? 0
+          : static_cast<int>(border_descriptors.size());
       native_border_fill_rects =
           static_cast<int>(merged_device_borders.size());
       diagnostics << " nativeTextDrawn=" << native_text_stats.drawn
@@ -2040,10 +2091,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << inverse_row_fallback_stats.bands
                   << " inverseRowClearedPixels="
                   << inverse_row_fallback_stats.cleared_pixels
+                  << " inverseDriverGrayRects="
+                  << inverse_driver_gray_stats.inverse_rects
+                  << " inverseDriverGrayPixels="
+                  << inverse_driver_gray_stats.pixels_modified
+                  << " inverseDriverGrayLevel=96"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
-                  << " nativeBorderComposite=finalDeviceBitmap"
+                  << " nativeBorderComposite="
+                  << (godex_v1358_driver_direct ? "captureOnly"
+                                                 : "finalDeviceBitmap")
                   << " nativeBorderBitmapLines=" << scan_lines
                   << " nativeBorderFillRects=" << native_border_fill_rects
                   << " nativeBordersDrawn=" << native_borders_drawn;

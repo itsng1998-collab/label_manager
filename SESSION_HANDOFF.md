@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: G500 역상 driver grayscale + 잔상 제거 v1.3.88
+- 실물 확인: `.tmp/IMG_20260905_0025.png`에서 일반 출력은 Q bitmap 실험보다 복원됐지만 역상 흰 획은 개선되지 않았고, 중성지방 행에 ㄷ자 선 잔상과 우하단 `v1.3.78` 표식이 출력됐다.
+- 비교: `.tmp/IMG_v1.0.88.png`에는 중성지방 행의 ㄷ자 잔상과 테스트 버전 표식이 없다.
+- 로그 확인: `.tmp/log/app_2026-09-05_19-02-47.log`에서 `backend=windowsDriver`, `outputMode=driverDirect32V1358`, native text 35/35 성공, native border descriptor 225개, RAW가 아닌 driver 직접 출력임을 확인했다.
+- 잔상 원인: `v1.3.78` 표식은 `DrawPrintTestWatermark`의 하드코딩된 테스트 출력이다. ㄷ자 선은 capture에 포함된 border 위에 225개 descriptor border를 다시 합성하는 중복 경로다.
+- 다음 방식: G500만 테스트 watermark와 descriptor border 합성을 끄고 원본 capture border를 사용한다. 흰 text descriptor 사각형 내부의 순수 검정 배경만 RGB 96 회색으로 바꿔 Windows/G500 driver의 자체 halftone을 유도하며, 일반 영역 픽셀은 변경하지 않는다.
+- 실패 방식 격리 유지: 앱 측 checkerboard/수평 냉각행, 1-bit 중간 DIB, 흰 박스 fallback은 재사용하지 않는다.
+- 버전 편집 완료: `1.3.88`.
+- Windows 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공.
+- 관련 전체 테스트 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 33건 통과.
+- native 조건문 정리 후 최종 Windows `/WX` 재빌드 성공.
+- 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.88`; `.tmp/log/app_2026-09-05_20-13-52.log`에서 `DebugLogger version: 1.3.88`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `pubspec.yaml`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 실물 검증 포인트: 출력 로그에서 `outputMode=driverDirect32V1358`, `printWatermark=disabled`, `nativeBorderComposite=captureOnly`, `nativeBordersDrawn=0`, `inverseDriverGrayRects>0`, `inverseDriverGrayPixels>0`, `inverseDriverGrayLevel=96`을 확인한다. 사진에서는 우하단 `v1.3.78` 표식과 중성지방 행 ㄷ자 선이 사라졌는지, 역상 흰 획이 개선되는지 각각 판정한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료·실물 검증 대기: G500 v1.3.58 일반 출력 품질 복원 v1.3.87
 - 사용자 기준: 역상 품질 개선 대상 외의 일반 글자·표선은 v1.3.58 출력 품질이 좋았다.
 - 실물 확인: `.tmp/IMG_20260905_0024.png`에서도 일반 한글, 숫자, 표선까지 거칠고 뭉쳐 전체 품질 회귀가 명확하다.
