@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 진행 중: GoDEX Q pattern 실기기 polarity 재수정 v1.3.68
+- 실물 확인: `.tmp/IMG_20260905_0005.png`는 원본 약 14.93% ink와 반대로 라벨 면 대부분이 검정으로 출력돼 단순 역상 글자 품질 저하가 아니라 전체 Q raster 반전이다.
+- 로그 확인: `.tmp/log/app_2026-09-05_16-09-25.log`에서 `v1.3.67`, `backend=ezplRaw`, `AZ1:25`, `inverse:2`, RAW `44832/44832`, accepted=true를 확인했다. firmware inverse 경로와 payload 전송은 실제 실행됐다.
+- 원인: v1.3.67은 흰 배경을 Q bit `1`, ink를 `0`으로 보냈지만 이번 G500 실물은 `1=검정`, `0=흰색`으로 출력했다. `zeroBlackOneWhite`는 현재 장치에서 전체 반전을 일으킨 실패 방식이므로 재사용하지 않는다.
+- 수정 완료: Q row를 0으로 시작하고 ink bit만 set하는 `oneBlackZeroWhite`로 교체했다. `AZ1 ... 0I` inverse 명령은 그대로 유지해 전체 polarity를 정상화한 뒤 firmware inverse 품질을 분리 판정한다.
+- 테스트 수정 완료: 검정 첫 픽셀 `0x80`, 나머지 흰 픽셀 `0x00`, diagnostics `oneBlackZeroWhite`와 zero/full byte 분포를 검증한다.
+- focused 검증 완료: Q pattern byte polarity 및 AZ1 inverse 유지 테스트 2건 통과. 관련 dispatcher/print job/font provisioner 테스트 전체 27건 통과, 수정 파일 diagnostics 오류 0건.
+- 버전/워터마크 수정 완료: 앱, RAW payload, Windows fallback을 `v1.3.68`로 증가했다.
+- 최종 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. Debug EXE FileVersion/ProductVersion 모두 `1.3.68`.
+- 실행 확인 완료: 이전 앱을 종료하고 새 Debug EXE를 실행했으며 `.tmp/log/app_2026-09-05_16-20-21.log`에서 `DebugLogger version: 1.3.68` 확인.
+- stage/commit 대상: print job, 관련 테스트, Windows fallback watermark, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 실물 판별 기준: 로그 `backend=ezplRaw`, `polarity=oneBlackZeroWhite`, `inverse:2`, `printWatermark=v1.3.68`, RAW requested/written 일치. 출력물은 전체 흰 배경이 복원된 상태에서 두 검정 행의 흰 한글 획을 비교한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 진행 중: GoDEX firmware native inverse 실물 출력 v1.3.67
 - 실물 확인: `.tmp/IMG_20260905_0004.png` 우하단 `v1.3.66`을 확인했고 두 역상 행의 흰 글자 획 탈락이 계속돼 FreeType mono도 품질 개선에 실패했다.
 - 로그 확인: `app_2026-09-05_16-00-23.log`에서 `backend=windowsDriver`, FreeType glyph 49개, 실패 0, knockout 2,703픽셀이 기록됐다. DirectWrite와 동일한 dot 수라 host glyph rasterizer 교체 효과가 없었다.
