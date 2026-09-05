@@ -16,6 +16,7 @@
 - DTD 확인: standalone Debug EXE에는 active app connection이 없어 hot restart 대신 최종 재빌드·프로세스 재실행으로 Dart 변경을 반영했다.
 - 임시 산출물: 별도 테스트 임시 파일 없음. Debug build 산출물과 startup 로그만 생성됐다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/features/label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart`, `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `pubspec.yaml`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`.
+- 구현 커밋: `5469d9c G500 역상 배경에 수평 냉각행 적용`.
 - 실물 검증 포인트: 새 출력 로그에서 `backend=ezplBandCoolingRows`, `transport=EZPL_Q_BAND_COOLING_ROWS`, `candidateBands>=1`, `cooledBands=1`, `detailPixels>0`, `coolingPixels>0`, `printWatermark=v1.3.86`을 확인한다. 하단 solid bar가 매끈하게 유지되는지와 역상 제목 흰 획을 함께 비교한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
