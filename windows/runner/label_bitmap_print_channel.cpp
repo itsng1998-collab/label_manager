@@ -23,7 +23,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.74";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.75";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -92,6 +92,45 @@ struct DeviceBorderRect {
   bool horizontal = false;
   int segment_count = 1;
 };
+
+struct InverseCoolingStats {
+  int inverse_rects = 0;
+  size_t pixels_modified = 0;
+};
+
+InverseCoolingStats ApplyInverseBackgroundCoolingPattern(
+    void* mono_bits, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors) {
+  InverseCoolingStats stats;
+  const int stride = ((target_width + 31) / 32) * 4;
+  auto* pixels = static_cast<uint8_t*>(mono_bits);
+  for (const auto& descriptor : text_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    ++stats.inverse_rects;
+    const RECT rect{
+        std::clamp(MulDiv(descriptor.rect.left, target_width, source_width),
+                   0, target_width),
+        std::clamp(MulDiv(descriptor.rect.top, target_height, source_height),
+                   0, target_height),
+        std::clamp(MulDiv(descriptor.rect.right, target_width, source_width),
+                   0, target_width),
+        std::clamp(MulDiv(descriptor.rect.bottom, target_height, source_height),
+                   0, target_height),
+    };
+    for (int y = rect.top; y < rect.bottom; ++y) {
+      for (int x = rect.left; x < rect.right; ++x) {
+        if ((x & 1) != 0 || (y & 1) != 0) continue;
+        uint8_t& value = pixels[static_cast<size_t>(y) * stride + x / 8];
+        const uint8_t mask = static_cast<uint8_t>(0x80u >> (x & 7));
+        if ((value & mask) == 0) continue;
+        value = static_cast<uint8_t>(value & ~mask);
+        ++stats.pixels_modified;
+      }
+    }
+  }
+  return stats;
+}
 
 std::vector<uint8_t> ComposeFinalDeviceBitmap(
     const std::vector<uint8_t>& source, int source_width, int source_height,
@@ -1644,7 +1683,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcRichEditWhite+printerDcBlackText"
               << " nativeTextWhiteRender=richEditFormatRangePrinterDc"
-              << " printWatermark=v1.3.74"
+              << " printWatermark=v1.3.75"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1858,6 +1897,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       }
     }
     GdiFlush();
+    InverseCoolingStats cooling_stats;
+    if (error.empty()) {
+      cooling_stats = ApplyInverseBackgroundCoolingPattern(
+          mono_bits, target_width, target_height, source_width, source_height,
+          text_descriptors);
+    }
     int mono_scan_lines = 0;
     if (error.empty()) {
       mono_scan_lines = SetDIBitsToDevice(
@@ -1872,7 +1917,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     diagnostics << " spoolFormat=DIB_1BPP_DEVICE"
                 << " monoStride=" << ((target_width + 31) / 32) * 4
                 << " monoScanLines=" << mono_scan_lines
-                << " monoPalette=zeroWhiteOneBlack";
+                << " monoPalette=zeroWhiteOneBlack"
+                << " coolingPattern=ordered2x2_75PercentBlack"
+                << " coolingInverseRects=" << cooling_stats.inverse_rects
+                << " coolingPixelsModified="
+                << cooling_stats.pixels_modified;
     SelectObject(page_dc, previous_page_bitmap);
     DeleteObject(mono_bitmap);
     DeleteDC(page_dc);

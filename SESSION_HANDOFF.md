@@ -1,6 +1,23 @@
 # 현재 작업 상태
 
-## 진행 중: exact-device 단일 1bpp DIB 출력 v1.3.74
+## 진행 중: 역상 배경 75% ordered cooling pattern v1.3.75
+- 실물 확인: `.tmp/IMG_20260905_0012.png`에서도 두 역상 행의 흰 한글 획이 메워져 품질 개선이 없었다.
+- 로그 확인: `.tmp/log/app_2026-09-05_17-13-01.log`에서 `v1.3.74`, `backend=windowsDriver`, `spoolFormat=DIB_1BPP_DEVICE`, `monoStride=80`, `monoScanLines=480`, 흰 descriptor 2건, 실패 0을 확인했다. exact-device 단일 1bpp DIB가 실제 전송됐지만 개선이 없어 기각한다.
+- 다음 방식: 최종 620x480 1bpp buffer에서 흰 text descriptor rectangle 내부의 현재 검정 픽셀만 2x2당 1개씩 흰색으로 바꿔 75% black ordered cooling pattern을 만든다. 이미 흰 글자 픽셀과 일반 셀은 변경하지 않는다.
+- 가설/판별: 드라이버 입력 표현과 glyph renderer를 바꿔도 같은 획 메움이 반복됐으므로 solid black 면의 연속 고발열에 의한 thermal blooming을 의심한다. 배경 열량을 25% 낮춘 실물에서 흰 획 연속성이 회복되는지가 판별 기준이다.
+- 수정 예정 파일: `windows/runner/label_bitmap_print_channel.cpp`에 final 1bpp cooling helper와 `coolingPattern`, `coolingInverseRects`, `coolingPixelsModified` diagnostics를 추가하고 watermark를 `v1.3.75`로 변경한다. `pubspec.yaml` 버전과 본 문서를 함께 갱신한다.
+- Windows 편집 완료: `ApplyInverseBackgroundCoolingPattern`이 top-down 1bpp DIB의 흰 text descriptor 범위에서 `(x even, y even)`인 현재 검정 bit만 clear한다. 결과는 2x2당 3개 검정인 75% black이며 기존 흰 글자 bit는 그대로 둔다.
+- 범위 확인: Windows descriptor는 셀 rectangle이 아니라 Flutter text layout의 tight fragment bounds를 전달하므로 냉각점은 흰 글자 주변의 검정 면에만 생기고 셀 외곽 border는 건드리지 않는다.
+- 버전/diagnostics 편집 완료: 앱과 출력 watermark를 `v1.3.75`로 올리고 `coolingPattern=ordered2x2_75PercentBlack`, `coolingInverseRects`, `coolingPixelsModified`를 기록한다.
+- 1차 검증 완료: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공, 수정 파일 diagnostics 오류 0건.
+- 관련 검증 완료: dispatcher/print job/font provisioner 테스트 27건 통과.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.75`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_17-20-08.log`에서 `DebugLogger version: 1.3.75` 확인.
+- 실물 판별 기준: 출력물 우하단 `v1.3.75`, 로그 `spoolFormat=DIB_1BPP_DEVICE`, `coolingPattern=ordered2x2_75PercentBlack`, `coolingInverseRects=2`, `coolingPixelsModified>0`, `monoScanLines=480`. 역상 배경의 규칙적인 미세 cooling dot과 흰 한글 획 연속성을 v1.3.74와 비교한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, 본 문서. `lib/core/app.dart` 제외.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: exact-device 단일 1bpp DIB 출력 v1.3.74
 - 실물 확인: `.tmp/IMG_20260905_0011.png`에서도 역상 흰 한글 획 탈락이 계속됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-06-00.log`에서 `v1.3.73`, `backend=windowsDriver`, `spoolFormat=EMF_PAGE`, `emfPlayResult=1`, direct 2건, 실패 0을 확인했다. 전체 페이지 EMF가 실제 재생됐지만 개선이 없어 기각한다.
 - 다음 방식: 현재 최종 device 크기 620x480의 printer-compatible 1bpp top-down DIB를 만들고 base bitmap, RichEdit 흰 글자, 일반 검정 글자, 워터마크를 모두 해당 단색 DC에 합성한 뒤 `SetDIBitsToDevice`로 1:1 전송한다.
