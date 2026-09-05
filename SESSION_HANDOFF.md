@@ -1,6 +1,25 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: G500 내장 TrueType UTF-8 역상 출력 v1.3.81
+## 진행 중: G500 전체 label inverse 출력 v1.3.82
+- 실물 확인: `.tmp/IMG_20260905_0019.png`는 라벨 대부분이 검정으로 오염되고 일부 흰 영역과 깨진 영문만 남아 정상 출력이 아니었다.
+- 로그 확인: `.tmp/log/app_2026-09-05_18-02-01.log`에서 `v1.3.81`, `backend=ezplRaw`, text candidate 31/31, `AT:31`, `AZ1:0`, `inverse:2`, RAW `45152/45152` bytes를 확인했다. 전송은 성공했지만 `AT` style에는 `I`가 정의되지 않아 format 해석이 오염된 것으로 판정한다.
+- 공식 문서 확인: `I` inverse는 `At`의 `rotationInverse`에만 정의되고 `AT`/`ATt` style은 `B/T/U`만 지원한다. 따라서 다운로드 TTF도 흰 glyph 문제를 직접 해결하지 못하며 v1.3.81은 기각한다.
+- 다음 방식: 공식 label-format inverse인 `^LI`를 사용한다. 원본 전체 PNG를 먼저 1bpp 반전해 Q bitmap으로 전송하고 firmware가 label 전체를 다시 반전하도록 하여 최종 극성을 복원한다. native text/AZ1/잘못된 AT inverse는 사용하지 않는다.
+- backend 편집 완료: `ezplWholeInverse`를 추가하고 G500 physical port를 이 backend로 라우팅했다. 일반 발행, 스케일 발행, 라벨 시트 작업대는 plain PNG capture 후 전용 builder를 RAW 전송한다.
+- payload 편집 완료: `^Q/^W/^P/^LI` → pre-inverted contiguous Q bitmap → `v1.3.82` watermark → `E`. diagnostics는 `transport=EZPL_Q_WHOLE_INVERSE`, `labelInverse=^LI`, `sourcePreInverted=true`를 기록한다.
+- 버전 편집 완료: `1.3.82`.
+- payload 테스트 추가: 검정 1dot/흰 7dot 원본의 첫 pre-inverted Q byte가 `0x80`이고 `^LI`, transport/version diagnostics가 포함되는지 검증한다.
+- 관련 전체 검증 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 32건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 빌드 완료: 위 `/WX` Debug 빌드 성공.
+- 최종 실행 검증 예정: Debug EXE FileVersion/ProductVersion `1.3.82` 확인 후 기존 프로세스를 종료하고 새 EXE를 실행해 startup 로그 버전을 확인한다.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.82`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_18-09-01.log`에서 `DebugLogger version: 1.3.82`와 DB 연결 성공을 확인했다.
+- 실물 판별 기준: 로그 `backend=ezplWholeInverse`, `transport=EZPL_Q_WHOLE_INVERSE`, `labelInverse=^LI`, `sourcePreInverted=true`, `printWatermark=v1.3.82`, `wholeInverseDispatch ... requestedBytes=... writtenBytes=...`. 실물에서 전면 검정 오염 없이 전체 레이아웃이 복원되고 역상 흰 한글 획이 개선되는지 확인한다.
+- stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: G500 내장 TrueType UTF-8 역상 출력 v1.3.81
 - 실물 확인: `.tmp/IMG_20260905_0018.png`에서 저장 BMP의 전체 80x60mm 레이아웃과 좌표는 정상으로 복원됐지만, 검정 배경의 흰 한글 획 소실은 그대로였다.
 - 로그 확인: `.tmp/log/app_2026-09-05_17-50-50.log`에서 `v1.3.80`, `backend=ezplStoredGraphic`, `raster=640x480`, `bmpBytes=38462`, `bmpBpp=1`, RAW `38572/38572` bytes를 확인했다. `~EB/Y` 전송은 정상이며 동일 1bpp 열점 결과의 물리 품질 한계로 기각한다.
 - 다음 방식: 공식 EZPL 내장 TrueType `AT`의 UTF-8(`E`)와 inverse(`I`)를 사용한다. 검정 배경/도형은 Q raster로 유지하고 승인된 한글 셀 텍스트는 `AT,...,0I...E,0,0,<UTF-8>`로 firmware FreeType가 직접 합성한다.

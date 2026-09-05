@@ -1432,6 +1432,68 @@ Future<Uint8List> buildLabelSheetStoredGraphicEzplBytes({
   return payload;
 }
 
+Future<Uint8List> buildLabelSheetWholeInverseEzplBytes({
+  required Uint8List pngBytes,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  void Function(String diagnostics)? onDiagnostics,
+}) async {
+  final source = img.decodePng(pngBytes);
+  if (source == null) {
+    throw StateError('라벨 이미지를 EZPL 전체 역상 출력으로 변환할 수 없습니다.');
+  }
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
+  final raster = img.Image(
+    width: metrics.dotsFromMm(metrics.pageWidthMm(options)),
+    height: metrics.dotsFromMm(metrics.pageHeightMm(options)),
+  );
+  img.fill(raster, color: img.ColorRgb8(255, 255, 255));
+  final oriented = options.rotateQuarterTurns
+      ? img.copyRotate(source, angle: 90)
+      : source;
+  final content = img.copyResize(
+    oriented,
+    width: metrics.dotsFromMm(layout.contentWidthMm),
+    height: metrics.dotsFromMm(layout.contentHeightMm),
+    interpolation: img.Interpolation.average,
+  );
+  img.compositeImage(
+    raster,
+    content,
+    dstX: metrics.signedDotsFromMm(layout.contentLeftMm),
+    dstY: metrics.signedDotsFromMm(layout.contentTopMm),
+  );
+  _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
+
+  final commands = BytesBuilder(copy: false)
+    ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
+    ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
+    ..add(ascii.encode('^P${options.copies}\r\n'))
+    ..add(ascii.encode('^LI\r\n'));
+  final rasterStats = _addEzplRasterGraphic(commands, raster, invert: true);
+  commands
+    ..add(
+      ascii.encode(
+        'AT,${math.max(0, raster.width - 48)},${math.max(0, raster.height - 8)},'
+        '7,7,0,0E,0,0,v1.3.82\r\n',
+      ),
+    )
+    ..add(ascii.encode('E\r\n'));
+  final payload = commands.takeBytes();
+  onDiagnostics?.call(
+    'transport=EZPL_Q_WHOLE_INVERSE source=${source.width}x${source.height} '
+    'raster=${raster.width}x${raster.height} '
+    'labelInverse=^LI sourcePreInverted=true '
+    'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
+    'encodedDarkDots=${rasterStats.inkDots} '
+    'printWatermark=v1.3.82 payloadBytes=${payload.length}',
+  );
+  return payload;
+}
+
 Uint8List _encodeMonochromeBmp(img.Image raster) {
   const fileHeaderBytes = 14;
   const infoHeaderBytes = 40;
@@ -1504,7 +1566,9 @@ void _clipEzplRasterToLabelArea(
 
 _LabelSheetEzplRasterStats _addEzplRasterGraphic(
   BytesBuilder commands,
-  img.Image raster,
+  img.Image raster, {
+  bool invert = false,
+}
 ) {
   final bytesPerRow = (raster.width + 7) ~/ 8;
   var inkDots = 0;
@@ -1526,8 +1590,9 @@ _LabelSheetEzplRasterStats _addEzplRasterGraphic(
     final row = Uint8List(bytesPerRow)..fillRange(0, bytesPerRow, 0xff);
     var rowInkDots = 0;
     for (var x = 0; x < raster.width; x += 1) {
-      if (img.getLuminance(raster.getPixel(x, y)) <=
-          _labelSheetEzplInkLuminanceThreshold) {
+        final isDark = img.getLuminance(raster.getPixel(x, y)) <=
+          _labelSheetEzplInkLuminanceThreshold;
+        if (invert ? !isDark : isDark) {
         row[x ~/ 8] &= ~(1 << (7 - (x % 8)));
         rowInkDots += 1;
       }

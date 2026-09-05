@@ -6399,7 +6399,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 )
               : null;
                 final capture = backend == LabelPrintBackend.pdf ||
-                  backend == LabelPrintBackend.ezplStoredGraphic
+                  backend == LabelPrintBackend.ezplWholeInverse
               ? await _labelPrintCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
@@ -6434,7 +6434,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           }
           if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
             if (backend == LabelPrintBackend.pdf ||
-              backend == LabelPrintBackend.ezplStoredGraphic) {
+              backend == LabelPrintBackend.ezplWholeInverse) {
             renderedPages[unit] = LabelSheetRenderedPage(
               pngBytes: capture!.pngBytes,
               metrics: metrics,
@@ -6555,17 +6555,17 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
-        } else if (backend == LabelPrintBackend.ezplStoredGraphic) {
+        } else if (backend == LabelPrintBackend.ezplWholeInverse) {
           final bytes = BytesBuilder(copy: false);
           for (final unit in group.units) {
             final page = renderedPages[unit]!;
             bytes.add(
-              await buildLabelSheetStoredGraphicEzplBytes(
+              await buildLabelSheetWholeInverseEzplBytes(
                 pngBytes: page.pngBytes,
                 metrics: page.metrics,
                 options: page.options,
                 onDiagnostics: (diagnostics) => debugLog(
-                  'labelPrintQuality storedGraphic unit=${unit.copyIndex + 1} '
+                  'labelPrintQuality wholeInverse unit=${unit.copyIndex + 1} '
                   '$diagnostics',
                 ),
               ),
@@ -6656,10 +6656,10 @@ class _HomePageManagerState extends State<HomePageManager> {
               debugLog('labelPrintQuality rawDispatch ${result.diagnostics}');
               return true;
             })(),
-            LabelPrintBackend.ezplStoredGraphic => await (() async {
+            LabelPrintBackend.ezplWholeInverse => await (() async {
               final result = await RawPrinterWin32.sendRaw(printer, payload);
               debugLog(
-                'labelPrintQuality storedGraphicDispatch '
+                'labelPrintQuality wholeInverseDispatch '
                 '${result.diagnostics}',
               );
               return true;
@@ -6956,7 +6956,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 )
               : null;
                 final capture = backend == LabelPrintBackend.pdf ||
-                  backend == LabelPrintBackend.ezplStoredGraphic
+                  backend == LabelPrintBackend.ezplWholeInverse
               ? await _scaleOutputCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
@@ -6991,7 +6991,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           }
           if (ezplCapture != null) ezplCaptures[unit] = ezplCapture;
             if (backend == LabelPrintBackend.pdf ||
-              backend == LabelPrintBackend.ezplStoredGraphic) {
+              backend == LabelPrintBackend.ezplWholeInverse) {
             renderedPages[unit] = LabelSheetRenderedPage(
               pngBytes: capture!.pngBytes,
               metrics: metrics,
@@ -7113,17 +7113,17 @@ class _HomePageManagerState extends State<HomePageManager> {
             'units=${group.units.length} pdfBytes=${payloads[group]!.length} '
             'pageMm=${group.pageSpec.widthMm}x${group.pageSpec.heightMm}',
           );
-        } else if (backend == LabelPrintBackend.ezplStoredGraphic) {
+        } else if (backend == LabelPrintBackend.ezplWholeInverse) {
           final bytes = BytesBuilder(copy: false);
           for (final unit in sourceUnits) {
             final page = renderedPages[unit]!;
             bytes.add(
-              await buildLabelSheetStoredGraphicEzplBytes(
+              await buildLabelSheetWholeInverseEzplBytes(
                 pngBytes: page.pngBytes,
                 metrics: page.metrics,
                 options: page.options,
                 onDiagnostics: (diagnostics) => debugLog(
-                  'scalePrintQuality storedGraphic unit=${unit.copyIndex + 1} '
+                  'scalePrintQuality wholeInverse unit=${unit.copyIndex + 1} '
                   '$diagnostics',
                 ),
               ),
@@ -7216,10 +7216,10 @@ class _HomePageManagerState extends State<HomePageManager> {
               debugLog('scalePrintQuality rawDispatch ${result.diagnostics}');
               return true;
             })(),
-            LabelPrintBackend.ezplStoredGraphic => await (() async {
+            LabelPrintBackend.ezplWholeInverse => await (() async {
               final result = await RawPrinterWin32.sendRaw(printer, payload);
               debugLog(
-                'scalePrintQuality storedGraphicDispatch '
+                'scalePrintQuality wholeInverseDispatch '
                 '${result.diagnostics}',
               );
               return true;

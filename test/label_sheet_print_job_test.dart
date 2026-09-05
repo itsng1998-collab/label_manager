@@ -918,6 +918,42 @@ void main() {
     expect(diagnostics, contains('bmpBpp=1'));
   });
 
+  test('Godex whole-label inverse pre-inverts Q bitmap data', () async {
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final source = img.Image(width: 80, height: 8);
+    img.fill(source, color: img.ColorRgb8(255, 255, 255));
+    source.setPixelRgb(0, 0, 0, 0, 0);
+    String? diagnostics;
+
+    final bytes = await buildLabelSheetWholeInverseEzplBytes(
+      pngBytes: Uint8List.fromList(img.encodePng(source)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 10,
+        labelHeightMm: 1,
+        dpi: 203.2,
+      ),
+      options: options,
+      onDiagnostics: (value) => diagnostics = value,
+    );
+
+    final patternHeader = ascii.encode('^LI\r\nQ0,0,10,8\r\n');
+    final headerStart = _indexOfBytes(bytes, patternHeader);
+    expect(headerStart, greaterThanOrEqualTo(0));
+    final patternStart = headerStart + patternHeader.length;
+    expect(bytes[patternStart], 0x80);
+    expect(_containsBytes(bytes, ascii.encode('^L\r\n')), isFalse);
+    expect(diagnostics, contains('transport=EZPL_Q_WHOLE_INVERSE'));
+    expect(diagnostics, contains('sourcePreInverted=true'));
+    expect(diagnostics, contains('printWatermark=v1.3.82'));
+  });
+
   test('Godex EZPL rejects unsupported white and mixed-color text', () {
     const options = LabelSheetPrintOptions(
       copies: 1,
