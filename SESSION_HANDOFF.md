@@ -1,6 +1,26 @@
 # 현재 작업 상태
 
-## 완료·실물 검증 대기: G500 인쇄방향 선행 열 차단 v1.3.83
+## 진행 중: G500 Q bit 극성 교정 v1.3.84
+- 실물 확인: `.tmp/IMG_20260905_0021.png`은 v1.3.82와 마찬가지로 원본의 역상에 가까운 검정 면적과 소실된 흰 글자를 보였다.
+- 로그 확인: `.tmp/log/app_2026-09-05_18-15-02.log`에서 `v1.3.83`, `backend=ezplDirectionalRelief`, dark bands `8`, cleared lead pixels `1210`, encoded ink dots `62931`, RAW `38477/38477` bytes를 확인했다. 방향성 보정은 실제 적용됐으나 개선되지 않았다.
+- 핵심 판정: encoded ink dots는 전체 307200 중 62931인데 실물 검정 면적은 그 보수에 가까우므로 이 G500 Q parser는 현재 payload에서 `1=black`, `0=white`로 해석한다. 기존 helper의 `0=black` 전제가 반대였다.
+- 다음 방식: inverse 명령, native text, 열 보정을 모두 제거하고 정상 `^L`에서 Q row를 0으로 초기화한 뒤 원본 검정 픽셀만 1로 설정한다.
+- backend 편집 완료: G500 physical port를 `ezplDirectBitmap`으로 라우팅하고 세 발행 흐름을 direct bitmap builder에 연결했다.
+- payload 편집 완료: diagnostics `transport=EZPL_Q_DIRECT_BITMAP`, `bitPolarity=oneBlackZeroWhite`, `nativeCommands=0`, `relief=none`, watermark `v1.3.84`.
+- 실패 코드 재사용 방지: v1.3.83 선행 열 보정 helper는 실물 실패 주석과 `_unusedFeedLeadWhiteRelief` 이름으로 격리했다.
+- 버전 편집 완료: `1.3.84`.
+- payload 테스트 완료: 검정 1dot/흰 배경 입력이 첫 Q byte `0x80`, 다음 흰 행 `0x00`이 되어 `1=black`, `0=white`로 인코딩되는지 검증했다.
+- 관련 전체 검증 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 32건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows 빌드 완료: 위 `/WX` Debug 빌드 성공.
+- 최종 실행 검증 예정: Debug EXE FileVersion/ProductVersion `1.3.84` 확인 후 기존 프로세스를 종료하고 새 EXE를 실행해 startup 로그 버전을 확인한다.
+- 최종 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.84`. 기존 프로세스를 종료하고 새 EXE를 실행했으며 프로세스가 응답 중이다.
+- startup 확인 완료: `.tmp/log/app_2026-09-05_18-20-07.log`에서 `DebugLogger version: 1.3.84`와 DB 연결 성공을 확인했다.
+- 실물 판별 기준: 로그 `backend=ezplDirectBitmap`, `transport=EZPL_Q_DIRECT_BITMAP`, `bitPolarity=oneBlackZeroWhite`, `nativeCommands=0`, `relief=none`, `printWatermark=v1.3.84`, `directBitmapDispatch ... requestedBytes=... writtenBytes=...`. 실물에서 흰 배경/검정 선의 정상 극성과 역상 band의 흰 글자를 확인한다.
+- stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
+## 완료·기각: G500 인쇄방향 선행 열 차단 v1.3.83
 - 실물 확인: `.tmp/IMG_20260905_0020.png`은 정상 레이아웃의 역상판처럼 대부분 검정으로 출력됐고 흰 글자도 계속 소실됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-09-01.log`에서 `v1.3.82`, `backend=ezplWholeInverse`, `sourcePreInverted=true`, encoded dark dots `243059`, RAW `38478/38478` bytes를 확인했다. `^LI`가 Q bitmap data를 반전하지 않아 pre-inverted Q가 그대로 출력된 것으로 판정한다.
 - 결론: per-text `I`와 label-level `^LI` 모두 Q bitmap과 조합할 수 없어 firmware inverse 계열을 종료한다.

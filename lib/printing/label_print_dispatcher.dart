@@ -2,13 +2,13 @@ import 'dart:typed_data';
 
 import 'package:label_manager/printing/printer_profiles.dart';
 
-enum LabelPrintBackend { pdf, windowsDriver, ezplRaw, ezplDirectionalRelief }
+enum LabelPrintBackend { pdf, windowsDriver, ezplRaw, ezplDirectBitmap }
 
 extension LabelPrintBackendCapture on LabelPrintBackend {
   bool get usesCanvasCapture =>
       this == LabelPrintBackend.pdf ||
       this == LabelPrintBackend.windowsDriver ||
-      this == LabelPrintBackend.ezplDirectionalRelief;
+      this == LabelPrintBackend.ezplDirectBitmap;
 }
 
 LabelPrintBackend resolveLabelPrintBackend({
@@ -19,7 +19,7 @@ LabelPrintBackend resolveLabelPrintBackend({
   final isFilePort = normalizedPort == 'FILE:' || normalizedPort == 'PORTPROMPT:';
   if (isFilePort) return LabelPrintBackend.pdf;
   if (profile.vendor == 'GoDEX' && profile.model == 'G500') {
-    return LabelPrintBackend.ezplDirectionalRelief;
+    return LabelPrintBackend.ezplDirectBitmap;
   }
   return LabelPrintBackend.windowsDriver;
 }
@@ -46,7 +46,7 @@ class LabelPrintDispatcher {
       LabelPrintBackend.pdf => sendPdf(pdfBytes),
       LabelPrintBackend.windowsDriver => sendWindowsDriver(pdfBytes),
       LabelPrintBackend.ezplRaw => sendRaw(rawBytes),
-      LabelPrintBackend.ezplDirectionalRelief => sendRaw(rawBytes),
+      LabelPrintBackend.ezplDirectBitmap => sendRaw(rawBytes),
     };
   }
 }

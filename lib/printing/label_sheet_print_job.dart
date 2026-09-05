@@ -1432,7 +1432,7 @@ Future<Uint8List> buildLabelSheetStoredGraphicEzplBytes({
   return payload;
 }
 
-Future<Uint8List> buildLabelSheetDirectionalReliefEzplBytes({
+Future<Uint8List> buildLabelSheetDirectBitmapEzplBytes({
   required Uint8List pngBytes,
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
@@ -1440,7 +1440,7 @@ Future<Uint8List> buildLabelSheetDirectionalReliefEzplBytes({
 }) async {
   final source = img.decodePng(pngBytes);
   if (source == null) {
-    throw StateError('라벨 이미지를 EZPL 방향성 열 보정 출력으로 변환할 수 없습니다.');
+    throw StateError('라벨 이미지를 EZPL 직접 bitmap 출력으로 변환할 수 없습니다.');
   }
   final layout = LabelSheetPrintLayout.resolve(
     metrics: metrics,
@@ -1467,36 +1467,35 @@ Future<Uint8List> buildLabelSheetDirectionalReliefEzplBytes({
     dstY: metrics.signedDotsFromMm(layout.contentTopMm),
   );
   _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
-  final relief = _applyFeedLeadWhiteRelief(raster, reliefDots: 2);
 
   final commands = BytesBuilder(copy: false)
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
     ..add(ascii.encode('^W ${metrics.pageWidthMm(options).round()}\r\n'))
     ..add(ascii.encode('^P${options.copies}\r\n'))
     ..add(ascii.encode('^L\r\n'));
-  final rasterStats = _addEzplRasterGraphic(commands, raster);
+  final rasterStats = _addEzplRasterGraphic(commands, raster, invert: true);
   commands
     ..add(
       ascii.encode(
         'AT,${math.max(0, raster.width - 48)},${math.max(0, raster.height - 8)},'
-        '7,7,0,0E,0,0,v1.3.83\r\n',
+        '7,7,0,0E,0,0,v1.3.84\r\n',
       ),
     )
     ..add(ascii.encode('E\r\n'));
   final payload = commands.takeBytes();
   onDiagnostics?.call(
-    'transport=EZPL_Q_DIRECTIONAL_RELIEF source=${source.width}x${source.height} '
+    'transport=EZPL_Q_DIRECT_BITMAP source=${source.width}x${source.height} '
     'raster=${raster.width}x${raster.height} '
-    'feedDirection=increasingY leadReliefDots=2 '
-    'darkBands=${relief.bands} clearedLeadPixels=${relief.clearedPixels} '
+    'bitPolarity=oneBlackZeroWhite nativeCommands=0 relief=none '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
-    'inkDots=${rasterStats.inkDots} '
-    'printWatermark=v1.3.83 payloadBytes=${payload.length}',
+    'encodedOneDots=${rasterStats.inkDots} '
+    'printWatermark=v1.3.84 payloadBytes=${payload.length}',
   );
   return payload;
 }
 
-({int bands, int clearedPixels}) _applyFeedLeadWhiteRelief(
+// v1.3.83의 진행방향 선행 보정은 실물에서 개선되지 않아 재사용하지 않는다.
+({int bands, int clearedPixels}) _unusedFeedLeadWhiteRelief(
   img.Image raster, {
   required int reliefDots,
 }) {
