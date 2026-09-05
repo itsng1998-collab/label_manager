@@ -1,5 +1,24 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: G500 역상 band 수평 냉각행 출력 v1.3.86
+- 실물 확인: `.tmp/IMG_20260905_0023.png`은 50% checkerboard 때문에 역상 배경과 하단 검정 띠가 거칠어져 전체 품질이 나빠졌다.
+- 로그 확인: `.tmp/log/app_2026-09-05_18-26-42.log`에서 `v1.3.85`, `darkBands=2`, `halftonePixels=22221`, RAW `38477/38477` bytes, `accepted=true`를 확인했다. 역상 제목 외 하단 solid bar까지 두 번째 band로 오인했다.
+- v1.3.85 기각: 1-dot checkerboard는 시각적으로 너무 거칠고 solid bar 오인까지 발생해 재사용하지 않는다.
+- 다음 방식: 좌우 검정 사이에 흰 디테일이 8픽셀 이상 있는 band만 역상 text band로 판정하고, 매 3행 중 1행의 검정 픽셀을 비워 전체 thermal head가 주기적으로 쉬게 한다. 예상 배경 농도는 약 67%이며 solid bar는 유지한다.
+- backend 편집 완료: G500 physical port를 `ezplBandCoolingRows`로 라우팅하고 세 발행 흐름을 새 builder에 연결했다.
+- payload 편집 완료: diagnostics `transport=EZPL_Q_BAND_COOLING_ROWS`, candidate/cooled band 수, 내부 흰 detail 수, cooling pixel 수, watermark `v1.3.86`을 기록한다.
+- 버전 편집 완료: `1.3.86`.
+- focused 테스트 완료: 내부 흰 detail이 있는 8행 band는 Q row가 `FF/FF/00` 주기로 바뀌고, 완전 검정 8행 bar는 모든 row가 `FF`로 유지되는 2건 통과.
+- 관련 전체 테스트 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 33건 통과, 수정 파일 diagnostics 오류 0건.
+- Windows 빌드 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- Windows `/WX` Debug 빌드 완료: 성공.
+- 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.86`; `.tmp/log/app_2026-09-05_18-49-22.log`에서 `DebugLogger version: 1.3.86`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
+- DTD 확인: standalone Debug EXE에는 active app connection이 없어 hot restart 대신 최종 재빌드·프로세스 재실행으로 Dart 변경을 반영했다.
+- 임시 산출물: 별도 테스트 임시 파일 없음. Debug build 산출물과 startup 로그만 생성됐다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/features/label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart`, `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `pubspec.yaml`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`.
+- 실물 검증 포인트: 새 출력 로그에서 `backend=ezplBandCoolingRows`, `transport=EZPL_Q_BAND_COOLING_ROWS`, `candidateBands>=1`, `cooledBands=1`, `detailPixels>0`, `coolingPixels>0`, `printWatermark=v1.3.86`을 확인한다. 하단 solid bar가 매끈하게 유지되는지와 역상 제목 흰 획을 함께 비교한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료·실물 검증 대기: G500 역상 band 50% 망점 출력 v1.3.85
 - 실물 확인: `.tmp/IMG_20260905_0022.png`에서 흰 배경/검정 선의 전체 극성은 정상으로 복원됐지만 solid-black band 안 흰 한글 획은 여전히 크게 소실됐다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-20-07.log`에서 `v1.3.84`, `backend=ezplDirectBitmap`, `bitPolarity=oneBlackZeroWhite`, encoded one dots `243059`, RAW `38477/38477` bytes를 확인했다. Q bit 극성은 해결됐고 남은 문제는 solid-black 열 부하다.

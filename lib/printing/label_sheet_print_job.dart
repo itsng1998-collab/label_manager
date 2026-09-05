@@ -1435,7 +1435,7 @@ Future<Uint8List> buildLabelSheetStoredGraphicEzplBytes({
   return payload;
 }
 
-Future<Uint8List> buildLabelSheetBandHalftoneEzplBytes({
+Future<Uint8List> buildLabelSheetBandCoolingRowsEzplBytes({
   required Uint8List pngBytes,
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
@@ -1443,7 +1443,7 @@ Future<Uint8List> buildLabelSheetBandHalftoneEzplBytes({
 }) async {
   final source = img.decodePng(pngBytes);
   if (source == null) {
-    throw StateError('라벨 이미지를 EZPL band 망점 출력으로 변환할 수 없습니다.');
+    throw StateError('라벨 이미지를 EZPL band 냉각행 출력으로 변환할 수 없습니다.');
   }
   final layout = LabelSheetPrintLayout.resolve(
     metrics: metrics,
@@ -1470,7 +1470,7 @@ Future<Uint8List> buildLabelSheetBandHalftoneEzplBytes({
     dstY: metrics.signedDotsFromMm(layout.contentTopMm),
   );
   _clipEzplRasterToLabelArea(raster, metrics: metrics, options: options);
-  final halftone = _applyDarkBandCheckerboard(raster);
+  final cooling = _applyInverseBandCoolingRows(raster);
 
   final commands = BytesBuilder(copy: false)
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
@@ -1482,25 +1482,101 @@ Future<Uint8List> buildLabelSheetBandHalftoneEzplBytes({
     ..add(
       ascii.encode(
         'AT,${math.max(0, raster.width - 48)},${math.max(0, raster.height - 8)},'
-        '7,7,0,0E,0,0,v1.3.85\r\n',
+        '7,7,0,0E,0,0,v1.3.86\r\n',
       ),
     )
     ..add(ascii.encode('E\r\n'));
   final payload = commands.takeBytes();
   onDiagnostics?.call(
-    'transport=EZPL_Q_BAND_HALFTONE source=${source.width}x${source.height} '
+    'transport=EZPL_Q_BAND_COOLING_ROWS source=${source.width}x${source.height} '
     'raster=${raster.width}x${raster.height} '
     'bitPolarity=oneBlackZeroWhite nativeCommands=0 '
-    'halftone=checkerboard50 darkBands=${halftone.bands} '
-    'halftonePixels=${halftone.modifiedPixels} '
+    'cooling=blankEveryThirdRow candidateBands=${cooling.candidateBands} '
+    'cooledBands=${cooling.bands} detailPixels=${cooling.detailPixels} '
+    'coolingPixels=${cooling.modifiedPixels} '
     'rowBytes=${rasterStats.bytesPerRow} rows=${rasterStats.rows} '
     'encodedZeroDots=${rasterStats.inkDots} '
-    'printWatermark=v1.3.85 payloadBytes=${payload.length}',
+    'printWatermark=v1.3.86 payloadBytes=${payload.length}',
   );
   return payload;
 }
 
-({int bands, int modifiedPixels}) _applyDarkBandCheckerboard(img.Image raster) {
+({int candidateBands, int bands, int detailPixels, int modifiedPixels})
+_applyInverseBandCoolingRows(img.Image raster) {
+  final darkRows = List<bool>.filled(raster.height, false);
+  for (var y = 0; y < raster.height; y += 1) {
+    var darkPixels = 0;
+    for (var x = 0; x < raster.width; x += 1) {
+      if (img.getLuminance(raster.getPixel(x, y)) <=
+          _labelSheetEzplInkLuminanceThreshold) {
+        darkPixels += 1;
+      }
+    }
+    darkRows[y] = darkPixels >= raster.width * 0.6;
+  }
+
+  final white = img.ColorRgb8(255, 255, 255);
+  var candidateBands = 0;
+  var bands = 0;
+  var detailPixels = 0;
+  var modifiedPixels = 0;
+  var start = 0;
+  while (start < raster.height) {
+    if (!darkRows[start]) {
+      start += 1;
+      continue;
+    }
+    var end = start + 1;
+    while (end < raster.height && darkRows[end]) {
+      end += 1;
+    }
+    if (end - start >= 4) {
+      candidateBands += 1;
+      var enclosedLightPixels = 0;
+      for (var y = start; y < end; y += 1) {
+        var firstDark = -1;
+        var lastDark = -1;
+        for (var x = 0; x < raster.width; x += 1) {
+          if (img.getLuminance(raster.getPixel(x, y)) <=
+              _labelSheetEzplInkLuminanceThreshold) {
+            firstDark = firstDark < 0 ? x : firstDark;
+            lastDark = x;
+          }
+        }
+        for (var x = firstDark + 1; x < lastDark; x += 1) {
+          if (img.getLuminance(raster.getPixel(x, y)) >
+              _labelSheetEzplInkLuminanceThreshold) {
+            enclosedLightPixels += 1;
+          }
+        }
+      }
+      if (enclosedLightPixels >= 8) {
+        bands += 1;
+        detailPixels += enclosedLightPixels;
+        for (var y = start + 2; y < end; y += 3) {
+          for (var x = 0; x < raster.width; x += 1) {
+            if (img.getLuminance(raster.getPixel(x, y)) >
+                _labelSheetEzplInkLuminanceThreshold) {
+              continue;
+            }
+            raster.setPixel(x, y, white);
+            modifiedPixels += 1;
+          }
+        }
+      }
+    }
+    start = end;
+  }
+  return (
+    candidateBands: candidateBands,
+    bands: bands,
+    detailPixels: detailPixels,
+    modifiedPixels: modifiedPixels,
+  );
+}
+
+// v1.3.85의 50% checkerboard는 역상 외의 검정 띠까지 거칠게 만들어 재사용하지 않는다.
+({int bands, int modifiedPixels}) _unusedDarkBandCheckerboard(img.Image raster) {
   final darkRows = List<bool>.filled(raster.height, false);
   for (var y = 0; y < raster.height; y += 1) {
     var darkPixels = 0;

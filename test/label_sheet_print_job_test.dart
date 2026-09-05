@@ -918,7 +918,7 @@ void main() {
     expect(diagnostics, contains('bmpBpp=1'));
   });
 
-  test('Godex band halftone uses 50 percent checkerboard', () async {
+  test('Godex band cooling inserts every third blank row', () async {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -929,9 +929,12 @@ void main() {
     );
     final source = img.Image(width: 80, height: 8);
     img.fill(source, color: img.ColorRgb8(0, 0, 0));
+    for (var x = 30; x < 40; x += 1) {
+      source.setPixelRgb(x, 3, 255, 255, 255);
+    }
     String? diagnostics;
 
-    final bytes = await buildLabelSheetBandHalftoneEzplBytes(
+    final bytes = await buildLabelSheetBandCoolingRowsEzplBytes(
       pngBytes: Uint8List.fromList(img.encodePng(source)),
       metrics: const LabelSheetPrintPageMetrics(
         labelWidthMm: 10,
@@ -946,16 +949,53 @@ void main() {
     final headerStart = _indexOfBytes(bytes, patternHeader);
     expect(headerStart, greaterThanOrEqualTo(0));
     final patternStart = headerStart + patternHeader.length;
-    expect(bytes[patternStart], 0xaa);
-    expect(bytes[patternStart + 10], 0x55);
+    expect(bytes[patternStart], 0xff);
+    expect(bytes[patternStart + 10], 0xff);
+    expect(bytes[patternStart + 20], 0x00);
     expect(_containsBytes(bytes, ascii.encode('^LI\r\n')), isFalse);
-    expect(diagnostics, contains('transport=EZPL_Q_BAND_HALFTONE'));
+    expect(diagnostics, contains('transport=EZPL_Q_BAND_COOLING_ROWS'));
     expect(diagnostics, contains('bitPolarity=oneBlackZeroWhite'));
     expect(diagnostics, contains('nativeCommands=0'));
-    expect(diagnostics, contains('halftone=checkerboard50'));
-    expect(diagnostics, contains('darkBands=1'));
-    expect(diagnostics, contains('halftonePixels=320'));
-    expect(diagnostics, contains('printWatermark=v1.3.85'));
+    expect(diagnostics, contains('cooling=blankEveryThirdRow'));
+    expect(diagnostics, contains('candidateBands=1'));
+    expect(diagnostics, contains('cooledBands=1'));
+    expect(diagnostics, contains('detailPixels=10'));
+    expect(diagnostics, contains('coolingPixels=160'));
+    expect(diagnostics, contains('printWatermark=v1.3.86'));
+  });
+
+  test('Godex band cooling leaves solid bars unchanged', () async {
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final source = img.Image(width: 80, height: 8);
+    img.fill(source, color: img.ColorRgb8(0, 0, 0));
+    String? diagnostics;
+
+    final bytes = await buildLabelSheetBandCoolingRowsEzplBytes(
+      pngBytes: Uint8List.fromList(img.encodePng(source)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 10,
+        labelHeightMm: 1,
+        dpi: 203.2,
+      ),
+      options: options,
+      onDiagnostics: (value) => diagnostics = value,
+    );
+
+    final patternHeader = ascii.encode('^L\r\nQ0,0,10,8\r\n');
+    final patternStart = _indexOfBytes(bytes, patternHeader) + patternHeader.length;
+    for (var row = 0; row < 8; row += 1) {
+      expect(bytes[patternStart + row * 10], 0xff);
+    }
+    expect(diagnostics, contains('candidateBands=1'));
+    expect(diagnostics, contains('cooledBands=0'));
+    expect(diagnostics, contains('coolingPixels=0'));
   });
 
   test('Godex EZPL rejects unsupported white and mixed-color text', () {

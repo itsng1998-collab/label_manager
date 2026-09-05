@@ -2206,7 +2206,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           )
         : null;
     final capture = backend == LabelPrintBackend.pdf ||
-        backend == LabelPrintBackend.ezplBandHalftone
+        backend == LabelPrintBackend.ezplBandCoolingRows
         ? await _controller.captureRangeAsPng(
             labelSheetPrintRange(sheet, physicalSize),
             pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
@@ -2300,21 +2300,21 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
 
-    if (backend == LabelPrintBackend.ezplBandHalftone) {
-      final rawBytes = await buildLabelSheetBandHalftoneEzplBytes(
+    if (backend == LabelPrintBackend.ezplBandCoolingRows) {
+      final rawBytes = await buildLabelSheetBandCoolingRowsEzplBytes(
         pngBytes: capture!.pngBytes,
         metrics: metrics,
         options: options,
         onDiagnostics: (diagnostics) =>
-            debugLog('labelSheetPrint bandHalftoneQuality $diagnostics'),
+            debugLog('labelSheetPrint bandCoolingRowsQuality $diagnostics'),
       );
       debugLog(
-        'labelSheetPrint bandHalftonePayload bytes=${rawBytes.length} '
+        'labelSheetPrint bandCoolingRowsPayload bytes=${rawBytes.length} '
         'pngBytes=${capture.pngBytes.length}',
       );
       final result = await RawPrinterWin32.sendRaw(printer, rawBytes);
       debugLog(
-        'labelSheetPrint bandHalftoneDispatch ${result.diagnostics}',
+        'labelSheetPrint bandCoolingRowsDispatch ${result.diagnostics}',
       );
       return;
     }
