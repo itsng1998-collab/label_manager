@@ -9,6 +9,7 @@
 - 문서 검증 완료: 세 문서의 존재·크기와 참조 메모 핵심 항목을 확인했고 `git diff --check`를 통과했다.
 - 버전 판단: 실행 동작을 바꾸지 않는 문서 추가이므로 PATCH를 `1.3.58`에서 `1.3.59`로 증가한다.
 - stage/commit 대상: EZPL 문서 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 문서 커밋: `57e889b` (`EZPL 공식 매뉴얼 참조 문서 추가`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료: 빈 품목값의 제목·키워드 숨김 v1.3.58
