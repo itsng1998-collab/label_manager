@@ -831,17 +831,7 @@ void main() {
     expect(_containsBytes(bytes, utf8.encode('원재료명 PET')), isFalse);
   });
 
-  test('Godex EZPL uses AZ1 inverse font for white Korean text on black', () async {
-    const charsetChannel = MethodChannel('charset_converter');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(charsetChannel, (call) async {
-          final arguments = call.arguments as Map<Object?, Object?>;
-          return _encodeTestCp949(arguments['data']! as String);
-        });
-    addTearDown(
-      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(charsetChannel, null),
-    );
+  test('Godex EZPL keeps inverse Korean text in raster fallback', () {
     const options = LabelSheetPrintOptions(
       copies: 1,
       leftMarginMm: 0,
@@ -882,42 +872,18 @@ void main() {
       koreanAsianFontAvailable: true,
     );
 
-    final descriptor = preparation.descriptors.singleWhere(
-      (descriptor) =>
-          descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
-    );
-    expect(descriptor.koreanAsian, isTrue);
-    expect(descriptor.inverse, isTrue);
-    expect(descriptor.command, contains('AZ1,'));
-    expect(descriptor.command, contains(',0,0I,원재료명 PET\r\n'));
-    expect(preparation.plan.approvedCellTextCoords, {
-      const fs.FortuneCellCoord(0, 0),
-    });
-    expect(preparation.textRejectionCounts, isEmpty);
-
-    final blackBackground = img.Image(width: 240, height: 80);
-    img.fill(blackBackground, color: img.ColorRgb8(0, 0, 0));
-    String? diagnostics;
-    final bytes = await buildLabelSheetPlannedEzplBytes(
-      filteredPngBytes: Uint8List.fromList(img.encodePng(blackBackground)),
-      metrics: preparation.geometry.metrics,
-      options: options,
-      plan: preparation.plan,
-      descriptors: preparation.descriptors,
-      onDiagnostics: (value) => diagnostics = value,
-    );
-    final patternHeader = ascii.encode('Q0,0,30,80\r\n');
-    final patternDataEnd =
-        _indexOfBytes(bytes, patternHeader) + patternHeader.length + 30 * 80;
-
-    expect(bytes.sublist(patternDataEnd, patternDataEnd + 2), <int>[0x0d, 0x0a]);
     expect(
-      _containsBytes(bytes, ascii.encode('AZ1,')),
-      isTrue,
+      preparation.descriptors.where(
+        (descriptor) =>
+            descriptor.kind == fs.FortuneNativeCandidateKind.cellText,
+      ),
+      isEmpty,
     );
-    expect(_containsBytes(bytes, ascii.encode(',0,0I,')), isTrue);
-    expect(_containsBytes(bytes, _encodeTestCp949('원재료명 PET')), isTrue);
-    expect(diagnostics, contains('native=AT:0,AZ1:1,inverse:1,geometry:0'));
+    expect(preparation.plan.approvedCellTextCoords, isEmpty);
+    expect(
+      preparation.textRejectionCounts,
+      containsPair('unsupportedTextDecoration', 1),
+    );
   });
 
   test('Godex EZPL keeps unsupported white Korean text in raster', () {
@@ -985,11 +951,7 @@ void main() {
     );
     expect(
       preparation.textRejectionCounts,
-      containsPair('unsupportedTextDecoration', 1),
-    );
-    expect(
-      preparation.textRejectionCounts,
-      containsPair('unsupportedInlineDecoration', 1),
+      containsPair('unsupportedTextDecoration', 2),
     );
   });
 
@@ -1063,7 +1025,7 @@ void main() {
     expect(diagnostics, contains('patternDataBytes=640'));
     expect(diagnostics, contains('patternBytes=zero:0,full:639,mixed:1'));
     expect(diagnostics, contains(RegExp(r'patternFnv64=[0-9a-f]{16}')));
-    expect(diagnostics, contains('native=AT:0,AZ1:0,inverse:0,geometry:0'));
+    expect(diagnostics, contains('native=AT:0,AZ1:0,geometry:0'));
     expect(diagnostics, contains('payloadBytes=${bytes.length}'));
   });
 

@@ -3,9 +3,11 @@
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
+#include <dwrite.h>
 #include <windows.h>
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -18,9 +20,7 @@ using EncodableList = flutter::EncodableList;
 using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
-constexpr int kWhiteTextSupersample = 8;
-constexpr int kWhiteTextCoverageThreshold = 48;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.18";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.62";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -258,14 +258,135 @@ struct NativeTextRenderStats {
   int fitted = 0;
   int white_bitmap_drawn = 0;
   size_t white_knockout_pixels = 0;
-  size_t white_edge_relief_pixels = 0;
+  size_t white_bilevel_glyph_runs = 0;
   int outline_fonts = 0;
   int no_outline_fonts = 0;
   size_t bitmap_changed_pixels = 0;
   size_t characters = 0;
 };
 
-bool RenderWhiteTextIntoBitmap(
+class BilevelTextRenderer final : public IDWriteTextRenderer {
+ public:
+  BilevelTextRenderer(IDWriteFactory* factory, int width, int height,
+                      std::vector<uint8_t>* mask)
+      : factory_(factory), width_(width), height_(height), mask_(mask) {
+    factory_->AddRef();
+  }
+
+  ~BilevelTextRenderer() { factory_->Release(); }
+
+  IFACEMETHOD(QueryInterface)(REFIID iid, void** object) override {
+    if (object == nullptr) return E_POINTER;
+    *object = nullptr;
+    if (iid == __uuidof(IUnknown) || iid == __uuidof(IDWritePixelSnapping) ||
+        iid == __uuidof(IDWriteTextRenderer)) {
+      *object = static_cast<IDWriteTextRenderer*>(this);
+      AddRef();
+      return S_OK;
+    }
+    return E_NOINTERFACE;
+  }
+
+  IFACEMETHOD_(ULONG, AddRef)() override { return ++reference_count_; }
+
+  IFACEMETHOD_(ULONG, Release)() override {
+    const ULONG count = --reference_count_;
+    if (count == 0) delete this;
+    return count;
+  }
+
+  IFACEMETHOD(IsPixelSnappingDisabled)(void*, BOOL* disabled) override {
+    if (disabled == nullptr) return E_POINTER;
+    *disabled = FALSE;
+    return S_OK;
+  }
+
+  IFACEMETHOD(GetCurrentTransform)(void*, DWRITE_MATRIX* transform) override {
+    if (transform == nullptr) return E_POINTER;
+    *transform = DWRITE_MATRIX{1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+    return S_OK;
+  }
+
+  IFACEMETHOD(GetPixelsPerDip)(void*, FLOAT* pixels_per_dip) override {
+    if (pixels_per_dip == nullptr) return E_POINTER;
+    *pixels_per_dip = 1.0f;
+    return S_OK;
+  }
+
+  IFACEMETHOD(DrawGlyphRun)(
+      void*, FLOAT baseline_origin_x, FLOAT baseline_origin_y,
+      DWRITE_MEASURING_MODE measuring_mode, const DWRITE_GLYPH_RUN* glyph_run,
+      const DWRITE_GLYPH_RUN_DESCRIPTION*, IUnknown*) override {
+    IDWriteGlyphRunAnalysis* analysis = nullptr;
+    HRESULT result = factory_->CreateGlyphRunAnalysis(
+        glyph_run, 1.0f, nullptr, DWRITE_RENDERING_MODE_ALIASED,
+        measuring_mode, baseline_origin_x, baseline_origin_y, &analysis);
+    if (FAILED(result)) return result;
+
+    RECT bounds{};
+    result = analysis->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1,
+                                             &bounds);
+    if (SUCCEEDED(result)) {
+      bounds.left = std::max<LONG>(0, bounds.left);
+      bounds.top = std::max<LONG>(0, bounds.top);
+      bounds.right = std::min<LONG>(width_, bounds.right);
+      bounds.bottom = std::min<LONG>(height_, bounds.bottom);
+      const LONG texture_width = bounds.right - bounds.left;
+      const LONG texture_height = bounds.bottom - bounds.top;
+      if (texture_width > 0 && texture_height > 0) {
+        std::vector<uint8_t> alpha(
+            static_cast<size_t>(texture_width) * texture_height);
+        result = analysis->CreateAlphaTexture(
+            DWRITE_TEXTURE_ALIASED_1x1, &bounds, alpha.data(),
+            static_cast<UINT32>(alpha.size()));
+        if (SUCCEEDED(result)) {
+          for (LONG y = 0; y < texture_height; ++y) {
+            for (LONG x = 0; x < texture_width; ++x) {
+              if (alpha[static_cast<size_t>(y) * texture_width + x] == 0) {
+                continue;
+              }
+              (*mask_)[static_cast<size_t>(bounds.top + y) * width_ +
+                       bounds.left + x] = 1;
+            }
+          }
+          ++glyph_runs_;
+        }
+      }
+    }
+    analysis->Release();
+    return result;
+  }
+
+  IFACEMETHOD(DrawUnderline)(void*, FLOAT, FLOAT,
+                             const DWRITE_UNDERLINE*, IUnknown*) override {
+    return S_OK;
+  }
+
+  IFACEMETHOD(DrawStrikethrough)(
+      void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) override {
+    return S_OK;
+  }
+
+  IFACEMETHOD(DrawInlineObject)(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL,
+                                BOOL, IUnknown*) override {
+    return S_OK;
+  }
+
+  size_t glyph_runs() const { return glyph_runs_; }
+
+ private:
+  std::atomic<ULONG> reference_count_{1};
+  IDWriteFactory* factory_;
+  int width_;
+  int height_;
+  std::vector<uint8_t>* mask_;
+  size_t glyph_runs_ = 0;
+};
+
+#if 0
+// Retired after the v1.3.61 physical print still showed broken inverse glyphs.
+// Keep this failed supersample experiment isolated so it cannot be reused.
+bool RenderWhiteTextIntoBitmapSupersampleExperiment(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
     int source_width, int source_height,
     const std::vector<NativeTextDescriptor>& text_descriptors,
@@ -479,6 +600,144 @@ bool RenderWhiteTextIntoBitmap(
   SelectObject(memory_dc, previous_bitmap);
   DeleteObject(dib);
   DeleteDC(memory_dc);
+  return true;
+}
+#endif
+
+bool RenderWhiteTextIntoBitmap(
+    std::vector<uint8_t>& bitmap, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    HDC printer_dc, NativeTextRenderStats& stats, std::string& error) {
+  (void)printer_dc;
+  const bool has_white_text = std::any_of(
+      text_descriptors.begin(), text_descriptors.end(),
+      [](const NativeTextDescriptor& descriptor) {
+        return descriptor.color == RGB(255, 255, 255);
+      });
+  if (!has_white_text) return true;
+
+  IDWriteFactory* factory = nullptr;
+  HRESULT result = DWriteCreateFactory(
+      DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+      reinterpret_cast<IUnknown**>(&factory));
+  if (FAILED(result) || factory == nullptr) {
+    error = "DWriteCreateFactory for white text failed: " +
+            std::to_string(static_cast<unsigned long>(result));
+    return false;
+  }
+
+  std::vector<uint8_t> white_mask(
+      static_cast<size_t>(target_width) * target_height, uint8_t{0});
+  auto* renderer =
+      new BilevelTextRenderer(factory, target_width, target_height, &white_mask);
+  for (const auto& descriptor : text_descriptors) {
+    if (descriptor.color != RGB(255, 255, 255)) continue;
+    const LONG left = MulDiv(descriptor.rect.left, target_width, source_width);
+    const LONG top = MulDiv(descriptor.rect.top, target_height, source_height);
+    const LONG right =
+        MulDiv(descriptor.rect.right, target_width, source_width);
+    const LONG bottom =
+        MulDiv(descriptor.rect.bottom, target_height, source_height);
+    const FLOAT available_width =
+        static_cast<FLOAT>(std::max<LONG>(1, right - left));
+    const FLOAT available_height =
+        static_cast<FLOAT>(std::max<LONG>(1, bottom - top));
+    FLOAT font_size = static_cast<FLOAT>(std::max(
+        1, MulDiv(descriptor.font_pixel_height, target_height, source_height)));
+    IDWriteTextFormat* format = nullptr;
+    IDWriteTextLayout* layout = nullptr;
+    for (int attempt = 0; attempt < 5; ++attempt) {
+      const std::wstring family = descriptor.font_family.empty()
+                                      ? std::wstring(L"Arial")
+                                      : descriptor.font_family;
+      result = factory->CreateTextFormat(
+          family.c_str(), nullptr,
+          descriptor.bold ? DWRITE_FONT_WEIGHT_BOLD
+                          : DWRITE_FONT_WEIGHT_NORMAL,
+          descriptor.italic ? DWRITE_FONT_STYLE_ITALIC
+                            : DWRITE_FONT_STYLE_NORMAL,
+          DWRITE_FONT_STRETCH_NORMAL, font_size, L"ko-KR", &format);
+      if (FAILED(result) || format == nullptr) break;
+      format->SetTextAlignment(
+          descriptor.horizontal_align == "0"
+              ? DWRITE_TEXT_ALIGNMENT_CENTER
+              : descriptor.horizontal_align == "2"
+                    ? DWRITE_TEXT_ALIGNMENT_TRAILING
+                    : DWRITE_TEXT_ALIGNMENT_LEADING);
+      format->SetParagraphAlignment(
+          descriptor.vertical_align == "2"
+              ? DWRITE_PARAGRAPH_ALIGNMENT_FAR
+              : descriptor.vertical_align == "1"
+                    ? DWRITE_PARAGRAPH_ALIGNMENT_NEAR
+                    : DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+      format->SetWordWrapping(descriptor.wrap ? DWRITE_WORD_WRAPPING_WRAP
+                                               : DWRITE_WORD_WRAPPING_NO_WRAP);
+      result = factory->CreateTextLayout(
+          descriptor.text.c_str(), static_cast<UINT32>(descriptor.text.size()),
+          format, available_width, available_height, &layout);
+      if (FAILED(result) || layout == nullptr) break;
+      const DWRITE_TEXT_RANGE entire_text{
+          0, static_cast<UINT32>(descriptor.text.size())};
+      if (descriptor.underline) layout->SetUnderline(TRUE, entire_text);
+      if (descriptor.strike_through) {
+        layout->SetStrikethrough(TRUE, entire_text);
+      }
+      DWRITE_TEXT_METRICS metrics{};
+      result = layout->GetMetrics(&metrics);
+      if (FAILED(result) || descriptor.wrap ||
+          metrics.widthIncludingTrailingWhitespace <= available_width ||
+          font_size <= 1.0f) {
+        break;
+      }
+      const FLOAT fitted_size = std::max(
+          1.0f, font_size * (available_width - 1.0f) /
+                    metrics.widthIncludingTrailingWhitespace);
+      layout->Release();
+      layout = nullptr;
+      format->Release();
+      format = nullptr;
+      font_size = fitted_size < font_size
+                      ? fitted_size
+                      : std::max(1.0f, font_size - 1.0f);
+      ++stats.fitted;
+    }
+    if (SUCCEEDED(result) && layout != nullptr) {
+      const size_t previous_glyph_runs = renderer->glyph_runs();
+      result = layout->Draw(nullptr, renderer, static_cast<FLOAT>(left),
+                            static_cast<FLOAT>(top));
+      if (SUCCEEDED(result) && renderer->glyph_runs() > previous_glyph_runs) {
+        ++stats.drawn;
+        ++stats.white_bitmap_drawn;
+        stats.characters += descriptor.text.size();
+      } else {
+        ++stats.failed;
+      }
+    } else {
+      ++stats.failed;
+    }
+    if (layout != nullptr) layout->Release();
+    if (format != nullptr) format->Release();
+  }
+  stats.white_bilevel_glyph_runs = renderer->glyph_runs();
+  renderer->Release();
+  factory->Release();
+
+  for (int y = 0; y < target_height; ++y) {
+    for (int x = 0; x < target_width; ++x) {
+      const size_t mask_offset = static_cast<size_t>(y) * target_width + x;
+      if (white_mask[mask_offset] == 0) continue;
+      const size_t target_offset = mask_offset * 4;
+      if (bitmap[target_offset] >= 128 || bitmap[target_offset + 1] >= 128 ||
+          bitmap[target_offset + 2] >= 128) {
+        continue;
+      }
+      bitmap[target_offset] = 255;
+      bitmap[target_offset + 1] = 255;
+      bitmap[target_offset + 2] = 255;
+      ++stats.white_knockout_pixels;
+    }
+  }
   return true;
 }
 
@@ -1013,8 +1272,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
               << " nativeTextRaster=printerDcBlackText+whiteBitmapKnockout"
-              << " nativeTextWhiteRender=supersample8xCoverage48EdgeRelief25"
-              << " printWatermark=v1.3.18"
+              << " nativeTextWhiteRender=directWriteAliased1x1"
+              << " printWatermark=v1.3.62"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1178,8 +1437,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.white_bitmap_drawn
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
-                  << " nativeTextWhiteEdgeReliefPixels="
-                  << native_text_stats.white_edge_relief_pixels
+                  << " nativeTextWhiteBilevelGlyphRuns="
+                  << native_text_stats.white_bilevel_glyph_runs
                   << " nativeTextOutlineFonts="
                   << native_text_stats.outline_fonts
                   << " nativeTextNoOutlineFonts="

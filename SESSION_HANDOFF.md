@@ -1,5 +1,22 @@
 # 현재 작업 상태
 
+## 완료: Windows DirectWrite 1-bit 역상 글자 출력 v1.3.62
+- 실물 확인: `.tmp/IMG_20260905_0001.png`의 두 역상 행 모두 흰 글자 획이 계속 끊기고 뭉쳐 품질 개선이 없었다.
+- 로그 확인: `app_2026-09-05_15-13-32.log`는 앱 `v1.3.61`, backend `windowsDriver`, `AZ1=0`, 흰 글자 descriptor 2개, 기존 `supersample8xCoverage48EdgeRelief25` knockout 4,137픽셀을 기록했다. 따라서 해당 출력에는 EZPL `0I`가 사용되지 않았고 Windows 흰 글자 bitmap 경로가 실제 제어 지점이다.
+- 구현 예정: 기존 8배 supersampling·coverage threshold·edge relief를 제거하고 DirectWrite `DWRITE_RENDERING_MODE_ALIASED` + `DWRITE_TEXTURE_BILEVEL_1x1` glyph mask를 최종 프린터 dot에서 생성해 검정 배경만 흰색으로 knockout한다.
+- Windows 편집 완료: `BilevelTextRenderer`가 DirectWrite text layout의 glyph run을 `DWRITE_TEXTURE_ALIASED_1x1`로 만들고, 최종 620x480 장치 dot mask에서 검정 배경 픽셀만 흰색으로 knockout한다. 기존 supersample 함수는 `#if 0`과 실패 사유 주석으로 격리했다.
+- 빌드 편집 완료: Windows runner에 `dwrite.lib`를 연결하고 인쇄 diagnostics를 `directWriteAliased1x1` 및 bi-level glyph run 수로 변경했다. 출력 워터마크도 `v1.3.62`로 갱신했다.
+- 재사용 방지 완료: EZPL `AZ1 ... 0I` 승인·descriptor·diagnostics를 제거하고 검정 배경 흰 한글도 기존 raster fallback으로 되돌렸다.
+- 테스트 편집 완료: EZPL 역상 명령 테스트를 흰 한글 raster fallback 계약으로 교체하고 비검정 배경·혼합색 사례도 native 미승인을 검증한다.
+- 1차 검증 완료: DirectWrite 전환 중 SDK 실제 enum `DWRITE_TEXTURE_ALIASED_1x1`을 확인해 수정했고, 이후 Windows `/WX` debug build 성공. `label_sheet_print_job_test.dart` 전체 20건 통과, 변경 파일 diagnostics 오류 0건.
+- 최종 검증 완료: 관련 인쇄 테스트 20건 통과, Dart analyzer 및 변경 파일 diagnostics 오류·경고 0건, 포맷 후 Windows `/WX` debug build 성공, `git diff --check` 통과.
+- 실행 검증 완료: 새 Debug EXE FileVersion/ProductVersion과 startup 로그가 모두 `1.3.62`이며 `build/windows/x64/runner/Debug/label_manager.exe` 프로세스가 응답 중이다. 직접 EXE 실행이라 DTD VM 연결은 생성되지 않았다.
+- 버전 편집 완료: Windows 인쇄 렌더러 교체이므로 PATCH를 `1.3.61`에서 `1.3.62`로 증가했다.
+- 실물 재검증 기준: 출력 로그에 `backend=windowsDriver`, `nativeTextWhiteRender=directWriteAliased1x1`, `nativeTextWhiteBilevelGlyphRuns` 및 `printWatermark=v1.3.62`가 표시되고 출력물 우하단 워터마크가 `v1.3.62`인지 확인한다.
+- 남은 실물 검증: 새 실행 앱에서 같은 라벨을 출력해 두 역상 행의 획 연속성과 뭉침을 비교한다.
+- stage/commit 대상: `windows/runner/label_bitmap_print_channel.cpp`, `windows/runner/CMakeLists.txt`, `lib/printing/label_sheet_print_job.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료: GoDEX EZPL 네이티브 역상 한글 출력 v1.3.61
 - 목표: 검정 배경·흰색 한글 셀을 raster fallback 대신 GoDEX 공식 `AZ1 ... 0I` inverse font 명령으로 출력한다.
 - 제어 경로 확인: EZPL preflight는 현재 검정색이 아닌 모든 글자를 `unsupportedTextDecoration`으로 제외한다. 승인된 `cellText`는 hybrid capture에서 글자만 생략하고 셀 배경은 raster에 유지된다.
