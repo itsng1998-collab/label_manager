@@ -1,6 +1,6 @@
 # 현재 작업 상태
 
-## 진행 중: G500 전체 label inverse 출력 v1.3.82
+## 완료·실물 검증 대기: G500 전체 label inverse 출력 v1.3.82
 - 실물 확인: `.tmp/IMG_20260905_0019.png`는 라벨 대부분이 검정으로 오염되고 일부 흰 영역과 깨진 영문만 남아 정상 출력이 아니었다.
 - 로그 확인: `.tmp/log/app_2026-09-05_18-02-01.log`에서 `v1.3.81`, `backend=ezplRaw`, text candidate 31/31, `AT:31`, `AZ1:0`, `inverse:2`, RAW `45152/45152` bytes를 확인했다. 전송은 성공했지만 `AT` style에는 `I`가 정의되지 않아 format 해석이 오염된 것으로 판정한다.
 - 공식 문서 확인: `I` inverse는 `At`의 `rotationInverse`에만 정의되고 `AT`/`ATt` style은 `B/T/U`만 지원한다. 따라서 다운로드 TTF도 흰 glyph 문제를 직접 해결하지 못하며 v1.3.81은 기각한다.
@@ -17,6 +17,7 @@
 - startup 확인 완료: `.tmp/log/app_2026-09-05_18-09-01.log`에서 `DebugLogger version: 1.3.82`와 DB 연결 성공을 확인했다.
 - 실물 판별 기준: 로그 `backend=ezplWholeInverse`, `transport=EZPL_Q_WHOLE_INVERSE`, `labelInverse=^LI`, `sourcePreInverted=true`, `printWatermark=v1.3.82`, `wholeInverseDispatch ... requestedBytes=... writtenBytes=...`. 실물에서 전면 검정 오염 없이 전체 레이아웃이 복원되고 역상 흰 한글 획이 개선되는지 확인한다.
 - stage/commit 대상: `lib/printing/label_print_dispatcher.dart`, `lib/printing/label_sheet_print_job.dart`, `lib/home_page_manager.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `test/label_print_dispatcher_test.dart`, `test/label_sheet_print_job_test.dart`, `pubspec.yaml`, 본 문서.
+- 구현 커밋 완료: `fdd5a18` (`G500 전체 라벨 역상 경로 추가`). 다음 작업은 실행 중인 v1.3.82에서 실제 라벨을 발행하고 공식 `^LI` 경로의 전체 레이아웃 및 역상 흰 한글 품질을 판정하는 것이다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
 ## 완료·기각: G500 내장 TrueType UTF-8 역상 출력 v1.3.81
