@@ -1922,11 +1922,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       FillRect(page_dc, &page_rect,
                reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
     }
-    const std::vector<NativeBorderDescriptor> no_border_descriptors;
     auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
-      godex_v1358_driver_direct ? no_border_descriptors
-                    : border_descriptors);
+        border_descriptors);
     InverseCoolingStats inverse_driver_gray_stats;
     if (godex_v1358_driver_direct) {
       inverse_driver_gray_stats = ApplyInverseDriverGray(
@@ -1976,36 +1974,34 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
       device_borders.reserve(border_descriptors.size());
-      if (!godex_v1358_driver_direct) {
-        for (const auto& descriptor : border_descriptors) {
-          const LONG left = destination_x +
-              MulDiv(descriptor.rect.left, target_width, source_width);
-          const LONG top = destination_y +
-              MulDiv(descriptor.rect.top, target_height, source_height);
-          const LONG mapped_right = destination_x +
-              MulDiv(descriptor.rect.right, target_width, source_width);
-          const LONG mapped_bottom = destination_y +
-              MulDiv(descriptor.rect.bottom, target_height, source_height);
-          const LONG thickness = std::max(
-              1L, static_cast<LONG>(MulDiv(
-                      descriptor.thickness_dots,
-                      descriptor.horizontal ? target_height : target_width,
-                      descriptor.horizontal ? source_height : source_width)));
-          RECT device_rect{};
-          if (descriptor.horizontal) {
-            device_rect.left = left;
-            device_rect.top = top - thickness / 2;
-            device_rect.right = std::max(left + 1, mapped_right);
-            device_rect.bottom = device_rect.top + thickness;
-          } else {
-            device_rect.left = left - thickness / 2;
-            device_rect.top = top;
-            device_rect.right = device_rect.left + thickness;
-            device_rect.bottom = std::max(top + 1, mapped_bottom);
-          }
-          device_borders.push_back(
-              DeviceBorderRect{device_rect, descriptor.horizontal, 1});
+      for (const auto& descriptor : border_descriptors) {
+        const LONG left = destination_x +
+            MulDiv(descriptor.rect.left, target_width, source_width);
+        const LONG top = destination_y +
+            MulDiv(descriptor.rect.top, target_height, source_height);
+        const LONG mapped_right = destination_x +
+            MulDiv(descriptor.rect.right, target_width, source_width);
+        const LONG mapped_bottom = destination_y +
+            MulDiv(descriptor.rect.bottom, target_height, source_height);
+        const LONG thickness = std::max(
+            1L, static_cast<LONG>(MulDiv(
+                    descriptor.thickness_dots,
+                    descriptor.horizontal ? target_height : target_width,
+                    descriptor.horizontal ? source_height : source_width)));
+        RECT device_rect{};
+        if (descriptor.horizontal) {
+          device_rect.left = left;
+          device_rect.top = top - thickness / 2;
+          device_rect.right = std::max(left + 1, mapped_right);
+          device_rect.bottom = device_rect.top + thickness;
+        } else {
+          device_rect.left = left - thickness / 2;
+          device_rect.top = top;
+          device_rect.right = device_rect.left + thickness;
+          device_rect.bottom = std::max(top + 1, mapped_bottom);
         }
+        device_borders.push_back(
+            DeviceBorderRect{device_rect, descriptor.horizontal, 1});
       }
       std::sort(
           device_borders.begin(), device_borders.end(),
@@ -2060,9 +2056,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         }
         merged_device_borders.push_back(border);
       }
-        native_borders_drawn = godex_v1358_driver_direct
-          ? 0
-          : static_cast<int>(border_descriptors.size());
+      native_borders_drawn = static_cast<int>(border_descriptors.size());
       native_border_fill_rects =
           static_cast<int>(merged_device_borders.size());
       diagnostics << " nativeTextDrawn=" << native_text_stats.drawn
@@ -2100,8 +2094,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"
                   << " nativeBorderComposite="
-                  << (godex_v1358_driver_direct ? "captureOnly"
-                                                 : "finalDeviceBitmap")
+                  << "finalDeviceBitmap"
                   << " nativeBorderBitmapLines=" << scan_lines
                   << " nativeBorderFillRects=" << native_border_fill_rects
                   << " nativeBordersDrawn=" << native_borders_drawn;

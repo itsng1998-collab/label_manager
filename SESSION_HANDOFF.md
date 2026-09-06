@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 완료·실물 검증 대기: G500 v1.3.58 표선 합성 복구 v1.3.89
+- 실물 확인: `.tmp/IMG_20260906_0001.png`에서 역상 외 일반 글자는 출력됐지만 표선이 대부분 사라졌다.
+- 로그 확인: `.tmp/log/app_2026-09-06_20-11-06.log`에서 v1.3.88, `nativeBordersRequested=225`인데 `nativeBorderComposite=captureOnly`, `nativeBordersDrawn=0`이었다. 역상 gray는 2개 descriptor/22230픽셀에 적용됐다.
+- 원인 정정: Windows hybrid capture는 승인된 표선을 bitmap에서 제외하고 native border descriptor로 재합성한다. v1.3.88에서 descriptor 합성을 끈 것은 v1.3.58 원복 조건을 깨뜨린 잘못된 변경이다.
+- 수정 완료: G500도 v1.3.58처럼 `ComposeFinalDeviceBitmap`에 225개 border descriptor를 전달하고 native border 진단을 복구한다. 테스트 watermark 제거와 역상 driver grayscale은 유지한다.
+- 버전 편집 완료: `1.3.89`.
+- Windows `/WX` Debug 빌드 완료: 성공.
+- 관련 전체 테스트 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 33건 통과.
+- 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.89`; `.tmp/log/app_2026-09-06_20-17-40.log`에서 `DebugLogger version: 1.3.89`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `pubspec.yaml`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 실물 검증 포인트: 출력 로그에서 `nativeBordersRequested=225`, `nativeBordersDrawn=225`, `nativeBorderComposite=finalDeviceBitmap`, `printWatermark=disabled`를 확인한다. 사진에서는 전체 표선 복구와 우하단 테스트 표식 제거를 먼저 판정하고 역상은 별도로 비교한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료·실물 검증 대기: G500 역상 driver grayscale + 잔상 제거 v1.3.88
 - 실물 확인: `.tmp/IMG_20260905_0025.png`에서 일반 출력은 Q bitmap 실험보다 복원됐지만 역상 흰 획은 개선되지 않았고, 중성지방 행에 ㄷ자 선 잔상과 우하단 `v1.3.78` 표식이 출력됐다.
 - 비교: `.tmp/IMG_v1.0.88.png`에는 중성지방 행의 ㄷ자 잔상과 테스트 버전 표식이 없다.
