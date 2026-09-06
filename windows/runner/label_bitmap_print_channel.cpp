@@ -100,6 +100,9 @@ struct InverseCoolingStats {
   size_t pixels_modified = 0;
 };
 
+#if 0
+// v1.3.89 changed 22,230 inverse background pixels to RGB 96, but the G500
+// driver converted them to a coarse pattern that made the white text worse.
 InverseCoolingStats ApplyInverseDriverGray(
     std::vector<uint8_t>& bitmap, int target_width, int target_height,
     int source_width, int source_height,
@@ -136,6 +139,7 @@ InverseCoolingStats ApplyInverseDriverGray(
   }
   return stats;
 }
+#endif
 
 #if 0
 // v1.3.75 physical output changed 4,740 black pixels but did not recover
@@ -1858,7 +1862,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                       ? "printerDcDirect32+nativeText"
                       : "boxedHeaderBlackOnWhite")
                     << " nativeTextWhiteRender="
-                    << (godex_v1358_driver_direct ? "driverGrayBackground"
+                    << (godex_v1358_driver_direct ? "originalWhiteOnBlack"
                            : "fullRowPolarityFallback")
                     << " printWatermark="
                     << (godex_v1358_driver_direct ? "disabled" : "v1.3.78")
@@ -1925,12 +1929,6 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     auto composed_bitmap = ComposeFinalDeviceBitmap(
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
-    InverseCoolingStats inverse_driver_gray_stats;
-    if (godex_v1358_driver_direct) {
-      inverse_driver_gray_stats = ApplyInverseDriverGray(
-        composed_bitmap, target_width, target_height, source_width,
-        source_height, text_descriptors);
-    }
     NativeTextRenderStats native_text_stats;
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -2085,11 +2083,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << inverse_row_fallback_stats.bands
                   << " inverseRowClearedPixels="
                   << inverse_row_fallback_stats.cleared_pixels
-                  << " inverseDriverGrayRects="
-                  << inverse_driver_gray_stats.inverse_rects
-                  << " inverseDriverGrayPixels="
-                  << inverse_driver_gray_stats.pixels_modified
-                  << " inverseDriverGrayLevel=96"
+                  << " inverseDriverGray=disabledAfterPhysicalFailure"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
                   << " nativeBorderJunction=singleFinalDeviceBitmap"

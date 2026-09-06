@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 완료: G500 역상 실험 종료 및 안정 기준 복원 v1.3.90
+- 실물 확인: `.tmp/IMG_20260906_0002.png`에서 표선 225개는 복구됐고 watermark는 제거됐지만, RGB 96 역상 배경은 드라이버에서 거친 망점으로 변환되어 흰 한글이 더 읽기 어려워졌다.
+- 로그 확인: `.tmp/log/app_2026-09-06_20-17-40.log`에서 v1.3.89, `nativeBordersDrawn=225`, `nativeBorderComposite=finalDeviceBitmap`, `inverseDriverGrayRects=2`, `inverseDriverGrayPixels=22230`을 확인했다.
+- 최종 기술 판정: 현재 작은 한글·서체·solid-black 역상 디자인·G500 203dpi를 모두 유지하는 조건에서는 추가 소프트웨어 개선 방법이 없다. renderer, bitmap/spool 형식, firmware inverse, 극성, 글자 mask 보강, 냉각 pattern, grayscale, 농도와 속도를 모두 실물 검증했으며 개선되지 않았다.
+- 남은 유효 선택지는 출력 디자인을 검정 글자/흰 배경으로 변경하거나, 글자와 행 높이를 크게 늘리거나, 300dpi 이상 프린터로 교체하는 것이다. 이는 렌더러 변경이 아니라 요구 조건 변경이다.
+- 안정화 편집 완료: v1.3.89 RGB 96 변환은 실패 주석과 `#if 0`으로 격리하고 재사용하지 않는다. G500는 v1.3.58 일반 출력 경로, native border 225개, 원래 solid-black/white 역상으로 복귀한다. 테스트 watermark는 비활성 상태를 유지한다.
+- 버전 편집 완료: `1.3.90`.
+- Windows `/WX` Debug 빌드 완료: 성공.
+- 관련 전체 테스트 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 33건 통과.
+- 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.90`; `.tmp/log/app_2026-09-06_20-29-14.log`에서 `DebugLogger version: 1.3.90`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `pubspec.yaml`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 실물 판별 로그: `nativeTextWhiteRender=originalWhiteOnBlack`, `inverseDriverGray=disabledAfterPhysicalFailure`, `nativeBordersDrawn=225`, `printWatermark=disabled`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+
 ## 완료·실물 검증 대기: G500 v1.3.58 표선 합성 복구 v1.3.89
 - 실물 확인: `.tmp/IMG_20260906_0001.png`에서 역상 외 일반 글자는 출력됐지만 표선이 대부분 사라졌다.
 - 로그 확인: `.tmp/log/app_2026-09-06_20-11-06.log`에서 v1.3.88, `nativeBordersRequested=225`인데 `nativeBorderComposite=captureOnly`, `nativeBordersDrawn=0`이었다. 역상 gray는 2개 descriptor/22230픽셀에 적용됐다.
