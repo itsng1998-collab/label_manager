@@ -15,6 +15,7 @@
 - 실물 미검증: 다음 G500 출력에서 `outputMode=driverDirect32V1358+legacyInverse`, `nativeTextWhiteRender=legacyRichEditPrinterDc`, 역상 descriptor 2건, 전체 native text 35건, border 225건, 우하단 `v1.3.91`을 확인한다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 - stage 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 구현 커밋: `f32e70f G500 역상 셀만 레거시 RichEdit로 출력`.
 
 ## 완료: G500 역상 실험 종료 및 안정 기준 복원 v1.3.90
 - 실물 확인: `.tmp/IMG_20260906_0002.png`에서 표선 225개는 복구됐고 watermark는 제거됐지만, RGB 96 역상 배경은 드라이버에서 거친 망점으로 변환되어 흰 한글이 더 읽기 어려워졌다.
