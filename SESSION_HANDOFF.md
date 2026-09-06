@@ -11,6 +11,7 @@
 - 관련 전체 테스트 완료: `flutter test test/label_print_dispatcher_test.dart test/label_sheet_print_job_test.dart test/godex_korean_font_provisioner_test.dart` 33건 통과.
 - 실행 검증 완료: EXE FileVersion/ProductVersion 모두 `1.3.90`; `.tmp/log/app_2026-09-06_20-29-14.log`에서 `DebugLogger version: 1.3.90`, DB `success=true`, `connected successfully`를 확인했고 프로세스가 응답 중이다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `pubspec.yaml`, `windows/runner/label_bitmap_print_channel.cpp`.
+- 구현 커밋: `60811f7 G500 역상 실패 실험을 종료하고 기준 출력 복원`.
 - 실물 판별 로그: `nativeTextWhiteRender=originalWhiteOnBlack`, `inverseDriverGray=disabledAfterPhysicalFailure`, `nativeBordersDrawn=225`, `printWatermark=disabled`.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
 
