@@ -24,7 +24,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.78";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.91";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1855,17 +1855,17 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " fontOutputPrecision=OUT_DEFAULT_PRECIS"
               << " nativeTextFitMode=uniformScale"
                     << " outputMode="
-                    << (godex_v1358_driver_direct ? "driverDirect32V1358"
-                           : "monoDibBoxedHeader")
+                    << (godex_v1358_driver_direct
+                      ? "driverDirect32V1358+legacyInverse"
+                      : "monoDibBoxedHeader")
                     << " nativeTextRaster="
                     << (godex_v1358_driver_direct
-                      ? "printerDcDirect32+nativeText"
+                      ? "printerDcDirect32+legacyInverse"
                       : "boxedHeaderBlackOnWhite")
                     << " nativeTextWhiteRender="
-                    << (godex_v1358_driver_direct ? "originalWhiteOnBlack"
+                    << (godex_v1358_driver_direct ? "legacyRichEditPrinterDc"
                            : "fullRowPolarityFallback")
-                    << " printWatermark="
-                    << (godex_v1358_driver_direct ? "disabled" : "v1.3.78")
+                    << " printWatermark=v1.3.91"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -1958,16 +1958,28 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         render_text_descriptors = PrepareInverseRowFallback(
             page_dc, composed_bitmap, target_width, target_height, source_width,
             source_height, text_descriptors, inverse_row_fallback_stats);
+      } else {
+        render_text_descriptors.erase(
+            std::remove_if(
+                render_text_descriptors.begin(), render_text_descriptors.end(),
+                [](const NativeTextDescriptor& descriptor) {
+                  return descriptor.color == RGB(255, 255, 255);
+                }),
+            render_text_descriptors.end());
       }
-      if (!RenderNativeTextToPrinterDc(
+        const bool legacy_inverse_rendered =
+          !godex_v1358_driver_direct || RenderWhiteTextIntoBitmap(
+            composed_bitmap, target_width, target_height, source_width,
+            source_height, text_descriptors, page_dc, native_text_stats,
+            error);
+        if (legacy_inverse_rendered && !RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
               source_height, render_text_descriptors, page_dc,
               native_text_stats, error)) {
-                  } else if (!godex_v1358_driver_direct &&
-                             !DrawPrintTestWatermark(
-                    page_dc, destination_x, destination_y, target_width,
-              target_height, error)) {
-                  } else {
+        } else if (legacy_inverse_rendered && !DrawPrintTestWatermark(
+               page_dc, destination_x, destination_y, target_width,
+               target_height, error)) {
+        } else if (legacy_inverse_rendered) {
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
@@ -2076,7 +2088,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
                   << " nativeTextMapping=anisotropicSplit"
-                  << " nativeTextComposite=boxedHeaderMonoDib"
+                  << " nativeTextComposite="
+                  << (godex_v1358_driver_direct
+                          ? "bitmapThenLegacyRichEditWhiteThenBlackPrinterDc"
+                          : "boxedHeaderMonoDib")
                   << " inverseRowFallbackDescriptors="
                   << inverse_row_fallback_stats.descriptors
                   << " inverseRowFallbackBands="

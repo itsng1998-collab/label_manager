@@ -1,5 +1,21 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 검증 대기: G500 역상 셀만 레거시 RichEdit 출력 v1.3.91
+- 사용자 요청: 일반 글자·표선은 v1.3.58 기준을 유지하고 역상 출력만 레거시 방법으로 처리하며, 우하단 버전 확인 마크를 다시 출력한다.
+- 구현 기준: 레거시 `.tmp/LabelManager/LabelManagerLib/PrintManager.cpp`의 핵심은 RichEdit `EM_FORMATRANGE`로 printer DC에 직접 출력하는 것이다. 현재 `RenderWhiteTextIntoBitmap` 함수가 이름과 달리 이 직접 출력 구현을 보존하고 있다.
+- native 편집 완료: G500는 32-bit bitmap과 native border 225개를 먼저 출력하고, 흰색 역상 descriptor만 `legacyRichEditPrinterDc`로 출력한다. 이후 흰 descriptor를 제외한 일반 검정 descriptor만 `DrawTextW`로 출력해 중복을 막는다.
+- 버전 마크 복구: 우하단 `DrawPrintTestWatermark`를 다시 활성화하고 표시 문자열을 `v1.3.91`로 갱신했다.
+- 일반 출력 불변: v1.3.58 `driverDirect32` geometry, border 합성, 일반 검정 text 경로는 유지한다. grayscale/checkerboard/1-bit 중간 DIB는 사용하지 않는다.
+- 버전 편집 완료: `1.3.91`.
+- Windows `/WX` Debug 빌드 완료: 조건문 정리 전후 모두 성공, 최종 빌드 성공.
+- 관련 테스트 완료: `label_print_dispatcher_test.dart`, `label_sheet_print_job_test.dart`, `godex_korean_font_provisioner_test.dart` 총 30건 통과.
+- 실행 검증 완료: Debug EXE FileVersion/ProductVersion 모두 `1.3.91`, 프로세스 `Responding=True`.
+- 최종 시작 로그 확인: `.tmp/log/app_2026-09-06_20-35-32.log`에 `DebugLogger version: 1.3.91`, `StartupDbConnector.connect: connected successfully`; 프로세스 `Responding=True`.
+- DTD에는 연결된 앱이 없어 hot restart 대상이 없었으며, Debug EXE를 재빌드·재실행해 변경을 반영했다.
+- 실물 미검증: 다음 G500 출력에서 `outputMode=driverDirect32V1358+legacyInverse`, `nativeTextWhiteRender=legacyRichEditPrinterDc`, 역상 descriptor 2건, 전체 native text 35건, border 225건, 우하단 `v1.3.91`을 확인한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit 대상에서 제외한다.
+- stage 대상: `windows/runner/label_bitmap_print_channel.cpp`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+
 ## 완료: G500 역상 실험 종료 및 안정 기준 복원 v1.3.90
 - 실물 확인: `.tmp/IMG_20260906_0002.png`에서 표선 225개는 복구됐고 watermark는 제거됐지만, RGB 96 역상 배경은 드라이버에서 거친 망점으로 변환되어 흰 한글이 더 읽기 어려워졌다.
 - 로그 확인: `.tmp/log/app_2026-09-06_20-17-40.log`에서 v1.3.89, `nativeBordersDrawn=225`, `nativeBorderComposite=finalDeviceBitmap`, `inverseDriverGrayRects=2`, `inverseDriverGrayPixels=22230`을 확인했다.
