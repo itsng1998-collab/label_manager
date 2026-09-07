@@ -11,6 +11,7 @@
 - 일반 출력 유지 제약 때문에 글꼴만 키워 기존 fragment clip에 그리는 보정은 하지 않았다. 다음 구현은 역상 전용 물리 글꼴 크기와 줄/fragment 영역을 함께 정합시켜야 한다. 현재 라벨 자체가 이 변환 경로를 거쳤는지는 실물 원인과 별개로 미확인이다.
 - 버전 1.3.91 -> 1.3.92: 진단 테스트/문서 추가에 대한 PATCH 증가. 앱 실행 경로와 C++ watermark는 미변경(v1.3.91). 새 EXE 빌드/실물 출력 없음.
 - stage 대상: test/godex_inverse_reference_test.dart, pubspec.yaml, SESSION_HANDOFF.md. DB/프린터 설정/배포 산출물 없음.
+- 진단 커밋: 5ca2948. 테스트/버전 파일 편집기 오류 없음, git diff --check 통과. 이 커밋은 생산 출력 품질 수정이 아니다.
 - 일반 글자/표선/프린터 설정/DB 변경 금지. lib/core/app.dart 기존 변경은 제외한다.
 
 ## 구현 완료·실물 검증 대기: G500 역상 셀만 레거시 RichEdit 출력 v1.3.91
