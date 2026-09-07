@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 진단 완료·품질 수정 전: 확보한 레거시 조건으로 역상 경로 검증 v1.3.92
+- 사용자 조건: 현재 프로젝트에서 같은 라벨 출력 불가. 동일 라벨 재출력을 요구하지 않고 확보한 원본 조건으로 진행한다.
+- 기준: 동일 서버 확인 완료. 브랜드 998, 라벨 4955(80x60mm), 품목 472139. 역상 문구는 계란,우유,대두,밀 함유, 굴림 5pt Bold, 흰 글자. 문자 배경 #19131A는 셀 전체 배경으로 단정하지 않는다.
+- 이전 소프트웨어 개선 불가/열 번짐 확정 판정은 철회한다. 전체 descriptor 높이와 입력 문자 수 통계는 역상 실제 렌더 품질 증거가 아니다.
+- 테스트 편집 완료: test/godex_inverse_reference_test.dart에 최소 RTF의 5pt 변환 및 Windows descriptor 크기 대조를 추가했다. 원본 전체 레이아웃/문자 배경 재현은 아니며 확보한 문구/굴림/5pt/Bold/흰색만 검사한다.
+- 검증에서 차이 재현: importer 5pt -> 시트 5.0 -> descriptor 11dot. 레거시 물리 크기 기대값은 5*203.2/72=14dot이나 현재는 5*203.2/96=11dot. 공용 TextPainter도 fontSize=5를 사용한다.
+- 테스트 목적은 알려진 차이를 기록하는 characterization이다. 14dot 보존 검사 실패를 은폐하지 않으며, 진단 테스트 통과는 품질 수정 완료가 아니다. 생산 출력 코드는 미변경.
+- 검증 완료: flutter test test/godex_inverse_reference_test.dart test/label_sheet_print_job_test.dart에 해당하는 runTests 실행 24건 통과. 테스트의 굴림 목록 누락으로 Arial이 선택된 실패는 설정을 명시해 해결했으며 앱 글꼴 대체의 증거로 사용하지 않는다.
+- 일반 출력 유지 제약 때문에 글꼴만 키워 기존 fragment clip에 그리는 보정은 하지 않았다. 다음 구현은 역상 전용 물리 글꼴 크기와 줄/fragment 영역을 함께 정합시켜야 한다. 현재 라벨 자체가 이 변환 경로를 거쳤는지는 실물 원인과 별개로 미확인이다.
+- 버전 1.3.91 -> 1.3.92: 진단 테스트/문서 추가에 대한 PATCH 증가. 앱 실행 경로와 C++ watermark는 미변경(v1.3.91). 새 EXE 빌드/실물 출력 없음.
+- stage 대상: test/godex_inverse_reference_test.dart, pubspec.yaml, SESSION_HANDOFF.md. DB/프린터 설정/배포 산출물 없음.
+- 일반 글자/표선/프린터 설정/DB 변경 금지. lib/core/app.dart 기존 변경은 제외한다.
+
 ## 구현 완료·실물 검증 대기: G500 역상 셀만 레거시 RichEdit 출력 v1.3.91
 - 사용자 요청: 일반 글자·표선은 v1.3.58 기준을 유지하고 역상 출력만 레거시 방법으로 처리하며, 우하단 버전 확인 마크를 다시 출력한다.
 - 구현 기준: 레거시 `.tmp/LabelManager/LabelManagerLib/PrintManager.cpp`의 핵심은 RichEdit `EM_FORMATRANGE`로 printer DC에 직접 출력하는 것이다. 현재 `RenderWhiteTextIntoBitmap` 함수가 이름과 달리 이 직접 출력 구현을 보존하고 있다.
@@ -20,8 +33,7 @@
 ## 완료: G500 역상 실험 종료 및 안정 기준 복원 v1.3.90
 - 실물 확인: `.tmp/IMG_20260906_0002.png`에서 표선 225개는 복구됐고 watermark는 제거됐지만, RGB 96 역상 배경은 드라이버에서 거친 망점으로 변환되어 흰 한글이 더 읽기 어려워졌다.
 - 로그 확인: `.tmp/log/app_2026-09-06_20-17-40.log`에서 v1.3.89, `nativeBordersDrawn=225`, `nativeBorderComposite=finalDeviceBitmap`, `inverseDriverGrayRects=2`, `inverseDriverGrayPixels=22230`을 확인했다.
-- 최종 기술 판정: 현재 작은 한글·서체·solid-black 역상 디자인·G500 203dpi를 모두 유지하는 조건에서는 추가 소프트웨어 개선 방법이 없다. renderer, bitmap/spool 형식, firmware inverse, 극성, 글자 mask 보강, 냉각 pattern, grayscale, 농도와 속도를 모두 실물 검증했으며 개선되지 않았다.
-- 남은 유효 선택지는 출력 디자인을 검정 글자/흰 배경으로 변경하거나, 글자와 행 높이를 크게 늘리거나, 300dpi 이상 프린터로 교체하는 것이다. 이는 렌더러 변경이 아니라 요구 조건 변경이다.
+- 과거 소프트웨어 개선 불가 판정 철회: 실험 실패는 해당 구현의 실패이며 모든 경로의 불가능을 증명하지 않는다. 2026-09-07 레거시 5pt -> 현재 11dot 변환 차이를 최소 테스트로 재현했다. 열 번짐을 확정 원인으로 보지 않는다.
 - 안정화 편집 완료: v1.3.89 RGB 96 변환은 실패 주석과 `#if 0`으로 격리하고 재사용하지 않는다. G500는 v1.3.58 일반 출력 경로, native border 225개, 원래 solid-black/white 역상으로 복귀한다. 테스트 watermark는 비활성 상태를 유지한다.
 - 버전 편집 완료: `1.3.90`.
 - Windows `/WX` Debug 빌드 완료: 성공.
