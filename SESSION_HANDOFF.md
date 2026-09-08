@@ -20,6 +20,7 @@
 - 남은 실물 검사: 현재 앱에서 1장 출력, v1.3.94 마크/오른쪽 흰 사각형/끝 문구/흰 획을 확인한다. .tmp/log/godex_inverse의 v1.3.94 진단에서 actual/referenceAllCharactersFit, layoutWidth, scaleX를 대조한다. 획 소실 개선은 아직 보장하지 않는다.
 - 임시 산출물: .tmp/inverse_probe_build와 .tmp/inverse_probe는 로컬 재현 자료로 유지하며 stage하지 않는다. 진단 원본·사진은 보존. 배포 빌드/프린터 설정/DB/원격 push 없음.
 - stage 대상: windows/runner/label_bitmap_print_channel.cpp, windows/runner/inverse_text_layout.h, tools/inspect_inverse_emf.ps1, tools/inverse_rich_edit_probe/{CMakeLists.txt,main.cpp,README.md}, pubspec.yaml, SESSION_HANDOFF.md. 기존 lib/core/app.dart는 제외.
+- 구현 커밋: 4bc31d4 (역상 RichEdit 배경 채움과 한 줄 가로 배치 수정). git diff --check 통과, 미검증 사항은 v1.3.94 실물 출력 및 실제 입력의 진단 결과이다.
 
 ## 구현 완료·실물 진단 대기: G500 역상 비교 이미지 v1.3.93
 - 9/8 실물 IMG_20260908_0001.png는 역상 획 소실 재현. 로그는 17dot, RichEdit 2건, border 225건, v1.3.92 앱/v1.3.91 마크. 5pt->11dot 차이를 이번 실물의 확정 원인으로 사용하지 않는다.
