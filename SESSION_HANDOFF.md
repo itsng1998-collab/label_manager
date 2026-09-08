@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 검증 대기: 역상 1비트 직접 렌더 v1.3.96
+- IMG_20260908_0004.png와 22:32:59 로그 확인: v1.3.95, 전체 수용, nativeWhiteDirect=0, 실제 합성 이미지에는 문구가 있으나 실물 획 소실 지속. 프린터/열 원인은 확정하지 않는다.
+- 국소 가설: 컬러 DIB 후 threshold=128 대신 역상 글자를 처음부터 1bpp에 렌더하면 회색 절단 없는 글리프를 얻을 수 있다. 전체 페이지 1bpp 전송이나 실패한 마스크 팽창은 재사용하지 않는다.
+- inverse_text_bitmap.h 편집: 검정0/흰색1 팔레트, DWORD stride의 1bpp DIB에 EMF 재생 후 역상 clip만 기존 32bpp base에 복사. 일반 영역/alpha 보존. probe 빌드+CTest+실제 두세트 replay 검사 예정. 실물 개선 미검증.
+- 첫 /WX 빌드의 std::fill int->uint8 경고를 uint8_t 초기값으로 해결. CTest 통과, 실제 2세트 changedPixels=1298/1508, 후처리 회색 제거 없음. v1.3.95 대비 흰 픽셀 추가/제거 80/31, 81/64: 변화는 작으므로 개선 보장 금지. 끝 문구와 배경 유지 시각 확인.
+- probe에 실제 DIB bit count=1 계약 추가. C++ 진단 glyphRaster=directMonochromeDib/postRasterThreshold=none/baseThreshold=128, 워터마크와 pubspec PATCH 1.3.95->1.3.96. README 기록 완료. native probe/CTest 재검증 후 /WX 앱 빌드와 관련 Dart 31건 실행 예정.
+- 최종 native probe /WX 빌드, CTest 1/1 및 실제 replay 2건 PASS(rasterBitCount=1). 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`, `flutter test test/godex_inverse_reference_test.dart test/label_sheet_print_job_test.dart test/label_print_dispatcher_test.dart`에 해당하는 runTests.
+- 최종 검증 완료: /WX Windows Debug 빌드 성공(49.3초), 관련 Dart 31건 통과, 편집기 오류 없음, git diff --check 통과. 이전 버전과의 픽셀 차이는 작으므로 실물 획 소실 해결로 해석하지 않는다.
+- 실행 완료: Debug EXE PID 4180, Responding=True, FileVersion/ProductVersion=1.3.96. .tmp/log/app_2026-09-08_22-39-21.log에서 버전과 DB connected successfully 확인. native 변경은 재빌드한 EXE 실행으로 반영했다.
+- 다음 확인: 기존 시험 라벨 1장 출력 후 v1.3.96 마크와 획 소실/끝 문구 확인. 새 진단에서 nativeTextWhiteRender=richEditDirectMonoComposite, rasterBitCount=1, postRasterThreshold=none을 확인한다. 실물 개선과 새 진단 저장은 미검증이다.
+- 임시 .tmp/inverse_mono_{1,2}.bmp/.png, inverse_v1395_zoom.png는 비교용 로컬 자료로 보존, stage 제외. 프린터 설정/DB/일반 글자/표선/배포/원격 push 변경 없음.
+- stage 대상: SESSION_HANDOFF.md, pubspec.yaml, windows/runner/{inverse_text_bitmap.h,label_bitmap_print_channel.cpp}, tools/inverse_rich_edit_probe/{main.cpp,README.md}. 기존 lib/core/app.dart는 제외한다.
+
 ## 구현 완료·실물 검증 대기: 역상 픽셀 합성 v1.3.95
 - v1.3.94 실물 IMG_20260908_0003.png: 흰 사각형과 끝 문구는 해결, 흰 획 소실은 지속. 실제/참조 전체 수용 73/72, 76/75이며 비교 이미지는 온전했다. 드라이버/열 번짐을 확정 원인으로 단정하지 않는다.
 - 생산 변경: 수정된 RichEdit를 printer-reference EMF에 렌더하고 CompositeInverseTextBitmap으로 역상 clip에만 흑백 합성한 뒤 기존 단일 StretchDIBits로 전송한다. 일반 검정 text/표선/DB/프린터 설정 불변. native white 직접 렌더와 실패한 흰 마스크 방식은 재사용하지 않는다.

@@ -9,7 +9,7 @@
 struct InverseBitmapResult {
   bool success = false;
   size_t changed_pixels = 0;
-  size_t gray_pixels = 0;
+  WORD raster_bit_count = 0;
 };
 
 inline InverseBitmapResult CompositeInverseTextBitmap(
@@ -34,14 +34,19 @@ inline InverseBitmapResult CompositeInverseTextBitmap(
           metafile_header.szlMillimeters.cy * 100)};
   HDC memory = CreateCompatibleDC(printer);
   if (memory == nullptr) return result;
-  BITMAPINFO info{};
-  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-  info.bmiHeader.biWidth = width;
-  info.bmiHeader.biHeight = -height;
-  info.bmiHeader.biPlanes = 1;
-  info.bmiHeader.biBitCount = 32;
+  struct MonochromeBitmapInfo {
+    BITMAPINFOHEADER header{};
+    RGBQUAD colors[2]{};
+  } info;
+  info.header.biSize = sizeof(BITMAPINFOHEADER);
+  info.header.biWidth = width;
+  info.header.biHeight = -height;
+  info.header.biPlanes = 1;
+  info.header.biBitCount = 1;
+  info.colors[1] = RGBQUAD{255, 255, 255, 0};
+  const size_t stride = (static_cast<size_t>(width) + 31) / 32 * 4;
   void* pixels = nullptr;
-  HBITMAP bitmap = CreateDIBSection(memory, &info, DIB_RGB_COLORS,
+  HBITMAP bitmap = CreateDIBSection(memory, reinterpret_cast<BITMAPINFO*>(&info), DIB_RGB_COLORS,
                                    &pixels, nullptr, 0);
   if (bitmap == nullptr || pixels == nullptr) {
     if (bitmap != nullptr) DeleteObject(bitmap);
@@ -54,23 +59,38 @@ inline InverseBitmapResult CompositeInverseTextBitmap(
     DeleteDC(memory);
     return result;
   }
-  std::copy(base.begin(), base.end(), static_cast<uint8_t*>(pixels));
+  BITMAP bitmap_details{};
+  GetObjectW(bitmap, sizeof(bitmap_details), &bitmap_details);
+  result.raster_bit_count = bitmap_details.bmBitsPixel;
+  auto* bits = static_cast<uint8_t*>(pixels);
+  std::fill(bits, bits + stride * height, uint8_t{0});
+  for (int row = 0; row < height; ++row) {
+    for (int column = 0; column < width; ++column) {
+      const size_t offset = (static_cast<size_t>(row) * width + column) * 4;
+      const unsigned luminance = 77 * base[offset + 2] +
+                                 150 * base[offset + 1] + 29 * base[offset];
+      if (luminance >= 128 * 256) {
+        bits[static_cast<size_t>(row) * stride + column / 8] |=
+            static_cast<uint8_t>(0x80 >> (column % 8));
+      }
+    }
+  }
   RECT area{std::max<LONG>(0, clip.left), std::max<LONG>(0, clip.top),
             std::min<LONG>(width, clip.right), std::min<LONG>(height, clip.bottom)};
   IntersectClipRect(memory, area.left, area.top, area.right, area.bottom);
   // NULL DC 개별 명령 재생은 변환 명령 실패로 폐기. 페이지 폭 대신 참조 장치의 프레임 좌표를 사용한다.
   result.success = PlayEnhMetaFile(memory, metafile, &destination) != FALSE;
   GdiFlush();
+  result.success = result.success && result.raster_bit_count == 1;
   if (result.success) {
     const auto* rendered = static_cast<const uint8_t*>(pixels);
     for (LONG row = area.top; row < area.bottom; ++row) {
       for (LONG column = area.left; column < area.right; ++column) {
         const size_t offset = (static_cast<size_t>(row) * width + column) * 4;
-        const unsigned luminance = 77 * rendered[offset + 2] +
-                                   150 * rendered[offset + 1] +
-                                   29 * rendered[offset];
-        const uint8_t value = luminance >= 128 * 256 ? 255 : 0;
-        if (luminance != 0 && luminance != 255 * 256) ++result.gray_pixels;
+        // v1.3.95의 컬러 렌더 후 임계값 변환은 실물 획 소실이 남아 재사용하지 않는다.
+        const uint8_t value =
+          (rendered[static_cast<size_t>(row) * stride + column / 8] &
+           (0x80 >> (column % 8))) != 0 ? 255 : 0;
         if (base[offset] != value || base[offset + 1] != value ||
             base[offset + 2] != value) ++result.changed_pixels;
         base[offset] = value;

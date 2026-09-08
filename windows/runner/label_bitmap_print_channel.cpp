@@ -28,7 +28,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.95";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.96";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1216,7 +1216,7 @@ std::string SaveInverseComparison(
     std::filesystem::create_directories(directory);
     static unsigned long sequence = 0;
     const auto prefix = directory /
-        ("v1.3.95_" + std::to_string(GetCurrentProcessId()) + "_" +
+        ("v1.3.96_" + std::to_string(GetCurrentProcessId()) + "_" +
          std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence));
     const std::filesystem::path emf_path(prefix.string() + ".emf");
     const HENHMETAFILE saved_emf = CopyEnhMetaFileW(metafile, emf_path.c_str());
@@ -1252,10 +1252,12 @@ std::string SaveInverseComparison(
     const bool base_saved = save_bitmap("_base.bmp", base);
     const bool comparison_saved = save_bitmap("_comparison.bmp", composed);
     std::ofstream report(prefix.string() + ".txt");
-       report << "version=1.3.95\nkind=submittedInverseBitmap\n"
+      report << "version=1.3.96\nkind=submittedInverseBitmap\n"
            << "transparentRichEdit=true\n"
-            << "notActualSpoolCapture=true\nincludesPreviousWhiteDescriptors=true\n"
-            << "inverseComposite=beforeSingleDibTransfer\nthreshold=128\n"
+           << "notActualSpoolCapture=true\nincludesPreviousWhiteDescriptors=true\n"
+           << "inverseComposite=beforeSingleDibTransfer\n"
+           << "glyphRaster=directMonochromeDib\npostRasterThreshold=none\n"
+           << "baseThreshold=128\n"
            << "dpi=" << dpi_x << "," << dpi_y << "\nsize=" << width << "," << height
            << "\nfont=" << descriptor.font_family_utf8
            << "\nfontDots=" << descriptor.font_pixel_height
@@ -1275,7 +1277,7 @@ std::string SaveInverseComparison(
            << "\nnativeWhiteTextToPrinter=false"
            << "\nreplaySucceeded=" << composite.success
            << "\nchangedPixels=" << composite.changed_pixels
-           << "\ngrayPixelsRemoved=" << composite.gray_pixels
+           << "\nrasterBitCount=" << composite.raster_bit_count
            << "\nemfSaved=" << emf_saved
            << "\nbaseSaved=" << base_saved
            << "\ncomparisonSaved=" << comparison_saved << "\n";
@@ -2002,9 +2004,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                       ? "printerDcDirect32+inverseBitmap"
                       : "boxedHeaderBlackOnWhite")
                     << " nativeTextWhiteRender="
-                    << (godex_v1358_driver_direct ? "richEditBilevelComposite"
+                    << (godex_v1358_driver_direct ? "richEditDirectMonoComposite"
                            : "fullRowPolarityFallback")
-                    << " printWatermark=v1.3.95"
+                    << " printWatermark=v1.3.96"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";

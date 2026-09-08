@@ -107,7 +107,7 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
                                                  width, height, pixels);
   DeleteEnhMetaFile(metafile);
   DeleteDC(printer);
-  bool valid = result.success && result.changed_pixels > 0;
+  bool valid = result.success && result.changed_pixels > 0 && result.raster_bit_count == 1;
   for (int row = 0; row < height; ++row) {
     for (int column = 0; column < width; ++column) {
       const size_t offset = (static_cast<size_t>(row) * width + column) * 4;
@@ -130,7 +130,7 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
   valid = valid && !image.fail();
   std::cout << "savedComposite=" << (valid ? "PASS" : "FAIL")
             << " changedPixels=" << result.changed_pixels
-            << " grayPixelsRemoved=" << result.gray_pixels << "\n";
+            << " rasterBitCount=" << result.raster_bit_count << "\n";
   return valid ? 0 : 1;
 }
 
@@ -272,7 +272,8 @@ int wmain(int count, wchar_t** arguments) {
       const auto before = flattened;
       const auto composite = CompositeInverseTextBitmap(
           printer, result, RECT{15, 291, 600, 310}, 620, 480, flattened);
-      success = success && composite.success && composite.changed_pixels > 0;
+      success = success && composite.success && composite.changed_pixels > 0 &&
+            composite.raster_bit_count == 1;
       for (size_t offset = 0; offset < flattened.size(); offset += 4) {
         const size_t row = offset / 4 / 620;
         const size_t column = offset / 4 % 620;
@@ -288,7 +289,7 @@ int wmain(int count, wchar_t** arguments) {
       }
       std::copy(flattened.begin(), flattened.end(), static_cast<uint8_t*>(pixels));
       std::cout << "flattenedPixels=" << composite.changed_pixels
-                << " grayPixelsRemoved=" << composite.gray_pixels << "\n";
+                << " rasterBitCount=" << composite.raster_bit_count << "\n";
     }
     BITMAPFILEHEADER header{};
     header.bfType = 0x4d42;
