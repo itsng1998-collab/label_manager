@@ -1,5 +1,17 @@
 # 현재 작업 상태
 
+## 구현 완료·실제 출력 진단 대기: 최종 검정 글자 덮임 진단 v1.3.97
+- IMG_20260908_0005.png: v1.3.96에서도 실물 역상 획 소실 지속. 23:18:55 로그의 rasterBitCount=1, allCharactersFit=1, nativeWhiteDirect=0, border225 확인. 1비트 전환을 품질 해결로 판단하지 않는다.
+- 새 가설: 기존 저장 이미지는 일반 검정 text 이전이므로 뒤에서 덮이는지 미관측이다. 동일 RenderNativeTextToPrinterDc의 참조 EMF를 합성한 이미지와 역상별 흰->어두운 픽셀 수를 추가한다. 원인 확정 전 글꼴/농도/실제 출력 방식은 변경하지 않는다.
+- native_text_comparison.h와 probe 검사 추가: 원본 base 불변, alpha 보존, 겹침 3x3=9픽셀/비겹침=0픽셀 정확 검출 검사. native /WX 빌드와 CTest 실행 예정.
+- native /WX 빌드·CTest 통과. C++에 실제 검정 출력 성공 후 동일 함수의 참조 EMF 렌더/합성 추가. *_after_native.bmp/.emf/.txt 저장, 역상별 whitePixelsLost 및 native sourceRect 기록. 실제 프린터 DC 출력 변경 없음. 저장 실패는 인쇄 결과 변경 없음.
+- 진단 추가 PATCH 1.3.96 -> 1.3.97 및 워터마크 갱신. 출력 품질 수정 완료가 아니라 누락됐던 마지막 합성 단계 관측 보완이다. `/WX flutter build windows --debug` 검증 예정.
+- 통합 /WX Debug 빌드 성공(48.6초). README에 *_after_native 의미, 실제 스풀과 차이, whitePixelsLost의 기준과 한계 기록. 최종 검증 예정: 관련 godex_inverse_reference/label_sheet_print_job/label_print_dispatcher runTests 및 편집기 진단, 앱 실행 버전 확인.
+- 검증 완료: native CTest 1/1, 관련 Dart 31건 통과, 편집기 오류 없음, git diff --check 통과. CaptureNativeTextComparison 명칭 정리 후 최종 /WX Debug 재빌드 성공(16.2초). EXE FileVersion/ProductVersion=1.3.97, PID 8452 실행. 실제 출력 시 참조 파일 생성/손실 수는 미검증.
+- 다음 확인: 같은 라벨 출력 후 *_after_native.txt의 역상별 whitePixelsLost, referenceDrawn/Fitted와 실제 출력 통계를 비교한다. 기존 이미지에는 없었던 일반 검정 text 후속 합성 결과를 확인하며, 0이어도 드라이버/열 원인으로 확정하지 않는다. 실물 획 소실은 아직 해결되지 않았다.
+- 임시 출력/빌드 캐시는 로컬 진단용으로 유지하고 stage 제외. stage 예정: SESSION_HANDOFF.md, pubspec.yaml, windows/runner/{native_text_comparison.h,label_bitmap_print_channel.cpp}, tools/inverse_rich_edit_probe/{main.cpp,README.md}. 기존 lib/core/app.dart 변경은 제외. DB/프린터 설정/배포/원격 push 변경 없음.
+- 실행 확인: .tmp/log/app_2026-09-08_23-25-53.log의 version=1.3.97 및 DB connected successfully, PID 8452 Responding=True 확인. 최종 git diff --check 통과. 위 6개 파일만 stage/commit 진행.
+
 ## 구현 완료·실물 검증 대기: 역상 1비트 직접 렌더 v1.3.96
 - IMG_20260908_0004.png와 22:32:59 로그 확인: v1.3.95, 전체 수용, nativeWhiteDirect=0, 실제 합성 이미지에는 문구가 있으나 실물 획 소실 지속. 프린터/열 원인은 확정하지 않는다.
 - 국소 가설: 컬러 DIB 후 threshold=128 대신 역상 글자를 처음부터 1bpp에 렌더하면 회색 절단 없는 글리프를 얻을 수 있다. 전체 페이지 1bpp 전송이나 실패한 마스크 팽창은 재사용하지 않는다.

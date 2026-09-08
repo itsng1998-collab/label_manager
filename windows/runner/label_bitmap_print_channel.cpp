@@ -1,6 +1,7 @@
 #include "label_bitmap_print_channel.h"
 #include "inverse_text_layout.h"
 #include "inverse_text_bitmap.h"
+#include "native_text_comparison.h"
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
@@ -28,7 +29,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.96";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.97";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1216,7 +1217,7 @@ std::string SaveInverseComparison(
     std::filesystem::create_directories(directory);
     static unsigned long sequence = 0;
     const auto prefix = directory /
-        ("v1.3.96_" + std::to_string(GetCurrentProcessId()) + "_" +
+        ("v1.3.97_" + std::to_string(GetCurrentProcessId()) + "_" +
          std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence));
     const std::filesystem::path emf_path(prefix.string() + ".emf");
     const HENHMETAFILE saved_emf = CopyEnhMetaFileW(metafile, emf_path.c_str());
@@ -1252,7 +1253,7 @@ std::string SaveInverseComparison(
     const bool base_saved = save_bitmap("_base.bmp", base);
     const bool comparison_saved = save_bitmap("_comparison.bmp", composed);
     std::ofstream report(prefix.string() + ".txt");
-      report << "version=1.3.96\nkind=submittedInverseBitmap\n"
+      report << "version=1.3.97\nkind=submittedInverseBitmap\n"
            << "transparentRichEdit=true\n"
            << "notActualSpoolCapture=true\nincludesPreviousWhiteDescriptors=true\n"
            << "inverseComposite=beforeSingleDibTransfer\n"
@@ -1454,6 +1455,100 @@ bool RenderWhiteTextIntoBitmap(
   DestroyWindow(host);
   FreeLibrary(rich_edit_module);
   return rendered_all;
+}
+
+bool RenderNativeTextToPrinterDc(
+    std::vector<uint8_t>& bitmap, int target_width, int target_height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    HDC printer_dc, NativeTextRenderStats& stats, std::string& error);
+
+std::string CaptureNativeTextComparison(
+    const std::vector<uint8_t>& base, int width, int height,
+    int source_width, int source_height,
+    const std::vector<NativeTextDescriptor>& descriptors,
+    const std::vector<NativeTextDescriptor>& black_descriptors, HDC printer) {
+  try {
+    const auto directory = std::filesystem::path(".tmp") / "log" / "godex_inverse";
+    std::filesystem::create_directories(directory);
+    static unsigned long sequence = 0;
+    const auto prefix = directory / ("v1.3.97_" + std::to_string(GetCurrentProcessId()) +
+        "_" + std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence) + "_after_native");
+    const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
+    const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
+    RECT frame{0, 0, MulDiv(width, 2540, dpi_x), MulDiv(height, 2540, dpi_y)};
+    InverseEmfResources resources;
+    resources.recording = CreateEnhMetaFileW(
+        printer, (prefix.wstring() + L".emf").c_str(), &frame, nullptr);
+    if (resources.recording == nullptr) return "nativeRecordingFailed";
+    auto reference_base = base;
+    NativeTextRenderStats reference_stats;
+    std::string reference_error;
+    const bool rendered = RenderNativeTextToPrinterDc(
+        reference_base, width, height, source_width, source_height,
+        black_descriptors, resources.recording, reference_stats, reference_error);
+    resources.metafile = CloseEnhMetaFile(resources.recording);
+    resources.recording = nullptr;
+    if (!rendered || resources.metafile == nullptr || reference_stats.failed != 0) {
+      return "nativeReferenceRenderFailed";
+    }
+    std::vector<RECT> inverse_areas;
+    for (const auto& descriptor : descriptors) {
+      if (descriptor.color != RGB(255, 255, 255)) continue;
+      inverse_areas.push_back(RECT{
+          MulDiv(descriptor.rect.left, width, source_width),
+          MulDiv(descriptor.rect.top, height, source_height),
+          MulDiv(descriptor.rect.right, width, source_width),
+          MulDiv(descriptor.rect.bottom, height, source_height)});
+    }
+    const auto comparison = ReplayNativeTextComparison(
+        printer, resources.metafile, base, width, height, inverse_areas);
+    if (!comparison.success) return "nativeReferenceReplayFailed";
+    BITMAPFILEHEADER file_header{};
+    BITMAPINFOHEADER info{};
+    info.biSize = sizeof(info);
+    info.biWidth = width;
+    info.biHeight = -height;
+    info.biPlanes = 1;
+    info.biBitCount = 32;
+    info.biXPelsPerMeter = MulDiv(dpi_x, 10000, 254);
+    info.biYPelsPerMeter = MulDiv(dpi_y, 10000, 254);
+    file_header.bfType = 0x4d42;
+    file_header.bfOffBits = sizeof(file_header) + sizeof(info);
+    file_header.bfSize = file_header.bfOffBits + static_cast<DWORD>(comparison.pixels.size());
+    std::ofstream image(prefix.wstring() + L".bmp", std::ios::binary);
+    image.write(reinterpret_cast<const char*>(&file_header), sizeof(file_header));
+    image.write(reinterpret_cast<const char*>(&info), sizeof(info));
+    image.write(reinterpret_cast<const char*>(comparison.pixels.data()),
+                static_cast<std::streamsize>(comparison.pixels.size()));
+    image.close();
+    std::ofstream report(prefix.wstring() + L".txt");
+    report << "version=1.3.97\nkind=afterNativeTextReference\n"
+           << "notActualSpoolCapture=true\nnotSubmittedBitmap=true\nwatermarkIncluded=false\n"
+           << "size=" << width << "," << height
+           << "\nreferenceDrawn=" << reference_stats.drawn
+           << "\nreferenceFitted=" << reference_stats.fitted << "\n";
+    size_t lost_total = 0;
+    for (size_t index = 0; index < inverse_areas.size(); ++index) {
+      const auto& area = inverse_areas[index];
+      const size_t lost = comparison.inverse_white_pixels_lost[index];
+      lost_total += lost;
+      report << "inverse[" << index << "].clip=" << area.left << "," << area.top
+             << "," << area.right << "," << area.bottom
+             << "\ninverse[" << index << "].whitePixelsLost=" << lost << "\n";
+    }
+    for (size_t index = 0; index < black_descriptors.size(); ++index) {
+      const auto& descriptor = black_descriptors[index];
+      report << "native[" << index << "].sourceRect=" << descriptor.rect.left << ","
+             << descriptor.rect.top << "," << descriptor.rect.right << "," << descriptor.rect.bottom
+             << "\nnative[" << index << "].color=" << descriptor.color << "\n";
+    }
+    report.close();
+    return prefix.generic_string() + ((!image.fail() && !report.fail()) ? ":saved" : ":incomplete") +
+           " inverseWhiteLostAfterNative=" + std::to_string(lost_total);
+  } catch (...) {
+    return "nativeDiagnosticSaveFailed";
+  }
 }
 
 bool RenderNativeTextToPrinterDc(
@@ -2006,7 +2101,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                     << " nativeTextWhiteRender="
                     << (godex_v1358_driver_direct ? "richEditDirectMonoComposite"
                            : "fullRowPolarityFallback")
-                    << " printWatermark=v1.3.96"
+                    << " printWatermark=v1.3.97"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -2122,6 +2217,11 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                page_dc, destination_x, destination_y, target_width,
                target_height, error)) {
         } else {
+      if (godex_v1358_driver_direct) {
+        diagnostics << " afterNativeComparison=" << CaptureNativeTextComparison(
+            composed_bitmap, target_width, target_height, source_width, source_height,
+            text_descriptors, render_text_descriptors, page_dc);
+      }
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;

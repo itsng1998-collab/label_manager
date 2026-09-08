@@ -7,6 +7,7 @@
 #include <string>
 #include "../../windows/runner/inverse_text_layout.h"
 #include "../../windows/runner/inverse_text_bitmap.h"
+#include "../../windows/runner/native_text_comparison.h"
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
                          int, LPARAM context) {
@@ -63,6 +64,36 @@ bool VerifyDeviceCoordinates(HDC printer) {
               << " mismatches=" << mismatches << "\n";
     valid = valid && mismatches == 0;
   }
+  return valid;
+}
+
+bool VerifyNativeTextComparison(HDC printer) {
+  RECT frame{0, 0, MulDiv(620, 2540, GetDeviceCaps(printer, LOGPIXELSX)),
+                   MulDiv(480, 2540, GetDeviceCaps(printer, LOGPIXELSY))};
+  bool valid = true;
+  for (int overlaps = 0; overlaps < 2; ++overlaps) {
+    HDC recording = CreateEnhMetaFileW(printer, nullptr, &frame, nullptr);
+    if (recording == nullptr) return false;
+    RECT mark{597, overlaps != 0 ? 106 : 120, 600, overlaps != 0 ? 109 : 123};
+    FillRect(recording, &mark, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+    HENHMETAFILE metafile = CloseEnhMetaFile(recording);
+    std::vector<uint8_t> base(620 * 480 * 4, 255);
+    const auto result = ReplayNativeTextComparison(
+        printer, metafile, base, 620, 480, {RECT{15, 90, 600, 109}});
+    DeleteEnhMetaFile(metafile);
+    valid = valid && result.success && result.inverse_white_pixels_lost.size() == 1 &&
+            result.inverse_white_pixels_lost[0] == (overlaps != 0 ? 9u : 0u);
+    for (size_t offset = 0; offset < base.size(); offset += 4) {
+      const int row = static_cast<int>(offset / 4 / 620);
+      const int column = static_cast<int>(offset / 4 % 620);
+      const uint8_t expected = column >= mark.left && column < mark.right &&
+          row >= mark.top && row < mark.bottom ? 0 : 255;
+      valid = valid && result.success && result.pixels[offset] == expected &&
+              result.pixels[offset + 1] == expected && result.pixels[offset + 2] == expected &&
+              result.pixels[offset + 3] == 255;
+    }
+  }
+  std::cout << "nativeTextComparison=" << (valid ? "PASS" : "FAIL") << "\n";
   return valid;
 }
 
@@ -158,7 +189,7 @@ int wmain(int count, wchar_t** arguments) {
   if (printer == nullptr || module == nullptr) return 4;
   const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
   const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
-  bool success = VerifyDeviceCoordinates(printer);
+  bool success = VerifyDeviceCoordinates(printer) && VerifyNativeTextComparison(printer);
   for (int variant = 0; variant < 8; ++variant) {
     HWND host = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
         L"STATIC", L"", WS_POPUP, 0, 0, 620, 480, nullptr, nullptr,
