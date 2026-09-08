@@ -12,6 +12,7 @@
 - 미검증/다음 단계: 현재 앱에서 기존 시험 라벨 1장 출력 후 우하단 v1.3.93, 최신 앱 로그의 inverseComparison, 생성된 BMP/EMF/TXT와 실물을 대조한다. 파일 생성/BMP 크기/changedPixels/EMF replay/문자 수용은 실제 출력 후 확인한다.
 - 정리: 새 임시 테스트 파일 없음. Debug 산출물은 실행에 사용하며 배포 빌드/원격 push 없음.
 - stage/commit 대상: windows/runner/label_bitmap_print_channel.cpp, pubspec.yaml, SESSION_HANDOFF.md. 사용자 변경 lib/core/app.dart 제외.
+- 구현 커밋: 8f3db4c (G500 역상 비교 이미지 진단 추가). 실물 검증과 진단 파일 검사는 사용자 출력 후 진행한다.
 
 ## 진단 완료·품질 수정 전: 확보한 레거시 조건으로 역상 경로 검증 v1.3.92
 - 사용자 조건: 현재 프로젝트에서 같은 라벨 출력 불가. 동일 라벨 재출력을 요구하지 않고 확보한 원본 조건으로 진행한다.
