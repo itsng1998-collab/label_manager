@@ -12,6 +12,7 @@
 - 다음 실물 검사: 현재 앱에서 기존 라벨 1장 출력 후 v1.3.95 마크/흰 획/끝 문구를 확인하고 .tmp/log/godex_inverse의 새 _comparison.bmp와 실제 사진을 대조한다. 실물 획 소실 개선 및 새 저장 진단은 아직 미검증이다.
 - 임시 자료: .tmp/inverse_probe_build, .tmp/inverse_composite_{1,2}.bmp/.png 및 원본 진단/사진은 로컬 보존, 커밋 제외. 배포 빌드/원격 push 없음.
 - stage 대상: SESSION_HANDOFF.md, pubspec.yaml, windows/runner/{label_bitmap_print_channel.cpp,inverse_text_bitmap.h}, tools/inverse_rich_edit_probe/{main.cpp,README.md}. 기존 사용자 변경 lib/core/app.dart는 제외한다.
+- 구현 커밋: fb01e91 (역상 RichEdit 픽셀 합성과 EMF 좌표 보정 적용). 다음 작업은 v1.3.95 실물과 실제 전송 픽셀 진단 대조이다.
 
 ## 구현 완료·실물 검증 대기: 역상 배경 및 가로 배치 v1.3.94
 - v1.3.93 실물 IMG_20260908_0002.png에서 획 소실 재현. 비교 EMF에서는 글자 형태가 더 온전하지만 오른쪽 흰 사각형은 재현된다. base에는 사각형이 없다.
