@@ -1,5 +1,26 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 검증 대기: 역상 배경 및 가로 배치 v1.3.94
+- v1.3.93 실물 IMG_20260908_0002.png에서 획 소실 재현. 비교 EMF에서는 글자 형태가 더 온전하지만 오른쪽 흰 사각형은 재현된다. base에는 사각형이 없다.
+- 실제/비교 formattedUntil은 68/72, 66/75로 일치하며 전체 문자열 미수용. 공백 포함 UTF-16 위치이므로 차이를 누락 한글 수로 해석하지 않는다.
+- 첫 검사: tools/inspect_inverse_emf.ps1로 저장된 EMF의 텍스트/배경 채우기 명령을 해석한다. 실행 예정: `./tools/inspect_inverse_emf.ps1 -Path .tmp/log/godex_inverse/v1.3.93_16800_2984250_2.emf`. 생산 코드 미변경.
+- EMF 검사 완료: 흰 브러시 BitBlt 이후 검정 문자 배경 ETO_OPAQUE 출력. 줄 끝 흰 채움이 남는 경로 확인. 무출력 native probe는 EMF에 남은 문자열 + 합성 END 꼬리로 검사하며 원본 전체 문자열 복원으로 주장하지 않는다.
+- tools/inverse_rich_edit_probe 추가: 기본/SES_EXTENDBACKCOLOR/EM_SETTARGETDEVICE(0)/둘 다의 4조건을 printer-reference EMF로 재생해 수용 위치와 19dot 높이 전체가 흰 열 수를 비교한다. StartDoc/실물 인쇄 없음. CMake /W4 /WX 빌드 및 실행 예정.
+- 첫 probe 빌드 성공. 짧은 END 꼬리는 70자 모두 수용되어 기존 문제 미재현. 긴 9자리 꼬리(합성 입력)로 변경하여 동일 검사를 재실행한다.
+- probe 결과: SES_EXTENDBACKCOLOR/EM_SETTARGETDEVICE(0)는 67/76 미수용을 해결하지 못해 생산 코드에 적용하지 않는다. WS_EX_TRANSPARENT는 흰 브러시/BitBlt 명령을 제거하며 이미지에서 흰 사각형 소멸 확인. pixel whiteColumns=0은 EMF 재생의 1dot 위치 차이로 측정 영역이 부정확했으므로 근거로 사용하지 않는다.
+- C++ 편집 완료: 역상 control에 WS_EX_TRANSPARENT 적용, 진단/워터마크 v1.3.94. pubspec PATCH 1.3.93 -> 1.3.94. 일반 출력 불변. 실행 예정: `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`.
+- 투명 배경 생산 수정 /WX Debug 빌드 성공(46.9초).
+- inverse_text_layout.h 추가: EM_FORMATRANGE 측정으로 한 줄 수용 폭을 이진 탐색하고 X축만 축소하는 helper. 명시적 개행/wrap=true는 보정하지 않는다. probe variant5에서 전체 수용/흰 열 없음 검증 예정이며 생산 호출 연결 전이다.
+- helper probe 통과: baseline 67/76, 흰 열 36; 투명만 67/76, 흰 열 0; 투명+측정 폭 629->585(scaleX=0.930048)에서 77/76, 흰 열 0. 기본값은 마지막 문단 종결 위치까지 반환할 수 있다. SES_EXTENDBACKCOLOR도 흰 열을 없애지만 폭 문제는 남으므로 투명 스타일만 채택한다.
+- 생산 호출 연결 완료: MeasureInverseTextLayout, 실제 DC 및 비교 EMF에 같은 XFORM/원본 FORMATRANGE를 사용한다. scaleY=1, 일반 출력은 RestoreDC로 유지. 로그에 layoutWidth/scaleX/measuredAllCharactersFit를 추가했다. 실행 예정: `/WX` Windows Debug 빌드.
+- 통합 /WX Debug 빌드 성공(16.3초), 편집기 오류 없음. probe 추가: 자체 합성 입력/CTest, 동일 DC 출력·측정, 전체 텍스트 EMF 기록 일치, 짧은 텍스트·wrap=true·개행의 무보정 계약. CTest 및 실제 EMF 기반 합성 꼬리 검사를 실행한다.
+- CTest 1/1 통과, 실제 EMF 기반 7조건 regression=PASS. 동일 DC 조건도 수용 77/76, 전체 문자열 기록 일치. tools/inverse_rich_edit_probe/README.md에 실행 전제/명령/실물 검증 한계를 기록했다.
+- 다음 검증: `flutter test test/godex_inverse_reference_test.dart test/label_sheet_print_job_test.dart test/label_print_dispatcher_test.dart`에 해당하는 runTests 및 v1.3.94 실행/시작 로그 확인.
+- 최종 검증 완료: 관련 runTests 31건 통과, 편집기 오류 없음. Debug EXE PID 992 Responding=True, FileVersion/ProductVersion=1.3.94. .tmp/log/app_2026-09-08_21-07-02.log에 버전 1.3.94 및 DB connected successfully 확인. DTD 활성 앱이 없어 native 변경은 재빌드·EXE 재실행으로 반영했다.
+- 남은 실물 검사: 현재 앱에서 1장 출력, v1.3.94 마크/오른쪽 흰 사각형/끝 문구/흰 획을 확인한다. .tmp/log/godex_inverse의 v1.3.94 진단에서 actual/referenceAllCharactersFit, layoutWidth, scaleX를 대조한다. 획 소실 개선은 아직 보장하지 않는다.
+- 임시 산출물: .tmp/inverse_probe_build와 .tmp/inverse_probe는 로컬 재현 자료로 유지하며 stage하지 않는다. 진단 원본·사진은 보존. 배포 빌드/프린터 설정/DB/원격 push 없음.
+- stage 대상: windows/runner/label_bitmap_print_channel.cpp, windows/runner/inverse_text_layout.h, tools/inspect_inverse_emf.ps1, tools/inverse_rich_edit_probe/{CMakeLists.txt,main.cpp,README.md}, pubspec.yaml, SESSION_HANDOFF.md. 기존 lib/core/app.dart는 제외.
+
 ## 구현 완료·실물 진단 대기: G500 역상 비교 이미지 v1.3.93
 - 9/8 실물 IMG_20260908_0001.png는 역상 획 소실 재현. 로그는 17dot, RichEdit 2건, border 225건, v1.3.92 앱/v1.3.91 마크. 5pt->11dot 차이를 이번 실물의 확정 원인으로 사용하지 않는다.
 - 수정 목적: 실제 printer DC 출력은 유지하고 출력 후 같은 RichEdit를 printer-reference EMF로 별도 렌더/메모리 재생하여 비교 이미지와 문자 수용 정보를 기록한다. 실제 spool 캡처가 아니므로 정상 비교 이미지가 드라이버 결함을 확정하지 않는다.
@@ -9,7 +30,7 @@
 - 검증 완료: 이전 빌드는 사용자 Y 선택으로 중단했으나 재개 요청 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공(46.3초).
 - `flutter test test/godex_inverse_reference_test.dart test/label_sheet_print_job_test.dart test/label_print_dispatcher_test.dart`에 해당하는 runTests 31건 통과. C++/pubspec 편집기 진단 오류 없음, git diff --check 통과.
 - 실행 완료: Debug EXE PID 16800, Responding=True, FileVersion/ProductVersion=1.3.93. .tmp/log/app_2026-09-08_20-52-28.log에서 버전 1.3.93과 DB connected successfully 확인. DTD 활성 앱이 없어 native 변경은 재빌드한 EXE 실행으로 반영했다.
-- 미검증/다음 단계: 현재 앱에서 기존 시험 라벨 1장 출력 후 우하단 v1.3.93, 최신 앱 로그의 inverseComparison, 생성된 BMP/EMF/TXT와 실물을 대조한다. 파일 생성/BMP 크기/changedPixels/EMF replay/문자 수용은 실제 출력 후 확인한다.
+- 후속 실물 진단 완료: IMG_20260908_0002.png와 20:54:10 로그, EMF/BMP/TXT 두 세트 확인. replay/save 성공, 620x480, changedPixels=1227/1992. 실제/비교 수용 68/72 및 66/75. 비교 이미지의 흰 사각형은 RichEdit 배경 채움에서 발생하며 v1.3.94에서 수정한다.
 - 정리: 새 임시 테스트 파일 없음. Debug 산출물은 실행에 사용하며 배포 빌드/원격 push 없음.
 - stage/commit 대상: windows/runner/label_bitmap_print_channel.cpp, pubspec.yaml, SESSION_HANDOFF.md. 사용자 변경 lib/core/app.dart 제외.
 - 구현 커밋: 8f3db4c (G500 역상 비교 이미지 진단 추가). 실물 검증과 진단 파일 검사는 사용자 출력 후 진행한다.

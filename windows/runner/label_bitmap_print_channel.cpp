@@ -1,4 +1,5 @@
 #include "label_bitmap_print_channel.h"
+#include "inverse_text_layout.h"
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
@@ -26,7 +27,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.93";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.94";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1213,14 +1214,14 @@ std::string SaveInverseComparison(
     HWND rich_edit, const FORMATRANGE& actual_range, const RECT& clip,
     const std::vector<uint8_t>& base, int width, int height,
     const NativeTextDescriptor& descriptor, LONG text_length,
-    LRESULT actual_until, LONG font_twips) {
+    LRESULT actual_until, LONG font_twips, const InverseTextLayout& layout) {
   try {
     const auto directory = std::filesystem::path(".tmp") / "log" /
                            "godex_inverse";
     std::filesystem::create_directories(directory);
     static unsigned long sequence = 0;
     const auto prefix = directory /
-        ("v1.3.93_" + std::to_string(GetCurrentProcessId()) + "_" +
+        ("v1.3.94_" + std::to_string(GetCurrentProcessId()) + "_" +
          std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence));
     const std::filesystem::path emf_path(prefix.string() + ".emf");
     InverseDiagnosticResources resources;
@@ -1230,11 +1231,16 @@ std::string SaveInverseComparison(
                MulDiv(height, 2540, dpi_y)};
     resources.recording = CreateEnhMetaFileW(
         actual_range.hdcTarget, emf_path.c_str(), &frame,
-        L"LabelManager\0Inverse comparison v1.3.93 - not spool capture\0");
+        L"LabelManager\0Inverse comparison v1.3.94 - not spool capture\0");
     if (resources.recording == nullptr) return "recordingFailed";
     SetMapMode(resources.recording, MM_TEXT);
     IntersectClipRect(resources.recording, clip.left, clip.top,
                       clip.right, clip.bottom);
+    if (layout.fitted &&
+        (SetGraphicsMode(resources.recording, GM_ADVANCED) == 0 ||
+         !SetWorldTransform(resources.recording, &layout.transform))) {
+      return "referenceTransformFailed";
+    }
     FORMATRANGE reference_range = actual_range;
     reference_range.hdc = resources.recording;
     const LRESULT reference_until = SendMessageW(
@@ -1292,14 +1298,20 @@ std::string SaveInverseComparison(
     }
     const bool comparison_saved = save_bitmap("_comparison.bmp");
     std::ofstream report(prefix.string() + ".txt");
-    report << "version=1.3.93\nkind=printerReferenceEmfReplay\n"
+    report << "version=1.3.94\nkind=printerReferenceEmfReplay\n"
+           << "transparentRichEdit=true\n"
            << "notActualSpoolCapture=true\nonlyThisWhiteDescriptor=true\n"
            << "dpi=" << dpi_x << "," << dpi_y << "\nsize=" << width << "," << height
            << "\nfont=" << descriptor.font_family_utf8
            << "\nfontDots=" << descriptor.font_pixel_height
            << "\nfontTwips=" << font_twips << "\nbold=" << descriptor.bold
            << "\nwrapRequested=" << descriptor.wrap
-           << "\nwrapConfigured=false\nclip=" << clip.left << "," << clip.top
+           << "\nlayoutPolicy=richEditMeasuredWidth"
+           << "\nlayoutWidth=" << layout.width
+           << "\nwidthFitted=" << layout.fitted
+           << "\nscaleX=" << layout.transform.eM11
+           << "\nscaleY=1\nmeasuredAllCharactersFit=" << layout.all_characters_fit
+           << "\nclip=" << clip.left << "," << clip.top
            << "," << clip.right << "," << clip.bottom
            << "\ninputUtf16=" << descriptor.text.size()
            << "\nrichEditLength=" << text_length
@@ -1345,7 +1357,7 @@ bool RenderWhiteTextIntoBitmap(
   HWND rich_edit = host == nullptr
                        ? nullptr
                        : CreateWindowExW(
-                             0, L"RICHEDIT50W", L"",
+                             WS_EX_TRANSPARENT, L"RICHEDIT50W", L"",
                              WS_CHILD | WS_VISIBLE | ES_MULTILINE, 0, 0,
                              target_width, target_height, host, nullptr,
                              GetModuleHandle(nullptr), nullptr);
@@ -1356,7 +1368,6 @@ bool RenderWhiteTextIntoBitmap(
             std::to_string(GetLastError());
     return false;
   }
-  const int dpi_x = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSX));
   const int dpi_y = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSY));
 
   for (const auto& descriptor : text_descriptors) {
@@ -1411,6 +1422,8 @@ bool RenderWhiteTextIntoBitmap(
     SendMessageW(rich_edit, EM_SETPARAFORMAT, 0,
                  reinterpret_cast<LPARAM>(&paragraph_format));
 
+    const auto layout = MeasureInverseTextLayout(
+        rich_edit, printer_dc, text_rect, descriptor.text, descriptor.wrap);
     const int printer_state = SaveDC(printer_dc);
     if (printer_state == 0) {
       ++stats.failed;
@@ -1418,16 +1431,18 @@ bool RenderWhiteTextIntoBitmap(
     }
     IntersectClipRect(printer_dc, text_rect.left, text_rect.top,
                       text_rect.right, text_rect.bottom);
-    FORMATRANGE format_range{};
-    format_range.hdc = printer_dc;
-    format_range.hdcTarget = printer_dc;
-    format_range.rc = {MulDiv(text_rect.left, 1440, dpi_x),
-                       MulDiv(text_rect.top, 1440, dpi_y),
-                       MulDiv(text_rect.right, 1440, dpi_x),
-                       MulDiv(text_rect.bottom, 1440, dpi_y)};
-    format_range.rcPage = format_range.rc;
-    format_range.chrg.cpMin = 0;
-    format_range.chrg.cpMax = -1;
+    if (layout.fitted &&
+        (SetGraphicsMode(printer_dc, GM_ADVANCED) == 0 ||
+         !SetWorldTransform(printer_dc, &layout.transform))) {
+      error = "SetWorldTransform inverse text failed: " +
+              std::to_string(GetLastError());
+      RestoreDC(printer_dc, printer_state);
+      DestroyWindow(rich_edit);
+      DestroyWindow(host);
+      FreeLibrary(rich_edit_module);
+      return false;
+    }
+    FORMATRANGE format_range = layout.range;
     const LRESULT formatted_until = SendMessageW(
         rich_edit, EM_FORMATRANGE, TRUE,
         reinterpret_cast<LPARAM>(&format_range));
@@ -1436,14 +1451,18 @@ bool RenderWhiteTextIntoBitmap(
     RestoreDC(printer_dc, printer_state);
     const LONG rich_edit_length = GetWindowTextLengthW(rich_edit);
     diagnostics << " inverseActualLength=" << rich_edit_length
+          << " inverseLayoutWidth=" << layout.width
+          << " inverseScaleX=" << layout.transform.eM11
           << " inverseActualFormattedUntil=" << formatted_until
           << " inverseActualAllCharactersFit="
           << (formatted_until >= rich_edit_length)
           << " inverseComparison="
           << SaveInverseComparison(
-               rich_edit, format_range, text_rect, bitmap,
+               rich_edit, layout.range, text_rect, bitmap,
                target_width, target_height, descriptor,
-               rich_edit_length, formatted_until, character_format.yHeight);
+               rich_edit_length, formatted_until, character_format.yHeight,
+               layout);
+    if (layout.fitted) ++stats.inverse_width_fitted;
     if (formatted_until > 0) {
       ++stats.drawn;
       ++stats.white_bitmap_drawn;
@@ -2010,7 +2029,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                     << " nativeTextWhiteRender="
                     << (godex_v1358_driver_direct ? "legacyRichEditPrinterDc"
                            : "fullRowPolarityFallback")
-                    << " printWatermark=v1.3.93"
+                    << " printWatermark=v1.3.94"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
