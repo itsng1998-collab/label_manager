@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 검증 대기: 역상 픽셀 합성 v1.3.95
+- v1.3.94 실물 IMG_20260908_0003.png: 흰 사각형과 끝 문구는 해결, 흰 획 소실은 지속. 실제/참조 전체 수용 73/72, 76/75이며 비교 이미지는 온전했다. 드라이버/열 번짐을 확정 원인으로 단정하지 않는다.
+- 생산 변경: 수정된 RichEdit를 printer-reference EMF에 렌더하고 CompositeInverseTextBitmap으로 역상 clip에만 흑백 합성한 뒤 기존 단일 StretchDIBits로 전송한다. 일반 검정 text/표선/DB/프린터 설정 불변. native white 직접 렌더와 실패한 흰 마스크 방식은 재사용하지 않는다.
+- 좌표 원인 해결: EMF 헤더 device=620x480, mm=78x60, frame=7758x6006(0.01mm). 페이지 폭 강제 맞춤은 약 0.54% X 확대를 유발했다. 헤더 기준 프레임을 장치 픽셀로 환산해 표준 PlayEnhMetaFile에 전달한다. 실패한 NULL DC callback(명령 35 실패)은 제거했다.
+- SaveInverseComparison은 실제 합성 전후 벡터와 사용 EMF 저장만 담당한다. kind=submittedInverseBitmap, nativeWhiteTextToPrinter=false. 이전 역상은 포함하지만 일반 검정 native text와 워터마크는 포함하지 않는다. 실제 spool 캡처는 아니다.
+- 버전/워터마크 PATCH 1.3.94 -> 1.3.95. 새 로그: nativeTextWhiteRender=richEditBilevelComposite, nativeTextWhiteDirectDrawn=0, inverseCompositeChangedPixels, inverseAllCharactersFit.
+- 검증 완료: `/WX` native probe 빌드, CTest 1/1 통과. 실제 v1.3.94 두 세트 --replay 모두 PASS(changedPixels=1249/1491, grayPixelsRemoved=1170/1725), clip 밖과 alpha 보존, clip 안 이진 흑백, 좌/우 3픽셀 경계 표식 및 가로 변환 유무 모두 불일치 0. PNG에서 함유/kcal 끝과 흰 사각형 없음 확인.
+- 최종 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공(16.4초). 관련 godex_inverse_reference/label_sheet_print_job/label_print_dispatcher runTests 31건 통과. 편집기 오류 없음, git diff --check 통과.
+- 실행 완료: Debug EXE PID 3760, Responding=True, FileVersion/ProductVersion=1.3.95. .tmp/log/app_2026-09-08_21-24-38.log에서 버전과 DB 연결 성공 확인. DTD 활성 앱이 없어 native 변경은 EXE 재빌드·실행으로 반영했다.
+- 다음 실물 검사: 현재 앱에서 기존 라벨 1장 출력 후 v1.3.95 마크/흰 획/끝 문구를 확인하고 .tmp/log/godex_inverse의 새 _comparison.bmp와 실제 사진을 대조한다. 실물 획 소실 개선 및 새 저장 진단은 아직 미검증이다.
+- 임시 자료: .tmp/inverse_probe_build, .tmp/inverse_composite_{1,2}.bmp/.png 및 원본 진단/사진은 로컬 보존, 커밋 제외. 배포 빌드/원격 push 없음.
+- stage 대상: SESSION_HANDOFF.md, pubspec.yaml, windows/runner/{label_bitmap_print_channel.cpp,inverse_text_bitmap.h}, tools/inverse_rich_edit_probe/{main.cpp,README.md}. 기존 사용자 변경 lib/core/app.dart는 제외한다.
+
 ## 구현 완료·실물 검증 대기: 역상 배경 및 가로 배치 v1.3.94
 - v1.3.93 실물 IMG_20260908_0002.png에서 획 소실 재현. 비교 EMF에서는 글자 형태가 더 온전하지만 오른쪽 흰 사각형은 재현된다. base에는 사각형이 없다.
 - 실제/비교 formattedUntil은 68/72, 66/75로 일치하며 전체 문자열 미수용. 공백 포함 UTF-16 위치이므로 차이를 누락 한글 수로 해석하지 않는다.

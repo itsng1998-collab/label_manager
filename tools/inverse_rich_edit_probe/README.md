@@ -10,7 +10,11 @@ cmake --build .tmp/inverse_probe_build --config Debug
 ctest --test-dir .tmp/inverse_probe_build -C Debug --output-on-failure
 ```
 
-CTest는 자체 합성 문자열을 사용한다. 저장된 역상 EMF로 검사하려면:
+CTest는 자체 합성 문자열을 사용한다.
+좌/우 clip 경계의 3픽셀 표식이 원래 좌표에 남는지도 가로 변환 유무별로 검사한다.
+재생 목적지는 출력 비트맵 폭이 아니라 EMF 헤더의 프레임과 참조 장치 크기로 환산한다.
+
+저장된 역상 EMF로 검사하려면:
 
 ```powershell
 .tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe <source.emf> .tmp/inverse_probe
@@ -26,6 +30,19 @@ EMF 입력 모드는 기록된 텍스트에 합성 숫자 꼬리를 추가한다
 - 4: 투명 control로 흰 배경 채우기를 없앤다. 폭 문제는 남는다.
 - 5~6: 투명 control과 생산 코드의 `MeasureInverseTextLayout`을 사용한다.
   별도 DC 및 동일 DC 측정/출력에서 전체 문자열 기록, 수용 위치와 흰 사각형 제거를 검사한다.
+- 7: 생산 코드의 `CompositeInverseTextBitmap`으로 역상 clip만 흑백 픽셀로 합성한다.
+  영역 밖 픽셀과 alpha 보존, 흑백 값, 변경 픽셀 발생을 검사한다.
+
+실제 진단 세트의 EMF와 base를 그대로 합성하려면 확장자 없는 접두 경로를 지정한다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --replay <diagnostic-prefix> .tmp/inverse_composite.bmp
+```
+
+이 모드는 같은 접두 경로의 `.txt`에서 clip을 읽고 `_base.bmp`와 `.emf`를 사용한다.
+v1.3.95의 `_comparison.bmp`는 별도 참조 렌더가 아니라 실제 전송할 합성 벡터를 저장한 것이다.
+앞서 합성한 역상은 포함되지만 뒤에 직접 그리는 일반 검정 글자와 워터마크는 포함하지 않는다.
+실패한 native white printer DC 렌더와 전체 EMF 프린터 전송, 흰 마스크 추출은 재사용하지 않는다.
 
 가로 맞춤은 높이와 세로 좌표를 유지한다. 짧은 문자열, wrap=true, 명시적 개행은 축소하지 않는다.
 EMF 재생은 실제 스풀 캡처가 아니며 실물의 획 소실 개선 여부를 보장하지 않는다.

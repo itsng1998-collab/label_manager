@@ -1,5 +1,6 @@
 #include "label_bitmap_print_channel.h"
 #include "inverse_text_layout.h"
+#include "inverse_text_bitmap.h"
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
@@ -27,7 +28,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.94";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.95";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1189,67 +1190,40 @@ bool RenderWhiteTextIntoBitmapGgoExperiment(
 }
 #endif
 
-struct InverseDiagnosticResources {
+struct InverseEmfResources {
   HDC recording = nullptr;
   HENHMETAFILE metafile = nullptr;
-  HDC memory = nullptr;
-  HBITMAP bitmap = nullptr;
-  HGDIOBJ previous_bitmap = nullptr;
 
-  ~InverseDiagnosticResources() {
+  ~InverseEmfResources() {
     if (recording != nullptr) {
       HENHMETAFILE unfinished = CloseEnhMetaFile(recording);
       if (unfinished != nullptr) DeleteEnhMetaFile(unfinished);
     }
     if (metafile != nullptr) DeleteEnhMetaFile(metafile);
-    if (previous_bitmap != nullptr && previous_bitmap != HGDI_ERROR) {
-      SelectObject(memory, previous_bitmap);
-    }
-    if (bitmap != nullptr) DeleteObject(bitmap);
-    if (memory != nullptr) DeleteDC(memory);
   }
 };
 
 std::string SaveInverseComparison(
-    HWND rich_edit, const FORMATRANGE& actual_range, const RECT& clip,
-    const std::vector<uint8_t>& base, int width, int height,
+    HENHMETAFILE metafile, HDC printer, const RECT& clip,
+    const std::vector<uint8_t>& base, const std::vector<uint8_t>& composed,
+    int width, int height,
     const NativeTextDescriptor& descriptor, LONG text_length,
-    LRESULT actual_until, LONG font_twips, const InverseTextLayout& layout) {
+    LRESULT formatted_until, LONG font_twips, const InverseTextLayout& layout,
+    const InverseBitmapResult& composite) {
   try {
     const auto directory = std::filesystem::path(".tmp") / "log" /
                            "godex_inverse";
     std::filesystem::create_directories(directory);
     static unsigned long sequence = 0;
     const auto prefix = directory /
-        ("v1.3.94_" + std::to_string(GetCurrentProcessId()) + "_" +
+        ("v1.3.95_" + std::to_string(GetCurrentProcessId()) + "_" +
          std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence));
     const std::filesystem::path emf_path(prefix.string() + ".emf");
-    InverseDiagnosticResources resources;
-    const int dpi_x = GetDeviceCaps(actual_range.hdcTarget, LOGPIXELSX);
-    const int dpi_y = GetDeviceCaps(actual_range.hdcTarget, LOGPIXELSY);
-    RECT frame{0, 0, MulDiv(width, 2540, dpi_x),
-               MulDiv(height, 2540, dpi_y)};
-    resources.recording = CreateEnhMetaFileW(
-        actual_range.hdcTarget, emf_path.c_str(), &frame,
-        L"LabelManager\0Inverse comparison v1.3.94 - not spool capture\0");
-    if (resources.recording == nullptr) return "recordingFailed";
-    SetMapMode(resources.recording, MM_TEXT);
-    IntersectClipRect(resources.recording, clip.left, clip.top,
-                      clip.right, clip.bottom);
-    if (layout.fitted &&
-        (SetGraphicsMode(resources.recording, GM_ADVANCED) == 0 ||
-         !SetWorldTransform(resources.recording, &layout.transform))) {
-      return "referenceTransformFailed";
-    }
-    FORMATRANGE reference_range = actual_range;
-    reference_range.hdc = resources.recording;
-    const LRESULT reference_until = SendMessageW(
-        rich_edit, EM_FORMATRANGE, TRUE,
-        reinterpret_cast<LPARAM>(&reference_range));
-    SendMessageW(rich_edit, EM_FORMATRANGE, FALSE, 0);
-    resources.metafile = CloseEnhMetaFile(resources.recording);
-    resources.recording = nullptr;
-    if (resources.metafile == nullptr) return "closeMetafileFailed";
+    const HENHMETAFILE saved_emf = CopyEnhMetaFileW(metafile, emf_path.c_str());
+    const bool emf_saved = saved_emf != nullptr;
+    if (saved_emf != nullptr) DeleteEnhMetaFile(saved_emf);
+    const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
+    const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
 
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -1260,17 +1234,8 @@ std::string SaveInverseComparison(
     info.bmiHeader.biCompression = BI_RGB;
     info.bmiHeader.biXPelsPerMeter = MulDiv(dpi_x, 10000, 254);
     info.bmiHeader.biYPelsPerMeter = MulDiv(dpi_y, 10000, 254);
-    resources.memory = CreateCompatibleDC(actual_range.hdcTarget);
-    if (resources.memory == nullptr) return "memoryDcFailed";
-    void* pixels = nullptr;
-    resources.bitmap = CreateDIBSection(resources.memory, &info,
-        DIB_RGB_COLORS, &pixels, nullptr, 0);
-    if (resources.bitmap == nullptr || pixels == nullptr) return "dibFailed";
-    resources.previous_bitmap = SelectObject(resources.memory, resources.bitmap);
-    if (resources.previous_bitmap == nullptr ||
-        resources.previous_bitmap == HGDI_ERROR) return "selectBitmapFailed";
-    std::copy(base.begin(), base.end(), static_cast<uint8_t*>(pixels));
-    const auto save_bitmap = [&](const std::string& suffix) {
+    const auto save_bitmap = [&](const std::string& suffix,
+                                 const std::vector<uint8_t>& pixels) {
       BITMAPFILEHEADER header{};
       header.bfType = 0x4d42;
       header.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
@@ -1279,28 +1244,18 @@ std::string SaveInverseComparison(
       file.write(reinterpret_cast<const char*>(&header), sizeof(header));
       file.write(reinterpret_cast<const char*>(&info.bmiHeader),
                  sizeof(info.bmiHeader));
-      file.write(static_cast<const char*>(pixels),
-                 static_cast<std::streamsize>(base.size()));
+      file.write(reinterpret_cast<const char*>(pixels.data()),
+             static_cast<std::streamsize>(pixels.size()));
       file.close();
       return !file.fail();
     };
-    const bool base_saved = save_bitmap("_base.bmp");
-    RECT destination{0, 0, width, height};
-    const BOOL replayed = PlayEnhMetaFile(resources.memory, resources.metafile,
-                                        &destination);
-    GdiFlush();
-    size_t changed_pixels = 0;
-    const auto* rendered = static_cast<const uint8_t*>(pixels);
-    for (size_t offset = 0; offset < base.size(); offset += 4) {
-      if (base[offset] != rendered[offset] ||
-          base[offset + 1] != rendered[offset + 1] ||
-          base[offset + 2] != rendered[offset + 2]) ++changed_pixels;
-    }
-    const bool comparison_saved = save_bitmap("_comparison.bmp");
+    const bool base_saved = save_bitmap("_base.bmp", base);
+    const bool comparison_saved = save_bitmap("_comparison.bmp", composed);
     std::ofstream report(prefix.string() + ".txt");
-    report << "version=1.3.94\nkind=printerReferenceEmfReplay\n"
+       report << "version=1.3.95\nkind=submittedInverseBitmap\n"
            << "transparentRichEdit=true\n"
-           << "notActualSpoolCapture=true\nonlyThisWhiteDescriptor=true\n"
+            << "notActualSpoolCapture=true\nincludesPreviousWhiteDescriptors=true\n"
+            << "inverseComposite=beforeSingleDibTransfer\nthreshold=128\n"
            << "dpi=" << dpi_x << "," << dpi_y << "\nsize=" << width << "," << height
            << "\nfont=" << descriptor.font_family_utf8
            << "\nfontDots=" << descriptor.font_pixel_height
@@ -1315,17 +1270,18 @@ std::string SaveInverseComparison(
            << "," << clip.right << "," << clip.bottom
            << "\ninputUtf16=" << descriptor.text.size()
            << "\nrichEditLength=" << text_length
-           << "\nactualFormattedUntil=" << actual_until
-           << "\nactualAllCharactersFit=" << (actual_until >= text_length)
-           << "\nreferenceFormattedUntil=" << reference_until
-           << "\nreferenceAllCharactersFit=" << (reference_until >= text_length)
-           << "\nreplaySucceeded=" << (replayed != FALSE)
-           << "\nchangedPixels=" << changed_pixels
+           << "\nformattedUntil=" << formatted_until
+           << "\nallCharactersFit=" << (formatted_until >= text_length)
+           << "\nnativeWhiteTextToPrinter=false"
+           << "\nreplaySucceeded=" << composite.success
+           << "\nchangedPixels=" << composite.changed_pixels
+           << "\ngrayPixelsRemoved=" << composite.gray_pixels
+           << "\nemfSaved=" << emf_saved
            << "\nbaseSaved=" << base_saved
            << "\ncomparisonSaved=" << comparison_saved << "\n";
     report.close();
     return prefix.generic_string() +
-        ((base_saved && comparison_saved && replayed && !report.fail())
+        ((base_saved && comparison_saved && emf_saved && !report.fail())
              ? ":saved" : ":incomplete");
   } catch (...) {
     return "diagnosticSaveFailed";
@@ -1369,6 +1325,8 @@ bool RenderWhiteTextIntoBitmap(
     return false;
   }
   const int dpi_y = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSY));
+  const int dpi_x = std::max(1, GetDeviceCaps(printer_dc, LOGPIXELSX));
+  bool rendered_all = true;
 
   for (const auto& descriptor : text_descriptors) {
     if (descriptor.color != RGB(255, 255, 255)) continue;
@@ -1424,44 +1382,62 @@ bool RenderWhiteTextIntoBitmap(
 
     const auto layout = MeasureInverseTextLayout(
         rich_edit, printer_dc, text_rect, descriptor.text, descriptor.wrap);
-    const int printer_state = SaveDC(printer_dc);
-    if (printer_state == 0) {
-      ++stats.failed;
-      continue;
+    // v1.3.94의 흰 글자 printer DC 직접 렌더는 획 소실로 폐기했으며 재사용하지 않는다.
+    InverseEmfResources resources;
+    RECT frame{0, 0, MulDiv(target_width, 2540, dpi_x),
+               MulDiv(target_height, 2540, dpi_y)};
+    resources.recording = CreateEnhMetaFileW(printer_dc, nullptr, &frame, nullptr);
+    if (resources.recording == nullptr) {
+      error = "CreateEnhMetaFile inverse text failed";
+      rendered_all = false;
+      break;
     }
-    IntersectClipRect(printer_dc, text_rect.left, text_rect.top,
+    SetMapMode(resources.recording, MM_TEXT);
+    IntersectClipRect(resources.recording, text_rect.left, text_rect.top,
                       text_rect.right, text_rect.bottom);
     if (layout.fitted &&
-        (SetGraphicsMode(printer_dc, GM_ADVANCED) == 0 ||
-         !SetWorldTransform(printer_dc, &layout.transform))) {
-      error = "SetWorldTransform inverse text failed: " +
-              std::to_string(GetLastError());
-      RestoreDC(printer_dc, printer_state);
-      DestroyWindow(rich_edit);
-      DestroyWindow(host);
-      FreeLibrary(rich_edit_module);
-      return false;
+        (SetGraphicsMode(resources.recording, GM_ADVANCED) == 0 ||
+         !SetWorldTransform(resources.recording, &layout.transform))) {
+      error = "SetWorldTransform inverse recording failed";
+      rendered_all = false;
+      break;
     }
     FORMATRANGE format_range = layout.range;
+    format_range.hdc = resources.recording;
     const LRESULT formatted_until = SendMessageW(
         rich_edit, EM_FORMATRANGE, TRUE,
         reinterpret_cast<LPARAM>(&format_range));
     SendMessageW(rich_edit, EM_FORMATRANGE, FALSE, 0);
-    GdiFlush();
-    RestoreDC(printer_dc, printer_state);
+    resources.metafile = CloseEnhMetaFile(resources.recording);
+    resources.recording = nullptr;
+    if (resources.metafile == nullptr || formatted_until <= 0) {
+      error = "RichEdit inverse recording failed";
+      rendered_all = false;
+      break;
+    }
+    const auto base = bitmap;
+    const auto composite = CompositeInverseTextBitmap(
+        printer_dc, resources.metafile, text_rect, target_width, target_height,
+        bitmap);
+    if (!composite.success) {
+      error = "CompositeInverseTextBitmap failed";
+      rendered_all = false;
+      break;
+    }
     const LONG rich_edit_length = GetWindowTextLengthW(rich_edit);
-    diagnostics << " inverseActualLength=" << rich_edit_length
+    diagnostics << " inverseTextLength=" << rich_edit_length
           << " inverseLayoutWidth=" << layout.width
           << " inverseScaleX=" << layout.transform.eM11
-          << " inverseActualFormattedUntil=" << formatted_until
-          << " inverseActualAllCharactersFit="
+          << " inverseFormattedUntil=" << formatted_until
+          << " inverseAllCharactersFit="
           << (formatted_until >= rich_edit_length)
           << " inverseComparison="
           << SaveInverseComparison(
-               rich_edit, layout.range, text_rect, bitmap,
+               resources.metafile, printer_dc, text_rect, base, bitmap,
                target_width, target_height, descriptor,
                rich_edit_length, formatted_until, character_format.yHeight,
-               layout);
+               layout, composite);
+    stats.bitmap_changed_pixels += composite.changed_pixels;
     if (layout.fitted) ++stats.inverse_width_fitted;
     if (formatted_until > 0) {
       ++stats.drawn;
@@ -1475,8 +1451,7 @@ bool RenderWhiteTextIntoBitmap(
   DestroyWindow(rich_edit);
   DestroyWindow(host);
   FreeLibrary(rich_edit_module);
-  (void)bitmap;
-  return true;
+  return rendered_all;
 }
 
 bool RenderNativeTextToPrinterDc(
@@ -2020,16 +1995,16 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
                     << " outputMode="
                     << (godex_v1358_driver_direct
-                      ? "driverDirect32V1358+legacyInverse"
+                      ? "driverDirect32V1358+richEditInverseBitmap"
                       : "monoDibBoxedHeader")
                     << " nativeTextRaster="
                     << (godex_v1358_driver_direct
-                      ? "printerDcDirect32+legacyInverse"
+                      ? "printerDcDirect32+inverseBitmap"
                       : "boxedHeaderBlackOnWhite")
                     << " nativeTextWhiteRender="
-                    << (godex_v1358_driver_direct ? "legacyRichEditPrinterDc"
+                    << (godex_v1358_driver_direct ? "richEditBilevelComposite"
                            : "fullRowPolarityFallback")
-                    << " printWatermark=v1.3.94"
+                    << " printWatermark=v1.3.95"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -2094,6 +2069,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
         *bgra, source_width, source_height, target_width, target_height,
         border_descriptors);
     NativeTextRenderStats native_text_stats;
+    if (godex_v1358_driver_direct && !RenderWhiteTextIntoBitmap(
+          composed_bitmap, target_width, target_height, source_width,
+          source_height, text_descriptors, page_dc, native_text_stats,
+          error, diagnostics)) {
+      break;
+    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -2131,19 +2112,14 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                 }),
             render_text_descriptors.end());
       }
-        const bool legacy_inverse_rendered =
-          !godex_v1358_driver_direct || RenderWhiteTextIntoBitmap(
-            composed_bitmap, target_width, target_height, source_width,
-            source_height, text_descriptors, page_dc, native_text_stats,
-            error, diagnostics);
-        if (legacy_inverse_rendered && !RenderNativeTextToPrinterDc(
+        if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
               source_height, render_text_descriptors, page_dc,
               native_text_stats, error)) {
-        } else if (legacy_inverse_rendered && !DrawPrintTestWatermark(
+        } else if (!DrawPrintTestWatermark(
                page_dc, destination_x, destination_y, target_width,
                target_height, error)) {
-        } else if (legacy_inverse_rendered) {
+        } else {
       int native_borders_drawn = 0;
       int native_border_fill_rects = 0;
       std::vector<DeviceBorderRect> device_borders;
@@ -2241,7 +2217,9 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextWhiteBitmapDrawn="
                   << native_text_stats.white_bitmap_drawn
                   << " nativeTextWhiteDirectDrawn="
-                  << native_text_stats.white_bitmap_drawn
+                  << 0
+                  << " inverseCompositeChangedPixels="
+                  << native_text_stats.bitmap_changed_pixels
                   << " nativeTextWhiteKnockoutPixels="
                   << native_text_stats.white_knockout_pixels
                   << " nativeTextWhiteGlyphBitmaps="
@@ -2254,7 +2232,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropicSplit"
                   << " nativeTextComposite="
                   << (godex_v1358_driver_direct
-                          ? "bitmapThenLegacyRichEditWhiteThenBlackPrinterDc"
+                          ? "inverseInBitmapThenBlackPrinterDc"
                           : "boxedHeaderMonoDib")
                   << " inverseRowFallbackDescriptors="
                   << inverse_row_fallback_stats.descriptors

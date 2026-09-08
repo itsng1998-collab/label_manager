@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include "../../windows/runner/inverse_text_layout.h"
+#include "../../windows/runner/inverse_text_bitmap.h"
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
                          int, LPARAM context) {
@@ -19,7 +21,123 @@ int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
   return 1;
 }
 
+bool VerifyDeviceCoordinates(HDC printer) {
+  const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
+  const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
+  RECT frame{0, 0, MulDiv(620, 2540, dpi_x), MulDiv(480, 2540, dpi_y)};
+  bool valid = true;
+  for (int fitted = 0; fitted < 2; ++fitted) {
+    HDC recording = CreateEnhMetaFileW(printer, nullptr, &frame, nullptr);
+    if (recording == nullptr) return false;
+    SetMapMode(recording, MM_TEXT);
+    if (fitted != 0) {
+      SetGraphicsMode(recording, GM_ADVANCED);
+      XFORM transform{0.5f, 0, 0, 1, 7.5f, 0};
+      SetWorldTransform(recording, &transform);
+    }
+    RECT left{15, 90, fitted != 0 ? 21 : 18, 93};
+    RECT right{fitted != 0 ? 1179 : 597, 106,
+               fitted != 0 ? 1185 : 600, 109};
+    FillRect(recording, &left, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+    FillRect(recording, &right, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+    HENHMETAFILE metafile = CloseEnhMetaFile(recording);
+    if (metafile == nullptr) return false;
+    std::vector<uint8_t> pixels(620 * 480 * 4, 0);
+    const auto result = CompositeInverseTextBitmap(
+        printer, metafile, RECT{15, 90, 600, 109}, 620, 480, pixels);
+    DeleteEnhMetaFile(metafile);
+    valid = valid && result.success;
+    int mismatches = 0;
+    for (int row = 0; row < 480; ++row) {
+      for (int column = 0; column < 620; ++column) {
+        const bool expected_white =
+            (row >= 90 && row < 93 && column >= 15 && column < 18) ||
+            (row >= 106 && row < 109 && column >= 597 && column < 600);
+        const uint8_t expected = expected_white ? 255 : 0;
+        const size_t offset = (static_cast<size_t>(row) * 620 + column) * 4;
+        if (pixels[offset] != expected || pixels[offset + 1] != expected ||
+            pixels[offset + 2] != expected) ++mismatches;
+      }
+    }
+    std::cout << "deviceCoordinates fitted=" << fitted
+              << " mismatches=" << mismatches << "\n";
+    valid = valid && mismatches == 0;
+  }
+  return valid;
+}
+
+int ReplaySavedComposite(const std::filesystem::path& prefix,
+                         const std::filesystem::path& output) {
+  std::ifstream report(prefix.wstring() + L".txt");
+  std::string line;
+  RECT clip{};
+  bool clip_found = false;
+  while (std::getline(report, line)) {
+    if (line.rfind("clip=", 0) == 0) {
+      line.erase(0, 5);
+      std::replace(line.begin(), line.end(), ',', ' ');
+      std::istringstream values(line);
+      clip_found = static_cast<bool>(values >> clip.left >> clip.top >> clip.right >> clip.bottom);
+    }
+  }
+  std::ifstream input(prefix.wstring() + L"_base.bmp", std::ios::binary);
+  BITMAPFILEHEADER header{};
+  BITMAPINFOHEADER info{};
+  input.read(reinterpret_cast<char*>(&header), sizeof(header));
+  input.read(reinterpret_cast<char*>(&info), sizeof(info));
+  if (!input || !clip_found || header.bfType != 0x4d42 ||
+      info.biBitCount != 32 || info.biCompression != BI_RGB ||
+      info.biWidth <= 0 || info.biHeight >= 0) return 2;
+  const int width = info.biWidth;
+  const int height = -info.biHeight;
+  std::vector<uint8_t> pixels(static_cast<size_t>(width) * height * 4);
+  input.seekg(header.bfOffBits);
+  input.read(reinterpret_cast<char*>(pixels.data()),
+             static_cast<std::streamsize>(pixels.size()));
+  if (!input) return 3;
+  const auto before = pixels;
+  HDC printer = CreateDCW(L"WINSPOOL", L"Godex G500", nullptr, nullptr);
+  HENHMETAFILE metafile = GetEnhMetaFileW((prefix.wstring() + L".emf").c_str());
+  if (printer == nullptr || metafile == nullptr) {
+    if (printer != nullptr) DeleteDC(printer);
+    if (metafile != nullptr) DeleteEnhMetaFile(metafile);
+    return 4;
+  }
+  const auto result = CompositeInverseTextBitmap(printer, metafile, clip,
+                                                 width, height, pixels);
+  DeleteEnhMetaFile(metafile);
+  DeleteDC(printer);
+  bool valid = result.success && result.changed_pixels > 0;
+  for (int row = 0; row < height; ++row) {
+    for (int column = 0; column < width; ++column) {
+      const size_t offset = (static_cast<size_t>(row) * width + column) * 4;
+      if (column < clip.left || column >= clip.right || row < clip.top || row >= clip.bottom) {
+        valid = valid && std::equal(pixels.begin() + offset,
+            pixels.begin() + offset + 4, before.begin() + offset);
+      } else {
+        valid = valid && (pixels[offset] == 0 || pixels[offset] == 255) &&
+                pixels[offset] == pixels[offset + 1] && pixels[offset] == pixels[offset + 2];
+      }
+      valid = valid && pixels[offset + 3] == before[offset + 3];
+    }
+  }
+  std::ofstream image(output, std::ios::binary);
+  image.write(reinterpret_cast<const char*>(&header), sizeof(header));
+  image.write(reinterpret_cast<const char*>(&info), sizeof(info));
+  image.write(reinterpret_cast<const char*>(pixels.data()),
+              static_cast<std::streamsize>(pixels.size()));
+  image.close();
+  valid = valid && !image.fail();
+  std::cout << "savedComposite=" << (valid ? "PASS" : "FAIL")
+            << " changedPixels=" << result.changed_pixels
+            << " grayPixelsRemoved=" << result.gray_pixels << "\n";
+  return valid ? 0 : 1;
+}
+
 int wmain(int count, wchar_t** arguments) {
+  if (count == 4 && std::wstring(arguments[1]) == L"--replay") {
+    return ReplaySavedComposite(arguments[2], arguments[3]);
+  }
   if (count != 3) return 2;
   const auto output_directory = std::filesystem::path(arguments[2]);
   std::filesystem::create_directories(output_directory);
@@ -40,8 +158,8 @@ int wmain(int count, wchar_t** arguments) {
   if (printer == nullptr || module == nullptr) return 4;
   const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
   const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
-  bool success = true;
-  for (int variant = 0; variant < 7; ++variant) {
+  bool success = VerifyDeviceCoordinates(printer);
+  for (int variant = 0; variant < 8; ++variant) {
     HWND host = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
         L"STATIC", L"", WS_POPUP, 0, 0, 620, 480, nullptr, nullptr,
         GetModuleHandleW(nullptr), nullptr);
@@ -139,6 +257,39 @@ int wmain(int count, wchar_t** arguments) {
     RECT destination{0, 0, 620, 480};
     const BOOL replayed = PlayEnhMetaFile(memory, result, &destination);
     GdiFlush();
+    if (variant == 7) {
+      std::vector<uint8_t> flattened(620 * 480 * 4, 0);
+      for (size_t offset = 0; offset < flattened.size(); offset += 4) {
+        const size_t row = offset / 4 / 620;
+        const size_t column = offset / 4 % 620;
+        if (row < 291 || row >= 310 || column < 15 || column >= 600) {
+          flattened[offset] = 32;
+          flattened[offset + 1] = 64;
+          flattened[offset + 2] = 96;
+        }
+        flattened[offset + 3] = 255;
+      }
+      const auto before = flattened;
+      const auto composite = CompositeInverseTextBitmap(
+          printer, result, RECT{15, 291, 600, 310}, 620, 480, flattened);
+      success = success && composite.success && composite.changed_pixels > 0;
+      for (size_t offset = 0; offset < flattened.size(); offset += 4) {
+        const size_t row = offset / 4 / 620;
+        const size_t column = offset / 4 % 620;
+        if (row < 291 || row >= 310 || column < 15 || column >= 600) {
+          success = success && std::equal(flattened.begin() + offset,
+              flattened.begin() + offset + 4, before.begin() + offset);
+        } else {
+          success = success && (flattened[offset] == 0 || flattened[offset] == 255) &&
+              flattened[offset] == flattened[offset + 1] &&
+              flattened[offset] == flattened[offset + 2];
+        }
+        success = success && flattened[offset + 3] == before[offset + 3];
+      }
+      std::copy(flattened.begin(), flattened.end(), static_cast<uint8_t*>(pixels));
+      std::cout << "flattenedPixels=" << composite.changed_pixels
+                << " grayPixelsRemoved=" << composite.gray_pixels << "\n";
+    }
     BITMAPFILEHEADER header{};
     header.bfType = 0x4d42;
     header.bfOffBits = sizeof(header) + sizeof(BITMAPINFOHEADER);
