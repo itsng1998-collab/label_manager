@@ -11,6 +11,7 @@
 - 다음 확인: 같은 라벨 출력 후 *_after_native.txt의 역상별 whitePixelsLost, referenceDrawn/Fitted와 실제 출력 통계를 비교한다. 기존 이미지에는 없었던 일반 검정 text 후속 합성 결과를 확인하며, 0이어도 드라이버/열 원인으로 확정하지 않는다. 실물 획 소실은 아직 해결되지 않았다.
 - 임시 출력/빌드 캐시는 로컬 진단용으로 유지하고 stage 제외. stage 예정: SESSION_HANDOFF.md, pubspec.yaml, windows/runner/{native_text_comparison.h,label_bitmap_print_channel.cpp}, tools/inverse_rich_edit_probe/{main.cpp,README.md}. 기존 lib/core/app.dart 변경은 제외. DB/프린터 설정/배포/원격 push 변경 없음.
 - 실행 확인: .tmp/log/app_2026-09-08_23-25-53.log의 version=1.3.97 및 DB connected successfully, PID 8452 Responding=True 확인. 최종 git diff --check 통과. 위 6개 파일만 stage/commit 진행.
+- 구현 커밋: d0ade63 (일반 글자 후속 합성의 역상 픽셀 손실 진단 추가). 이번 버전은 품질 개선이 아닌 관측 누락 보완이며, 검정 글자 덮임 가설과 실제 생성 진단 검증은 다음 사용자 출력 대기이다.
 
 ## 구현 완료·실물 검증 대기: 역상 1비트 직접 렌더 v1.3.96
 - IMG_20260908_0004.png와 22:32:59 로그 확인: v1.3.95, 전체 수용, nativeWhiteDirect=0, 실제 합성 이미지에는 문구가 있으나 실물 획 소실 지속. 프린터/열 원인은 확정하지 않는다.
