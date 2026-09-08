@@ -12,6 +12,7 @@
 - 다음 확인: 기존 시험 라벨 1장 출력 후 v1.3.96 마크와 획 소실/끝 문구 확인. 새 진단에서 nativeTextWhiteRender=richEditDirectMonoComposite, rasterBitCount=1, postRasterThreshold=none을 확인한다. 실물 개선과 새 진단 저장은 미검증이다.
 - 임시 .tmp/inverse_mono_{1,2}.bmp/.png, inverse_v1395_zoom.png는 비교용 로컬 자료로 보존, stage 제외. 프린터 설정/DB/일반 글자/표선/배포/원격 push 변경 없음.
 - stage 대상: SESSION_HANDOFF.md, pubspec.yaml, windows/runner/{inverse_text_bitmap.h,label_bitmap_print_channel.cpp}, tools/inverse_rich_edit_probe/{main.cpp,README.md}. 기존 lib/core/app.dart는 제외한다.
+- 구현 커밋: 5c62559 (역상 글리프를 1비트 DIB에 직접 렌더하도록 보완). 실물 품질 검증은 다음 출력 대기이다.
 
 ## 구현 완료·실물 검증 대기: 역상 픽셀 합성 v1.3.95
 - v1.3.94 실물 IMG_20260908_0003.png: 흰 사각형과 끝 문구는 해결, 흰 획 소실은 지속. 실제/참조 전체 수용 73/72, 76/75이며 비교 이미지는 온전했다. 드라이버/열 번짐을 확정 원인으로 단정하지 않는다.
