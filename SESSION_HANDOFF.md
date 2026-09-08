@@ -1,5 +1,18 @@
 # 현재 작업 상태
 
+## 구현 완료·실물 진단 대기: G500 역상 비교 이미지 v1.3.93
+- 9/8 실물 IMG_20260908_0001.png는 역상 획 소실 재현. 로그는 17dot, RichEdit 2건, border 225건, v1.3.92 앱/v1.3.91 마크. 5pt->11dot 차이를 이번 실물의 확정 원인으로 사용하지 않는다.
+- 수정 목적: 실제 printer DC 출력은 유지하고 출력 후 같은 RichEdit를 printer-reference EMF로 별도 렌더/메모리 재생하여 비교 이미지와 문자 수용 정보를 기록한다. 실제 spool 캡처가 아니므로 정상 비교 이미지가 드라이버 결함을 확정하지 않는다.
+- C++ 편집 완료: .tmp/log/godex_inverse/v1.3.93_PID_tick_sequence별 .emf, _base.bmp, _comparison.bmp, .txt. 각 파일은 해당 흰 descriptor 하나만 포함하며 일반 native text는 포함하지 않는다. 저장 실패는 인쇄 성공 여부에 영향을 주지 않는다. 라벨 내용이 포함된 로컬 진단 파일은 외부 전송하지 않는다.
+- 실제/비교 formattedUntil과 RichEdit 길이를 기록한다. 기존 성공 집계는 유지하되 새 allCharactersFit와 구분한다. 서식/폰트 크기/클립/일반 영역/DB/프린터 설정은 변경하지 않는다.
+- 버전 1.3.92 -> 1.3.93, 마크 v1.3.93. 진단 추가에 대한 PATCH 증가이며 품질 수정 완료가 아니다.
+- 검증 완료: 이전 빌드는 사용자 Y 선택으로 중단했으나 재개 요청 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공(46.3초).
+- `flutter test test/godex_inverse_reference_test.dart test/label_sheet_print_job_test.dart test/label_print_dispatcher_test.dart`에 해당하는 runTests 31건 통과. C++/pubspec 편집기 진단 오류 없음, git diff --check 통과.
+- 실행 완료: Debug EXE PID 16800, Responding=True, FileVersion/ProductVersion=1.3.93. .tmp/log/app_2026-09-08_20-52-28.log에서 버전 1.3.93과 DB connected successfully 확인. DTD 활성 앱이 없어 native 변경은 재빌드한 EXE 실행으로 반영했다.
+- 미검증/다음 단계: 현재 앱에서 기존 시험 라벨 1장 출력 후 우하단 v1.3.93, 최신 앱 로그의 inverseComparison, 생성된 BMP/EMF/TXT와 실물을 대조한다. 파일 생성/BMP 크기/changedPixels/EMF replay/문자 수용은 실제 출력 후 확인한다.
+- 정리: 새 임시 테스트 파일 없음. Debug 산출물은 실행에 사용하며 배포 빌드/원격 push 없음.
+- stage/commit 대상: windows/runner/label_bitmap_print_channel.cpp, pubspec.yaml, SESSION_HANDOFF.md. 사용자 변경 lib/core/app.dart 제외.
+
 ## 진단 완료·품질 수정 전: 확보한 레거시 조건으로 역상 경로 검증 v1.3.92
 - 사용자 조건: 현재 프로젝트에서 같은 라벨 출력 불가. 동일 라벨 재출력을 요구하지 않고 확보한 원본 조건으로 진행한다.
 - 기준: 동일 서버 확인 완료. 브랜드 998, 라벨 4955(80x60mm), 품목 472139. 역상 문구는 계란,우유,대두,밀 함유, 굴림 5pt Bold, 흰 글자. 문자 배경 #19131A는 셀 전체 배경으로 단정하지 않는다.
