@@ -24,6 +24,7 @@
 - 실행 검증 제한: DTD 연결은 성공했지만 실행 중인 Flutter 앱이 없어 hot restart는 수행하지 못했다. 개발 PC에도 두 기본 폴더의 `logo.bmp`가 없어 실파일 미리보기는 최신 v1.3.99 실행본에서 사용자 확인이 필요하다.
 - 버전: 호환 저장 포맷을 유지하는 국소 미리보기 버그 수정이므로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.98 -> 1.3.99**.
 - stage/commit 대상: [lib/features/item/application/item_image_preview.dart](lib/features/item/application/item_image_preview.dart), [lib/home_page_manager.dart](lib/home_page_manager.dart), [test/item_image_preview_test.dart](test/item_image_preview_test.dart), [pubspec.yaml](pubspec.yaml), 이 문서. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+- 기능 커밋: `7c0908b` (품목 BMP 미리보기 경로 호환 수정). 이 해시 기록 후속 문서 커밋에서는 버전을 추가 증가하지 않는다.
 - 품목 순서 변경 무한 로딩 분석: [.tmp/test_log/품목순서변경 후 무한로딩.log](.tmp/test_log/품목순서변경%20후%20무한로딩.log)는 v1.3.58 재현이며 DB 순서 갱신과 목록 강제 재조회까지 성공했다. 현재 코드는 강제 재조회에서 품목 위젯 렌더 완료를 기다리지 않아 순환 대기를 차단한다.
 - 현재 수정 확인: `3bac0a32`에서 `itemManagerSessionLoadWaitsForRenderReady(isReload: true) == false` 계약과 회귀 테스트가 추가됐다. 새 production 코드 변경은 하지 않았다.
 - 검증 완료: `flutter test test/home_page_manager_session_test.dart test/item_order_dialog_test.dart` 8건 통과. 최신 v1.3.98 실제 실행 재현은 사용자 확인 대기다.
