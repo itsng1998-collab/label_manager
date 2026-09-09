@@ -1,8 +1,9 @@
 # 현재 작업 상태
 
 ## 새 세션 우선순위 (2026-09-09)
-1. **완료: 업데이트 메시지 대상 사용자 검색 기능.** 우측 대상 목록에 거래처·지점 필터와 계정 ID 다음 검색을 추가했다. 검색 결과는 강조되며 화면 밖 사용자도 목록 중앙으로 자동 스크롤한다. 필터를 변경해도 기존 체크 선택은 유지된다.
-2. **완료: 관리자가 선택한 사용자의 업데이트 메시지 미표시 수정.** v1.3.58 설정 로그에서 `TESTER1` 대상 UPDATE와 커밋은 성공했지만 영향 행 수가 확인되지 않았고, 로그인 화면에는 공지 영역만 열린 채 본문이 비었다. 레거시는 로그인 시 없는 `BM_UPDATE_NOTICE` 사용자 행을 생성하지만 Flutter에는 이 보장이 없었다. 선택 사용자 저장을 정규화 ID UPDATE 후 영향 행이 없으면 사용자 소속 협력업체와 함께 INSERT하도록 수정했다.
+1. **완료: 품목관리 추가 열의 `클라이언트 편집 불가` 기본값 수정.** 기존 품목에 `BM_RICH_COL_CONTENT` 레코드가 없는 추가 열은 저장 draft에서 편집 가능을 기본값으로 사용하지만 화면의 `_dynamicCellEditable`만 false를 사용해 자동 잠금됐다. 미설정 기본값을 true로 통일하고 명시적 false는 유지하도록 수정했다.
+2. **완료: 업데이트 메시지 대상 사용자 검색 기능.** 우측 대상 목록에 거래처·지점 필터와 계정 ID 다음 검색을 추가했다. 검색 결과는 강조되며 화면 밖 사용자도 목록 중앙으로 자동 스크롤한다. 필터를 변경해도 기존 체크 선택은 유지된다.
+3. **완료: 관리자가 선택한 사용자의 업데이트 메시지 미표시 수정.** v1.3.58 설정 로그에서 `TESTER1` 대상 UPDATE와 커밋은 성공했지만 영향 행 수가 확인되지 않았고, 로그인 화면에는 공지 영역만 열린 채 본문이 비었다. 레거시는 로그인 시 없는 `BM_UPDATE_NOTICE` 사용자 행을 생성하지만 Flutter에는 이 보장이 없었다. 선택 사용자 저장을 정규화 ID UPDATE 후 영향 행이 없으면 사용자 소속 협력업체와 함께 INSERT하도록 수정했다.
 3. **완료: 로그인 공지의 `다음 업데이트까지 이 창 보지 않음` 복원 수정.** v1.3.58 재현 로그와 레거시를 대조한 결과 Flutter는 공지 조회 전 빈 내용 hash로 로컬 suppression을 판정하고 DB `UN_STATE`를 버려 재실행 시 공지가 다시 표시됐다. 로그인 조회 결과에 `Notice.state`를 전달하고 확인 시 기존 `NoticeDAO.updateUserState`로 상태를 저장하도록 수정했다.
 4. **완료: 로그인·로그아웃·프로그램 종료 체감 속도 개선.** 로그인/초기 브랜드 로딩을 `SnackBar.onVisible`까지 미루지 않고 즉시 시작하도록 변경하고 Windows 종료의 고정 120ms 대기를 제거했다. v1.3.101 실행 로그에서 인증 종료→초기 로딩 시작은 약 681ms에서 376ms, 종료 승인→후속 닫기는 약 122ms에서 1ms로 감소했다.
 5. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
@@ -19,6 +20,11 @@
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.
 
 ## 이번 핸드오프 정리
+- 품목 추가 열 편집 기본값 구현: [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)의 `_dynamicCellEditable`은 기존 품목의 열 콘텐츠 레코드가 없으면 편집 가능을 기본값으로 사용한다. DB에 저장된 명시적 `editable=false`와 현재 draft 설정은 계속 우선한다. DB migration이나 저장 포맷 변경은 없다.
+- 품목 추가 열 편집 테스트: [test/fortune_table_test.dart](test/fortune_table_test.dart)에 기존 품목·빈 `scopedColumnContents`에서 추가 열 편집 가능 및 잠금 툴팁 미표시 계약을 추가했다. 신규 테스트 1건과 기존 명시 잠금·해제 테스트 2건 통과.
+- 최종 검증: `flutter test test/fortune_table_test.dart` 74건 통과. `flutter analyze lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart` 이슈 없음. `git diff --check` 통과.
+- 실행 검증 제한: VS Code DTD에 실행 중인 Flutter 앱이 없어 hot restart와 실제 아이티에스엔지/6*9 데이터 화면 확인은 수행하지 못했다.
+- 버전: 품목 추가 열 편집 기본값 버그 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.104 -> 1.3.105**.
 - 대상 사용자 검색 구현: [lib/features/update_notice/domain/notice.dart](lib/features/update_notice/domain/notice.dart)의 `NoticeTargetUser`에 거래처·지점 ID/이름을 추가하고 로컬 필터 및 대소문자 무시 계정 ID 순환 검색 함수를 제공한다.
 - 대상 사용자 조회 구현: [lib/features/update_notice/data/notice_dao.dart](lib/features/update_notice/data/notice_dao.dart)의 기존 협력업체 단위 단일 쿼리가 거래처·지점 정보를 함께 반환하고 거래처명, 지점명, 계정 ID 순으로 정렬한다. 추가 조회나 DB migration은 없다.
 - 대상 사용자 UI 구현: [lib/features/update_notice/presentation/update_notice_dialog.dart](lib/features/update_notice/presentation/update_notice_dialog.dart)의 우측 패널에 거래처·지점 필터, 계정 ID 검색, 선택 인원 표시를 추가했다. Enter 또는 검색 버튼은 현재 필터 결과에서 다음 일치 사용자를 강조하고 고정 행 높이 기반으로 중앙 자동 스크롤하며 저장 단축키와 충돌하지 않는다. 필터 밖 사용자 선택도 유지되어 함께 저장된다.

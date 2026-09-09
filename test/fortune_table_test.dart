@@ -3131,6 +3131,52 @@ void main() {
     );
   });
 
+  testWidgets(
+    'ItemManage defaults missing dynamic cell permission to editable',
+    (tester) async {
+      final originalColumns = TColumn.datas;
+      addTearDown(() => TColumn.datas = originalColumns);
+      TColumn.datas = [_testColumn(columnId: 101, columnName: '증명서번호')];
+      final item = _testItemOfMarket(itemName: '대상 품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [item],
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 780,
+              height: 220,
+              child: ItemManage(
+                items: [item],
+                draftController: controller,
+                labelSize: const LabelSize(
+                  labelSizeId: 20,
+                  brandId: 30,
+                  labelSizeName: '테스트 라벨',
+                ),
+                marketId: 1,
+                canEdit: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final table = tester.widget<FortuneTable<ItemOfMarket>>(
+        find.byType(FortuneTable<ItemOfMarket>),
+      );
+      final dynamicColumn = table.columns.singleWhere(
+        (column) => column.id == 'dyn_101',
+      );
+      expect(dynamicColumn.isTextEditable!(table.rows.single, 0), isTrue);
+      expect(find.byTooltip('클라이언트 편집 불가'), findsNothing);
+    },
+  );
+
   testWidgets('ItemManage honors client edit permission per dynamic cell', (
     tester,
   ) async {

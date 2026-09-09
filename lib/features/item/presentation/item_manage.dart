@@ -1312,7 +1312,7 @@ class _ItemManageState extends State<ItemManage> {
         widget.draftController!.scopedColumnContents
             .get(columnId, draft.sourceItemId!)
             ?.editable ??
-        false;
+        true;
   }
 
   bool _canEditDynamicColumn(ItemManagerDraftRow? draft, int columnId) {
