@@ -11154,12 +11154,7 @@ String _itemCodeErrorPlaceholderDataUri() {
 }
 
 String? _itemImageDataUri(String fileNameWithoutExtension) {
-  final value = fileNameWithoutExtension.trim();
-  if (value.isEmpty) return null;
-  final file = File('C:\\ITS\\LabelManager\\bmp files\\$value.bmp');
-  if (!file.existsSync()) return null;
-  final bytes = file.readAsBytesSync();
-  return itemBmpPreviewDataUri(bytes);
+  return itemBmpPreviewDataUriForFileName(fileNameWithoutExtension);
 }
 
 fs.FortuneCell _replaceCellKeywords(
