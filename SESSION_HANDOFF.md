@@ -23,6 +23,7 @@
 - 최종 검증: `flutter test test/notice_menu_dao_test.dart test/startup_login_service_test.dart test/startup_dialog_test.dart` 24건 통과. 관련 6개 Dart 파일 `flutter analyze` 이슈 없음. `git diff --check` 통과.
 - 실행 검증 제한: VS Code DTD에 실행 중인 Flutter 앱이 없어 hot restart와 실제 DB 대상 재현은 수행하지 못했다.
 - 버전: 선택 사용자 공지 미표시 버그 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.102 -> 1.3.103**.
+- 기능 커밋: `9b064c39100a566355a0729e3d62809aa453f8a4` (`선택 사용자 업데이트 메시지 저장 수정`).
 - 공지 suppression 구현: [lib/features/login/application/startup_login_service.dart](lib/features/login/application/startup_login_service.dart)는 공지 문자열 대신 `Notice(message, state)` 전체를 반환하고 기존 `NoticeDAO.updateUserState` writer를 제공한다. [lib/features/login/presentation/startup_dialog.dart](lib/features/login/presentation/startup_dialog.dart)는 DB `UN_STATE=1`을 재실행 시 닫힘으로 복원하며, 체크 후 확인에서 저장 성공 후에만 닫고 늦은 조회 callback이 다시 열지 못하게 한다.
 - 공지 suppression 테스트: [test/startup_login_service_test.dart](test/startup_login_service_test.dart)에 공지 상태 전달 계약을, [test/startup_dialog_test.dart](test/startup_dialog_test.dart)에 DB 상태 1 복원, 상태 0 새 공지 재표시, 확인 시 사용자별 suppression 저장, 저장 실패 시 공지 유지와 즉시 오류 표시 계약을 추가했다.
 - 최종 검증: `flutter test test/startup_login_service_test.dart test/startup_dialog_test.dart` 13건 통과. `flutter analyze lib/features/login/application/startup_login_service.dart lib/features/login/presentation/startup_dialog.dart test/startup_login_service_test.dart test/startup_dialog_test.dart` 이슈 없음. `git diff --check` 통과.
