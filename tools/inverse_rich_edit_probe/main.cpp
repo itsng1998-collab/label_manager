@@ -11,6 +11,7 @@
 #include "../../windows/runner/native_text_comparison.h"
 #include "driver_file_probe.h"
 #include "../../windows/runner/debug_print_file_target.h"
+#include "font_reference_probe.h"
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
                          int, LPARAM context) {
@@ -317,6 +318,9 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
 }
 
 int wmain(int count, wchar_t** arguments) {
+  if (count == 3 && std::wstring(arguments[1]) == L"--font-reference") {
+    return CompareInverseFontReference(arguments[2]);
+  }
   if (count == 5 && std::wstring(arguments[1]) == L"--driver-file-page") {
     return CaptureInverseDriverFile(arguments[2], arguments[4], false, arguments[3]);
   }

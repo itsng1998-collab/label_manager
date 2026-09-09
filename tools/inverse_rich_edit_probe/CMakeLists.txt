@@ -8,3 +8,5 @@ target_link_libraries(inverse_rich_edit_probe PRIVATE user32 gdi32 winspool)
 enable_testing()
 add_test(NAME inverse_rich_edit_layout
 	COMMAND inverse_rich_edit_probe --synthetic "${CMAKE_CURRENT_BINARY_DIR}/capture")
+add_test(NAME inverse_font_reference
+	COMMAND inverse_rich_edit_probe --font-reference "${CMAKE_CURRENT_BINARY_DIR}/font_reference")

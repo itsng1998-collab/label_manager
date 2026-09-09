@@ -1,0 +1,212 @@
+#ifndef INVERSE_RICH_EDIT_FONT_REFERENCE_PROBE_H_
+#define INVERSE_RICH_EDIT_FONT_REFERENCE_PROBE_H_
+
+#include <windows.h>
+#include <richedit.h>
+#include <algorithm>
+#include <array>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+#include "../../windows/runner/inverse_text_bitmap.h"
+#include "../../windows/runner/inverse_text_layout.h"
+
+struct FontReferenceStream {
+  std::string bytes;
+  size_t offset = 0;
+};
+
+inline DWORD CALLBACK ReadFontReferenceRtf(
+    DWORD_PTR cookie, LPBYTE buffer, LONG requested, LONG* copied) {
+  auto& stream = *reinterpret_cast<FontReferenceStream*>(cookie);
+  const size_t available = std::min(static_cast<size_t>(requested),
+                                    stream.bytes.size() - stream.offset);
+  std::memcpy(buffer, stream.bytes.data() + stream.offset, available);
+  stream.offset += available;
+  *copied = static_cast<LONG>(available);
+  return 0;
+}
+
+inline int CompareInverseFontReference(const std::filesystem::path& directory) {
+  std::filesystem::create_directories(directory);
+  HDC printer = CreateDCW(L"WINSPOOL", L"Godex G500", nullptr, nullptr);
+  HMODULE module = LoadLibraryW(L"Msftedit.dll");
+  if (printer == nullptr || module == nullptr) {
+    if (printer != nullptr) DeleteDC(printer);
+    if (module != nullptr) FreeLibrary(module);
+    return 4;
+  }
+  const std::wstring text = L"\uacc4\ub780,\uc6b0\uc720,\ub300\ub450,\ubc00 \ud568\uc720";
+  const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
+  const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
+  const RECT clip{15, 20, 600, 70};
+  bool success = true;
+  for (const int points : {5, 6, 8}) {
+    std::array<std::vector<uint8_t>, 3> images;
+    std::array<RECT, 3> bounds{};
+    for (int variant = 0; variant < 3; ++variant) {
+      HWND host = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+          L"STATIC", L"", WS_POPUP, 0, 0, 620, 100, nullptr, nullptr,
+          GetModuleHandleW(nullptr), nullptr);
+      HWND edit = host == nullptr ? nullptr : CreateWindowExW(
+          WS_EX_TRANSPARENT, L"RICHEDIT50W", L"",
+          WS_CHILD | ES_MULTILINE, 0, 0, 585, 50, host, nullptr,
+          GetModuleHandleW(nullptr), nullptr);
+      if (edit == nullptr) {
+        if (host != nullptr) DestroyWindow(host);
+        success = false;
+        break;
+      }
+      const int twips = variant == 2
+          ? MulDiv(MulDiv(points, dpi_y, 96), 1440, dpi_y) : points * 20;
+      if (variant == 0) {
+        FontReferenceStream input;
+        input.bytes = "{\\rtf1\\ansi\\ansicpg949\\deff0\\uc1"
+            "{\\fonttbl{\\f0\\fnil\\fcharset129 Gulim;}}"
+            "{\\colortbl;\\red255\\green255\\blue255;\\red0\\green0\\blue0;}"
+            "\\pard\\ql\\f0\\fs" + std::to_string(points * 2) +
+            "\\b\\cf1\\highlight2 ";
+        for (const wchar_t unit : text) {
+          input.bytes += "\\u" + std::to_string(
+              unit > 32767 ? static_cast<int>(unit) - 65536 : unit) + "?";
+        }
+        input.bytes += "}";
+        EDITSTREAM stream{};
+        stream.dwCookie = reinterpret_cast<DWORD_PTR>(&input);
+        stream.pfnCallback = ReadFontReferenceRtf;
+        SendMessageW(edit, EM_STREAMIN, SF_RTF,
+                     reinterpret_cast<LPARAM>(&stream));
+        success = success && stream.dwError == 0;
+      } else {
+        SetWindowTextW(edit, text.c_str());
+        SendMessageW(edit, EM_SETSEL, 0, -1);
+        CHARFORMAT2W character{};
+        character.cbSize = sizeof(character);
+        character.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR | CFM_BACKCOLOR |
+                           CFM_BOLD | CFM_ITALIC | CFM_UNDERLINE | CFM_STRIKEOUT;
+        character.dwEffects = CFE_BOLD;
+        character.yHeight = twips;
+        character.crTextColor = RGB(255, 255, 255);
+        character.crBackColor = RGB(0, 0, 0);
+        wcscpy_s(character.szFaceName, L"\uad74\ub9bc");
+        SendMessageW(edit, EM_SETCHARFORMAT, SCF_SELECTION,
+                     reinterpret_cast<LPARAM>(&character));
+      }
+      SendMessageW(edit, EM_SETBKGNDCOLOR, FALSE, RGB(0, 0, 0));
+      SendMessageW(edit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, 0);
+      RECT edit_rect{0, 0, 585, 50};
+      SendMessageW(edit, EM_SETRECTNP, 0,
+                   reinterpret_cast<LPARAM>(&edit_rect));
+        std::wstring actual_text(GetWindowTextLengthW(edit) + 1, L'\0');
+        const int text_length = GetWindowTextW(edit, actual_text.data(),
+                          static_cast<int>(actual_text.size()));
+        actual_text.resize(text_length);
+        if (!actual_text.empty() && actual_text.back() == L'\r') actual_text.pop_back();
+        SendMessageW(edit, EM_SETSEL, 0, -1);
+        CHARFORMAT2W actual_format{};
+        actual_format.cbSize = sizeof(actual_format);
+        SendMessageW(edit, EM_GETCHARFORMAT, SCF_SELECTION,
+               reinterpret_cast<LPARAM>(&actual_format));
+          const std::wstring actual_face(actual_format.szFaceName);
+          success = success && actual_text == text && actual_format.yHeight == twips &&
+            (actual_face == L"\uad74\ub9bc" || actual_face == L"Gulim");
+          std::cout << "fontContract points=" << points << " variant=" << variant
+              << " textMatches=" << (actual_text == text)
+              << " actualTwips=" << actual_format.yHeight
+              << " face=" << static_cast<int>(actual_format.szFaceName[0])
+              << "," << static_cast<int>(actual_format.szFaceName[1]) << "\n";
+      const auto layout = MeasureInverseTextLayout(edit, printer, clip, text, false);
+      success = success && layout.all_characters_fit && !layout.fitted;
+      const auto name = std::to_wstring(points) + L"pt_" +
+                        std::to_wstring(variant);
+      const auto emf_path = directory / (name + L".emf");
+      const RECT frame{0, 0, MulDiv(620, 2540, dpi_x), MulDiv(100, 2540, dpi_y)};
+      HDC recording = CreateEnhMetaFileW(printer, emf_path.c_str(), &frame, nullptr);
+      if (recording == nullptr) {
+        DestroyWindow(host);
+        success = false;
+        break;
+      }
+      SetMapMode(recording, MM_TEXT);
+      FORMATRANGE range = layout.range;
+      range.hdc = recording;
+      const LRESULT until = SendMessageW(edit, EM_FORMATRANGE, TRUE,
+                                         reinterpret_cast<LPARAM>(&range));
+      SendMessageW(edit, EM_FORMATRANGE, FALSE, 0);
+      HENHMETAFILE metafile = CloseEnhMetaFile(recording);
+      auto& pixels = images[variant];
+      pixels.assign(620 * 100 * 4, 0);
+      const auto composite = CompositeInverseTextBitmap(
+          printer, metafile, clip, 620, 100, pixels);
+      if (metafile != nullptr) DeleteEnhMetaFile(metafile);
+      DestroyWindow(host);
+      success = success && composite.success && until >= static_cast<LRESULT>(text.size());
+      BITMAPINFOHEADER info{};
+      info.biSize = sizeof(info);
+      info.biWidth = 620;
+      info.biHeight = -100;
+      info.biPlanes = 1;
+      info.biBitCount = 32;
+      BITMAPFILEHEADER header{};
+      header.bfType = 0x4d42;
+      header.bfOffBits = sizeof(header) + sizeof(info);
+      header.bfSize = header.bfOffBits + static_cast<DWORD>(pixels.size());
+      std::ofstream output(directory / (name + L".bmp"), std::ios::binary);
+      output.write(reinterpret_cast<const char*>(&header), sizeof(header));
+      output.write(reinterpret_cast<const char*>(&info), sizeof(info));
+      output.write(reinterpret_cast<const char*>(pixels.data()), pixels.size());
+      success = success && output.good() && composite.changed_pixels > 0;
+      int left = 620, top = 100, right = 0, bottom = 0;
+      for (int row = clip.top; row < clip.bottom; ++row) {
+        for (int column = clip.left; column < clip.right; ++column) {
+          if (pixels[(row * 620 + column) * 4] != 255) continue;
+          left = std::min(left, column);
+          top = std::min(top, row);
+          right = std::max(right, column + 1);
+          bottom = std::max(bottom, row + 1);
+        }
+      }
+      std::cout << "fontReference points=" << points << " variant=" << variant
+                << " twips=" << twips << " white=" << composite.changed_pixels
+                << " bounds=" << left << "," << top << "," << right << "," << bottom << "\n";
+      bounds[variant] = {left, top, right, bottom};
+    }
+    if (images[0].empty() || images[1].empty() || images[2].empty()) {
+      success = false;
+      continue;
+    }
+    for (int variant = 1; variant < 3; ++variant) {
+      size_t mismatches = 0;
+      const auto reference = bounds[0];
+      const auto candidate = bounds[variant];
+      const int width = std::max(reference.right - reference.left,
+                                 candidate.right - candidate.left);
+      const int height = std::max(reference.bottom - reference.top,
+                                  candidate.bottom - candidate.top);
+      for (int row = 0; row < height; ++row) {
+        for (int column = 0; column < width; ++column) {
+          const bool before = column < reference.right - reference.left &&
+              row < reference.bottom - reference.top &&
+              images[0][((row + reference.top) * 620 + column + reference.left) * 4] == 255;
+          const bool after = column < candidate.right - candidate.left &&
+              row < candidate.bottom - candidate.top &&
+              images[variant][((row + candidate.top) * 620 + column + candidate.left) * 4] == 255;
+          if (before != after) ++mismatches;
+        }
+      }
+      std::cout << "fontReference points=" << points << " variant=" << variant
+                << " alignedGlyphMismatches=" << mismatches << "\n";
+      if (variant == 1) success = success && mismatches == 0;
+      if (variant == 2) success = success && mismatches > 0;
+    }
+  }
+  FreeLibrary(module);
+  DeleteDC(printer);
+  std::cout << "fontReference=" << (success ? "PASS" : "FAIL") << "\n";
+  return success ? 0 : 5;
+}
+
+#endif

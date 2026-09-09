@@ -54,6 +54,24 @@ v1.3.95의 `_comparison.bmp`는 별도 참조 렌더가 아니라 실제 전송�
 가로 맞춤은 높이와 세로 좌표를 유지한다. 짧은 문자열, wrap=true, 명시적 개행은 축소하지 않는다.
 EMF 재생은 실제 스풀 캡처가 아니며 실물의 획 소실 개선 여부를 보장하지 않는다.
 
+## RTF 글자 크기 비교
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --font-reference .tmp/inverse_font_reference
+```
+
+CTest `inverse_font_reference`에도 포함된다. StartDoc 없이 굴림 Bold의
+`계란,우유,대두,밀 함유`를 5/6/8pt로 비교한다. 출력 이름의 variant는
+0=RTF 원본 twip, 1=동일 twip 평문 재구성, 2=현재96dpi 환산 재구성이다.
+문구/폰트/크기/전체 수용을 확인하고, 흰 글리프 경계 정렬 후 픽셀을 비교한다.
+EMF/BMP는 지정 로컬 디렉터리에 저장한다.
+
+203dpi 결과: 같은 twip이면 세 크기 모두 글리프 차이0.
+현재 환산은 흰 픽셀634->469(5pt), 688->571(6pt), 993->688(8pt).
+8pt 원본의 글리프 높이20픽셀이 17dot/121twip 재구성에서는14픽셀이다.
+이는 단위 차이의 합성 재현이며 레거시 전체 앱 재현 또는 실물 품질 검사가 아니다.
+현재 실패 라벨17dot의 원본이8pt였다고 추정하거나 모든 시트 크기를4/3 확대하지 않는다.
+
 ## 검정 글자 후속 합성 진단
 
 v1.3.97은 기존 역상 전송 픽셀 외에 `_after_native.bmp/.emf/.txt`를 저장한다.
