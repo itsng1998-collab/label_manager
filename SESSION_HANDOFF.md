@@ -26,6 +26,7 @@
 - 최종 검증: `flutter test test/notice_menu_dao_test.dart test/startup_login_service_test.dart test/startup_dialog_test.dart` 28건 통과. 대상 Dart 파일 `flutter analyze` 이슈 없음. `git diff --check` 통과.
 - 실행 검증 제한: VS Code DTD에 실행 중인 Flutter 앱이 없어 hot restart, 실제 화면 크기 및 실제 DB 목록 확인은 수행하지 못했다.
 - 버전: 업데이트 메시지 대상 사용자 검색 기능 추가로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.103 -> 1.3.104**.
+- 기능 커밋: `eab0f0536ed5597cec89702ac601ad1ba77ec4a9` (`업데이트 메시지 대상 사용자 검색 추가`).
 - 선택 사용자 공지 저장 구현: [lib/features/update_notice/data/notice_dao.dart](lib/features/update_notice/data/notice_dao.dart)의 `updateSelectedUserSql`은 조회와 동일한 trim/문자열 변환으로 대상 ID를 갱신하고, `@@ROWCOUNT=0`이면 `BM_USER`, `BM_MARKET`, `BM_CUSTOMER`에서 소속 협력업체를 조회해 `BM_UPDATE_NOTICE` 행을 생성한다. DB migration이나 테이블 변경은 없다.
 - 선택 사용자 공지 테스트: [test/notice_menu_dao_test.dart](test/notice_menu_dao_test.dart)에 기존 행 갱신뿐 아니라 미존재 선택 사용자 행 INSERT와 앱 버전 저장 계약을 추가했다. `flutter test test/notice_menu_dao_test.dart` 11건 통과.
 - 최종 검증: `flutter test test/notice_menu_dao_test.dart test/startup_login_service_test.dart test/startup_dialog_test.dart` 24건 통과. 관련 6개 Dart 파일 `flutter analyze` 이슈 없음. `git diff --check` 통과.
