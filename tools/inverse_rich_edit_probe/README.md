@@ -64,3 +64,16 @@ v1.3.97은 기존 역상 전송 픽셀 외에 `_after_native.bmp/.emf/.txt`를 �
 휘도 128 미만으로 바뀐 수이다. `native[index].sourceRect`는 검정 글자의 입력 영역이다.
 0이면 참조 재생에서 덮임이 없다는 뜻이며, 드라이버나 열 문제가 확정되는 것은 아니다.
 CTest는 경계의 3x3 겹침에서 손실 9, 비겹침에서 0과 alpha 보존을 검사한다.
+
+## 역상 도형 전송 검사
+
+v1.3.107은 역상 clip의 픽셀을 바꾸지 않고 검정 run을 GDI region으로 전달한다.
+일반 글자/표선은 기존 전송을 유지한다. 역상 clip을 비운 32bpp DIB 전송 후
+`ExtCreateRegion`/`FillRgn`으로 검정 부분만 복원하므로 흰 글자 직접 렌더는 하지 않는다.
+v1.3.96/97의 역상 포함 bitmap 전송은 실물 획 소실이 지속되어 이 영역에 재사용하지 않는다.
+
+CTest와 `--replay`는 생산 `PrepareInverseTextGeometry`/`RenderInverseTextGeometry`로
+`StretchDIBits` 후 도형 합성 결과가 원본 RGB와 같은지 검사한다.
+전송 raster의 clip 비움, 외부 RGB 및 alpha 보존, 좌표 이동과 중복 clip도 검증한다.
+흰 획 확대/팽창/회색/threshold 조정은 없으며 무출력 동등성이 실물 개선을 입증하지는 않는다.
+v1.3.107 `_comparison.bmp`는 도형 분리 전 픽셀 원본으로 실제 전송 raster와 구분한다.

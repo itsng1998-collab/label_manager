@@ -1,5 +1,20 @@
 # 현재 작업 상태
 
+## 구현/자동 검증 완료: G500 역상 도형 전송 (2026-09-09)
+- 사용자 사진 `.tmp/IMG_20260909_0001.png`에서 두 역상 띠의 흰 획 소실 지속. 앱 v1.3.106 / 인쇄 마크 v1.3.97이며 최신 `app_2026-09-09_20-19-37.log`의 실제 검정 33건/fitted12와 참조 33건/fitted12가 일치한다. `_after_native.txt`의 두 `whitePixelsLost`는 모두 0이다. 참조 BMP에는 획이 남아 있어 후속 검정 덮임을 재현하지 못했다.
+- 국소 가설: 역상 raster 전송과 검정 도형의 드라이버 처리 차이. 역상 1bpp 글리프/좌표/크기는 유지하고 해당 clip의 검정 픽셀만 GDI region으로 전달한다. 폰트/threshold/농도 변경이나 전체 페이지 전송 변경은 하지 않는다. 드라이버/열 문제가 확정됐다는 뜻은 아니다.
+- 수정 예정: `windows/runner/inverse_text_geometry.h`, `tools/inverse_rich_edit_probe/main.cpp`에 픽셀 동등성 무출력 검사 추가 후 `windows/runner/label_bitmap_print_channel.cpp`의 역상 전송에 연결한다. 일반 글자/표선 및 사용자 변경 `lib/core/app.dart` 보존.
+- 편집 완료: `inverse_text_geometry.h`의 `PrepareInverseTextGeometry`는 역상 clip의 이진 픽셀을 검정 run으로 분리하며 바깥 RGB와 alpha를 보존한다. `RenderInverseTextGeometry`는 하나의 GDI region으로 검정 픽셀만 출력한다.
+- 테스트 추가/검증 완료: `tools/inverse_rich_edit_probe/main.cpp`에 도형 재생 픽셀 동등성/좌표 이동/중복 clip 검사를 추가했다. `/WX` probe 빌드, CTest1/1 통과. 실제 역상 2개 EMF 재생에서 픽셀 차이0, 흰 픽셀1298/1508 보존, 좌표 이동 검사 통과. StartDoc 없이 수행했다.
+- 편집 완료: `label_bitmap_print_channel.cpp`의 `PrintBitmap`에 역상 영역을 비운 raster 전송 후 검정 region 출력 연결. 기존 합성 원본은 진단용으로 유지하고 일반 글자/표선 전송은 유지한다. 새 인쇄 마크 v1.3.107.
+- 검증 완료: 실제 앱 연결 후 `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug` 성공. 실물 인쇄는 실행하지 않았다.
+- 편집 완료: probe에 전송 raster clip 비움/외부 RGB 및 alpha 보존 검사를 추가하고 실제와 같은 `StretchDIBits` 후 region 재생으로 검사 강화. native 진단 prefix/마크를 v1.3.107로 통일했다.
+- 버전: 역상 전송의 국소 버그 보완으로 `pubspec.yaml` PATCH **1.3.106 -> 1.3.107**. 강화 검사와 실제 두 EMF replay도 픽셀 차이0으로 통과했고 최종 v1.3.107 `/WX` Windows Debug 빌드 성공. 변경 파일 diagnostics 없음.
+- 편집 완료: `doc/godex_inverse_resume.md`의 최신 증거/전송 경로/다음 판별 갱신. `tools/inverse_rich_edit_probe/README.md`에 도형 검사 및 진단 BMP의 의미를 기록했다.
+- 실행 검증 완료: `C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub`로 native 재빌드/실행. `.tmp/log/app_2026-09-09_20-31-25.log`에서 v1.3.107 확인, PID18476 응답 정상, DTD 연결/hot reload 성공, runtime 오류 없음. 실물 인쇄/프린터 설정 변경은 하지 않았으며 품질 개선은 사용자 출력 확인 전까지 미검증이다.
+- 임시 자료: 원본 사진/로그/EMF/BMP와 로컬 PNG·replay BMP·probe 캐시 보존, stage 제외. 배포 빌드/DB migration/원격 push 없음.
+- stage/commit 대상: `windows/runner/inverse_text_geometry.h`, `windows/runner/label_bitmap_print_channel.cpp`, `tools/inverse_rich_edit_probe/main.cpp`, `tools/inverse_rich_edit_probe/README.md`, `doc/godex_inverse_resume.md`, `pubspec.yaml`, 이 문서. 기존 사용자 변경 `lib/core/app.dart` 제외. `git diff --check` 통과, 커밋 직전 cached diff/stat을 확인한다.
+
 ## 새 세션 우선순위 (2026-09-09)
 1. **완료: 김영모 계정 접속 멈춤 및 품목관리 좌우 방향키 수정.** 지정 v1.3.58 로그에서 `75806065` 전환 후 브랜드·라벨크기·품목 세션은 `renderReady`와 `completed`까지 끝났고 마지막 로그가 품목 미리보기의 native RTF 변환 시작에서 멈췄다. 품목 단일 셀 미리보기만 Dart RTF 파서를 사용해 Windows UI 스레드의 동기 native 변환 정지를 피하고, 하단 가로 이동 버튼에 포커스가 있으면 좌우 방향키가 동일 스크롤 callback을 실행하도록 구현했다. 관련 전체 테스트 273건과 analyzer/diff 검증을 통과했다.
 2. **완료: 품목관리 추가 열의 `클라이언트 편집 불가` 기본값 수정.** 기존 품목에 `BM_RICH_COL_CONTENT` 레코드가 없는 추가 열은 저장 draft에서 편집 가능을 기본값으로 사용하지만 화면의 `_dynamicCellEditable`만 false를 사용해 자동 잠금됐다. 미설정 기본값을 true로 통일하고 명시적 false는 유지하도록 수정했다.
@@ -9,13 +24,13 @@
 4. **완료: 로그인·로그아웃·프로그램 종료 체감 속도 개선.** 로그인/초기 브랜드 로딩을 `SnackBar.onVisible`까지 미루지 않고 즉시 시작하도록 변경하고 Windows 종료의 고정 120ms 대기를 제거했다. v1.3.101 실행 로그에서 인증 종료→초기 로딩 시작은 약 681ms에서 376ms, 종료 승인→후속 닫기는 약 122ms에서 1ms로 감소했다.
 5. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
 6. 품목관리 BMP 미리보기 수정은 구현·자동 검증 완료 상태다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
-7. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 앱 오동작 확인 후 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 역상 출력 문제를 재개한다.
+7. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 역상 출력은 v1.3.107 도형 전송 보완까지 완료했으며 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 다음 실물을 확인한다.
 
 ## 보존할 상태
-- 마지막 인쇄 구현: **v1.3.97 / d0ade63**, 기록 커밋: **a0f3a1e**. v1.3.97은 후속 검정 글자 합성 진단 추가이며 획 소실 해결 버전이 아니다.
-- 마지막 분석 실물: [.tmp/IMG_20260908_0005.png](.tmp/IMG_20260908_0005.png), v1.3.96에서 역상 흰 획 소실 지속. 전체 문자 수용/1bpp 렌더 성공만으로 실물 품질 정상 판정 금지.
-- 미검증: v1.3.97 이후 실제 출력의 `*_after_native` 생성 결과/역상별 `whitePixelsLost`. 새 세션에서는 기존 자료 이후의 사진/로그가 있는지 먼저 확인한다.
-- 마지막 실행 확인: Debug EXE v1.3.97, 당시 PID8452 응답 정상. [.tmp/log/app_2026-09-08_23-25-53.log](.tmp/log/app_2026-09-08_23-25-53.log)에서 버전 및 DB 연결 성공. 현재 실행 여부는 새로 확인한다.
+- 마지막 인쇄 구현: **v1.3.107 역상 검정 GDI region 전송**. 이전 v1.3.97/d0ade63 진단은 후속 검정 덮임0/0으로 분석 완료했으며 실물 획 소실 해결 버전이 아니다.
+- 마지막 분석 실물: [.tmp/IMG_20260909_0001.png](.tmp/IMG_20260909_0001.png), 앱 v1.3.106/인쇄 v1.3.97에서 흰 획 소실 지속. 전체 문자 수용/1bpp 및 도형 픽셀 동등성 성공만으로 실물 품질 정상 판정 금지.
+- 미검증: v1.3.107 실제 도형 전송의 출력 품질. 다음 사진/로그에서 앱/인쇄 버전과 `inverseTransfer=blackRegionOnClearedRaster` 확인 후 두 띠의 획을 비교한다.
+- 마지막 실행 확인: Debug EXE v1.3.107, PID18476 응답 정상. [.tmp/log/app_2026-09-09_20-31-25.log](.tmp/log/app_2026-09-09_20-31-25.log)에서 버전 확인. 새 세션에서는 현재 실행 여부를 다시 확인한다.
 - 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 보존한다. 앱 오동작과 관련되면 현재 diff를 읽고 함께 작업하되 임의 원복/전체 stage 금지.
 - 일반 글자/표선은 v1.3.58 기준 유지. 실물 획 소실을 열 번짐/드라이버 문제로 확정하거나 소프트웨어 개선 불가로 결론내리지 않는다.
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.

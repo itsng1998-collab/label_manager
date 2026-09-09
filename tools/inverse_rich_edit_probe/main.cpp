@@ -7,6 +7,7 @@
 #include <string>
 #include "../../windows/runner/inverse_text_layout.h"
 #include "../../windows/runner/inverse_text_bitmap.h"
+#include "../../windows/runner/inverse_text_geometry.h"
 #include "../../windows/runner/native_text_comparison.h"
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
@@ -97,6 +98,72 @@ bool VerifyNativeTextComparison(HDC printer) {
   return valid;
 }
 
+bool VerifyInverseTextGeometry(HDC printer, const std::vector<uint8_t>& source,
+                               int width, int height,
+                               const std::vector<RECT>& clips) {
+  auto raster = source;
+  const auto geometry = PrepareInverseTextGeometry(raster, width, height, clips);
+  if (!geometry.success) return false;
+  bool valid = true;
+  for (int row = 0; row < height; ++row) {
+    for (int column = 0; column < width; ++column) {
+      const size_t offset = (static_cast<size_t>(row) * width + column) * 4;
+      const bool inside = std::any_of(clips.begin(), clips.end(),
+          [&](const RECT& clip) {
+            return column >= clip.left && column < clip.right &&
+                   row >= clip.top && row < clip.bottom;
+          });
+      valid = valid && raster[offset + 3] == source[offset + 3];
+      for (size_t channel = 0; channel < 3; ++channel) {
+        valid = valid && raster[offset + channel] ==
+            (inside ? uint8_t{255} : source[offset + channel]);
+      }
+    }
+  }
+  BITMAPINFO info{};
+  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  info.bmiHeader.biWidth = width;
+  info.bmiHeader.biHeight = -height;
+  info.bmiHeader.biPlanes = 1;
+  info.bmiHeader.biBitCount = 32;
+  HDC memory = CreateCompatibleDC(printer);
+  void* pixels = nullptr;
+  HBITMAP bitmap = CreateDIBSection(memory, &info, DIB_RGB_COLORS, &pixels, nullptr, 0);
+  if (memory == nullptr || bitmap == nullptr || pixels == nullptr) {
+    if (bitmap != nullptr) DeleteObject(bitmap);
+    if (memory != nullptr) DeleteDC(memory);
+    return false;
+  }
+  HGDIOBJ previous = SelectObject(memory, bitmap);
+  SetStretchBltMode(memory, COLORONCOLOR);
+  for (int shifted = 0; shifted < 2; ++shifted) {
+    SetViewportOrgEx(memory, -shifted, -shifted, nullptr);
+    const int scan_lines = StretchDIBits(
+        memory, shifted, shifted, width, height, 0, 0, width, height,
+        raster.data(), &info, DIB_RGB_COLORS, SRCCOPY);
+    valid = valid && scan_lines == height;
+    valid = RenderInverseTextGeometry(memory, geometry, shifted, shifted) && valid;
+    GdiFlush();
+    const auto* actual = static_cast<const uint8_t*>(pixels);
+    size_t mismatches = 0;
+    for (size_t offset = 0; offset < source.size(); offset += 4) {
+      if (!std::equal(source.begin() + offset, source.begin() + offset + 3,
+                      actual + offset)) ++mismatches;
+      valid = valid && raster[offset + 3] == source[offset + 3];
+    }
+    std::cout << "inverseGeometry shifted=" << shifted
+              << " runs=" << geometry.black_runs.size()
+              << " blackPixels=" << geometry.black_pixels
+              << " whitePixels=" << geometry.white_pixels
+              << " mismatches=" << mismatches << "\n";
+    valid = valid && mismatches == 0;
+  }
+  SelectObject(memory, previous);
+  DeleteObject(bitmap);
+  DeleteDC(memory);
+  return valid;
+}
+
 int ReplaySavedComposite(const std::filesystem::path& prefix,
                          const std::filesystem::path& output) {
   std::ifstream report(prefix.wstring() + L".txt");
@@ -136,9 +203,11 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
   }
   const auto result = CompositeInverseTextBitmap(printer, metafile, clip,
                                                  width, height, pixels);
+  const bool geometry_valid = VerifyInverseTextGeometry(
+      printer, pixels, width, height, {clip});
   DeleteEnhMetaFile(metafile);
   DeleteDC(printer);
-  bool valid = result.success && result.changed_pixels > 0 && result.raster_bit_count == 1;
+  bool valid = geometry_valid && result.success && result.changed_pixels > 0 && result.raster_bit_count == 1;
   for (int row = 0; row < height; ++row) {
     for (int column = 0; column < width; ++column) {
       const size_t offset = (static_cast<size_t>(row) * width + column) * 4;
@@ -305,6 +374,8 @@ int wmain(int count, wchar_t** arguments) {
           printer, result, RECT{15, 291, 600, 310}, 620, 480, flattened);
       success = success && composite.success && composite.changed_pixels > 0 &&
             composite.raster_bit_count == 1;
+      success = VerifyInverseTextGeometry(printer, flattened, 620, 480,
+          {RECT{15, 291, 600, 310}, RECT{15, 291, 600, 310}}) && success;
       for (size_t offset = 0; offset < flattened.size(); offset += 4) {
         const size_t row = offset / 4 / 620;
         const size_t column = offset / 4 % 620;

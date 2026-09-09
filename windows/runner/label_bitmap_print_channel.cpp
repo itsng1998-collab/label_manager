@@ -1,6 +1,7 @@
 #include "label_bitmap_print_channel.h"
 #include "inverse_text_layout.h"
 #include "inverse_text_bitmap.h"
+#include "inverse_text_geometry.h"
 #include "native_text_comparison.h"
 
 #include <flutter/encodable_value.h>
@@ -29,7 +30,7 @@ using EncodableValue = flutter::EncodableValue;
 
 constexpr LONG kNativeTextRightOverhangDots = 1;
 constexpr int kInverseMinimumFontDots = 20;
-constexpr wchar_t kPrintTestWatermark[] = L"v1.3.97";
+constexpr wchar_t kPrintTestWatermark[] = L"v1.3.107";
 
 std::wstring Utf8ToWide(const std::string& value);
 
@@ -1217,7 +1218,7 @@ std::string SaveInverseComparison(
     std::filesystem::create_directories(directory);
     static unsigned long sequence = 0;
     const auto prefix = directory /
-        ("v1.3.97_" + std::to_string(GetCurrentProcessId()) + "_" +
+        ("v1.3.107_" + std::to_string(GetCurrentProcessId()) + "_" +
          std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence));
     const std::filesystem::path emf_path(prefix.string() + ".emf");
     const HENHMETAFILE saved_emf = CopyEnhMetaFileW(metafile, emf_path.c_str());
@@ -1253,10 +1254,10 @@ std::string SaveInverseComparison(
     const bool base_saved = save_bitmap("_base.bmp", base);
     const bool comparison_saved = save_bitmap("_comparison.bmp", composed);
     std::ofstream report(prefix.string() + ".txt");
-      report << "version=1.3.97\nkind=submittedInverseBitmap\n"
+      report << "version=1.3.107\nkind=inverseGeometrySourceBitmap\n"
            << "transparentRichEdit=true\n"
            << "notActualSpoolCapture=true\nincludesPreviousWhiteDescriptors=true\n"
-           << "inverseComposite=beforeSingleDibTransfer\n"
+           << "inverseComposite=blackRegionAfterClearedDibTransfer\n"
            << "glyphRaster=directMonochromeDib\npostRasterThreshold=none\n"
            << "baseThreshold=128\n"
            << "dpi=" << dpi_x << "," << dpi_y << "\nsize=" << width << "," << height
@@ -1472,7 +1473,7 @@ std::string CaptureNativeTextComparison(
     const auto directory = std::filesystem::path(".tmp") / "log" / "godex_inverse";
     std::filesystem::create_directories(directory);
     static unsigned long sequence = 0;
-    const auto prefix = directory / ("v1.3.97_" + std::to_string(GetCurrentProcessId()) +
+    const auto prefix = directory / ("v1.3.107_" + std::to_string(GetCurrentProcessId()) +
         "_" + std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence) + "_after_native");
     const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
     const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
@@ -1523,7 +1524,7 @@ std::string CaptureNativeTextComparison(
                 static_cast<std::streamsize>(comparison.pixels.size()));
     image.close();
     std::ofstream report(prefix.wstring() + L".txt");
-    report << "version=1.3.97\nkind=afterNativeTextReference\n"
+    report << "version=1.3.107\nkind=afterNativeTextReference\n"
            << "notActualSpoolCapture=true\nnotSubmittedBitmap=true\nwatermarkIncluded=false\n"
            << "size=" << width << "," << height
            << "\nreferenceDrawn=" << reference_stats.drawn
@@ -2092,7 +2093,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
               << " nativeTextFitMode=uniformScale"
                     << " outputMode="
                     << (godex_v1358_driver_direct
-                      ? "driverDirect32V1358+richEditInverseBitmap"
+                      ? "driverDirect32V1358+richEditInverseGeometry"
                       : "monoDibBoxedHeader")
                     << " nativeTextRaster="
                     << (godex_v1358_driver_direct
@@ -2101,7 +2102,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                     << " nativeTextWhiteRender="
                     << (godex_v1358_driver_direct ? "richEditDirectMonoComposite"
                            : "fullRowPolarityFallback")
-                    << " printWatermark=v1.3.97"
+                    << " printWatermark=v1.3.107"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
     if (index > 0) diagnostics << "|";
@@ -2172,6 +2173,29 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
           error, diagnostics)) {
       break;
     }
+    auto transfer_bitmap = composed_bitmap;
+    InverseTextGeometry inverse_geometry;
+    if (godex_v1358_driver_direct) {
+      std::vector<RECT> inverse_clips;
+      for (const auto& descriptor : text_descriptors) {
+        if (descriptor.color != RGB(255, 255, 255)) continue;
+        inverse_clips.push_back(RECT{
+            MulDiv(descriptor.rect.left, target_width, source_width),
+            MulDiv(descriptor.rect.top, target_height, source_height),
+            MulDiv(descriptor.rect.right, target_width, source_width),
+            MulDiv(descriptor.rect.bottom, target_height, source_height)});
+      }
+      inverse_geometry = PrepareInverseTextGeometry(
+          transfer_bitmap, target_width, target_height, inverse_clips);
+      if (!inverse_geometry.success) {
+        error = "PrepareInverseTextGeometry failed";
+        break;
+      }
+      diagnostics << " inverseTransfer=blackRegionOnClearedRaster"
+                  << " inverseGeometryRuns=" << inverse_geometry.black_runs.size()
+                  << " inverseGeometryBlackPixels=" << inverse_geometry.black_pixels
+                  << " inverseGeometryWhitePixels=" << inverse_geometry.white_pixels;
+    }
     BITMAPINFO bitmap_info{};
     bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bitmap_info.bmiHeader.biWidth = target_width;
@@ -2182,7 +2206,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     const int previous_mode = SetStretchBltMode(page_dc, COLORONCOLOR);
     const int scan_lines = StretchDIBits(
       page_dc, destination_x, destination_y, target_width, target_height,
-        0, 0, target_width, target_height, composed_bitmap.data(),
+        0, 0, target_width, target_height, transfer_bitmap.data(),
         &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
     diagnostics << " stretchModeBefore=" << previous_mode
                 << " stretchMode=COLORONCOLOR_1TO1"
@@ -2193,6 +2217,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                 << " stretchLines=" << scan_lines;
     if (scan_lines == GDI_ERROR || scan_lines == 0) {
       error = "StretchDIBits failed: " + std::to_string(GetLastError());
+    } else if (godex_v1358_driver_direct &&
+               !RenderInverseTextGeometry(page_dc, inverse_geometry,
+                                          destination_x, destination_y)) {
+      error = "RenderInverseTextGeometry failed: " + std::to_string(GetLastError());
     } else {
       InverseRowFallbackStats inverse_row_fallback_stats;
       auto render_text_descriptors = text_descriptors;
@@ -2334,7 +2362,7 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextMapping=anisotropicSplit"
                   << " nativeTextComposite="
                   << (godex_v1358_driver_direct
-                          ? "inverseInBitmapThenBlackPrinterDc"
+                          ? "inverseBlackRegionThenBlackPrinterDc"
                           : "boxedHeaderMonoDib")
                   << " inverseRowFallbackDescriptors="
                   << inverse_row_fallback_stats.descriptors
