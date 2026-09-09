@@ -18,6 +18,7 @@
 - 블로커: `Get-PrintJob -PrinterName 'Godex G500'` 결과 큐가 비어 완료된 실제 전체 작업을 큐에서 대조할 수 없다. 새 실제 전송 캡처 또는 전체 작업의 동등한 파일 재현이 필요하며 지금의 부분 재현만으로 원인/해결 판정하지 않는다.
 - 임시 자료: PRN/복원 PNG/합성 테스트 출력/기존 사진·로그·probe 캐시는 `.tmp` 로컬 보존, stage 제외. 프린터 설정/DB/실물 인쇄/배포/원격 push 변경 없음.
 - stage/commit 대상: `tools/inverse_rich_edit_probe/{driver_file_probe.h,main.cpp,CMakeLists.txt,README.md}`, `tools/inspect_inverse_driver_file.ps1`, `tools/test_inverse_driver_file.ps1`, `doc/godex_inverse_resume.md`, `pubspec.yaml`, 이 문서. 기존 `lib/core/app.dart` 사용자 변경 제외.
+- 기능 커밋: `ba52808` (`G500 역상 드라이버 파일 진단과 픽셀 비교 추가`). 해시 기록 후속 커밋에서 버전 재증가 없음. 품질 해결 커밋이 아니라 진단 보완 커밋이다.
 
 ## 이전 구현: G500 역상 도형 전송 (실물 실패 확인)
 - 사용자 사진 `.tmp/IMG_20260909_0001.png`에서 두 역상 띠의 흰 획 소실 지속. 앱 v1.3.106 / 인쇄 마크 v1.3.97이며 최신 `app_2026-09-09_20-19-37.log`의 실제 검정 33건/fitted12와 참조 33건/fitted12가 일치한다. `_after_native.txt`의 두 `whitePixelsLost`는 모두 0이다. 참조 BMP에는 획이 남아 있어 후속 검정 덮임을 재현하지 못했다.
