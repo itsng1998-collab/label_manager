@@ -1,5 +1,19 @@
 # 현재 작업 상태
 
+## 구현·검증 완료 / 실물 미검증: RTF 가져오기 글자 크기 단위 수정
+- 가설: RTF의 point 값을 논리 pixel로 전달할 때96/72 변환 누락. 현재 시트 출력은 논리 pixel을 일관되게 사용하므로 출력 엔진/기존 저장 시트는 변경하지 않는다. 새 RTF 가져오기의 셀/인라인/native HTML 경로에만 단위 변환을 적용할 계획이다.
+- 첫 편집: `test/godex_inverse_reference_test.dart`의5pt characterization을 물리14dot 보존 회귀로 전환. 미검증. 다음 실행: `flutter test test/godex_inverse_reference_test.dart`. 현재 실패 라벨의 원본 출처/크기는 아직 확정하지 않았으며 이 수정이 실물 역상 해결임을 뜻하지 않는다.
+- RED 확인:5pt의 실제 셀 크기5.0, 기대6.6667로 테스트 실패. 편집 완료: `label_sheet_rtf_import.dart`의 셀/raw/인라인 및 native HTML fontSize에 point->logicalPixel 변환 추가. RTF 내부 lineHeight 계산은 point 단위를 유지하며 기존 저장 시트/출력 엔진은 변경하지 않는다. 다음 검증은 같은5pt 회귀 재실행.
+- GREEN 확인:5pt 가져오기/Windows14dot 회귀 통과. 테스트 보완:5/6/8pt(14/17/23dot), 기존 시트8pixel의 일반/역상17dot 유지, native HTML/스타일/첨자 기대값을 logical pixel로 갱신. 두 테스트 파일203건 통과, 변경 diagnostics 없음.
+- 테스트 추가: 공용 FortuneSheetCodec 저장/재로드 후 셀/raw/인라인 크기 및 Windows 출력dot이 그대로 유지됨을 검사. 다음 검증은 `flutter test test/godex_inverse_reference_test.dart` 및 관련 파일 analyzer. 저장 포맷 키 변경/DB migration 없음.
+- 저장/재로드4건 통과. 버전은 국소 RTF 가져오기 수정 PATCH **1.3.111 -> 1.3.112**. 기존 시트 출력/native 마크1.3.107은 유지. 이미 저장된 시트는 source point와 사용자 편집 pixel을 구분할 근거가 없어 일괄 재변환하지 않는다. 현재 실패 라벨의 실제 개선 여부는 미검증이다.
+- 실행 준비: DTD에 활성 앱 없음. 다음 검증 명령: `C:/Flutter/bin/flutter.bat analyze lib/features/label_sheet/application/label_sheet_rtf_import.dart test/godex_inverse_reference_test.dart test/label_sheet_toolbar_test.dart`, 관련 인쇄 테스트, `$env:CL='/WX'; C:/Flutter/bin/flutter.bat build windows --debug`. 성공 후 일반 Debug 앱 실행/DTD hot reload를 확인하고 물리 인쇄/DB 저장은 실행하지 않는다.
+- 검증 완료: 관련 인쇄27건 통과(크기/저장4 + 인쇄 작업/디스패치23), 수정3개 파일 analyze 이슈 없음(`.tmp/rtf_font_units_analyze.log`). 다음 Windows Debug `/WX` 빌드 로그는 `.tmp/rtf_font_units_build.log`에 보존한다.
+- Windows Debug `/WX` 빌드 성공(`.tmp/rtf_font_units_build.log`). 다음 실행: `LABEL_MANAGER_DEBUG_PRINT_FILE`을 실행 프로세스에서 제거한 일반 모드로 `C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub`, DTD 연결/hot reload/시작 버전 확인. 사용자 조작 없는 인쇄/저장은 하지 않는다.
+- 실행 검증 완료: `.tmp/log/app_2026-09-09_23-48-43.log`에서v1.3.112 확인. 일반 모드 run 터미널 `62f68d45-1c1d-4bbb-b7b8-33d7a4d4dfb7`, DTD 연결/hot reload 성공, runtime 오류 없음. 파일 전용 변수를 제거했으며 인쇄 요청 없음.
+- 최종 검증: 가져오기/관련203건, 저장 재로드 포함4건, 인쇄 관련27건 통과(중복 실행 포함). 관련3개 파일 analyze 이슈 없음, Debug `/WX` 빌드/hot reload/diagnostics/diff 검사 통과. production 변경은 RTF importer만이며 기존 저장 시트/일반 인쇄 엔진/표선 변경 없음.
+- 정리/commit 대상: importer, 비교/toolbar 테스트2개, pubspec, 재개 문서, probe README, 이 문서7개. `.tmp` 분석/빌드 로그는 로컬 보존하며 stage 제외, 사용자 `lib/core/app.dart` 변경 보존. 기존 실패 라벨은 출처가 불명확한 저장값을 자동 확대하지 않아 동일 실물 재출력을 요청하지 않는다.
+
 ## 비교 검사 완료 / 품질 미해결: 레거시 역상 원본 생성 대조
 - USBPcap 설치를 다음 필수 단계로 삼은 판단은 철회했다. 사용자 정상 사진 `.tmp/IMG_v0.Legacy_print.png`를 기준으로 추가 설치/출력 없이 레거시 RTF와 현재 재구성 글자의 차이를 먼저 확인한다.
 - 확인: 레거시 `PrintManager.cpp`는 원본 RTF를 MM_TEXT/FormatRange로 출력한다. 현재 `RenderWhiteTextIntoBitmap`은 평문/도트 높이에서 CHARFORMAT을 재구성하고 폭 초과 시 X축 축소한다. 기존 Dart 테스트에는 5pt -> 11dot(레거시14dot) 차이가 이미 있으나 현재 실패 원본은17dot이므로 같은 원인이라고 단정하지 않는다.
@@ -103,8 +117,8 @@
 ## 보존할 상태
 - 마지막 인쇄 구현: **v1.3.107 역상 검정 GDI region 전송**. 이전 v1.3.97/d0ade63 진단은 후속 검정 덮임0/0으로 분석 완료했으며 실물 획 소실 해결 버전이 아니다.
 - 마지막 분석 실물: [.tmp/IMG_20260909_0003.png](.tmp/IMG_20260909_0003.png), 앱1.3.108/인쇄1.3.107에서 흰 획 소실 지속. 실제 앱 v1.3.109 파일 대상 캡처에서도 두 역상 흰 손실0이며 그 결과로 실물 정상/열 문제 확정 판정 금지.
-- 다음 조사: 레거시 RTF 포인트와 시트 논리 픽셀 단위 계약. USB 설치 요청은 철회했고 전송 차이를 우선 블로커로 삼지 않는다. 품질 보정 없이 동일 코드 실물 재출력을 반복 요구하지 않는다.
-- 마지막 실행: Debug EXE v1.3.109/PID13308 파일 전용 캡처 후23:35:03 정상 종료. [.tmp/log/app_2026-09-09_23-21-37.log](.tmp/log/app_2026-09-09_23-21-37.log)에서 캡처 완료 확인. 이번 작업은 무출력 native probe만 실행했다.
+- 현재 수정: 새 RTF 가져오기의 point->logical pixel 변환 완료(v1.3.112). 다음은 현재 실패 라벨이 RTF 원본인지 이미 저장한 시트인지와 원래 글자 크기를 확인해야 한다. 기존 저장 시트 자동 확대는 하지 않는다. USB 설치/동일 코드 재출력 요청 없음.
+- 마지막 실행: Debug v1.3.112 일반 모드, `.tmp/log/app_2026-09-09_23-48-43.log`, DTD hot reload 성공/runtime 오류 없음. 이전v1.3.109 파일 전용 앱은23:35:03 종료됨.
 - 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 보존한다. 앱 오동작과 관련되면 현재 diff를 읽고 함께 작업하되 임의 원복/전체 stage 금지.
 - 일반 글자/표선은 v1.3.58 기준 유지. 실물 획 소실을 열 번짐/드라이버 문제로 확정하거나 소프트웨어 개선 불가로 결론내리지 않는다.
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.

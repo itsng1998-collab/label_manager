@@ -340,7 +340,7 @@ LabelSheetImageImportDraft? _draftFromRtfHtml(
           rawDisplayValue: text,
           hasRawDisplayValue: text.isNotEmpty,
           fontFamily: style.fontFamily,
-          fontSize: style.fontSize,
+          fontSize: _rtfFontSizeLogicalPixels(style.fontSize),
           bold: style.bold ?? false,
           rawBold: style.bold,
           hasRawBold: style.bold != null,
@@ -719,8 +719,8 @@ Map<FortuneCellCoord, FortuneCell> _cellsFromRtfRows(
         underline: cell.underline,
         rawUnderline: cell.underline,
         hasRawUnderline: cell.hasUnderline,
-        fontSize: cell.fontSizePt?.clamp(4, 72),
-        rawFontSize: cell.fontSizePt,
+        fontSize: _rtfFontSizeLogicalPixels(cell.fontSizePt?.clamp(4, 72)),
+        rawFontSize: _rtfFontSizeLogicalPixels(cell.fontSizePt),
         hasRawFontSize: cell.fontSizePt != null,
         fontFamily: cell.fontFamily,
         rawFontFamily: cell.fontFamily,
@@ -1655,8 +1655,12 @@ class _RtfCellBuilder {
   }
 }
 
+double? _rtfFontSizeLogicalPixels(double? points) {
+  return points == null ? null : points * 96 / 72;
+}
+
 double? _rtfInlineFontSize(_RtfState state) {
-  final fontSize = state.fontSizePt;
+  final fontSize = _rtfFontSizeLogicalPixels(state.fontSizePt);
   if (fontSize == null) {
     return null;
   }

@@ -9098,7 +9098,7 @@ void main() {
     expect(nativeCell?.value, 'Native');
     expect(nativeCell?.bold, isTrue);
     expect(nativeCell?.fontFamily, 'Gulim');
-    expect(nativeCell?.fontSize, 8);
+    expect(nativeCell?.fontSize, closeTo(8 * 96 / 72, 0.0001));
     expect(nativeCell?.foreground, const Color(0xffff0000));
     expect(nativeCell?.background, const Color(0xff00ff00));
     expect(draft.cells[const FortuneCellCoord(0, 1)]?.value, 'Bridge');
@@ -9357,7 +9357,7 @@ ${backslash}trowd${backslash}clcbpat2${backslash}cellx3000${backslash}pard${back
       expect(cell, isNotNull);
       expect(cell!.value, contains('Bold Italic Under Strike Blue'));
       expect(cell.fontFamily, 'Courier New');
-      expect(cell.fontSize, 14);
+      expect(cell.fontSize, closeTo(14 * 96 / 72, 0.0001));
       expect(cell.bold, isTrue);
       expect(cell.hasRawBold, isTrue);
       expect(cell.italic, isTrue);
@@ -9373,7 +9373,7 @@ ${backslash}trowd${backslash}clcbpat2${backslash}cellx3000${backslash}pard${back
       expect(cell.inlineRuns, isNotNull);
       expect(cell.inlineRuns!.map((run) => run.text).join(), cell.value);
       expect(cell.inlineRuns!.first.fontFamily, 'Courier New');
-      expect(cell.inlineRuns!.first.fontSize, 14);
+      expect(cell.inlineRuns!.first.fontSize, closeTo(14 * 96 / 72, 0.0001));
       expect(cell.inlineRuns!.first.foreground, const Color(0xffff0000));
       expect(cell.inlineRuns!.last.text, 'Blue');
       expect(cell.inlineRuns!.last.foreground, const Color(0xff0000ff));
@@ -9455,9 +9455,9 @@ ${backslash}trowd${backslash}cellx3000${backslash}pard${backslash}intbl${backsla
     expect(baseRun.extraFields['letterSpacing'], 2);
     expect(baseRun.extraFields['lineHeight'], 1.5);
     expect(superRun.extraFields['script'], 'superscript');
-    expect(superRun.fontSize, 6);
+    expect(superRun.fontSize, closeTo(8, 0.0001));
     expect(subRun.extraFields['script'], 'subscript');
-    expect(subRun.fontSize, 6);
+    expect(subRun.fontSize, closeTo(8, 0.0001));
   });
 
   test('RTF import preserves additional properties as metadata', () async {
