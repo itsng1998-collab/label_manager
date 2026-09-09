@@ -22,6 +22,7 @@
 - 최종 검증: `flutter test test/startup_login_service_test.dart test/startup_dialog_test.dart` 13건 통과. `flutter analyze lib/features/login/application/startup_login_service.dart lib/features/login/presentation/startup_dialog.dart test/startup_login_service_test.dart test/startup_dialog_test.dart` 이슈 없음. `git diff --check` 통과.
 - 실행 검증 제한: VS Code DTD에는 연결했지만 실행 중인 Flutter 앱이 없어 hot restart와 runtime 오류 확인은 수행하지 못했다.
 - 버전: 공지 상태 유지 버그 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.101 -> 1.3.102**.
+- 기능 커밋: `3e40eb1d22ce7ed1d428f7329213aab9e1425bdb` (`로그인 공지 숨김 상태 유지 수정`).
 - 로그인·종료 속도 구현: [lib/features/login/presentation/startup_dialog.dart](lib/features/login/presentation/startup_dialog.dart)는 진행 스낵바 표시 직후 인증을 시작하고 실제 인증 종료 시 스낵바를 닫는다. [lib/home_page_manager.dart](lib/home_page_manager.dart)는 초기 브랜드/품목 로딩을 스낵바 `onVisible` 콜백까지 미루지 않는다. [lib/main.dart](lib/main.dart)는 lifecycle 정리가 끝난 뒤 추가하던 Windows 고정 120ms 대기를 제거했다.
 - 로그아웃 판단: 최신 실행에서 메뉴 클릭부터 `_doLogout` 완료까지 약 101ms, 실제 `_doLogout`은 약 1ms였다. 일반 계정의 로그아웃 이력 저장 순서를 바꾸면 레거시 및 이력 완료 계약이 달라지므로 추가 변경하지 않았다.
 - 테스트 추가/최종 검증: [test/startup_dialog_test.dart](test/startup_dialog_test.dart)에 progress snackbar 프레임 전 로그인 DAO 시작 계약, [test/home_page_manager_session_test.dart](test/home_page_manager_session_test.dart)에 progress 표시와 초기 로딩 즉시 시작 순서 계약을 추가했다. 관련 focused 테스트 20건 통과, analyzer 이슈 없음, diagnostics 없음, `git diff --check` 통과.
