@@ -11,6 +11,7 @@
 - 다음 수정 지점: RTF 가져오기/시트 글자 크기의 단위 계약과 원본 출처 보존을 좁혀 조사. 현재 실패17dot만으로 원본8pt를 단정하지 않는다. USB 설치/같은 실물 재출력은 요청하지 않는다.
 - 테스트 추가: CTest `inverse_font_reference` 등록. 다음 검증: probe `/WX` build 및 `ctest --test-dir .tmp/inverse_probe_build -C Debug --output-on-failure`. 생산/Dart 변경 없음으로 앱 빌드/실행/hot reload 불필요. 버전은 진단 회귀 추가 PATCH **1.3.110 -> 1.3.111**, native 마크1.3.107 유지.
 - 최종 검증: probe `/WX` 빌드 및 CTest2/2 통과(기존 합성/좌표 + 폰트 reference). 임시 EMF/BMP는 `.tmp/inverse_font_reference`와 probe build 안에 로컬 보존, stage 제외. 다음 검증은 변경 diagnostics/`git diff --check`, stage 대상은 probe 헤더/main/CMake/README, 재개 문서, pubspec, 이 문서7개만 포함. 사용자 `lib/core/app.dart` 보존.
+- 완료 커밋: `eb2a01f` (`레거시 RTF와 시트 역상 글자 크기 비교 검사 추가`). diagnostics/diff 검사도 통과, 관련7개 파일만 포함. 후속 해시 기록은 버전 재증가 없음. 실물 품질 수정은 미완료이며 다음 시작점은 RTF/시트 단위 계약이다.
 
 ## 이전 조사 / 우선순위 철회: USB 전송 관측
 - 사용자 요청: 역상 보완 계속. 실제 앱 파일 캡처의 픽셀 보존은 이미 검증되어 같은 렌더링/실물 검사를 반복하지 않았다.
