@@ -9,6 +9,7 @@ import 'package:label_manager/features/login/application/startup_login_service.d
 import 'package:label_manager/features/login/application/user_access_service.dart';
 import 'package:label_manager/features/login/presentation/startup_dialog.dart';
 import 'package:label_manager/features/market/domain/market.dart';
+import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -122,7 +123,7 @@ void main() {
             forceNoticeClosed: true,
             onLogin: () => loginCallbackCalled = true,
             loginService: StartupLoginService(
-              loadNotice: (_) async => '',
+              loadNotice: (_) async => const Notice(message: '', state: 0),
               loadUser: (_) async => user,
             ),
             userAccessService: UserAccessService(
@@ -184,7 +185,7 @@ void main() {
             forceNoticeClosed: true,
             onLogin: () {},
             loginService: StartupLoginService(
-              loadNotice: (_) async => '',
+              loadNotice: (_) async => const Notice(message: '', state: 0),
               loadUser: (_) async => user,
               loadMarket: (_) async {
                 loginStarted = true;
@@ -220,6 +221,144 @@ void main() {
 
     expect(loginStarted, isTrue);
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('startup notice stays closed when database state is suppressed', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': 'user',
+      'save_id': true,
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            onLogin: () {},
+            loginService: _noticeService(
+              const Notice(message: '업데이트 공지', state: 1),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NoticeDisplayPanel), findsNothing);
+    expect(find.text('다음 업데이트까지 이 창 보지 않음'), findsNothing);
+  });
+
+  testWidgets('startup notice reopens when database state is reset', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': 'user',
+      'save_id': true,
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            onLogin: () {},
+            loginService: _noticeService(
+              const Notice(message: '새 업데이트 공지', state: 0),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NoticeDisplayPanel), findsOneWidget);
+  });
+
+  testWidgets('notice confirmation saves suppression before closing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': 'user',
+      'save_id': true,
+    });
+    final writes = <(String, bool)>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            onLogin: () {},
+            loginService: _noticeService(
+              const Notice(message: '업데이트 공지', state: 0),
+              writeNoticeState: (userId, dontShowAgain) async {
+                writes.add((userId, dontShowAgain));
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('startup-notice-suppress-checkbox')),
+    );
+    await tester.tap(find.widgetWithText(ElevatedButton, '확인'));
+    await tester.pumpAndSettle();
+
+    expect(writes, [('user', true)]);
+    expect(find.byType(NoticeDisplayPanel), findsNothing);
+  });
+
+  testWidgets('notice remains open when suppression save fails', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': 'user',
+      'save_id': true,
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            onLogin: () {},
+            loginService: _noticeService(
+              const Notice(message: '업데이트 공지', state: 0),
+              writeNoticeState: (_, _) async {
+                throw StateError('공지 상태 저장 실패');
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('startup-notice-suppress-checkbox')),
+    );
+    await tester.tap(find.widgetWithText(ElevatedButton, '확인'));
+    await tester.pump();
+
+    expect(find.byType(NoticeDisplayPanel), findsOneWidget);
+    expect(find.text('공지 설정 저장에 실패했습니다.'), findsOneWidget);
   });
 
   testWidgets('startup notice restores equal content and image widths', (
@@ -277,3 +416,20 @@ void main() {
     expect(contentWidth, moreOrLessEquals(imageWidth * 2));
   });
 }
+
+StartupLoginService _noticeService(
+  Notice notice, {
+  StartupNoticeStateWriter? writeNoticeState,
+}) => StartupLoginService(
+  loadNotice: (_) async => notice,
+  loadUser: (_) async => const User(
+    userId: 'user',
+    marketId: 1,
+    name: '사용자',
+    pwd: 'pw',
+    grade: UserGrade.CLIENT_USER,
+    marketName: '지점',
+    customerName: '거래처',
+  ),
+  writeNoticeState: writeNoticeState ?? (_, _) async {},
+);

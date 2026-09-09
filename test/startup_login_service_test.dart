@@ -5,6 +5,7 @@ import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/login/application/startup_login_service.dart';
 import 'package:label_manager/features/market/domain/market.dart';
+import 'package:label_manager/features/update_notice/domain/notice.dart';
 
 void main() {
   const user = User(
@@ -32,12 +33,12 @@ void main() {
     AdminConnectSession.instance.resetForLogout();
   });
 
-  test('lookup loads notice before user', () async {
+  test('lookup loads notice state before user', () async {
     final calls = <String>[];
     final service = _service(
       loadNotice: (userId) async {
         calls.add('notice:$userId');
-        return '공지';
+        return const Notice(message: '공지', state: 1);
       },
       loadUser: (userId) async {
         calls.add('user:$userId');
@@ -48,7 +49,8 @@ void main() {
     final result = await service.lookupUser('user');
 
     expect(calls, ['notice:user', 'user:user']);
-    expect(result.notice, '공지');
+    expect(result.notice.message, '공지');
+    expect(result.notice.state, 1);
     expect(result.user, same(user));
   });
 
@@ -108,8 +110,9 @@ StartupLoginService _service({
   StartupCustomerLoader? loadCustomer,
   StartupCooperatorLoader? loadCooperator,
   StartupLoginLogWriter? writeLoginLog,
+  StartupNoticeStateWriter? writeNoticeState,
 }) => StartupLoginService(
-  loadNotice: loadNotice ?? (_) async => '',
+  loadNotice: loadNotice ?? (_) async => const Notice(message: '', state: 0),
   loadUser: loadUser ?? (_) async => null,
   loadMarket:
       loadMarket ??
@@ -124,4 +127,5 @@ StartupLoginService _service({
   loadCooperator:
       loadCooperator ?? (_) async => const Cooperator(id: 'C30', name: '협력업체'),
   writeLoginLog: writeLoginLog ?? (_, _) async {},
+  writeNoticeState: writeNoticeState ?? (_, _) async {},
 );

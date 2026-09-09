@@ -1,10 +1,11 @@
 # 현재 작업 상태
 
 ## 새 세션 우선순위 (2026-09-09)
-1. **완료: 로그인·로그아웃·프로그램 종료 체감 속도 개선.** 로그인/초기 브랜드 로딩을 `SnackBar.onVisible`까지 미루지 않고 즉시 시작하도록 변경하고 Windows 종료의 고정 120ms 대기를 제거했다. v1.3.101 실행 로그에서 인증 종료→초기 로딩 시작은 약 681ms에서 376ms, 종료 승인→후속 닫기는 약 122ms에서 1ms로 감소했다.
-2. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
-3. 품목관리 BMP 미리보기 수정은 구현·자동 검증 완료 상태다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
-4. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 앱 오동작 확인 후 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 역상 출력 문제를 재개한다.
+1. **완료: 로그인 공지의 `다음 업데이트까지 이 창 보지 않음` 복원 수정.** v1.3.58 재현 로그와 레거시를 대조한 결과 Flutter는 공지 조회 전 빈 내용 hash로 로컬 suppression을 판정하고 DB `UN_STATE`를 버려 재실행 시 공지가 다시 표시됐다. 로그인 조회 결과에 `Notice.state`를 전달하고 확인 시 기존 `NoticeDAO.updateUserState`로 상태를 저장하도록 수정했다.
+2. **완료: 로그인·로그아웃·프로그램 종료 체감 속도 개선.** 로그인/초기 브랜드 로딩을 `SnackBar.onVisible`까지 미루지 않고 즉시 시작하도록 변경하고 Windows 종료의 고정 120ms 대기를 제거했다. v1.3.101 실행 로그에서 인증 종료→초기 로딩 시작은 약 681ms에서 376ms, 종료 승인→후속 닫기는 약 122ms에서 1ms로 감소했다.
+3. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
+4. 품목관리 BMP 미리보기 수정은 구현·자동 검증 완료 상태다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
+5. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 앱 오동작 확인 후 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 역상 출력 문제를 재개한다.
 
 ## 보존할 상태
 - 마지막 인쇄 구현: **v1.3.97 / d0ade63**, 기록 커밋: **a0f3a1e**. v1.3.97은 후속 검정 글자 합성 진단 추가이며 획 소실 해결 버전이 아니다.
@@ -16,6 +17,11 @@
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.
 
 ## 이번 핸드오프 정리
+- 공지 suppression 구현: [lib/features/login/application/startup_login_service.dart](lib/features/login/application/startup_login_service.dart)는 공지 문자열 대신 `Notice(message, state)` 전체를 반환하고 기존 `NoticeDAO.updateUserState` writer를 제공한다. [lib/features/login/presentation/startup_dialog.dart](lib/features/login/presentation/startup_dialog.dart)는 DB `UN_STATE=1`을 재실행 시 닫힘으로 복원하며, 체크 후 확인에서 저장 성공 후에만 닫고 늦은 조회 callback이 다시 열지 못하게 한다.
+- 공지 suppression 테스트: [test/startup_login_service_test.dart](test/startup_login_service_test.dart)에 공지 상태 전달 계약을, [test/startup_dialog_test.dart](test/startup_dialog_test.dart)에 DB 상태 1 복원, 상태 0 새 공지 재표시, 확인 시 사용자별 suppression 저장, 저장 실패 시 공지 유지와 즉시 오류 표시 계약을 추가했다.
+- 최종 검증: `flutter test test/startup_login_service_test.dart test/startup_dialog_test.dart` 13건 통과. `flutter analyze lib/features/login/application/startup_login_service.dart lib/features/login/presentation/startup_dialog.dart test/startup_login_service_test.dart test/startup_dialog_test.dart` 이슈 없음. `git diff --check` 통과.
+- 실행 검증 제한: VS Code DTD에는 연결했지만 실행 중인 Flutter 앱이 없어 hot restart와 runtime 오류 확인은 수행하지 못했다.
+- 버전: 공지 상태 유지 버그 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.101 -> 1.3.102**.
 - 로그인·종료 속도 구현: [lib/features/login/presentation/startup_dialog.dart](lib/features/login/presentation/startup_dialog.dart)는 진행 스낵바 표시 직후 인증을 시작하고 실제 인증 종료 시 스낵바를 닫는다. [lib/home_page_manager.dart](lib/home_page_manager.dart)는 초기 브랜드/품목 로딩을 스낵바 `onVisible` 콜백까지 미루지 않는다. [lib/main.dart](lib/main.dart)는 lifecycle 정리가 끝난 뒤 추가하던 Windows 고정 120ms 대기를 제거했다.
 - 로그아웃 판단: 최신 실행에서 메뉴 클릭부터 `_doLogout` 완료까지 약 101ms, 실제 `_doLogout`은 약 1ms였다. 일반 계정의 로그아웃 이력 저장 순서를 바꾸면 레거시 및 이력 완료 계약이 달라지므로 추가 변경하지 않았다.
 - 테스트 추가/최종 검증: [test/startup_dialog_test.dart](test/startup_dialog_test.dart)에 progress snackbar 프레임 전 로그인 DAO 시작 계약, [test/home_page_manager_session_test.dart](test/home_page_manager_session_test.dart)에 progress 표시와 초기 로딩 즉시 시작 순서 계약을 추가했다. 관련 focused 테스트 20건 통과, analyzer 이슈 없음, diagnostics 없음, `git diff --check` 통과.

@@ -10,8 +10,13 @@ import 'package:label_manager/features/login_history/domain/login_log.dart';
 import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
+import 'package:label_manager/features/update_notice/domain/notice.dart';
 
-typedef StartupNoticeLoader = Future<String> Function(String userId);
+typedef StartupNoticeLoader = Future<Notice> Function(String userId);
+typedef StartupNoticeStateWriter = Future<void> Function(
+  String userId,
+  bool dontShowAgain,
+);
 typedef StartupUserLoader = Future<User?> Function(String userId);
 typedef StartupMarketLoader = Future<Market?> Function(int marketId);
 typedef StartupCustomerLoader = Future<Customer?> Function(int customerId);
@@ -23,7 +28,7 @@ typedef StartupLoginLogWriter =
 class StartupUserLookupResult {
   const StartupUserLookupResult({required this.notice, required this.user});
 
-  final String notice;
+  final Notice notice;
   final User? user;
 }
 
@@ -35,12 +40,14 @@ class StartupLoginService {
     StartupCustomerLoader? loadCustomer,
     StartupCooperatorLoader? loadCooperator,
     StartupLoginLogWriter? writeLoginLog,
-  }) : _loadNotice = loadNotice ?? NoticeDAO.selectByUserId,
+    StartupNoticeStateWriter? writeNoticeState,
+  }) : _loadNotice = loadNotice ?? NoticeDAO.selectNoticeByUserId,
        _loadUser = loadUser ?? UserDAO.selectByUserId,
        _loadMarket = loadMarket ?? MarketDAO.selectByMarketId,
        _loadCustomer = loadCustomer ?? CustomerDAO.selectByCustomerId,
        _loadCooperator = loadCooperator ?? CooperatorDAO.selectByCooperatorId,
-       _writeLoginLog = writeLoginLog ?? _defaultWriteLoginLog;
+      _writeLoginLog = writeLoginLog ?? _defaultWriteLoginLog,
+      _writeNoticeState = writeNoticeState ?? _defaultWriteNoticeState;
 
   final StartupNoticeLoader _loadNotice;
   final StartupUserLoader _loadUser;
@@ -48,6 +55,7 @@ class StartupLoginService {
   final StartupCustomerLoader _loadCustomer;
   final StartupCooperatorLoader _loadCooperator;
   final StartupLoginLogWriter _writeLoginLog;
+  final StartupNoticeStateWriter _writeNoticeState;
 
   Future<StartupUserLookupResult> lookupUser(String userId) async {
     final notice = await _loadNotice(userId);
@@ -85,6 +93,11 @@ class StartupLoginService {
     }
   }
 
+  Future<void> updateNoticeState({
+    required String userId,
+    required bool dontShowAgain,
+  }) => _writeNoticeState(userId, dontShowAgain);
+
   void clearSession() {
     User.setInstance(null);
     Market.setInstance(null);
@@ -100,4 +113,12 @@ class StartupLoginService {
         customerName: customer.customerName,
         loginCondition: LoginCondition.LOGIN,
       );
+
+  static Future<void> _defaultWriteNoticeState(
+    String userId,
+    bool dontShowAgain,
+  ) => NoticeDAO.updateUserState(
+    userId: userId,
+    dontShowAgain: dontShowAgain,
+  );
 }

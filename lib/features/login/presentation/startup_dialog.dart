@@ -77,54 +77,34 @@ class StartupDialog extends StatefulWidget {
 }
 
 class _StartupDialogState extends State<StartupDialog> {
-  // 공지 해시 계산을 위한 페이로드 생성(버전+내용)
-  String _currentNoticePayload({String? content, String? version}) {
-    final v = version ?? '';
-    final c = content ?? '';
-    return '$v\n$c';
-  }
-
-  // 간단한 FNV-1a 64-bit 해시 구현
-  String _fnv1a64Hex(String input) {
-    const int fnv64Offset = 0xcbf29ce484222325; // 14695981039346656037
-    const int fnv64Prime = 0x100000001b3; // 1099511628211
-    int hash = fnv64Offset;
-
-    for (int i = 0; i < input.length; i++) {
-      hash ^= input.codeUnitAt(i);
-      hash = (hash * fnv64Prime) & 0xFFFFFFFFFFFFFFFF; // 64-bit wrap
-    }
-
-    final hex = hash.toRadixString(16).padLeft(16, '0');
-    return hex;
-  }
-
   final String _effectiveVersion = appVersion;
   String _effectiveContent = expandTabs('');
   bool _noticeClosed = false;
   bool _dontShowUntilNextUpdate = false;
+  bool _noticeConfirmed = false;
+  String? _noticeUserId;
+  late final StartupLoginService _loginService;
 
   @override
   void initState() {
     super.initState();
-    _initNoticeState();
+    _loginService = widget.loginService ?? StartupLoginService();
+    _noticeClosed = widget.forceNoticeClosed;
   }
 
-  Future<void> _initNoticeState() async {
-    // 초기 notice 표시 여부 계산 (저장된 해시/버전과 비교)
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final suppressedVer = prefs.getString('suppressNoticeVersion');
-      final suppressedHash = prefs.getString('suppressNoticeHash');
-      final initialHash = _fnv1a64Hex(_currentNoticePayload(content: _effectiveContent, version: _effectiveVersion));
-      final isSuppressed = (suppressedVer == appVersion) && (suppressedHash == initialHash);
-      if (!mounted) return;
+  Future<void> _closeNotice() async {
+    final userId = _noticeUserId;
+    if (userId != null) {
+      await _loginService.updateNoticeState(
+        userId: userId,
+        dontShowAgain: _dontShowUntilNextUpdate,
+      );
+    }
+    if (mounted) {
       setState(() {
-        _noticeClosed = widget.forceNoticeClosed || isSuppressed;
-        _dontShowUntilNextUpdate = isSuppressed;
+        _noticeConfirmed = true;
+        _noticeClosed = true;
       });
-    } catch (_) {
-      // 무시
     }
   }
 
@@ -133,32 +113,25 @@ class _StartupDialogState extends State<StartupDialog> {
     final fHeight = isDesktop ? 0.8 : 0.8;
     final dialogBody = _DialogBody(
       noticeClosed: _noticeClosed,
-      onCloseNotice: () => setState(() => _noticeClosed = true),
+      onCloseNotice: _closeNotice,
       onLogin: widget.onLogin,
       dontShow: _dontShowUntilNextUpdate,
-      onToggleDontShow: (v) async {
-        setState(() => _dontShowUntilNextUpdate = v);
-        if (v) {
-          final prefs = await SharedPreferences.getInstance();
-          final currHashNow = _fnv1a64Hex(_currentNoticePayload(content: _effectiveContent, version: _effectiveVersion));
-          await prefs.setString('suppressNoticeVersion', appVersion);
-          await prefs.setString('suppressNoticeHash', currHashNow);
-        } else {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('suppressNoticeVersion');
-          await prefs.remove('suppressNoticeHash');
-        }
-      },
+      onToggleDontShow: (v) => setState(() => _dontShowUntilNextUpdate = v),
       noticeVersion: _effectiveVersion,
       noticeContent: _effectiveContent,
-      onNoticeUpdate: (newContent) {
+      onNoticeUpdate: (result) {
         if (!mounted) return;
+        final isSuppressed = result.notice.state == 1;
         setState(() {
-          _effectiveContent = expandTabs(newContent);
+          _noticeUserId = result.user?.userId;
+          _effectiveContent = expandTabs(result.notice.message);
+          _dontShowUntilNextUpdate = isSuppressed;
+          _noticeClosed =
+              widget.forceNoticeClosed || _noticeConfirmed || isSuppressed;
         });
       },
       serverName: widget.serverName,
-      loginService: widget.loginService,
+      loginService: _loginService,
       userAccessService: widget.userAccessService,
     );
 
@@ -188,13 +161,13 @@ class _StartupDialogState extends State<StartupDialog> {
 
 class _DialogBody extends StatefulWidget {
   final bool noticeClosed;
-  final VoidCallback onCloseNotice;
+  final Future<void> Function() onCloseNotice;
   final VoidCallback onLogin;
   final bool dontShow;
   final ValueChanged<bool> onToggleDontShow;
   final String noticeVersion;
   final String noticeContent;
-  final ValueChanged<String> onNoticeUpdate;
+  final ValueChanged<StartupUserLookupResult> onNoticeUpdate;
   final String? serverName;
   final StartupLoginService? loginService;
   final UserAccessService? userAccessService;
@@ -293,22 +266,44 @@ class _DialogBodyState extends State<_DialogBody> {
                           Row(
                             children: [
                               Checkbox(
+                                key: const ValueKey(
+                                  'startup-notice-suppress-checkbox',
+                                ),
                                 value: widget.dontShow,
                                 onChanged: (v) => widget.onToggleDontShow(v ?? false),
                               ),
                               const Text('다음 업데이트까지 이 창 보지 않음'),
                               const Spacer(),
                               ElevatedButton(
-                                onPressed: () {
+                                onPressed: () async {
                                   showSnackBar(
                                     scaffoldContext,
                                     '공지사항 닫는 중...',
                                     type: SnackBarType.inProgress,
-                                    onVisible: () {
-                                      ScaffoldMessenger.of(scaffoldContext).hideCurrentSnackBar();
-                                      widget.onCloseNotice();
-                                    },
                                   );
+                                  try {
+                                    await widget.onCloseNotice();
+                                  } catch (error, stackTrace) {
+                                    debugLog(
+                                      '공지 설정 저장 실패: $error\n$stackTrace',
+                                    );
+                                    if (scaffoldContext.mounted) {
+                                      ScaffoldMessenger.of(
+                                        scaffoldContext,
+                                      ).hideCurrentSnackBar();
+                                      showSnackBar(
+                                        scaffoldContext,
+                                        '공지 설정 저장에 실패했습니다.',
+                                        type: SnackBarType.error,
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  if (scaffoldContext.mounted) {
+                                    ScaffoldMessenger.of(
+                                      scaffoldContext,
+                                    ).hideCurrentSnackBar();
+                                  }
                                 },
                                 child: const Text('확인'),
                               ),
@@ -331,7 +326,7 @@ class _LoginPanel extends StatefulWidget {
   final bool dontShow;
   final ValueChanged<bool> onToggleDontShow;
   final VoidCallback onLogin;
-  final ValueChanged<String>? onUserIdCommit;
+  final ValueChanged<StartupUserLookupResult>? onUserIdCommit;
   final String? serverName;
   final StartupLoginService? loginService;
   final UserAccessService? userAccessService;
@@ -420,9 +415,7 @@ class _LoginPanelState extends State<_LoginPanel> {
       }
 
       final result = await _loginService.lookupUser(inputId);
-      if (result.notice.isNotEmpty) {
-        widget.onUserIdCommit?.call(result.notice);
-      }
+      widget.onUserIdCommit?.call(result);
 
       _userInfo = result.user;
 
