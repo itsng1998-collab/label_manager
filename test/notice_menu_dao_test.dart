@@ -11,7 +11,61 @@ import 'package:label_manager/core/user.dart';
 void main() {
   test('target users follow legacy customer name order', () {
     expect(NoticeDAO.selectTargetUsersSql, contains('C.RICH_COOP_ID=@cooperatorId'));
+    expect(NoticeDAO.selectTargetUsersSql, contains('CUSTOMER_ID'));
+    expect(NoticeDAO.selectTargetUsersSql, contains('MARKET_ID'));
+    expect(NoticeDAO.selectTargetUsersSql, contains('MARKET_NAME'));
     expect(NoticeDAO.selectTargetUsersSql, contains('ORDER BY C.RICH_NAME'));
+  });
+
+  test('notice targets filter by customer and market', () {
+    const users = [
+      NoticeTargetUser(
+        userId: 'alpha',
+        customerId: 1,
+        customerName: '거래처 A',
+        marketId: 10,
+        marketName: '지점 A',
+      ),
+      NoticeTargetUser(
+        userId: 'beta',
+        customerId: 1,
+        customerName: '거래처 A',
+        marketId: 11,
+        marketName: '지점 B',
+      ),
+      NoticeTargetUser(
+        userId: 'gamma',
+        customerId: 2,
+        customerName: '거래처 B',
+        marketId: 20,
+        marketName: '지점 C',
+      ),
+    ];
+
+    expect(
+      filterNoticeTargetUsers(users, customerId: 1).map((user) => user.userId),
+      ['alpha', 'beta'],
+    );
+    expect(
+      filterNoticeTargetUsers(users, customerId: 1, marketId: 11)
+          .map((user) => user.userId),
+      ['beta'],
+    );
+  });
+
+  test('account ID search is trimmed and case insensitive', () {
+    const users = [
+      NoticeTargetUser(
+        userId: 'Tester01',
+        customerId: 1,
+        customerName: '거래처',
+        marketId: 10,
+        marketName: '지점',
+      ),
+    ];
+
+    expect(findNoticeTargetUserIndex(users, ' tester '), 0);
+    expect(findNoticeTargetUserIndex(users, 'missing'), -1);
   });
 
   test('administrator target statements create missing selected notice', () {
@@ -227,6 +281,125 @@ void main() {
     expect(saveCount, 1);
   });
 
+  testWidgets('notice target filter keeps selections outside current results', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = UpdateNoticeDialogController();
+    addTearDown(controller.dispose);
+    UpdateNoticeSaveRequest? savedRequest;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UpdateNoticeDialog(
+            controller: controller,
+            user: _systemAdministrator,
+            notice: const Notice(message: '공지', state: 0),
+            targetUsers: _filterTargetUsers,
+            onSave: (request) async => savedRequest = request,
+            onClose: () {},
+            onCommitOutcomeUnknown: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.widgetWithText(CheckboxListTile, '사용자 선택'));
+    await tester.pump();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('notice-target-user-alpha')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('notice-target-customer-filter')),
+    );
+    await tester.pump();
+    await tester.tap(find.text('거래처 B'));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('notice-target-user-alpha')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('notice-target-user-gamma')),
+      findsOneWidget,
+    );
+    expect(find.text('선택 1명'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('notice-target-user-gamma')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.tap(find.widgetWithText(FilledButton, '저장'));
+    await tester.pump();
+
+    expect(savedRequest?.selectedUserIds, containsAll(['alpha', 'gamma']));
+  });
+
+  testWidgets('account ID search scrolls to a matching target without saving', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = UpdateNoticeDialogController();
+    addTearDown(controller.dispose);
+    var saveCount = 0;
+    final users = List.generate(
+      30,
+      (index) => NoticeTargetUser(
+        userId: 'user${index.toString().padLeft(2, '0')}',
+        customerId: 1,
+        customerName: '거래처',
+        marketId: 10,
+        marketName: '지점',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UpdateNoticeDialog(
+            controller: controller,
+            user: _systemAdministrator,
+            notice: const Notice(message: '공지', state: 0),
+            targetUsers: users,
+            onSave: (_) async => saveCount++,
+            onClose: () {},
+            onCommitOutcomeUnknown: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.widgetWithText(CheckboxListTile, '사용자 선택'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('notice-target-account-search')),
+      'USER29',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    final list = find.byKey(const ValueKey('notice-target-user-list'));
+    final scrollable = find.descendant(
+      of: list,
+      matching: find.byType(Scrollable),
+    );
+    expect(tester.state<ScrollableState>(scrollable).position.pixels, greaterThan(0));
+    expect(
+      find.byKey(const ValueKey('notice-target-user-user29')),
+      findsOneWidget,
+    );
+    expect(saveCount, 0);
+  });
+
   test('controller exposes dirty and write-busy exit state', () {
     final controller = UpdateNoticeDialogController();
     addTearDown(controller.dispose);
@@ -238,3 +411,37 @@ void main() {
     expect(controller.snapshot().blockingReason, isNotNull);
   });
 }
+
+const _systemAdministrator = User(
+  userId: User.SYSTEM,
+  marketId: 1,
+  name: '시스템 관리자',
+  pwd: '',
+  grade: UserGrade.SYSTEM_ADMIN_USER,
+  marketName: '지점',
+  customerName: '거래처',
+);
+
+const _filterTargetUsers = [
+  NoticeTargetUser(
+    userId: 'alpha',
+    customerId: 1,
+    customerName: '거래처 A',
+    marketId: 10,
+    marketName: '지점 A',
+  ),
+  NoticeTargetUser(
+    userId: 'beta',
+    customerId: 1,
+    customerName: '거래처 A',
+    marketId: 11,
+    marketName: '지점 B',
+  ),
+  NoticeTargetUser(
+    userId: 'gamma',
+    customerId: 2,
+    customerName: '거래처 B',
+    marketId: 20,
+    marketName: '지점 C',
+  ),
+];

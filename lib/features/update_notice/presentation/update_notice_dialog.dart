@@ -6,6 +6,7 @@ import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 
 class UpdateNoticeDialogController extends ChangeNotifier {
@@ -67,10 +68,22 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
   bool _dontShowAgain = false;
   bool _saving = false;
   String? _error;
+  int? _selectedCustomerId;
+  int? _selectedMarketId;
+  String? _highlightedUserId;
+  String? _searchError;
   final Set<String> _selectedUserIds = <String>{};
+  final TextEditingController _accountIdSearchController =
+      TextEditingController();
+  final ScrollController _targetUserScrollController = ScrollController();
+  final FocusNode _accountIdSearchFocusNode = FocusNode(
+    debugLabel: 'UpdateNoticeAccountIdSearch',
+  );
   final FocusNode _initialFocusNode = FocusNode(
     debugLabel: 'UpdateNoticeInitialFocus',
   );
+
+  static const double _targetUserExtent = 64;
 
   bool get _isAdministrator =>
       widget.user.grade == UserGrade.SYSTEM_ADMIN_USER ||
@@ -88,6 +101,9 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _accountIdSearchController.dispose();
+    _targetUserScrollController.dispose();
+    _accountIdSearchFocusNode.dispose();
     _initialFocusNode.dispose();
     super.dispose();
   }
@@ -99,8 +115,104 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
       return true;
     }
     if (event.logicalKey != LogicalKeyboardKey.enter || _saving) return false;
+    if (_accountIdSearchFocusNode.hasFocus) {
+      _searchNextTargetUser();
+      return true;
+    }
     _save();
     return true;
+  }
+
+  List<NoticeTargetUser> get _visibleTargetUsers => filterNoticeTargetUsers(
+    widget.targetUsers,
+    customerId: _selectedCustomerId,
+    marketId: _selectedMarketId,
+  );
+
+  List<MapEntry<int, String>> get _customerOptions {
+    final names = <int, String>{};
+    for (final user in widget.targetUsers) {
+      names[user.customerId] = user.customerName;
+    }
+    return names.entries.toList(growable: false)
+      ..sort((left, right) => left.value.compareTo(right.value));
+  }
+
+  List<MapEntry<int, String>> get _marketOptions {
+    final names = <int, String>{};
+    for (final user in widget.targetUsers) {
+      if (_selectedCustomerId == null ||
+          user.customerId == _selectedCustomerId) {
+        names[user.marketId] = user.marketName;
+      }
+    }
+    return names.entries.toList(growable: false)
+      ..sort((left, right) => left.value.compareTo(right.value));
+  }
+
+  void _changeCustomer(int? customerId) {
+    setState(() {
+      _selectedCustomerId = customerId;
+      _selectedMarketId = null;
+      _highlightedUserId = null;
+      _searchError = null;
+    });
+    _scrollTargetListToTop();
+  }
+
+  void _changeMarket(int? marketId) {
+    setState(() {
+      _selectedMarketId = marketId;
+      _highlightedUserId = null;
+      _searchError = null;
+    });
+    _scrollTargetListToTop();
+  }
+
+  void _scrollTargetListToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_targetUserScrollController.hasClients) {
+        _targetUserScrollController.jumpTo(0);
+      }
+    });
+  }
+
+  void _searchNextTargetUser() {
+    final users = _visibleTargetUsers;
+    final currentIndex = users.indexWhere(
+      (user) => user.userId == _highlightedUserId,
+    );
+    final foundIndex = findNoticeTargetUserIndex(
+      users,
+      _accountIdSearchController.text,
+      startAfter: currentIndex,
+    );
+    if (foundIndex < 0) {
+      setState(() {
+        _highlightedUserId = null;
+        _searchError = '검색 결과가 없습니다.';
+      });
+      return;
+    }
+
+    setState(() {
+      _highlightedUserId = users[foundIndex].userId;
+      _searchError = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_targetUserScrollController.hasClients) return;
+      final position = _targetUserScrollController.position;
+      final centeredOffset =
+          foundIndex * _targetUserExtent -
+          (position.viewportDimension - _targetUserExtent) / 2;
+      _targetUserScrollController.animateTo(
+        centeredOffset
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble(),
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   Future<void> _save() async {
@@ -195,7 +307,7 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
             ),
             if (_isAdministrator) ...[
               const SizedBox(width: 12),
-              SizedBox(width: 300, child: _buildTargetPanel()),
+              SizedBox(width: 360, child: _buildTargetPanel()),
             ],
           ],
         ),
@@ -216,7 +328,14 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
               : (value) {
                   setState(() {
                     _selectUsers = value ?? false;
-                    if (!_selectUsers) _selectedUserIds.clear();
+                    if (!_selectUsers) {
+                      _selectedUserIds.clear();
+                      _selectedCustomerId = null;
+                      _selectedMarketId = null;
+                      _highlightedUserId = null;
+                      _searchError = null;
+                      _accountIdSearchController.clear();
+                    }
                   });
                   _markDirty();
                 },
@@ -237,29 +356,141 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
         Expanded(
           child: !_selectUsers
               ? const SizedBox.shrink()
-              : ListView.builder(
-                  itemCount: widget.targetUsers.length,
-                  itemBuilder: (context, index) {
-                    final target = widget.targetUsers[index];
-                    return CheckboxListTile(
-                      value: _selectedUserIds.contains(target.userId),
-                      title: Text(target.userId),
-                      subtitle: Text(target.customerName),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      onChanged: _saving
-                          ? null
-                          : (selected) {
-                              setState(() {
-                                if (selected ?? false) {
-                                  _selectedUserIds.add(target.userId);
-                                } else {
-                                  _selectedUserIds.remove(target.userId);
-                                }
-                              });
-                              _markDirty();
-                            },
-                    );
-                  },
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ModelessDropdownFormField<int>(
+                            key: const ValueKey(
+                              'notice-target-customer-filter',
+                            ),
+                            initialValue: _selectedCustomerId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: '거래처',
+                            ),
+                            items: [
+                              const DropdownMenuItem<int>(
+                                child: Text('전체 거래처'),
+                              ),
+                              for (final option in _customerOptions)
+                                DropdownMenuItem<int>(
+                                  value: option.key,
+                                  child: Text(option.value),
+                                ),
+                            ],
+                            onChanged: _saving ? null : _changeCustomer,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ModelessDropdownFormField<int>(
+                            key: const ValueKey(
+                              'notice-target-market-filter',
+                            ),
+                            initialValue: _selectedMarketId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: '지점'),
+                            items: [
+                              const DropdownMenuItem<int>(
+                                child: Text('전체 지점'),
+                              ),
+                              for (final option in _marketOptions)
+                                DropdownMenuItem<int>(
+                                  value: option.key,
+                                  child: Text(option.value),
+                                ),
+                            ],
+                            onChanged: _saving ? null : _changeMarket,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            key: const ValueKey(
+                              'notice-target-account-search',
+                            ),
+                            controller: _accountIdSearchController,
+                            focusNode: _accountIdSearchFocusNode,
+                            decoration: const InputDecoration(
+                              labelText: '계정 ID 검색',
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey(
+                            'notice-target-account-search-button',
+                          ),
+                          tooltip: '다음 사용자 검색',
+                          onPressed: _saving ? null : _searchNextTargetUser,
+                          icon: const Icon(Icons.search),
+                        ),
+                      ],
+                    ),
+                    if (_searchError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _searchError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text('선택 ${_selectedUserIds.length}명'),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        key: const ValueKey('notice-target-user-list'),
+                        controller: _targetUserScrollController,
+                        itemExtent: _targetUserExtent,
+                        itemCount: _visibleTargetUsers.length,
+                        itemBuilder: (context, index) {
+                          final target = _visibleTargetUsers[index];
+                          final highlighted =
+                              target.userId == _highlightedUserId;
+                          return Material(
+                            key: ValueKey(
+                              'notice-target-user-${target.userId}',
+                            ),
+                            color: highlighted
+                                ? Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer
+                                : Colors.transparent,
+                            child: CheckboxListTile(
+                              value: _selectedUserIds.contains(target.userId),
+                              title: Text(target.userId),
+                              subtitle: Text(
+                                '${target.customerName} / ${target.marketName}',
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              onChanged: _saving
+                                  ? null
+                                  : (selected) {
+                                      setState(() {
+                                        if (selected ?? false) {
+                                          _selectedUserIds.add(target.userId);
+                                        } else {
+                                          _selectedUserIds.remove(target.userId);
+                                        }
+                                      });
+                                      _markDirty();
+                                    },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
         ),
       ],

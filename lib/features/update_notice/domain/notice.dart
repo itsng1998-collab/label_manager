@@ -13,16 +13,58 @@ class Notice {
 }
 
 class NoticeTargetUser {
-  const NoticeTargetUser({required this.userId, required this.customerName});
+  const NoticeTargetUser({
+    required this.userId,
+    required this.customerId,
+    required this.customerName,
+    required this.marketId,
+    required this.marketName,
+  });
 
   final String userId;
+  final int customerId;
   final String customerName;
+  final int marketId;
+  final String marketName;
 
-  factory NoticeTargetUser.fromMap(Map<String, dynamic> map) =>
-      NoticeTargetUser(
-        userId: (map['USER_ID'] ?? '').toString(),
-        customerName: (map['CUSTOMER_NAME'] ?? '').toString(),
-      );
+  factory NoticeTargetUser.fromMap(Map<String, dynamic> map) {
+    int number(String key) => int.tryParse((map[key] ?? '').toString()) ?? 0;
+    return NoticeTargetUser(
+      userId: (map['USER_ID'] ?? '').toString(),
+      customerId: number('CUSTOMER_ID'),
+      customerName: (map['CUSTOMER_NAME'] ?? '').toString(),
+      marketId: number('MARKET_ID'),
+      marketName: (map['MARKET_NAME'] ?? '').toString(),
+    );
+  }
+}
+
+List<NoticeTargetUser> filterNoticeTargetUsers(
+  List<NoticeTargetUser> users, {
+  int? customerId,
+  int? marketId,
+}) => users
+    .where(
+      (user) =>
+          (customerId == null || user.customerId == customerId) &&
+          (marketId == null || user.marketId == marketId),
+    )
+    .toList(growable: false);
+
+int findNoticeTargetUserIndex(
+  List<NoticeTargetUser> users,
+  String query, {
+  int startAfter = -1,
+}) {
+  final normalizedQuery = query.trim().toLowerCase();
+  if (normalizedQuery.isEmpty || users.isEmpty) return -1;
+  for (var offset = 1; offset <= users.length; offset += 1) {
+    final index = (startAfter + offset) % users.length;
+    if (users[index].userId.toLowerCase().contains(normalizedQuery)) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 enum UpdateNoticeSaveTarget {
