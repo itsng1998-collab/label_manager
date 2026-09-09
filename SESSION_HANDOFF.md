@@ -1,9 +1,9 @@
 # 현재 작업 상태
 
 ## 새 세션 우선순위 (2026-09-09)
-1. **구현·자동 검증 완료: 품목관리 BMP 선택 후 미리보기 미적용 수정.** 공용 로더가 기존 `C:\ITS\LabelManager\bmp files`를 우선하고 재현 위치 `C:\ITS\BCSManager\bmpfiles`를 fallback으로 탐색한다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
-2. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 제출 로그는 v1.3.58이며, 현재 브랜치에는 `3bac0a32`가 포함되어 있다. 최신 v1.3.98 실행본에서 같은 재현 절차로 사용자 확인이 필요하다.
-3. 앱 오동작 확인 후 **역상 출력 문제를 재개한다.** [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)에 구현 경로, 마지막 실물/로그, 실패 이력, 새 진단의 한계와 검증 명령을 정리했다.
+1. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
+2. 품목관리 BMP 미리보기 수정은 구현·자동 검증 완료 상태다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
+3. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 앱 오동작 확인 후 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 역상 출력 문제를 재개한다.
 
 ## 보존할 상태
 - 마지막 인쇄 구현: **v1.3.97 / d0ade63**, 기록 커밋: **a0f3a1e**. v1.3.97은 후속 검정 글자 합성 진단 추가이며 획 소실 해결 버전이 아니다.
@@ -15,6 +15,13 @@
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.
 
 ## 이번 핸드오프 정리
+- 가로 스크롤 원인 확인: 품목 셀 편집 확정 시 `ItemManagerDraftController.contentRevision`이 증가하고 FortuneTable의 `_syncAutoWidthsIfNeeded`가 모든 자동 열 너비를 새 값 기준으로 축소한다. 총 너비가 viewport 이하가 되면 `RawScrollbar.thumbVisibility`가 false로 바뀐다.
+- 레거시 재확인: [.tmp/LabelManager/LabelManager/LabelEditDlg.cpp](.tmp/LabelManager/LabelManager/LabelEditDlg.cpp)는 초기 전체 열 자동 맞춤 후 편집한 해당 열만 다시 계산한다. 현재 구현은 revision마다 모든 열을 축소하던 차이가 있었다. 공용 FortuneTable 기본값은 유지하고 품목관리에서만 revision 이후 기존 자동 너비 보존 옵션을 사용한다.
+- 편집 완료: [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)에 `preserveAutoFitWidthsOnRevision` 옵션을 추가했다. 최초 자동 맞춤과 다른 화면의 기본 동작은 유지하며, 옵션 사용 시 같은 테이블 세션의 revision 갱신은 열을 축소하지 않고 필요한 확장만 허용한다.
+- 편집 완료: [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)가 품목 테이블에서 자동 너비 보존 옵션을 활성화한다.
+- 테스트 추가/검증: [test/fortune_table_test.dart](test/fortune_table_test.dart)에 revision 후 열 너비와 실제 가로 scrollbar thumb 유지, ItemManage 옵션 전달 계약을 추가했다. `flutter test test/fortune_table_test.dart` 73건 통과. 관련 3개 Dart 파일 analyzer 이슈 없음. `git diff --check` 통과.
+- 실행 확인: DTD에 연결된 Flutter 앱이 없어 hot restart는 수행하지 못했다.
+- 버전: 국소 UI 동작 수정이므로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.99 -> 1.3.100**.
 - BMP 미리보기 원인: [.tmp/test_log/이미지를 불러오지 못하는 현상.log](.tmp/test_log/이미지를%20불러오지%20못하는%20현상.log) v1.3.58에서 선택한 `logo` 파일명은 저장됐지만, 미리보기는 LabelManager 고정 폴더만 조회해 BCSManager의 파일을 찾지 못했다.
 - 레거시 재확인: [.tmp/LabelManager/LabelManager/LabelEditDlg.cpp](.tmp/LabelManager/LabelManager/LabelEditDlg.cpp)는 파일 선택 시작 위치를 `C:\ITS\LabelManager\bmp files`로 지정하고 확장자 없는 파일명만 저장한다. [.tmp/LabelManager/LabelManagerLib/RichEditImageMaker.cpp](.tmp/LabelManager/LabelManagerLib/RichEditImageMaker.cpp)는 실행 파일 옆 `bmp files`에서만 다시 읽으며 외부 선택 파일을 복사하지 않는다. 현재 수정은 이 저장 계약과 기존 경로 우선순위를 유지하고 BCSManager 공유 폴더만 호환 경로로 추가한다.
 - 편집 완료: [lib/features/item/application/item_image_preview.dart](lib/features/item/application/item_image_preview.dart)에 `itemBmpPreviewDataUriForFileName`과 두 기본 탐색 폴더를 추가했다. 기존 LabelManager 폴더 우선순위를 유지하고 BCSManager `bmpfiles`를 fallback으로 사용한다.

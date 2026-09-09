@@ -406,6 +406,7 @@ class _ItemManageState extends State<ItemManage> {
               autoFitSampleSize: widget.draftController == null
                   ? null
                   : _autoFitSampleSize,
+              preserveAutoFitWidthsOnRevision: true,
               headerTextStyle: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,

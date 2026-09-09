@@ -579,6 +579,74 @@ void main() {
     expect(headerWidth(), greaterThan(sampledWidth));
   });
 
+  testWidgets('FortuneTable revision does not shrink auto fit widths', (
+    tester,
+  ) async {
+    var rows = const ['가로 스크롤을 만드는 충분히 긴 값'];
+    var revision = 1;
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 180,
+            height: 120,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return FortuneTable<String>(
+                  rows: rows,
+                  autoFitRevision: revision,
+                  preserveAutoFitWidthsOnRevision: true,
+                  columns: [
+                    FortuneTableColumn<String>(
+                      id: 'value',
+                      header: '값',
+                      text: (row) => row,
+                      initialWidth: 60,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    double headerWidth() => tester
+        .getSize(
+          find.ancestor(
+            of: find.text('값'),
+            matching: find.byType(SizedBox),
+          ).first,
+        )
+        .width;
+
+    final initialWidth = headerWidth();
+    expect(initialWidth, greaterThan(140));
+    expect(
+      tester
+          .widgetList<RawScrollbar>(find.byType(RawScrollbar))
+          .any((scrollbar) => scrollbar.thumbVisibility == true),
+      isTrue,
+    );
+
+    rebuild(() {
+      rows = const ['짧은 값'];
+      revision += 1;
+    });
+    await tester.pump();
+
+    expect(headerWidth(), initialWidth);
+    expect(
+      tester
+          .widgetList<RawScrollbar>(find.byType(RawScrollbar))
+          .any((scrollbar) => scrollbar.thumbVisibility == true),
+      isTrue,
+    );
+  });
+
   testWidgets('FortuneTable revision avoids full text scans on rebuild', (
     tester,
   ) async {
@@ -1421,6 +1489,7 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     expect(table.autoFitColumns, isTrue);
+    expect(table.preserveAutoFitWidthsOnRevision, isTrue);
     expect(table.columns.map((column) => column.initialWidth), [
       40,
       100,

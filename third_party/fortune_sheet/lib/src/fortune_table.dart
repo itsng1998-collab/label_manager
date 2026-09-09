@@ -341,6 +341,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.autoFitColumns = true,
     this.autoFitRevision,
     this.autoFitSampleSize,
+    this.preserveAutoFitWidthsOnRevision = false,
     this.fillLastColumn = false,
     this.dragScrollEnabled = true,
     this.multiSelectionEnabled = false,
@@ -380,6 +381,7 @@ class FortuneTable<T> extends StatefulWidget {
   final bool autoFitColumns;
   final Object? autoFitRevision;
   final int? autoFitSampleSize;
+  final bool preserveAutoFitWidthsOnRevision;
   final bool fillLastColumn;
   final bool dragScrollEnabled;
   final bool multiSelectionEnabled;
@@ -904,8 +906,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if (!widget.autoFitColumns || widget.columns.isEmpty) return;
     final cacheKey = _autoFitCacheKeyForCurrentWidget();
     if (_autoFitCacheKey == cacheKey) return;
+    final hadAutoFit = _autoFitCacheKey != null;
     _autoFitCacheKey = cacheKey;
-    _widths = _autoFitWidths();
+    final autoFitWidths = _autoFitWidths();
+    _widths = widget.preserveAutoFitWidthsOnRevision && hadAutoFit
+        ? List<double>.generate(
+            autoFitWidths.length,
+            (index) => math.max(_widths[index], autoFitWidths[index]),
+          )
+        : autoFitWidths;
   }
 
   Object _autoFitCacheKeyForCurrentWidget() {
