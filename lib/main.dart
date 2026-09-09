@@ -102,8 +102,6 @@ class _AppWindowListener extends WindowListener {
         return;
       }
       DebugLogger.log('Window close approved');
-      // 짧은 딜레이로 즉시 종료로 인한 정리 누락을 완화(필요시 조정)
-      await Future.delayed(const Duration(milliseconds: 120));
       windowManager.removeListener(this);
       await windowManager.setPreventClose(false);
       DebugLogger.log('Window close post start');

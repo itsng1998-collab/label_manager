@@ -19,6 +19,17 @@ void main() {
     expect(itemManagerSessionLoadWaitsForRenderReady(isReload: true), isFalse);
   });
 
+  test('initial item manager load starts without waiting for progress UI', () {
+    final calls = <String>[];
+
+    startItemManagerInitialLoad(
+      showProgress: () => calls.add('progress'),
+      load: () async => calls.add('load'),
+    );
+
+    expect(calls, ['progress', 'load']);
+  });
+
   test('same label reloads when the item manager session is absent', () {
     expect(
       itemManagerSessionAlreadyLoaded(

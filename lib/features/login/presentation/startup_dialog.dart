@@ -1,5 +1,7 @@
 // ignore_for_file: no_leading_underscores_for_local_identifiers
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:label_manager/widgets/snackbar.dart';
@@ -474,6 +476,15 @@ class _LoginPanelState extends State<_LoginPanel> {
     }
   }
 
+  void _startLogin() {
+    showSnackBar(
+      context,
+      '로그인(Login) 처리 중 입니다...',
+      type: SnackBarType.inProgress,
+    );
+    unawaited(_onLoginButtonPressed(widget.password.text));
+  }
+
   void _maybeAutoLogin() {
     if (!isAutoLogin || _autoLoginTriggered) return;
     final canLogin = widget.userId.text.trim().isNotEmpty &&
@@ -483,15 +494,7 @@ class _LoginPanelState extends State<_LoginPanel> {
     _autoLoginTriggered = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      showSnackBar(
-        context,
-        '로그인(Login) 처리 중 입니다...',
-        type: SnackBarType.inProgress,
-        onVisible: () {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          _onLoginButtonPressed(widget.password.text);
-        },
-      );
+      _startLogin();
     });
   }
 
@@ -500,6 +503,7 @@ class _LoginPanelState extends State<_LoginPanel> {
 
     if (_userInfo == null) {
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         setState(() => _infoText = '아이디를 먼저 조회해주세요.');
         FocusScope.of(context).requestFocus(_userIdFocus);
       }
@@ -514,6 +518,7 @@ class _LoginPanelState extends State<_LoginPanel> {
     );
     if (authenticationMode == null) {
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         setState(() => _infoText = equalsIgnoreCase(_userInfo!.userId, User.SYSTEM)
             ? '시스템 계정 패스워드가 올바르지 않습니다!'
             : '패스워드가 올바르지 않습니다!');
@@ -561,6 +566,9 @@ class _LoginPanelState extends State<_LoginPanel> {
       if (mounted) { setState(() => _infoText = stripLeadingBracketTags(errmsg)); }
     }
     finally {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
       debugLog(END);
     }
   }
@@ -801,17 +809,7 @@ class _LoginPanelState extends State<_LoginPanel> {
                       Builder(
                         builder: (scaffoldContext) => ElevatedButton(
                           onPressed: canLogin
-                              ? () {
-                                  showSnackBar(
-                                    scaffoldContext,
-                                    '로그인(Login) 처리 중 입니다...',
-                                    type: SnackBarType.inProgress,
-                                    onVisible: () {
-                                      ScaffoldMessenger.of(scaffoldContext).hideCurrentSnackBar();
-                                      _onLoginButtonPressed(widget.password.text);
-                                    },
-                                  );
-                                }
+                              ? _startLogin
                               : null,
                           focusNode: _loginButtonFocus,
                           child: const Text('로그인'),

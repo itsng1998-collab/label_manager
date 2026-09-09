@@ -205,6 +205,15 @@ bool itemManagerSessionLoadWaitsForRenderReady({required bool isReload}) =>
     !isReload;
 
 @visibleForTesting
+void startItemManagerInitialLoad({
+  required VoidCallback showProgress,
+  required Future<void> Function() load,
+}) {
+  showProgress();
+  unawaited(load());
+}
+
+@visibleForTesting
 Offset itemPreviewBottomRightTarget({
   required Rect tableRect,
   required double scrollbarThickness,
@@ -1366,7 +1375,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _loadBrands() async {
-    void afterSnackBarVisible() async {
+    Future<void> load() async {
       try {
         debugLog(START);
         await initializeColumnTypes();
@@ -1421,12 +1430,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
     }
 
-    showSnackBar(
-      context,
-      '브랜드 데이터를 불러오고 있습니다...',
-      type: SnackBarType.inProgress,
-      duration: itemManagerLoadProgressDuration,
-      onVisible: afterSnackBarVisible,
+    startItemManagerInitialLoad(
+      showProgress: () => showSnackBar(
+        context,
+        '브랜드 데이터를 불러오고 있습니다...',
+        type: SnackBarType.inProgress,
+        duration: itemManagerLoadProgressDuration,
+      ),
+      load: load,
     );
   }
 

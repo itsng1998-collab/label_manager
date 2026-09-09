@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/core/admin_connect_session.dart';
+import 'package:label_manager/core/system_password.dart';
 import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/cooperator/domain/cooperator.dart';
+import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/login/application/startup_login_service.dart';
 import 'package:label_manager/features/login/application/user_access_service.dart';
 import 'package:label_manager/features/login/presentation/startup_dialog.dart';
+import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -141,6 +146,80 @@ void main() {
     expect(find.byType(StartupDialog), findsOneWidget);
     expect(find.textContaining('접속 정보 저장 실패'), findsOneWidget);
     expect(loginCallbackCalled, isFalse);
+  });
+
+  testWidgets('startup login begins before progress snackbar is visible', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() {
+      User.setInstance(null);
+      Market.setInstance(null);
+      Customer.setInstance(null);
+      Cooperator.setInstance(null);
+      AdminConnectSession.instance.resetForLogout();
+    });
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': User.SYSTEM,
+      'save_id': true,
+    });
+    var loginStarted = false;
+    const user = User(
+      userId: User.SYSTEM,
+      marketId: 1,
+      name: '시스템',
+      pwd: '',
+      grade: UserGrade.SYSTEM_ADMIN_USER,
+      marketName: '지점',
+      customerName: '거래처',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            forceNoticeClosed: true,
+            onLogin: () {},
+            loginService: StartupLoginService(
+              loadNotice: (_) async => '',
+              loadUser: (_) async => user,
+              loadMarket: (_) async {
+                loginStarted = true;
+                return const Market(
+                  marketId: 1,
+                  customerId: 1,
+                  name: '지점',
+                );
+              },
+              loadCustomer: (_) async => const Customer(
+                customerId: 1,
+                cooperatorId: 'C1',
+                customerName: '거래처',
+              ),
+              loadCooperator: (_) async => const Cooperator(
+                id: 'C1',
+                name: '협력업체',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextField).at(4),
+      systemPasswordForDate(),
+    );
+    final loginButton = find.widgetWithText(ElevatedButton, '로그인');
+    await tester.ensureVisible(loginButton);
+    await tester.tap(loginButton);
+
+    expect(loginStarted, isTrue);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('startup notice restores equal content and image widths', (
