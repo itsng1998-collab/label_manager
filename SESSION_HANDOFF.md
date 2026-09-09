@@ -26,7 +26,7 @@
 - 테스트 추가/검증: [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart)는 품목 RTF 변환이 native 채널을 호출하지 않음을 검증하고, [test/fortune_table_test.dart](test/fortune_table_test.dart)는 버튼 클릭 후 좌우 방향키 스크롤을 검증한다. `flutter test test/label_sheet_toolbar_test.dart test/fortune_table_test.dart` 273건 통과, 관련 파일 `flutter analyze` 이슈 없음, `git diff --check` 통과.
 - 실행 검증 제한: VS Code DTD에 실행 중인 Flutter 앱이 없어 hot restart, 실제 `75806065` 계정 전환 및 품목관리 키 입력 확인은 수행하지 못했다.
 - 버전: 계정 전환 멈춤 및 품목관리 방향키 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.105 -> 1.3.106**.
-- stage/commit 예정: 위 production/test 파일 5개, [pubspec.yaml](pubspec.yaml), 이 문서. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+- 기능 커밋: `503fa164dc285153d9e66215b0a44e0454ebfcf2` (`계정 전환 멈춤 및 품목 방향키 수정`). 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외했다.
 - 품목 추가 열 편집 기본값 구현: [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)의 `_dynamicCellEditable`은 기존 품목의 열 콘텐츠 레코드가 없으면 편집 가능을 기본값으로 사용한다. DB에 저장된 명시적 `editable=false`와 현재 draft 설정은 계속 우선한다. DB migration이나 저장 포맷 변경은 없다.
 - 품목 추가 열 편집 테스트: [test/fortune_table_test.dart](test/fortune_table_test.dart)에 기존 품목·빈 `scopedColumnContents`에서 추가 열 편집 가능 및 잠금 툴팁 미표시 계약을 추가했다. 신규 테스트 1건과 기존 명시 잠금·해제 테스트 2건 통과.
 - 최종 검증: `flutter test test/fortune_table_test.dart` 74건 통과. `flutter analyze lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart` 이슈 없음. `git diff --check` 통과.
