@@ -14,6 +14,7 @@
 - 실행 검증 완료: `C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub`로 native 재빌드/실행. `.tmp/log/app_2026-09-09_20-31-25.log`에서 v1.3.107 확인, PID18476 응답 정상, DTD 연결/hot reload 성공, runtime 오류 없음. 실물 인쇄/프린터 설정 변경은 하지 않았으며 품질 개선은 사용자 출력 확인 전까지 미검증이다.
 - 임시 자료: 원본 사진/로그/EMF/BMP와 로컬 PNG·replay BMP·probe 캐시 보존, stage 제외. 배포 빌드/DB migration/원격 push 없음.
 - stage/commit 대상: `windows/runner/inverse_text_geometry.h`, `windows/runner/label_bitmap_print_channel.cpp`, `tools/inverse_rich_edit_probe/main.cpp`, `tools/inverse_rich_edit_probe/README.md`, `doc/godex_inverse_resume.md`, `pubspec.yaml`, 이 문서. 기존 사용자 변경 `lib/core/app.dart` 제외. `git diff --check` 통과, 커밋 직전 cached diff/stat을 확인한다.
+- 기능 커밋 완료: `1c013ce` (`G500 역상 픽셀을 검정 도형으로 전송하도록 보완`). 관련 7개 파일만 포함했다. 이 해시 기록 후속 문서 커밋에서는 버전을 다시 증가시키지 않는다.
 
 ## 새 세션 우선순위 (2026-09-09)
 1. **완료: 김영모 계정 접속 멈춤 및 품목관리 좌우 방향키 수정.** 지정 v1.3.58 로그에서 `75806065` 전환 후 브랜드·라벨크기·품목 세션은 `renderReady`와 `completed`까지 끝났고 마지막 로그가 품목 미리보기의 native RTF 변환 시작에서 멈췄다. 품목 단일 셀 미리보기만 Dart RTF 파서를 사용해 Windows UI 스레드의 동기 native 변환 정지를 피하고, 하단 가로 이동 버튼에 포커스가 있으면 좌우 방향키가 동일 스크롤 callback을 실행하도록 구현했다. 관련 전체 테스트 273건과 analyzer/diff 검증을 통과했다.
