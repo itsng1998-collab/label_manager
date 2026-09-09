@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
@@ -13,13 +14,19 @@ void main() {
     expect(NoticeDAO.selectTargetUsersSql, contains('ORDER BY C.RICH_NAME'));
   });
 
-  test('administrator target statements update only active notice fields', () {
+  test('administrator target statements create missing selected notice', () {
     final selected = NoticeDAO.selectedUserStatement(
       userId: 'user1',
       message: '공지',
     );
-    expect(selected.params, {'userId': 'user1', 'message': '공지'});
+    expect(selected.params, {
+      'userId': 'user1',
+      'message': '공지',
+      'version': appVersion,
+    });
     expect(selected.sql, contains('UN_STATE=0'));
+    expect(selected.sql, contains('IF @@ROWCOUNT = 0'));
+    expect(selected.sql, contains('INSERT INTO BM_UPDATE_NOTICE'));
     expect(NoticeDAO.updateAllSql, contains('UN_STATE=2'));
     expect(NoticeDAO.updateCooperatorSql, contains('UN_COOP_ID=@cooperatorId'));
     expect(NoticeDAO.updateAllSql, isNot(contains('UN_VERSION')));

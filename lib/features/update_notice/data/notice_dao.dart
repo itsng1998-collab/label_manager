@@ -33,7 +33,21 @@ class NoticeDAO extends DAO {
   static const String updateSelectedUserSql = '''
     UPDATE BM_UPDATE_NOTICE
        SET UN_MSG=@message, UN_STATE=0, UN_TIME=GETDATE()
-     WHERE UN_USER_ID=@userId;
+     WHERE LTRIM(RTRIM(CONVERT(NVARCHAR(30),UN_USER_ID COLLATE ${DAO.CP949}))) =
+           LTRIM(RTRIM(CONVERT(NVARCHAR(30),@userId)));
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+      INSERT INTO BM_UPDATE_NOTICE
+        (UN_USER_ID, UN_MSG, UN_VERSION, UN_STATE, UN_TIME, UN_COOP_ID)
+      SELECT
+        @userId, @message, @version, 0, GETDATE(), C.RICH_COOP_ID
+      FROM BM_USER U
+      INNER JOIN BM_MARKET M ON U.RICH_MARKET_ID=M.RICH_MARKET_ID
+      INNER JOIN BM_CUSTOMER C ON M.RICH_CUSTOMER_ID=C.RICH_CUSTOMER_ID
+      WHERE LTRIM(RTRIM(CONVERT(NVARCHAR(30),U.RICH_USER_ID COLLATE ${DAO.CP949}))) =
+            LTRIM(RTRIM(CONVERT(NVARCHAR(30),@userId)));
+    END;
   ''';
 
   static const String updateAllSql = '''
@@ -95,7 +109,7 @@ class NoticeDAO extends DAO {
     required String message,
   }) => DbTransactionStatement(
     sql: updateSelectedUserSql,
-    params: {'userId': userId, 'message': message},
+    params: {'userId': userId, 'message': message, 'version': appVersion},
   );
 
   static Future<void> updateSelectedUsers({
