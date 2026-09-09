@@ -1,6 +1,25 @@
 # 현재 작업 상태
 
-## 구현/자동 검증 완료: G500 역상 도형 전송 (2026-09-09)
+## 진단 보완 완료, 품질 미해결: 드라이버 파일 판별
+- `.tmp/IMG_20260909_0002.png`에서도 흰 획 소실 지속. `app_2026-09-09_20-31-25.log`는 v1.3.107 도형951개/흰2806/검정19424, 후속 손실0, 출력 수락 및 이력 저장 성공. 기존 도형 전송 변경은 실물 문제를 해결하지 못했으며 새 해결책으로 반복하지 않는다.
+- 확대 원본 `.tmp/log/godex_inverse/v107_inverse_zoom.png`에서는 가로 획 보존. 다음 가설은 최종 드라이버 데이터에서의 변화이며 열 문제로 확정하지 않는다.
+- 편집 완료: `tools/inverse_rich_edit_probe/driver_file_probe.h`에 `CaptureInverseDriverFile` 추가, `main.cpp`에 `--driver-file` 명시 모드, CMake에 winspool 연결. 출력 경로를 `DOCINFO.lpszOutput`의 절대 `.prn` 파일로 지정하고 일반 USB 출력 fallback은 없다. 프린터 설정 저장/실물 인쇄는 하지 않는다. 생산 출력 변경은 아직 없음.
+- 미검증. 다음 검증: `cmake --build .tmp/inverse_probe_build --config Debug` 및 기존 CTest 후 `inverse_rich_edit_probe.exe --driver-file <v107-prefix> <new-local.prn>`로 단일 역상 재생의 드라이버 파일을 검사한다. 일반 native text/워터마크 없는 부분 재현이므로 실제 작업 스풀과 구분한다.
+- 검증: `/WX` probe build/CTest1/1 통과. 두 번째 역상 원본의 `--driver-file`이 성공했고 로컬 `v107_driver_geometry.prn` 34861바이트 생성. `Q10,11,75,464` 바이너리 형식 확인.
+- 편집 완료: `tools/inspect_inverse_driver_file.ps1`은 EZPL Q의 길이 기반 바이너리 해석과 clip 픽셀 비교를 수행한다. 미검증, 다음 실행: `./tools/inspect_inverse_driver_file.ps1 -Path .tmp/log/godex_inverse/v107_driver_geometry.prn -SourcePrefix .tmp/log/godex_inverse/v1.3.107_18476_1323281_2`.
+- 판별 완료: 첫/둘째 역상 PRN의 clip 픽셀 차이0, 흰 손실0, 흰1298/1508 보존. 단일 역상 재현에서 드라이버 Q 변환 손실 가설은 지지되지 않는다. 실제 전체 작업 및 실물 차이는 남는다.
+- 편집 완료: 레거시 `PrintManager.cpp`의 dmFields 교체/DocumentProperties 재정규화 생략 차이를 검사할 `--driver-file-legacy-devmode` 추가. 생산 설정은 변경하지 않는다. 다음 검증은 probe build 후 같은 두 번째 역상 입력을 legacy 모드로 새 `.prn`에 생성하고 기존 파일과 해시/픽셀 비교한다.
+- 판별 완료: legacy/current PRN의 SHA256이 `00A3FE63D640B70C01DF5905717D5B4FE727C389A7A86E837FBC42CA4A5AF64B`로 동일. DEVMODE 차이도 이번 재현의 원인으로 지지되지 않는다. 사용자 확인: 스캐너 흑백 이미지이며 종이에서도 흰 획 소실 동일. 스캔만의 문제로 판단하지 않는다.
+- 테스트 추가: `tools/test_inverse_driver_file.ps1`에 합성 Q 자료의 무손실/흰 손실/흰 증가/잘린 payload/바이너리 CR·LF 계약 5건. `driver_file_probe.h`는 실패 시 AbortDoc 정리 및 독립 include 보완. 다음 검증: `./tools/test_inverse_driver_file.ps1 -OutputDirectory .tmp/inverse_driver_parser_test`, probe build/CTest.
+- 현재 제한: 이 파일 전용 재현은 실제 인쇄 전체 스풀 캡처가 아니다. 생산 코드 추가 보정은 근거가 없어 수행하지 않았다. 실제 전체 전송 데이터와 장치 결과의 차이는 미확정이며 열/드라이버 결함 확정 또는 소프트웨어 개선 불가 결론 금지.
+- 검증 완료: Q 해석기 회귀 5건 통과. 버전은 진단 도구/테스트 추가에 따른 PATCH **1.3.107 -> 1.3.108**. 새 앱 빌드/실행/실물 인쇄 없음. 마지막 EXE/native 마크는 v1.3.107이며 22:33 정상 종료됐다.
+- 편집 완료: 재개 문서 및 probe README에 실패 실물, 드라이버 픽셀 보존, legacy DEVMODE 동일, 파일 전용 StartDoc의 범위/한계를 기록했다. 다음 최종 검증: probe `/WX` build/CTest, `git diff --check`, 변경 diagnostics.
+- 최종 검증 완료: probe `/WX` build/CTest1/1, Q 해석기5건, 변경 diagnostics/diff 검사 통과. 생산/Dart 코드 변경이 없어 앱 빌드·Dart 테스트·hot reload는 수행하지 않았다.
+- 블로커: `Get-PrintJob -PrinterName 'Godex G500'` 결과 큐가 비어 완료된 실제 전체 작업을 큐에서 대조할 수 없다. 새 실제 전송 캡처 또는 전체 작업의 동등한 파일 재현이 필요하며 지금의 부분 재현만으로 원인/해결 판정하지 않는다.
+- 임시 자료: PRN/복원 PNG/합성 테스트 출력/기존 사진·로그·probe 캐시는 `.tmp` 로컬 보존, stage 제외. 프린터 설정/DB/실물 인쇄/배포/원격 push 변경 없음.
+- stage/commit 대상: `tools/inverse_rich_edit_probe/{driver_file_probe.h,main.cpp,CMakeLists.txt,README.md}`, `tools/inspect_inverse_driver_file.ps1`, `tools/test_inverse_driver_file.ps1`, `doc/godex_inverse_resume.md`, `pubspec.yaml`, 이 문서. 기존 `lib/core/app.dart` 사용자 변경 제외.
+
+## 이전 구현: G500 역상 도형 전송 (실물 실패 확인)
 - 사용자 사진 `.tmp/IMG_20260909_0001.png`에서 두 역상 띠의 흰 획 소실 지속. 앱 v1.3.106 / 인쇄 마크 v1.3.97이며 최신 `app_2026-09-09_20-19-37.log`의 실제 검정 33건/fitted12와 참조 33건/fitted12가 일치한다. `_after_native.txt`의 두 `whitePixelsLost`는 모두 0이다. 참조 BMP에는 획이 남아 있어 후속 검정 덮임을 재현하지 못했다.
 - 국소 가설: 역상 raster 전송과 검정 도형의 드라이버 처리 차이. 역상 1bpp 글리프/좌표/크기는 유지하고 해당 clip의 검정 픽셀만 GDI region으로 전달한다. 폰트/threshold/농도 변경이나 전체 페이지 전송 변경은 하지 않는다. 드라이버/열 문제가 확정됐다는 뜻은 아니다.
 - 수정 예정: `windows/runner/inverse_text_geometry.h`, `tools/inverse_rich_edit_probe/main.cpp`에 픽셀 동등성 무출력 검사 추가 후 `windows/runner/label_bitmap_print_channel.cpp`의 역상 전송에 연결한다. 일반 글자/표선 및 사용자 변경 `lib/core/app.dart` 보존.
@@ -25,13 +44,13 @@
 4. **완료: 로그인·로그아웃·프로그램 종료 체감 속도 개선.** 로그인/초기 브랜드 로딩을 `SnackBar.onVisible`까지 미루지 않고 즉시 시작하도록 변경하고 Windows 종료의 고정 120ms 대기를 제거했다. v1.3.101 실행 로그에서 인증 종료→초기 로딩 시작은 약 681ms에서 376ms, 종료 승인→후속 닫기는 약 122ms에서 1ms로 감소했다.
 5. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
 6. 품목관리 BMP 미리보기 수정은 구현·자동 검증 완료 상태다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
-7. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 역상 출력은 v1.3.107 도형 전송 보완까지 완료했으며 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 다음 실물을 확인한다.
+7. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 역상은 v1.3.107 실물 실패/v1.3.108 파일 진단 완료 상태이며 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 실제 전체 전송과 부분 재현 차이를 판별한다.
 
 ## 보존할 상태
 - 마지막 인쇄 구현: **v1.3.107 역상 검정 GDI region 전송**. 이전 v1.3.97/d0ade63 진단은 후속 검정 덮임0/0으로 분석 완료했으며 실물 획 소실 해결 버전이 아니다.
-- 마지막 분석 실물: [.tmp/IMG_20260909_0001.png](.tmp/IMG_20260909_0001.png), 앱 v1.3.106/인쇄 v1.3.97에서 흰 획 소실 지속. 전체 문자 수용/1bpp 및 도형 픽셀 동등성 성공만으로 실물 품질 정상 판정 금지.
-- 미검증: v1.3.107 실제 도형 전송의 출력 품질. 다음 사진/로그에서 앱/인쇄 버전과 `inverseTransfer=blackRegionOnClearedRaster` 확인 후 두 띠의 획을 비교한다.
-- 마지막 실행 확인: Debug EXE v1.3.107, PID18476 응답 정상. [.tmp/log/app_2026-09-09_20-31-25.log](.tmp/log/app_2026-09-09_20-31-25.log)에서 버전 확인. 새 세션에서는 현재 실행 여부를 다시 확인한다.
+- 마지막 분석 실물: [.tmp/IMG_20260909_0002.png](.tmp/IMG_20260909_0002.png), v1.3.107에서 흰 획 소실 지속. 종이에서도 동일하다는 사용자 확인. 파일 전용 드라이버 Q 데이터는 두 역상 흰 손실0이며 그 결과로 실물 정상/열 문제 확정 판정 금지.
+- 미확정: 실제 전체 인쇄 전송과 단일 역상 파일 재현의 차이. v1.3.108은 진단 도구만 추가했고 생산 인쇄 수정 없음. 동일 코드 실물 재출력을 반복 요구하지 않는다.
+- 마지막 실행: Debug EXE v1.3.107/PID18476은 [.tmp/log/app_2026-09-09_20-31-25.log](.tmp/log/app_2026-09-09_20-31-25.log)에서 22:33 정상 창 닫기/DB 종료. 이번 작업에서 새 앱을 실행하지 않았다.
 - 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 보존한다. 앱 오동작과 관련되면 현재 diff를 읽고 함께 작업하되 임의 원복/전체 stage 금지.
 - 일반 글자/표선은 v1.3.58 기준 유지. 실물 획 소실을 열 번짐/드라이버 문제로 확정하거나 소프트웨어 개선 불가로 결론내리지 않는다.
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.

@@ -9,6 +9,7 @@
 #include "../../windows/runner/inverse_text_bitmap.h"
 #include "../../windows/runner/inverse_text_geometry.h"
 #include "../../windows/runner/native_text_comparison.h"
+#include "driver_file_probe.h"
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
                          int, LPARAM context) {
@@ -235,6 +236,12 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
 }
 
 int wmain(int count, wchar_t** arguments) {
+  if (count == 4 && std::wstring(arguments[1]) == L"--driver-file-legacy-devmode") {
+    return CaptureInverseDriverFile(arguments[2], arguments[3], true);
+  }
+  if (count == 4 && std::wstring(arguments[1]) == L"--driver-file") {
+    return CaptureInverseDriverFile(arguments[2], arguments[3]);
+  }
   if (count == 4 && std::wstring(arguments[1]) == L"--replay") {
     return ReplaySavedComposite(arguments[2], arguments[3]);
   }

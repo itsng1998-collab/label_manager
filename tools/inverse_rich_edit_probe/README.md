@@ -1,7 +1,8 @@
 # 역상 RichEdit 무출력 회귀 검사
 
 Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린터 큐가 필요하다.
-큐의 DC를 참조하지만 `StartDoc`를 호출하지 않아 인쇄 작업을 보내지 않는다.
+기본 CTest/`--replay`는 큐의 DC를 참조하지만 `StartDoc`를 호출하지 않는다.
+별도 `--driver-file` 모드만 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
 ```powershell
@@ -77,3 +78,29 @@ CTest와 `--replay`는 생산 `PrepareInverseTextGeometry`/`RenderInverseTextGeo
 전송 raster의 clip 비움, 외부 RGB 및 alpha 보존, 좌표 이동과 중복 clip도 검증한다.
 흰 획 확대/팽창/회색/threshold 조정은 없으며 무출력 동등성이 실물 개선을 입증하지는 않는다.
 v1.3.107 `_comparison.bmp`는 도형 분리 전 픽셀 원본으로 실제 전송 raster와 구분한다.
+
+## 로컬 드라이버 파일 판별
+
+v1.3.108 진단 도구는 단일 역상 clip의 기존 원본을 80x60mm/203dpi/620x480
+G500 드라이버로 변환하되 `DOCINFO.lpszOutput`에 절대 경로를 지정한다.
+새 `.prn` 경로와 기존 부모 디렉터리가 필요하며 기존 파일은 덮어쓰지 않는다.
+실물 포트로 출력하는 fallback이나 `DM_UPDATE`는 없다. 출력 파일에도 라벨 내용이
+있으므로 `.tmp`에 보존하고 외부 전송하거나 stage하지 않는다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --driver-file <diagnostic-prefix> .tmp/inverse_driver.prn
+./tools/inspect_inverse_driver_file.ps1 -Path .tmp/inverse_driver.prn -SourcePrefix <diagnostic-prefix>
+./tools/test_inverse_driver_file.ps1 -OutputDirectory .tmp/inverse_driver_parser_test
+```
+
+`--driver-file-legacy-devmode`는 레거시의 dmFields 교체 및 재정규화 생략만 비교한다.
+폰트/농도/속도/프린터 전역 설정을 바꾸지 않는다.
+해석기는 현재 드라이버의 단일 `Qx,y,widthBytes,height` 뒤 CR과 길이 고정 binary를
+MSB-first/1=검정으로 읽는다. 알 수 없는 명령/잘린 데이터는 오류 처리한다.
+출력 PNG와 clip의 `whiteLost/whiteGained/mismatches`를 제공하며 값이 0이 아니어도
+해석 성공 자체는 오류가 아니다. 실행 로그의 조건과 좌표를 먼저 대조해야 한다.
+
+실제 자료 두 건의 PRN clip 차이0/흰 손실0, 레거시·현재 DEVMODE의 파일 SHA256
+동일을 확인했다. 이 재현은 일반 native text/워터마크를 제외하며 지정 clip만
+도형으로 전송한다. 다른 역상은 저장 BMP 상태 그대로이므로 실제 전체 인쇄 스풀과
+같다고 단정하지 않는다. 원인/실물 품질 개선은 미확정이다.

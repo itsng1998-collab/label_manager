@@ -1,18 +1,24 @@
 # G500 역상 출력 재개
 
 ## 작업 순서
-1. v1.3.107의 역상 도형 전송 보완 이후 사용자 사진/로그를 확인한다. 자동 실물 인쇄는 하지 않는다.
+1. v1.3.107은 `.tmp/IMG_20260909_0002.png`에서 실물 실패 확인 완료. 종이에서도 같은 흰 획 소실임을 사용자에게 확인했다. 자동 실물 인쇄나 동일 도형 전송 실험을 반복하지 않는다.
 2. 앱 오동작과 인쇄 작업의 원인/검증/커밋을 구분한다.
-3. 실물 개선 여부는 미검증이다. 무출력 픽셀 동등성 검사를 품질 해결로 판단하지 않는다.
+3. 다음은 실제 전체 인쇄 전송과 파일 전용 단일 역상 재현의 차이를 분리하는 단계다. 아래 드라이버 파일 검사 통과를 품질 해결 또는 열 문제 확정으로 판단하지 않는다.
 
 ## 현재 기준
+- v1.3.108은 로컬 드라이버 파일 probe/해석기/회귀 검사 추가 버전이다. 생산 출력 코드 변경/새 앱 빌드 없음. 마지막 EXE와 인쇄 마크는 v1.3.107이며 실물 실패 상태다.
 - 최신 보완: v1.3.107 역상 검정 픽셀의 GDI region 전송. 기존 v1.3.97 진단 구현은 `d0ade63`, 새 커밋/실행 상태는 [SESSION_HANDOFF.md](../SESSION_HANDOFF.md)를 확인한다.
 - v1.3.107 Debug `/WX` 빌드 완료. 앱/인쇄 마크 모두 v1.3.107로 통일했다.
-- 마지막 실물: 앱 v1.3.106 / 인쇄 마크 v1.3.97에서 흰 획 소실 지속. 최신 로그는 [.tmp/log/app_2026-09-09_20-19-37.log](../.tmp/log/app_2026-09-09_20-19-37.log).
-- 미해결: 검정 띠 안 작은 흰 한글 획 소실. v1.3.107의 실물 개선은 사용자 출력 확인 전까지 미검증이다.
+- 마지막 실물: 앱/인쇄 v1.3.107에서도 획 소실 지속. 최신 로그는 [.tmp/log/app_2026-09-09_20-31-25.log](../.tmp/log/app_2026-09-09_20-31-25.log). 앱은 정상 창 닫기/DB 종료 후 종료됐다.
+- 미해결: 검정 띠 안 작은 흰 한글 획 소실. 도형 전송 변경은 해결되지 않았고 추가 생산 보정은 근거가 없어 적용하지 않았다.
 - 유지 조건: 일반 글자/표선은 v1.3.58 기준. GoDEX G500, USB001, 80x60mm, 약 203dpi. source640x480 -> target620x480, physical640x480, offset10,0, destination0,0.
 
 ## 마지막 분석 증거
+- 최신 실물 [.tmp/IMG_20260909_0002.png](../.tmp/IMG_20260909_0002.png)는 스캐너 흑백 이미지이며 종이에서도 흰 획 소실이 같다는 사용자 확인을 받았다.
+- v1.3.107 실제 출력 로그: 도형951개/검정19424/흰2806, 후속 합성 손실0, native 실패0, 출력 수락 및 이력 저장 성공. 성공 수치가 품질 성공을 뜻하지 않는다.
+- v1.3.108 로컬 파일 probe: `v1.3.107_18476_1323265_1` / `v1.3.107_18476_1323281_2` 원본을 각각 G500 드라이버로 변환한 `.tmp/log/godex_inverse/v107_driver_geometry_first.prn` / `v107_driver_geometry.prn`에서 두 clip RGB 차이0/흰 손실0. Q 헤더 `Q10,11,75,464`, MSB-first/1=검정 해석. 흰1298/1508 보존.
+- 레거시 DEVMODE 설정 방식의 PRN SHA256도 현재 방식과 동일(`00A3FE63D640B70C01DF5905717D5B4FE727C389A7A86E837FBC42CA4A5AF64B`). 이것만으로 장치/열 문제를 확정하지 않는다.
+- 파일 probe는 일반 검정 native text/워터마크를 제외하고 지정 clip만 도형으로 전송한다. 실제 전체 작업 스풀 캡처가 아니며 다음에는 이 차이를 구분해야 한다. 실행 방법은 [tools/inverse_rich_edit_probe/README.md](../tools/inverse_rich_edit_probe/README.md).
 - 최신 실물 [.tmp/IMG_20260909_0001.png](../.tmp/IMG_20260909_0001.png): 역상 두 띠에서 흰 획 소실 지속.
 - 최신 진단 `.tmp/log/godex_inverse/v1.3.97_15924_468281_1_after_native.txt`: `referenceDrawn=33`, `referenceFitted=12`, 역상별 `whitePixelsLost=0/0`. 실제 `nativeTextDrawn=35` 중 역상2건을 제외한 검정33건/fitted12와 일치한다. 참조 BMP에는 획이 남아 있으며 검정 덮임을 재현하지 못했다.
 - 실제 역상 EMF `v1.3.97_15924_468015_1` / `v1.3.97_15924_468046_2`: clip15,83,600,102 / 15,284,600,303. 무출력 DIB+region 재생은 도형403/548개, 검정9817/9607픽셀, 흰1298/1508픽셀, 원본과 RGB 차이0. 좌표 이동, 중복 clip, 외부 RGB 및 준비 raster alpha 보존 검사도 통과했다.
@@ -35,7 +41,7 @@
 - `CaptureNativeTextComparison`: 실제 검정 출력 성공 후 같은 함수를 참조 EMF에 실행한다. [windows/runner/native_text_comparison.h](../windows/runner/native_text_comparison.h)의 `ReplayNativeTextComparison`으로 base 위에 재생하고 역상별 흰->어두운 픽셀 수를 센다. 실제 출력 비트맵이나 printer DC를 변경하는 보정은 아니다.
 
 ## 다음 판별
-1. 최신 로그와 사진에서 앱/인쇄 마크 v1.3.107, `inverseTransfer=blackRegionOnClearedRaster`와 `inverseGeometryRuns/BlackPixels/WhitePixels`를 확인한다. 최신 로그는 파일명 시각 기준으로 찾고 전체를 무작정 출력하지 않는다.
+1. v1.3.107 실물 실패 및 드라이버 부분 재현의 픽셀 보존 확인은 완료됐다. 다음 증거는 실제 전체 전송 데이터와 부분 재현의 차이이며, 같은 라벨을 같은 코드로 다시 출력하라고 반복 요구하지 않는다.
 2. v1.3.97 후속 합성은 2026-09-09 자료에서 손실0/0으로 분석 완료했다. 새 출력의 `*_after_native.txt`와 대응 BMP/EMF는 일반 글자 겹침 회귀가 없는지 확인한다.
 3. `referenceDrawn/Fitted`와 실제 `nativeTextDrawn/Fitted`를 비교한다. 실제 drawn에는 역상 2건도 포함될 수 있으므로 검정 descriptor 수를 따로 계산한다. 측정 차이가 있으면 같은 결과라고 단정하지 않는다.
 4. `inverse[index].whitePixelsLost` 및 `native[index].sourceRect`, BMP를 함께 확인한다. 수치는 원래 흰 픽셀이 후속 합성 후 휘도128 미만으로 바뀐 수이다.
@@ -55,7 +61,8 @@
 | v1.3.95 / fb01e91 | 역상 EMF를 base에 합성. EMF 헤더 frame 기준 재생으로 약0.54% X 확대 오류 교정. 획 소실 지속. |
 | v1.3.96 / 5c62559 | 글리프를 직접1bpp로 렌더. 물리 결과 IMG0005에서 획 소실 지속. |
 | v1.3.97 / d0ade63 | 검정 글자 후속 합성 관측 추가. 2026-09-09 실물의 참조 손실0/0으로 덮임 미재현. |
-| v1.3.107 | v1.3.97 참조 합성 손실0 확인 후 역상 clip만 검정 GDI region으로 전송. 무출력 픽셀 동등성 통과, 실물 미검증. |
+| v1.3.107 / 1c013ce | 역상 clip의 검정 GDI region 전송. 픽셀 동등성 통과했으나 IMG0002/종이에서 흰 획 소실 지속. |
+| v1.3.108 | 파일 전용 G500 드라이버 probe 및 Q 해석기 추가. 단일 역상 재현의 흰 손실0/레거시 DEVMODE 파일 동일. 생산 출력 변경 없음. |
 
 - DirectWrite/GGO/FreeType/supersample/마스크 팽창, direct-white, 전체 페이지 EMF/1bpp, EZPL Q/펌웨어 역상, 농도·속도·회색·checkerboard·냉각행 실험은 실패 이력이 있다. 과거 코드를 새 해결책처럼 재사용하지 않는다. 상세는 git history로 조회한다.
 - SES_EXTENDBACKCOLOR/EM_SETTARGETDEVICE(0)만으로 폭 미수용을 해결하지 못했다. NULL DC EnumEnhMetaFile callback 재생도 worldtransform 명령에서 실패했다.
