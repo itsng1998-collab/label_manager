@@ -21,6 +21,7 @@
 - 테스트 추가/최종 검증: [test/startup_dialog_test.dart](test/startup_dialog_test.dart)에 progress snackbar 프레임 전 로그인 DAO 시작 계약, [test/home_page_manager_session_test.dart](test/home_page_manager_session_test.dart)에 progress 표시와 초기 로딩 즉시 시작 순서 계약을 추가했다. 관련 focused 테스트 20건 통과, analyzer 이슈 없음, diagnostics 없음, `git diff --check` 통과.
 - 실행 검증: v1.3.101 Windows Debug 앱 실행 및 hot restart 성공, runtime 오류 없음. 인증 자체는 83ms, 품목 세션 로드는 2.91초로 DB/렌더 비용은 유지됐지만 불필요한 표시 대기 약 305ms가 제거됐다. 종료는 `Window close start`부터 후속 닫기까지 13ms, 승인 후 후속 닫기까지 1ms였다.
 - 버전: 기존 기능과 저장 형식을 유지하는 속도 버그 수정이므로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.100 -> 1.3.101**.
+- 기능 커밋: `13396fa5020077b8f21b8810608e3279fee14b64` (`로그인 및 프로그램 종료 속도 개선`).
 - 가로 스크롤 원인 확인: 품목 셀 편집 확정 시 `ItemManagerDraftController.contentRevision`이 증가하고 FortuneTable의 `_syncAutoWidthsIfNeeded`가 모든 자동 열 너비를 새 값 기준으로 축소한다. 총 너비가 viewport 이하가 되면 `RawScrollbar.thumbVisibility`가 false로 바뀐다.
 - 레거시 재확인: [.tmp/LabelManager/LabelManager/LabelEditDlg.cpp](.tmp/LabelManager/LabelManager/LabelEditDlg.cpp)는 초기 전체 열 자동 맞춤 후 편집한 해당 열만 다시 계산한다. 현재 구현은 revision마다 모든 열을 축소하던 차이가 있었다. 공용 FortuneTable 기본값은 유지하고 품목관리에서만 revision 이후 기존 자동 너비 보존 옵션을 사용한다.
 - 편집 완료: [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)에 `preserveAutoFitWidthsOnRevision` 옵션을 추가했다. 최초 자동 맞춤과 다른 화면의 기본 동작은 유지하며, 옵션 사용 시 같은 테이블 세션의 revision 갱신은 열을 축소하지 않고 필요한 확장만 허용한다.
