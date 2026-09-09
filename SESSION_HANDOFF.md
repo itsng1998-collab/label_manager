@@ -21,6 +21,7 @@
 - 검증 완료: 문서 로컬 링크/필수 자료 존재, pubspec1.3.98 확인, `git diff --check` 통과. 메인 핸드오프 축약 후 링크와 diff 검사도 재통과. 문서/버전만 변경하므로 앱 테스트·빌드·실물 출력은 실행하지 않았다.
 - stage/commit 대상: 이 문서, [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md), [pubspec.yaml](pubspec.yaml) 세 파일. 기존 사용자 변경 제외. 임시 자료 삭제 없음.
 - 이전 구현 검증: native CTest1/1, Dart31건, `/WX` Debug 빌드 통과. 이 결과는 이전 구현 기준이며 실물 획 소실 해결을 의미하지 않는다.
+- 정리 커밋: `45c1088` (앱 오동작 우선 처리와 역상 출력 재개 핸드오프 정리). 문서/버전 편집기 오류 없음. 이 해시 기록 후속 커밋에서는 버전을 추가 증가하지 않는다.
 
 ## 상시 규칙
 - 작업 규칙은 [SESSION_RULES.md](SESSION_RULES.md)를 따른다.
