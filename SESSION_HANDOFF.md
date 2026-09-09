@@ -25,6 +25,7 @@
 - 최종 검증: `flutter test test/fortune_table_test.dart` 74건 통과. `flutter analyze lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart` 이슈 없음. `git diff --check` 통과.
 - 실행 검증 제한: VS Code DTD에 실행 중인 Flutter 앱이 없어 hot restart와 실제 아이티에스엔지/6*9 데이터 화면 확인은 수행하지 못했다.
 - 버전: 품목 추가 열 편집 기본값 버그 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.104 -> 1.3.105**.
+- 기능 커밋: `9e1db2ada78d59fced240fe1a5b04c0519304ae2` (`품목 추가 열 편집 기본값 수정`).
 - 대상 사용자 검색 구현: [lib/features/update_notice/domain/notice.dart](lib/features/update_notice/domain/notice.dart)의 `NoticeTargetUser`에 거래처·지점 ID/이름을 추가하고 로컬 필터 및 대소문자 무시 계정 ID 순환 검색 함수를 제공한다.
 - 대상 사용자 조회 구현: [lib/features/update_notice/data/notice_dao.dart](lib/features/update_notice/data/notice_dao.dart)의 기존 협력업체 단위 단일 쿼리가 거래처·지점 정보를 함께 반환하고 거래처명, 지점명, 계정 ID 순으로 정렬한다. 추가 조회나 DB migration은 없다.
 - 대상 사용자 UI 구현: [lib/features/update_notice/presentation/update_notice_dialog.dart](lib/features/update_notice/presentation/update_notice_dialog.dart)의 우측 패널에 거래처·지점 필터, 계정 ID 검색, 선택 인원 표시를 추가했다. Enter 또는 검색 버튼은 현재 필터 결과에서 다음 일치 사용자를 강조하고 고정 행 높이 기반으로 중앙 자동 스크롤하며 저장 단축키와 충돌하지 않는다. 필터 밖 사용자 선택도 유지되어 함께 저장된다.
