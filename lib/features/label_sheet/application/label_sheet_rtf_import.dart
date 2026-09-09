@@ -560,6 +560,7 @@ Future<LabelSheetImageImportDraft?> labelSheetDraftFromRichEditRtfAsync(
   String rtf, {
   required FortuneSheet sheet,
   FortuneBarcodeRenderer? barcodeRenderer,
+  bool preferNative = true,
 }) async {
   final stopwatch = Stopwatch()..start();
   _rtfLog('async convert start length=${rtf.length} hash=${rtf.hashCode}');
@@ -567,7 +568,9 @@ Future<LabelSheetImageImportDraft?> labelSheetDraftFromRichEditRtfAsync(
     _rtfLog('async convert skipped: not RichEdit RTF');
     return null;
   }
-  final nativeDraft = await _nativeRtfHtmlDraft(rtf, sheet: sheet);
+  final nativeDraft = preferNative
+      ? await _nativeRtfHtmlDraft(rtf, sheet: sheet)
+      : null;
   if (nativeDraft != null) {
     var draft = nativeDraft;
     if (barcodeRenderer != null) {

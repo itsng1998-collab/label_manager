@@ -2593,6 +2593,12 @@ void main() {
   });
 
   test('item element RTF conversion decodes Korean ANSI hex', () async {
+    final nativeCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, (call) async {
+          nativeCalls.add(call);
+          return <String, Object?>{'ok': false, 'reason': 'not expected'};
+        });
     const channel = MethodChannel('charset_converter');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
@@ -2610,6 +2616,8 @@ void main() {
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, null);
     });
 
     final workbook = await debugItemElementWorkbookFromRichEditRtfForTesting(
@@ -2623,6 +2631,7 @@ void main() {
       workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]?.renderedText,
       contains('제품명: 딸기'),
     );
+    expect(nativeCalls, isEmpty);
   });
 
   test('item element RTF conversion trims outer whitespace only', () async {

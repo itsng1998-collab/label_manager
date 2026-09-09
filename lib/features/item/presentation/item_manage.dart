@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
@@ -174,6 +175,9 @@ class _ItemManageState extends State<ItemManage> {
       FortuneTableScrollController();
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
+  final FocusNode _horizontalControlsFocusNode = FocusNode(
+    debugLabel: 'item-manage-horizontal-controls',
+  );
   final TextEditingController _addCountController = TextEditingController(
     text: '1',
   );
@@ -360,6 +364,7 @@ class _ItemManageState extends State<ItemManage> {
     _selectionController.dispose();
     _focusController.dispose();
     _tableScrollController.dispose();
+    _horizontalControlsFocusNode.dispose();
     widget.controller?._detach(this);
     super.dispose();
   }
@@ -492,14 +497,23 @@ class _ItemManageState extends State<ItemManage> {
     final dirtyEnabled =
         widget.canEdit &&
         !widget.commandBusy && dirty;
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE6E8EB))),
-      ),
-      child: Row(
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.arrowLeft):
+            _scrollHorizontalLeft,
+        const SingleActivator(LogicalKeyboardKey.arrowRight):
+            _scrollHorizontalRight,
+      },
+      child: Focus(
+        focusNode: _horizontalControlsFocusNode,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFE6E8EB))),
+          ),
+          child: Row(
         children: [
           if (widget.canEdit) ...[
             OutlinedButton(
@@ -548,7 +562,7 @@ class _ItemManageState extends State<ItemManage> {
               key: const ValueKey('fortune_table_scroll_left'),
               tooltip: '왼쪽으로 이동',
               onPressed: _tableScrollController.canScrollHorizontalLeft
-                  ? _tableScrollController.scrollHorizontalLeft
+                  ? _scrollHorizontalLeft
                   : null,
               icon: const Icon(Icons.chevron_left),
             ),
@@ -556,14 +570,26 @@ class _ItemManageState extends State<ItemManage> {
               key: const ValueKey('fortune_table_scroll_right'),
               tooltip: '오른쪽으로 이동',
               onPressed: _tableScrollController.canScrollHorizontalRight
-                  ? _tableScrollController.scrollHorizontalRight
+                  ? _scrollHorizontalRight
                   : null,
               icon: const Icon(Icons.chevron_right),
             ),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  void _scrollHorizontalLeft() {
+    _horizontalControlsFocusNode.requestFocus();
+    _tableScrollController.scrollHorizontalLeft();
+  }
+
+  void _scrollHorizontalRight() {
+    _horizontalControlsFocusNode.requestFocus();
+    _tableScrollController.scrollHorizontalRight();
   }
 
   List<ItemOfMarket> _resolveDisplayItems() {

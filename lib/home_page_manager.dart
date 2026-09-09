@@ -9664,6 +9664,7 @@ Future<fs.FortuneWorkbook?> _itemElementWorkbookFromRichEditRtfAsync(
   final draft = await labelSheetDraftFromRichEditRtfAsync(
     rtf,
     sheet: base.sheets.first,
+    preferNative: false,
   );
   if (draft == null || draft.cells.isEmpty) return null;
   final cell = _itemElementSingleCellFromDraftCells(draft.cells);

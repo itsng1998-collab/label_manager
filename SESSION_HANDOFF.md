@@ -1,7 +1,8 @@
 # 현재 작업 상태
 
 ## 새 세션 우선순위 (2026-09-09)
-1. **완료: 품목관리 추가 열의 `클라이언트 편집 불가` 기본값 수정.** 기존 품목에 `BM_RICH_COL_CONTENT` 레코드가 없는 추가 열은 저장 draft에서 편집 가능을 기본값으로 사용하지만 화면의 `_dynamicCellEditable`만 false를 사용해 자동 잠금됐다. 미설정 기본값을 true로 통일하고 명시적 false는 유지하도록 수정했다.
+1. **완료: 김영모 계정 접속 멈춤 및 품목관리 좌우 방향키 수정.** 지정 v1.3.58 로그에서 `75806065` 전환 후 브랜드·라벨크기·품목 세션은 `renderReady`와 `completed`까지 끝났고 마지막 로그가 품목 미리보기의 native RTF 변환 시작에서 멈췄다. 품목 단일 셀 미리보기만 Dart RTF 파서를 사용해 Windows UI 스레드의 동기 native 변환 정지를 피하고, 하단 가로 이동 버튼에 포커스가 있으면 좌우 방향키가 동일 스크롤 callback을 실행하도록 구현했다. 관련 전체 테스트 273건과 analyzer/diff 검증을 통과했다.
+2. **완료: 품목관리 추가 열의 `클라이언트 편집 불가` 기본값 수정.** 기존 품목에 `BM_RICH_COL_CONTENT` 레코드가 없는 추가 열은 저장 draft에서 편집 가능을 기본값으로 사용하지만 화면의 `_dynamicCellEditable`만 false를 사용해 자동 잠금됐다. 미설정 기본값을 true로 통일하고 명시적 false는 유지하도록 수정했다.
 2. **완료: 업데이트 메시지 대상 사용자 검색 기능.** 우측 대상 목록에 거래처·지점 필터와 계정 ID 다음 검색을 추가했다. 검색 결과는 강조되며 화면 밖 사용자도 목록 중앙으로 자동 스크롤한다. 필터를 변경해도 기존 체크 선택은 유지된다.
 3. **완료: 관리자가 선택한 사용자의 업데이트 메시지 미표시 수정.** v1.3.58 설정 로그에서 `TESTER1` 대상 UPDATE와 커밋은 성공했지만 영향 행 수가 확인되지 않았고, 로그인 화면에는 공지 영역만 열린 채 본문이 비었다. 레거시는 로그인 시 없는 `BM_UPDATE_NOTICE` 사용자 행을 생성하지만 Flutter에는 이 보장이 없었다. 선택 사용자 저장을 정규화 ID UPDATE 후 영향 행이 없으면 사용자 소속 협력업체와 함께 INSERT하도록 수정했다.
 3. **완료: 로그인 공지의 `다음 업데이트까지 이 창 보지 않음` 복원 수정.** v1.3.58 재현 로그와 레거시를 대조한 결과 Flutter는 공지 조회 전 빈 내용 hash로 로컬 suppression을 판정하고 DB `UN_STATE`를 버려 재실행 시 공지가 다시 표시됐다. 로그인 조회 결과에 `Notice.state`를 전달하고 확인 시 기존 `NoticeDAO.updateUserState`로 상태를 저장하도록 수정했다.
@@ -20,6 +21,12 @@
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.
 
 ## 이번 핸드오프 정리
+- 계정 전환 멈춤 원인/수정: [.tmp/test_log/사용자관리 - 김영모 계정 접속시 프로그램 멈춤현상.log](.tmp/test_log/사용자관리%20-%20김영모%20계정%20접속시%20프로그램%20멈춤현상.log)의 마지막 미완료 작업은 `labelSheetDraftFromRichEditRtfAsync` native 변환이다. [lib/features/label_sheet/application/label_sheet_rtf_import.dart](lib/features/label_sheet/application/label_sheet_rtf_import.dart)에 native 우선 여부를 추가하고 [lib/home_page_manager.dart](lib/home_page_manager.dart)의 품목 단일 셀 미리보기만 기존 Dart parser를 선택했다. 일반 라벨 RTF 가져오기의 native 정밀 변환은 유지한다.
+- 품목 좌우 방향키 구현: [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)의 하단 좌우 버튼이 footer 전용 포커스를 획득하고, 해당 포커스에서 왼쪽/오른쪽 방향키가 버튼과 동일한 `FortuneTableScrollController` callback을 실행한다. 테이블 셀 편집·셀 이동 포커스에서는 가로채지 않는다.
+- 테스트 추가/검증: [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart)는 품목 RTF 변환이 native 채널을 호출하지 않음을 검증하고, [test/fortune_table_test.dart](test/fortune_table_test.dart)는 버튼 클릭 후 좌우 방향키 스크롤을 검증한다. `flutter test test/label_sheet_toolbar_test.dart test/fortune_table_test.dart` 273건 통과, 관련 파일 `flutter analyze` 이슈 없음, `git diff --check` 통과.
+- 실행 검증 제한: VS Code DTD에 실행 중인 Flutter 앱이 없어 hot restart, 실제 `75806065` 계정 전환 및 품목관리 키 입력 확인은 수행하지 못했다.
+- 버전: 계정 전환 멈춤 및 품목관리 방향키 수정으로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.105 -> 1.3.106**.
+- stage/commit 예정: 위 production/test 파일 5개, [pubspec.yaml](pubspec.yaml), 이 문서. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
 - 품목 추가 열 편집 기본값 구현: [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)의 `_dynamicCellEditable`은 기존 품목의 열 콘텐츠 레코드가 없으면 편집 가능을 기본값으로 사용한다. DB에 저장된 명시적 `editable=false`와 현재 draft 설정은 계속 우선한다. DB migration이나 저장 포맷 변경은 없다.
 - 품목 추가 열 편집 테스트: [test/fortune_table_test.dart](test/fortune_table_test.dart)에 기존 품목·빈 `scopedColumnContents`에서 추가 열 편집 가능 및 잠금 툴팁 미표시 계약을 추가했다. 신규 테스트 1건과 기존 명시 잠금·해제 테스트 2건 통과.
 - 최종 검증: `flutter test test/fortune_table_test.dart` 74건 통과. `flutter analyze lib/features/item/presentation/item_manage.dart test/fortune_table_test.dart` 이슈 없음. `git diff --check` 통과.

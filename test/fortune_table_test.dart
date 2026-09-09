@@ -4022,9 +4022,12 @@ void main() {
     await tester.tap(rightButton);
     await tester.pump();
     expect(horizontalController.offset, greaterThan(0));
-    await tester.tap(leftButton);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pump();
     expect(horizontalController.offset, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(horizontalController.offset, greaterThan(0));
   });
 
   testWidgets(
