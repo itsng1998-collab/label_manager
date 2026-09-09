@@ -42,4 +42,17 @@ $report = & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path -SourceP
 if (!($report | Where-Object { $_.Contains('sourceWhite=2 whiteLost=0 whiteGained=9 mismatches=9') })) {
     throw 'CR/LF binary bytes were interpreted as command delimiters'
 }
-Write-Output 'inverseDriverFileParser=PASS cases=5'
+$paddingHeader = [System.Text.Encoding]::ASCII.GetBytes("^L`r`nQ0,479,1,8`r")
+[System.IO.File]::WriteAllBytes($path, [byte[]]($paddingHeader + [byte[]]::new(8) + $tail))
+$report = & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path -SourcePrefix $prefix
+if (!($report | Where-Object { $_.Contains('whitePaddingPixels=56') })) {
+    throw 'Zero-filled block alignment padding was not accepted'
+}
+$padding = [byte[]]::new(8)
+$padding[7] = 128
+[System.IO.File]::WriteAllBytes($path, [byte[]]($paddingHeader + $padding + $tail))
+$rejected = $false
+try { & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path -SourcePrefix $prefix | Out-Null }
+catch { $rejected = $_.Exception.Message -eq 'Q has nonwhite pixels outside the diagnostic page' }
+if (!$rejected) { throw 'Nonwhite page overflow was not rejected' }
+Write-Output 'inverseDriverFileParser=PASS cases=7'

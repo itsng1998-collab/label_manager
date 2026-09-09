@@ -1,4 +1,5 @@
 #include "label_bitmap_print_channel.h"
+#include "debug_print_file_target.h"
 #include "inverse_text_layout.h"
 #include "inverse_text_bitmap.h"
 #include "inverse_text_geometry.h"
@@ -1937,6 +1938,11 @@ EncodableValue PrintResult(bool ok, const std::string& diagnostics,
 }
 
 EncodableValue PrintBitmap(const EncodableMap& args) {
+  const auto debug_file = ReadDebugPrintFileTarget();
+  if (!debug_file.valid) {
+    return PrintResult(false, "debugFileOnly=true physicalPrintSubmitted=false",
+        "LABEL_MANAGER_DEBUG_PRINT_FILE requires a new absolute local .prn path in an existing directory");
+  }
   const auto* printer_name_utf8 = StringArg(args, "printerName");
   const auto* document_name_utf8 = StringArg(args, "documentName");
   const int source_width = IntArg(args, "sourceWidth", 0);
@@ -1954,6 +1960,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   const bool bixolon = legacy_printer_type == "bixolon";
   const bool citizen = legacy_printer_type == "citizen";
   const bool godex_v1358_driver_direct = legacy_printer_type == "godex";
+  if (debug_file.enabled && !godex_v1358_driver_direct) {
+    return PrintResult(false, "debugFileOnly=true physicalPrintSubmitted=false",
+                       "Debug file capture is restricted to the GoDEX driver path");
+  }
   const auto pixels_iter = args.find(EncodableValue("bgra"));
   const auto text_descriptors = TextDescriptorsArg(args);
   const auto border_descriptors = BorderDescriptorsArg(args);
@@ -2112,6 +2122,10 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
   DOCINFOW document_info{};
   document_info.cbSize = sizeof(DOCINFOW);
   document_info.lpszDocName = document_name.c_str();
+  if (debug_file.enabled) {
+    document_info.lpszOutput = debug_file.path.c_str();
+    diagnostics << " debugFileOnly=true debugPrintFile=" << debug_file.path.u8string();
+  }
   if (StartDocW(printer_dc, &document_info) <= 0) {
     const DWORD error = GetLastError();
     DeleteDC(printer_dc);
@@ -2426,6 +2440,12 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
     AbortDoc(printer_dc);
   }
   DeleteDC(printer_dc);
+  if (debug_file.enabled && ok) {
+    diagnostics << " debugFileCaptured=true physicalPrintSubmitted=false";
+    return PrintResult(false, diagnostics.str(),
+        "Debug print file captured; no physical print was submitted. "
+        "Print history and auto-increment must not be committed.");
+  }
   return PrintResult(ok, diagnostics.str(), error);
 }
 

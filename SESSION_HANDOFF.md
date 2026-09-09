@@ -1,5 +1,33 @@
 # 현재 작업 상태
 
+## 진단 구현/검증 완료, 품질 미해결: IMG0003 페이지 재생
+- `.tmp/IMG_20260909_0003.png`에서 역상 획 소실 지속. 최신 `app_2026-09-09_23-10-24.log`는 앱1.3.108/인쇄1.3.107, 두 역상·도형951개·흰2806·후속 손실0으로 이전 경로와 같다. 생산 변경 없는 진단 버전 재출력이다.
+- 가설: 부분 재현에서 빠진 후속 검정 문자/워터마크를 포함할 때 드라이버 Q 데이터가 달라지는지 검사. 실제 작업의 참조 검정 EMF와 마지막 역상 원본을 사용하며 실제 USB 스풀 캡처라고 부르지 않는다.
+- 편집 완료: `driver_file_probe.h`에 두 clip 처리와 `RenderDriverPageTail`(저장 native EMF+기존 v1.3.107 워터마크 동일 GDI 조건), `main.cpp`에 `--driver-file-page <last-inverse-prefix> <after-native-prefix> <new.prn>` 추가. 출력은 명시한 로컬 파일만 사용한다.
+- 미검증. 다음 검증: probe `/WX` build 후 `.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --driver-file-page .tmp/log/godex_inverse/v1.3.107_18248_10663312_2 .tmp/log/godex_inverse/v1.3.107_18248_10663640_1_after_native .tmp/log/godex_inverse/v108_driver_page.prn` 실행 및 두 clip의 Q 픽셀 비교.
+- probe build/페이지 파일 생성 성공: 두 clip·흰2806·검정19424. Q 헤더 `Q10,11,76,472`는 워터마크 포함 시 8행 정렬로 페이지 높이480을 3행 초과하여 기존 해석기가 거부했다.
+- 편집 완료: `inspect_inverse_driver_file.ps1`은 최대7픽셀 정렬 범위의 백색 패딩만 허용하고 페이지 밖 검정 픽셀은 오류 처리한다. `test_inverse_driver_file.ps1`에 빈 패딩 허용/검정 overflow 거부 2건 추가. 다음 검증은 해석기7건 후 같은 페이지 PRN의 두 clip 비교.
+- 검증 완료: 해석기7건 통과. 페이지 PRN의 두 역상 모두 흰 손실0/증가0/픽셀 차이0(흰1298/1508). 범위 밖 1824픽셀은 모두 백색 패딩. 복원 PNG에서 일반 문자/표선/워터마크와 두 역상 확인.
+- 테스트 추가: `VerifyDriverPageTail`에 EMF 표식9픽셀 재생/하단 워터마크 실제 출력/다른 영역 보존/DC 상태 복원 검사. 페이지 모드는 워터마크가 일치하는 v1.3.107 진단만 허용. 다음 검증은 `/WX` probe build/CTest.
+- 첫 회귀 검사 실패: 테스트만 EMF 프레임 환산 대신 620x480 직접 지정해 표식9 중3픽셀만 예상 좌표에 남았다. 이미 알려진 EMF 프레임 차이를 테스트에서 재도입한 오류이며, 실제 파일 probe의 프레임 환산은 유지되고 있었다. `SetDriverPageTextFrame`을 테스트/파일 probe가 공유하도록 수정했다. 다음 검증은 동일 build/CTest 재실행.
+- 현재 판단: 일반 검정 문자와 워터마크를 포함한 참조 페이지 재생에서도 손실이 없어 추가 보정 근거 없음. 실제 앱 DrawText 호출 대신 참조 EMF를 재생하므로 실제 USB 전송과 동일하다고 단정하지 않는다. 실제 앱 인쇄 호출을 파일로 전송하는 검사가 다음 필요 단계다.
+- 최종 native 검증: 프레임 환산 수정 후 동일 `/WX` probe build/CTest1/1 통과. 해석기 회귀7건 통과. 생산/Dart 변경은 없으므로 앱 빌드/실행/hot reload/실물 인쇄는 하지 않는다.
+- 편집 완료: README/역상 재개 문서에 페이지 재생, Q 백색 패딩, 실제 앱 호출과 남는 차이, 같은 실물 재출력 불필요를 기록했다. 버전은 진단 변경으로 PATCH **1.3.108 -> 1.3.109**, native 인쇄 마크1.3.107 유지.
+- 임시 파일/캐시는 `.tmp` 로컬 보존, stage 제외. 다음 확인은 `git diff --check`/변경 diagnostics 및 관련 파일만 stage/commit. 기존 사용자 변경 `lib/core/app.dart` 제외.
+- 추가 구현 진행: 참조 재생 한계를 다음 세션으로만 넘기지 않도록 실제 `PrintBitmap`의 Debug 전용 파일 대상 지원을 추가했다. `debug_print_file_target.h`는 `LABEL_MANAGER_DEBUG_PRINT_FILE`의 새 절대 로컬 PRN 경로만 허용, release에서는 무시한다. 잘못된 경로/다른 backend는 실제 출력 없이 실패한다.
+- 편집 완료: `PrintBitmap`은 파일 모드에서 동일 장치/합성/DrawText/워터마크 코드를 그대로 쓰고 `DOCINFO.lpszOutput`만 파일로 바꾼다. 파일 성공도 `ok=false`와 `debugFileCaptured=true`로 반환해 Dart의 인쇄 성공/이력/자동증가 경로로 넘어가지 않는다. 환경변수 미설정 시 기존 출력 유지. 이 모드는 품질 보정이 아닌 실제 호출 캡처다.
+- 테스트 추가: 경로 미설정/정상 새 경로/상대 경로/UNC/부모 없음/확장자 오류/기존 파일 거부 검사. 다음 검증은 probe `/WX` build/CTest 후 Windows Debug `/WX` build 및 실패 결과의 저장 차단 계약 확인.
+- 검증 완료: 경로 검사 포함 probe `/WX` build/CTest1/1 및 실제 Windows Debug `/WX` build 성공. 기존 앱 프로세스 없음 확인.
+- 테스트 추가: `test/windows_bitmap_printer_test.dart`의 파일 캡처 ok=false 예외/일반 성공 유지, `test/label_print_persistence_test.dart`의 빈 접수 데이터 DB 트랜잭션0 계약. 다음 검증: `flutter test test/windows_bitmap_printer_test.dart test/label_print_persistence_test.dart`.
+- 검증 완료: 위 Dart 테스트8건 통과. 다음 실행은 `LABEL_MANAGER_DEBUG_PRINT_FILE=<repo>/.tmp/log/godex_inverse/actual_app_v109.prn`을 해당 Flutter run 프로세스에만 지정하고 `C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub`. 환경변수 미설정 앱에는 영향 없다. 실제 앱 캡처는 아직 미검증이다.
+- 실행 완료: `.tmp/log/app_2026-09-09_23-21-37.log`에서 앱v1.3.109 확인, 파일 전용 run 터미널 `3f5a1c99-3bc0-4e7f-a6fe-5d943ee214dd`. DTD 연결/hot reload 성공, runtime 오류 없음. 사용자에게 이 실행본에서 같은 라벨의 인쇄 버튼을 눌러 파일만 생성하도록 요청했다. 실제 앱 PRN 생성/픽셀 판별은 아직 미검증.
+- 최종 검증: Dart8건 및 관련2개 파일 analyze 통과, native/probe `/WX` build와 CTest1/1 통과, PowerShell7건 통과, 변경 diagnostics 없음. 일반 인쇄 품질은 미해결. Debug 파일 전용 모드 추가까지 포함해 버전은1.3.109 한 번만 증가.
+- 문서 갱신: 실제 앱 파일 전용 실행법/의도된 실패 메시지/DB 저장 차단/환경변수 없이 재실행하면 일반 인쇄 복귀를 README와 재개 문서에 기록했다. 관련 인쇄 채널/헤더/테스트/도구/문서/pubspec만 commit하고 사용자 `lib/core/app.dart` 및 `.tmp`는 제외한다.
+- 실제 앱 캡처 검증 완료: 사용자가 파일 전용 앱에서 23:23:51 인쇄 요청. `.tmp/log/godex_inverse/actual_app_v109.prn` 35933바이트 생성, 로그 `debugFileCaptured=true physicalPrintSubmitted=false`, 후속 인쇄 DB 트랜잭션 없음. 접수 성공으로 처리하지 않는 동작을 실제 확인했다.
+- 실제 앱 픽셀 결과: 같은 실행 `v1.3.107_13308_11451875_1`/`v1.3.107_13308_11451906_2` 대비 두 역상 모두 흰 손실0/증가0/차이0(1298/1508). 참조 페이지와 복원 이미지 차이는 역상 밖 (537,58) 한 픽셀뿐이다. 실제 PRN SHA256 `C0D38BD589BE26465B8F955F9D3EAC261B1E20A4190BCBA9E9B347F1D6AE50B5`.
+- 남은 제한: 실제 앱의 파일 대상 호출에서도 획 보존을 확인했지만, IMG0003을 만든 USB 작업 바이트는 확보하지 못했다. 다음 판별은 파일 대상과 USB 실제 전송의 동일성이다. 열/드라이버 결함 확정이나 소프트웨어 개선 불가 판단은 하지 않는다. 일반 품질 보정은 근거가 없어 추가하지 않았다.
+- 현재 실행본은 파일 전용이다. 동일 PRN이 이미 있어 다음 인쇄 요청은 덮어쓰기 없이 거부된다. 일반 인쇄 복귀는 앱 종료 후 환경변수 없이 재실행. 이 상태를 사용자에게 안내했다.
+
 ## 진단 보완 완료, 품질 미해결: 드라이버 파일 판별
 - `.tmp/IMG_20260909_0002.png`에서도 흰 획 소실 지속. `app_2026-09-09_20-31-25.log`는 v1.3.107 도형951개/흰2806/검정19424, 후속 손실0, 출력 수락 및 이력 저장 성공. 기존 도형 전송 변경은 실물 문제를 해결하지 못했으며 새 해결책으로 반복하지 않는다.
 - 확대 원본 `.tmp/log/godex_inverse/v107_inverse_zoom.png`에서는 가로 획 보존. 다음 가설은 최종 드라이버 데이터에서의 변화이며 열 문제로 확정하지 않는다.
@@ -45,13 +73,13 @@
 4. **완료: 로그인·로그아웃·프로그램 종료 체감 속도 개선.** 로그인/초기 브랜드 로딩을 `SnackBar.onVisible`까지 미루지 않고 즉시 시작하도록 변경하고 Windows 종료의 고정 120ms 대기를 제거했다. v1.3.101 실행 로그에서 인증 종료→초기 로딩 시작은 약 681ms에서 376ms, 종료 승인→후속 닫기는 약 122ms에서 1ms로 감소했다.
 5. **구현·focused 검증 완료: 품목값 편집 후 가로 스크롤 소실 수정.** 품목관리에서 revision 재계산 시 기존 자동 너비를 보존하여 편집 확정 후 overflow와 가로 스크롤이 사라지지 않게 했다. 최신 v1.3.100 실행본에서 사용자 재현 확인이 필요하다.
 6. 품목관리 BMP 미리보기 수정은 구현·자동 검증 완료 상태다. 최신 v1.3.99 실행본에서 실제 `logo.bmp` 확인이 필요하다.
-7. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 역상은 v1.3.107 실물 실패/v1.3.108 파일 진단 완료 상태이며 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 실제 전체 전송과 부분 재현 차이를 판별한다.
+7. 품목 순서 변경 후 무한 로딩은 현재 코드에서 수정 및 focused 검증 완료 상태다. 역상은 IMG0003 실물 실패/v1.3.109 실제 앱 파일 캡처 픽셀 보존까지 확인했으며 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)를 기준으로 파일 대상과 USB 실제 전송 차이를 판별한다.
 
 ## 보존할 상태
 - 마지막 인쇄 구현: **v1.3.107 역상 검정 GDI region 전송**. 이전 v1.3.97/d0ade63 진단은 후속 검정 덮임0/0으로 분석 완료했으며 실물 획 소실 해결 버전이 아니다.
-- 마지막 분석 실물: [.tmp/IMG_20260909_0002.png](.tmp/IMG_20260909_0002.png), v1.3.107에서 흰 획 소실 지속. 종이에서도 동일하다는 사용자 확인. 파일 전용 드라이버 Q 데이터는 두 역상 흰 손실0이며 그 결과로 실물 정상/열 문제 확정 판정 금지.
-- 미확정: 실제 전체 인쇄 전송과 단일 역상 파일 재현의 차이. v1.3.108은 진단 도구만 추가했고 생산 인쇄 수정 없음. 동일 코드 실물 재출력을 반복 요구하지 않는다.
-- 마지막 실행: Debug EXE v1.3.107/PID18476은 [.tmp/log/app_2026-09-09_20-31-25.log](.tmp/log/app_2026-09-09_20-31-25.log)에서 22:33 정상 창 닫기/DB 종료. 이번 작업에서 새 앱을 실행하지 않았다.
+- 마지막 분석 실물: [.tmp/IMG_20260909_0003.png](.tmp/IMG_20260909_0003.png), 앱1.3.108/인쇄1.3.107에서 흰 획 소실 지속. 실제 앱 v1.3.109 파일 대상 캡처에서도 두 역상 흰 손실0이며 그 결과로 실물 정상/열 문제 확정 판정 금지.
+- 미확정: 파일 대상으로 생성된 실제 앱 PRN과 USB 실제 전송의 차이. 품질 보정 없이 동일 코드 실물 재출력을 반복 요구하지 않는다.
+- 마지막 실행: Debug EXE v1.3.109/PID13308, 파일 전용 모드. [.tmp/log/app_2026-09-09_23-21-37.log](.tmp/log/app_2026-09-09_23-21-37.log)에서 캡처 완료 확인. 현재 실행 여부는 새 세션에서 확인한다. 일반 인쇄로 돌아가려면 환경변수 없이 재실행해야 한다.
 - 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 보존한다. 앱 오동작과 관련되면 현재 diff를 읽고 함께 작업하되 임의 원복/전체 stage 금지.
 - 일반 글자/표선은 v1.3.58 기준 유지. 실물 획 소실을 열 번짐/드라이버 문제로 확정하거나 소프트웨어 개선 불가로 결론내리지 않는다.
 - 사진/로그/EMF/BMP/probe 캐시는 `.tmp`에 로컬 보존, stage/외부 전송 제외. DB migration/프린터 설정/배포/원격 push 변경 금지.

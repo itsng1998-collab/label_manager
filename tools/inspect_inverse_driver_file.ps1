@@ -27,20 +27,25 @@ try {
             if ($offset -ge $bytes.Length -or $bytes[$offset] -ne 13) { throw 'Expected CR before Q binary payload' }
             $offset++
             $length = $stride * $height
-            if ($offset + $length -gt $bytes.Length -or $originX + $stride * 8 -gt 640 -or $originY + $height -gt 480) {
+            if ($offset + $length -gt $bytes.Length -or $originX + $stride * 8 -gt 647 -or $originY + $height -gt 487) {
                 throw 'Q payload is truncated or outside the diagnostic page'
             }
+            $paddingPixels = 0
             for ($row = 0; $row -lt $height; $row++) {
                 for ($column = 0; $column -lt $stride * 8; $column++) {
                     $value = $bytes[$offset + $row * $stride + [int][Math]::Floor($column / 8)]
-                    if (($value -band (128 -shr ($column % 8))) -ne 0) {
+                    $black = ($value -band (128 -shr ($column % 8))) -ne 0
+                    if ($originX + $column -ge 640 -or $originY + $row -ge 480) {
+                        if ($black) { throw 'Q has nonwhite pixels outside the diagnostic page' }
+                        $paddingPixels++
+                    } elseif ($black) {
                         $decoded.SetPixel($originX + $column, $originY + $row, [System.Drawing.Color]::Black)
                     }
                 }
             }
             $offset += $length
             $patterns++
-            Write-Output "pattern=$originX,$originY,$stride,$height"
+            Write-Output "pattern=$originX,$originY,$stride,$height whitePaddingPixels=$paddingPixels"
         } elseif ($command -notmatch '^(\^[ODCPQWL][0-9.,-]*|E)$') {
             throw "Unsupported command at byte $start"
         }

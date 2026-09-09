@@ -104,3 +104,60 @@ MSB-first/1=검정으로 읽는다. 알 수 없는 명령/잘린 데이터는 �
 동일을 확인했다. 이 재현은 일반 native text/워터마크를 제외하며 지정 clip만
 도형으로 전송한다. 다른 역상은 저장 BMP 상태 그대로이므로 실제 전체 인쇄 스풀과
 같다고 단정하지 않는다. 원인/실물 품질 개선은 미확정이다.
+
+## 페이지 파일 재생
+
+v1.3.109의 `--driver-file-page`는 마지막 역상 `_comparison.bmp`와
+동일 작업의 `_after_native.txt/.emf`를 사용한다. 마지막 역상 원본에 이전 역상도
+포함돼 있어야 한다. 모든 역상 clip을 한 번에 도형으로 전송하고, 기록된 검정 문자
+EMF와 기존 v1.3.107 워터마크를 차례로 출력한다. 명시한 로컬 파일 외에는 보내지 않는다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --driver-file-page <last-inverse-prefix> <after-native-prefix> .tmp/inverse_page.prn
+./tools/inspect_inverse_driver_file.ps1 -Path .tmp/inverse_page.prn -SourcePrefix <first-inverse-prefix>
+./tools/inspect_inverse_driver_file.ps1 -Path .tmp/inverse_page.prn -SourcePrefix <last-inverse-prefix>
+```
+
+워터마크와 맞는 `version=1.3.107` 참조 진단만 지원한다. EMF 재생 범위는 헤더의
+장치/프레임으로 환산하며 페이지 크기를 직접 사용하지 않는다.
+CTest는 문자 대신 기록한 3x3 표식, 워터마크 실제 픽셀, 나머지 영역 및 DC 상태
+보존을 검사한다. Q 해석기는 최대7픽셀의 페이지 밖 백색 정렬 패딩만 허용하고,
+그 범위의 검정 픽셀은 오류 처리한다. 해석기 회귀 검사는 7건이다.
+
+IMG0003에 대응하는 페이지 PRN은 `Q10,11,76,472`, 끝의 백색 패딩1824픽셀,
+역상별 흰1298/1508 및 손실0/차이0을 확인했다. 복원 PNG에는 일반 문자/표선/
+워터마크가 포함된다. 다만 검정 문자는 실제 앱의 DrawText 호출을 다시 수행한 것이
+아니라 참조 EMF 재생이다. 실제 USB 작업 스풀과 같다고 단정하지 않는다.
+생산 출력 코드는 변경하지 않았으므로 이 진단 버전으로 동일 실물 재출력을 요구하지 않는다.
+
+## 실제 앱 호출의 파일 전용 캡처
+
+v1.3.109 Debug 앱은 `LABEL_MANAGER_DEBUG_PRINT_FILE` 환경변수가 설정된 경우
+실제 `PrintBitmap` 호출의 `DOCINFO.lpszOutput`을 지정한 파일로 바꾼다.
+일반 문자도 EMF 재생이 아닌 기존 DrawText 호출을 그대로 수행한다.
+환경변수가 없는 일반 실행 및 Release는 기존 출력 동작을 유지한다.
+
+```powershell
+$env:LABEL_MANAGER_DEBUG_PRINT_FILE = Join-Path $PWD '.tmp/log/godex_inverse/actual_app_v109.prn'
+try { C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub }
+finally { Remove-Item Env:LABEL_MANAGER_DEBUG_PRINT_FILE -ErrorAction SilentlyContinue }
+```
+
+파일 전용 앱에서 같은 라벨의 인쇄를 한 번 요청하면 종이 대신 파일을 만든다.
+경로는 기존 디렉터리 아래의 새 절대 로컬 `.prn` 파일이어야 한다. 잘못된 경로나
+기존 파일, GoDEX 이외 backend는 실제 출력으로 fallback하지 않고 실패한다.
+파일이 이미 생성된 뒤 반복 요청도 거부하므로 새 경로로 재실행해야 한다.
+
+파일 생성 성공 후에도 `ok=false`를 반환하며 화면에 `Debug print file captured`
+문구를 포함한 인쇄 실패 메시지가 뜨는 것이 의도된 동작이다. 로그의
+`debugFileCaptured=true physicalPrintSubmitted=false`를 확인한다.
+접수 라벨에 포함하지 않아 인쇄 이력과 자동증가 값을 저장하지 않는다.
+검증 후 일반 인쇄로 돌아가려면 파일 전용 앱을 종료하고 환경변수 없이 다시 실행한다.
+
+생성된 PRN은 해당 실행에서 생성한 역상 진단 prefix들과 위 해석기로 비교한다.
+이것은 실제 앱의 파일 대상 호출 결과이며 USB로 보낸 작업의 캡처는 아니다.
+인쇄 마크는 기존1.3.107을 유지하며 앱 버전1.3.109/파일 전용 플래그로 구분한다.
+
+실제 앱 캡처 검증: `actual_app_v109.prn`에서 두 역상 clip의 흰 손실0/증가0/차이0을
+확인했다. 참조 페이지 PNG와 실제 앱 PNG의 차이는 역상 밖1픽셀이다.
+파일 대상과 USB 실제 전송이 같은지는 이 결과만으로 증명되지 않는다.

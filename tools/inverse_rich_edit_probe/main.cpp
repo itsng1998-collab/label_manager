@@ -10,6 +10,7 @@
 #include "../../windows/runner/inverse_text_geometry.h"
 #include "../../windows/runner/native_text_comparison.h"
 #include "driver_file_probe.h"
+#include "../../windows/runner/debug_print_file_target.h"
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
                          int, LPARAM context) {
@@ -96,6 +97,86 @@ bool VerifyNativeTextComparison(HDC printer) {
     }
   }
   std::cout << "nativeTextComparison=" << (valid ? "PASS" : "FAIL") << "\n";
+  return valid;
+}
+
+bool VerifyDebugPrintFileTarget(const std::filesystem::path& directory) {
+  const auto available = std::filesystem::absolute(directory / L"new_capture.prn");
+  const auto disabled = ValidateDebugPrintFileTarget(L"");
+  const auto accepted = ValidateDebugPrintFileTarget(available.wstring());
+  bool valid = !disabled.enabled && disabled.valid && accepted.enabled && accepted.valid;
+  for (const auto& value : {std::wstring(L"relative.prn"),
+       std::wstring(L"\\\\server\\share\\capture.prn"),
+       (directory / L"missing_parent" / L"capture.prn").wstring(),
+       (directory / L"capture.txt").wstring()}) {
+    const auto rejected = ValidateDebugPrintFileTarget(value);
+    valid = valid && rejected.enabled && !rejected.valid;
+  }
+  const auto existing = directory / L"existing_capture.prn";
+  std::ofstream(existing).put('x');
+  const auto rejected_existing = ValidateDebugPrintFileTarget(
+      std::filesystem::absolute(existing).wstring());
+  valid = valid && rejected_existing.enabled && !rejected_existing.valid;
+  std::filesystem::remove(existing);
+  std::cout << "debugPrintFileTarget=" << (valid ? "PASS" : "FAIL") << "\n";
+  return valid;
+}
+
+bool VerifyDriverPageTail(HDC printer) {
+  RECT frame{0, 0, MulDiv(620, 2540, GetDeviceCaps(printer, LOGPIXELSX)),
+                   MulDiv(480, 2540, GetDeviceCaps(printer, LOGPIXELSY))};
+  HDC recording = CreateEnhMetaFileW(printer, nullptr, &frame, nullptr);
+  if (recording == nullptr) return false;
+  RECT mark{597, 106, 600, 109};
+  FillRect(recording, &mark, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+  DriverPageText text;
+  text.metafile = CloseEnhMetaFile(recording);
+  if (!SetDriverPageTextFrame(text)) return false;
+  BITMAPINFO info{};
+  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  info.bmiHeader.biWidth = 620;
+  info.bmiHeader.biHeight = -480;
+  info.bmiHeader.biPlanes = 1;
+  info.bmiHeader.biBitCount = 32;
+  HDC memory = CreateCompatibleDC(printer);
+  void* pixels = nullptr;
+  HBITMAP bitmap = CreateDIBSection(printer, &info, DIB_RGB_COLORS, &pixels, nullptr, 0);
+  if (text.metafile == nullptr || memory == nullptr || bitmap == nullptr || pixels == nullptr) {
+    if (bitmap != nullptr) DeleteObject(bitmap);
+    if (memory != nullptr) DeleteDC(memory);
+    return false;
+  }
+  HGDIOBJ previous = SelectObject(memory, bitmap);
+  std::fill_n(static_cast<uint8_t*>(pixels), 620 * 480 * 4, uint8_t{255});
+  SetBkMode(memory, OPAQUE);
+  SetTextColor(memory, RGB(20, 40, 60));
+  bool valid = RenderDriverPageTail(memory, text);
+  valid = valid && GetMapMode(memory) == MM_TEXT && GetBkMode(memory) == OPAQUE &&
+          GetTextColor(memory) == RGB(20, 40, 60);
+  GdiFlush();
+  size_t mark_pixels = 0;
+  size_t watermark_pixels = 0;
+  const auto* actual = static_cast<const uint8_t*>(pixels);
+  for (int row = 0; row < 480; ++row) {
+    for (int column = 0; column < 620; ++column) {
+      const size_t offset = (static_cast<size_t>(row) * 620 + column) * 4;
+      const bool white = actual[offset] == 255 && actual[offset + 1] == 255 &&
+                         actual[offset + 2] == 255;
+      if (column >= mark.left && column < mark.right && row >= mark.top && row < mark.bottom) {
+        if (!white) ++mark_pixels;
+      } else if (column >= 550 && row >= 460) {
+        if (!white) ++watermark_pixels;
+      } else {
+        valid = valid && white;
+      }
+    }
+  }
+  SelectObject(memory, previous);
+  DeleteObject(bitmap);
+  DeleteDC(memory);
+  valid = valid && mark_pixels == 9 && watermark_pixels > 0;
+  std::cout << "driverPageTail=" << (valid ? "PASS" : "FAIL")
+            << " markPixels=" << mark_pixels << " watermarkPixels=" << watermark_pixels << "\n";
   return valid;
 }
 
@@ -236,6 +317,9 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
 }
 
 int wmain(int count, wchar_t** arguments) {
+  if (count == 5 && std::wstring(arguments[1]) == L"--driver-file-page") {
+    return CaptureInverseDriverFile(arguments[2], arguments[4], false, arguments[3]);
+  }
   if (count == 4 && std::wstring(arguments[1]) == L"--driver-file-legacy-devmode") {
     return CaptureInverseDriverFile(arguments[2], arguments[3], true);
   }
@@ -265,7 +349,8 @@ int wmain(int count, wchar_t** arguments) {
   if (printer == nullptr || module == nullptr) return 4;
   const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
   const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
-  bool success = VerifyDeviceCoordinates(printer) && VerifyNativeTextComparison(printer);
+  bool success = VerifyDeviceCoordinates(printer) && VerifyNativeTextComparison(printer) &&
+                 VerifyDriverPageTail(printer) && VerifyDebugPrintFileTarget(output_directory);
   for (int variant = 0; variant < 8; ++variant) {
     HWND host = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
         L"STATIC", L"", WS_POPUP, 0, 0, 620, 480, nullptr, nullptr,

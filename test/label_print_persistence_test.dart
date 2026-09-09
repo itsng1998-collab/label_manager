@@ -7,6 +7,19 @@ void main() {
   const first = ColumnItemKey(columnId: 2, itemId: 10);
   const second = ColumnItemKey(columnId: 1, itemId: 20);
 
+  test('empty accepted print data does not start a transaction', () async {
+    var transactions = 0;
+    final service = LabelPrintPersistenceService(
+      transaction: (_) async {
+        transactions++;
+        return const <Object>[];
+      },
+    );
+    final result = await service.save(values: const {}, historyParents: const []);
+    expect(transactions, 0);
+    expect(result.committedAutoIncrementValues, isEmpty);
+  });
+
   test('auto increment statement uses XML projection and row count check', () {
     final statement = buildLabelAutoIncrementUpdateStatement({
       first: '002',
