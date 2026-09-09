@@ -22,6 +22,7 @@
 - 테스트 추가/검증: [test/fortune_table_test.dart](test/fortune_table_test.dart)에 revision 후 열 너비와 실제 가로 scrollbar thumb 유지, ItemManage 옵션 전달 계약을 추가했다. `flutter test test/fortune_table_test.dart` 73건 통과. 관련 3개 Dart 파일 analyzer 이슈 없음. `git diff --check` 통과.
 - 실행 확인: DTD에 연결된 Flutter 앱이 없어 hot restart는 수행하지 못했다.
 - 버전: 국소 UI 동작 수정이므로 [pubspec.yaml](pubspec.yaml) PATCH **1.3.99 -> 1.3.100**.
+- 기능 커밋: `6bccfd54ca54f244687340f9c64db4955def4c78` (`품목 편집 후 가로 스크롤 유지`).
 - BMP 미리보기 원인: [.tmp/test_log/이미지를 불러오지 못하는 현상.log](.tmp/test_log/이미지를%20불러오지%20못하는%20현상.log) v1.3.58에서 선택한 `logo` 파일명은 저장됐지만, 미리보기는 LabelManager 고정 폴더만 조회해 BCSManager의 파일을 찾지 못했다.
 - 레거시 재확인: [.tmp/LabelManager/LabelManager/LabelEditDlg.cpp](.tmp/LabelManager/LabelManager/LabelEditDlg.cpp)는 파일 선택 시작 위치를 `C:\ITS\LabelManager\bmp files`로 지정하고 확장자 없는 파일명만 저장한다. [.tmp/LabelManager/LabelManagerLib/RichEditImageMaker.cpp](.tmp/LabelManager/LabelManagerLib/RichEditImageMaker.cpp)는 실행 파일 옆 `bmp files`에서만 다시 읽으며 외부 선택 파일을 복사하지 않는다. 현재 수정은 이 저장 계약과 기존 경로 우선순위를 유지하고 BCSManager 공유 폴더만 호환 경로로 추가한다.
 - 편집 완료: [lib/features/item/application/item_image_preview.dart](lib/features/item/application/item_image_preview.dart)에 `itemBmpPreviewDataUriForFileName`과 두 기본 탐색 폴더를 추가했다. 기존 LabelManager 폴더 우선순위를 유지하고 BCSManager `bmpfiles`를 fallback으로 사용한다.
