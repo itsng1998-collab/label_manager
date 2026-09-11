@@ -6,7 +6,7 @@
 3. [test/item_manage_horizontal_scroll_test.dart](test/item_manage_horizontal_scroll_test.dart)에서 오른쪽 키의 offset 증가와 왼쪽 키의 원점 복귀를 검증한다. 버전은 PATCH **1.3.119 -> 1.3.120**으로 갱신했다.
 4. 회귀 테스트 **1건 통과**, focused analyze **No issues found**, diagnostics 및 `git diff --check` 통과.
 5. Windows v1.3.120 디버그 빌드/실행 및 hot reload 성공. 터미널에 runtime 예외가 없었다. DTD에 앱이 노출되지 않아 실제 UI 자동 입력은 수행하지 않았다.
-6. 커밋 대상은 `lib/features/item/presentation/item_manage.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+6. 기능 커밋 `b824454` (`품목관리 Shift 방향키 가로 스크롤 추가`) 완료. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외했다.
 
 ## 최우선 순서 (2026-09-11)
 1. **완료**: 사용자 관리에서 3575가 김영모(75806065) 계정으로 접속할 때 화면 전환 후 멈추는 재발 문제를 수정했다.
