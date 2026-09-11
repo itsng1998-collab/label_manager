@@ -8,6 +8,7 @@
 5. `flutter test test/startup_dialog_test.dart test/notice_menu_dao_test.dart`: **26건 통과**. 관련 파일 focused analyze **No issues found**, `git diff --check` 통과.
 6. Windows v1.3.118 디버그 빌드/실행 및 hot reload 성공, runtime error 없음. 종료 시 DB disconnect와 `Application finished`를 확인했다.
 7. 커밋 대상은 `lib/features/login/presentation/startup_dialog.dart`, `test/startup_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+8. 기능 커밋 완료: `d9b01a6` (`사용자 전환 시 업데이트 공지 재표시`).
 
 ## 로그인·종료 성능 개선
 1. ID 3575 로그인, 로그아웃, 프로그램 종료 속도를 다시 측정하고 공통 병목을 수정했다.
