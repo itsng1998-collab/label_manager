@@ -9,6 +9,7 @@
 6. Windows v1.3.116 디버그 빌드/실행 완료. 로그에서 `DebugLogger version: 1.3.116`을 확인했고 hot reload 성공, runtime error 없음. 앱 실행은 정리했다.
 7. 이번 단계는 기존 코드에서 현상이 재현되지 않아 동작 추측 수정 없이 재현 테스트와 원인 판별 로그를 추가한 상태다. 사용자 재테스트 로그에서 `item-manager-debug-v22 operation=horizontalScroll`의 편집 전후 지표를 비교한다.
 8. 최종 diagnostics 및 `git diff --check` 통과. 기능 커밋 대상은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+9. 기능 커밋 완료: `b16ca38` (`품목 편집 가로 스크롤 진단 보강`). 사용자 재현 시 편집 직전/직후 `state`, `revision`, `columns`, `overflow`, `contentWidth`, `viewportWidth`, `offset`, `maxExtent`를 비교해 원인을 확정한다.
 
 ## BMP 미리보기 오동작 검증
 - 제출 `logo.bmp` 헤더 확인: 120x93, 1-bit, compression 0, 정상 BMP. SHA256 `DD34E4EF943CE59F4907CB472D61443AC1F358A71FF7D2513496F74E7B2FAB65`.
