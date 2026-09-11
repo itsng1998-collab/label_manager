@@ -1,7 +1,20 @@
 # 세션 핸드오프
 
 ## 최우선 순서 (2026-09-11)
-1. **진행 중**: 품목값 `365 -> 360` Enter 편집 후 가로 스크롤이 사라지는 문제를 재현하고 수정한다.
+1. **진행 중**: ID 3575 로그인, 로그아웃, 프로그램 종료 속도를 다시 측정하고 공통 병목을 수정한다.
+2. v1.3.116 실제 로그인 측정: 조직 조회 3건은 합계 약 68ms, `LoginLogDAO.insertLoginLog`는 4.24초이며 DB write 자체는 162ms였다. 약 4.07초가 기존 `RGetIp.internalIP` 등 write 전 준비 구간이다.
+3. 로그인 이력은 세션 설정 후 백그라운드 기록으로 전환했다. 별도 isolate IP 조회도 첫 홈 프레임을 약 1.66초 늦춰 제거했으며, SQL Server가 이미 제공하는 `CONNECTIONPROPERTY('client_net_address')`를 `LOGIN_IP`와 `LOGIN_OUTER_IP`에 직접 기록하도록 수정했다. 로그인 이력 실패는 로그에 남기며 로그인 화면 전환을 막지 않는다.
+4. 강제중단 후 확인: 마지막 v1.3.116 측정에서도 이력 DB write 전 준비가 약 3.70초였다. 원인은 `stringToHexCp949`가 이력 한 건당 플랫폼 채널을 5회 순차 호출하는 구조다.
+5. 이력 필드 5개를 한 번에 CP949 변환해 필드별 hex로 분리하도록 수정했다. 저장 SQL/CP949 형식은 유지하며 플랫폼 왕복만 최대 1회로 줄인다.
+6. 로그인/이력 관련 focused 테스트 **9건 통과**, 변경 6개 Dart 파일 focused analyze **No issues found**. 앱 버전은 PATCH **1.3.116 -> 1.3.117**로 갱신했다.
+7. v1.3.117 Windows 실측 완료(ID 3575): 로그인 버튼 처리는 약 **121ms**, 백그라운드 로그인 이력은 **1.09초**, 홈 `renderReady`는 로그인 시작 후 약 **3.27초**다. v1.3.116의 로그인 이력 **4.24초**, 홈 `renderReady` 약 **7.84초**보다 단축됐다.
+8. 명시적 로그아웃은 이력 저장 포함 약 **887ms**(기존 약 **3.90초**), 로그아웃 후 프로그램 종료는 DB disconnect 포함 약 **9ms**였다. 로그인/로그아웃 이력 INSERT 성공과 `Window close approved`를 로그에서 확인했다.
+9. Windows 빌드/실행, hot reload, runtime error 없음 확인. 종료 전 미리보기 설정창과 dirty 품목은 정상 가드에 의해 차단됐고, 사용자 확인 후 discard하여 측정했다.
+10. 최종 focused 테스트 **17건 통과**, 관련 파일 diagnostics 및 `git diff --check` 통과. 임시 화면 캡처 7개를 정리했고 측정 로그는 보존했다.
+11. 기능 커밋 대상은 `lib/database/db_result_utils.dart`, `lib/features/login/application/startup_login_service.dart`, `lib/features/login_history/data/login_log_dao.dart`, `test/db_result_utils_test.dart`, `test/login_log_test.dart`, `test/startup_login_service_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+
+## 가로 스크롤 진단
+1. 품목값 `365 -> 360` Enter 편집 후 가로 스크롤이 사라지는 문제를 재현하고 수정한다.
 2. 제출된 v1.3.106 로그에는 편집 완료와 ItemManage 재빌드만 있고 열 너비/overflow/State 수명 로그는 없다. 기존 수정 `6bccfd5`(v1.3.100)는 v1.3.106과 현재 코드에 포함돼 있다.
 3. 실제 ItemManage 14개 동적 열에서 Enter 편집 전후 `RawScrollbar.thumbVisibility`를 검증하는 [test/item_manage_horizontal_scroll_test.dart](test/item_manage_horizontal_scroll_test.dart)를 추가했고 현재 코드에서는 편집/스크롤 유지가 재현되지 않았다.
 4. [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)의 실제 content/viewport/offset/maxExtent를 컨트롤러에 노출하고 [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)에 `operation=horizontalScroll event=changed` 진단 로그를 추가했다. 앱 버전은 **1.3.115 -> 1.3.116**, 로그 버전은 `item-manager-debug-v22`로 갱신했다.

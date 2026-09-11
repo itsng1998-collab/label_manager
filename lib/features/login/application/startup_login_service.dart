@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:label_manager/core/admin_connect_session.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/cooperator/data/cooperator_dao.dart';
@@ -11,6 +13,7 @@ import 'package:label_manager/features/market/data/market_dao.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
+import 'package:label_manager/utils/log_context.dart';
 
 typedef StartupNoticeLoader = Future<Notice> Function(String userId);
 typedef StartupNoticeStateWriter = Future<void> Function(
@@ -89,7 +92,11 @@ class StartupLoginService {
     AdminConnectSession.instance.beginLogin(authenticationMode);
 
     if (authenticationMode != LoginAuthenticationMode.masterKey) {
-      await _writeLoginLog(user, customer);
+      unawaited(
+        _writeLoginLog(user, customer).catchError((Object error) {
+          debugLog('login history write failed: $error');
+        }),
+      );
     }
   }
 

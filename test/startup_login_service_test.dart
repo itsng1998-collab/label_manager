@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_session.dart';
 import 'package:label_manager/core/user.dart';
@@ -100,6 +102,26 @@ void main() {
 
     expect(logCalled, isFalse);
     expect(AdminConnectSession.instance.isMasterKeyLogin, isTrue);
+  });
+
+  test('regular login does not wait for login history write', () async {
+    final writeStarted = Completer<void>();
+    final releaseWrite = Completer<void>();
+    final service = _service(
+      writeLoginLog: (_, _) async {
+        writeStarted.complete();
+        await releaseWrite.future;
+      },
+    );
+
+    await service.login(
+      user: user,
+      authenticationMode: LoginAuthenticationMode.regular,
+    );
+
+    expect(writeStarted.isCompleted, isTrue);
+    expect(User.instance, same(user));
+    releaseWrite.complete();
   });
 }
 

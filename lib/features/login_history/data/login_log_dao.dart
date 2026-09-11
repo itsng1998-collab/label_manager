@@ -8,7 +8,6 @@ import 'package:label_manager/features/login_history/domain/login_log.dart';
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:r_get_ip/r_get_ip.dart';
 
 LoginLog loginLogFromRow(Map<String, dynamic> row) {
   String stringValue(String key) => (row[key] ?? '').toString();
@@ -70,7 +69,7 @@ class LoginLogDAO extends DAO {
        CONVERT(NVARCHAR(50), CONVERT(VARCHAR(50), CONVERT(VARBINARY(150), @customerName, 1)) COLLATE ${DAO.CP949}),
        @loginDate,
        CONVERT(NVARCHAR(8), CONVERT(VARCHAR(8), CONVERT(VARBINARY(30), @loginDateYYYYMMDD, 1)) COLLATE ${DAO.CP949}),
-        CONVERT(NVARCHAR(100), CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1)) COLLATE ${DAO.CP949}),
+        CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address')),
        @loginCondition,
         CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address')))
   ''';
@@ -120,27 +119,24 @@ class LoginLogDAO extends DAO {
 
     try {
       final now = DateTime.now();
-      final localIp = await RGetIp.internalIP;
-      final hexUserId = await stringToHexCp949(userId);
-      final hexUserGrade = await stringToHexCp949(userGrade.label);
-      final hexProgramVersion = await stringToHexCp949(appVersion);
-      final hexCustomerName = await stringToHexCp949(customerName);
       final osLocale = ui.PlatformDispatcher.instance.locale.toString();
       final loginDate = DateFormat('yyyy-MM-dd HH:mm:ss', osLocale).format(now);
-      final hexLoginDateYYYYMMDD = await stringToHexCp949(
+      final encodedFields = await stringsToHexCp949([
+        userId,
+        userGrade.label,
+        appVersion,
+        customerName,
         DateFormat('yyyyMMdd', osLocale).format(now),
-      );
-      final hexLoginIP = await stringToHexCp949(localIp!);
+      ]);
 
       await DbClient.instance.writeDataWithParams(insertSql, {
-        'userId': hexUserId,
-        'userGrade': hexUserGrade,
-        'programVersion': hexProgramVersion,
+        'userId': encodedFields[0],
+        'userGrade': encodedFields[1],
+        'programVersion': encodedFields[2],
         'customerId': customerId,
-        'customerName': hexCustomerName,
+        'customerName': encodedFields[3],
         'loginDate': loginDate,
-        'loginDateYYYYMMDD': hexLoginDateYYYYMMDD,
-        'loginIP': hexLoginIP,
+        'loginDateYYYYMMDD': encodedFields[4],
         'loginCondition': loginCondition.code,
       });
 

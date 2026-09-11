@@ -228,3 +228,29 @@ Future<String> stringToHexCp949(String input,
   final bytes = await _encodeKoreanWansung(input);  // ← 여기서 다중 문자셋 시도
   return _bytesToHex(bytes, with0x: with0x, upper: upper);
 }
+
+Future<List<String>> stringsToHexCp949(
+  List<String> inputs, {
+  Future<List<int>> Function(String text)? encode,
+}) async {
+  const separator = '\u001f';
+  if (inputs.any((input) => input.contains(separator))) {
+    throw ArgumentError.value(inputs, 'inputs', 'Contains reserved separator');
+  }
+  if (inputs.isEmpty) return const [];
+
+  final encodeText = encode ?? _encodeKoreanWansung;
+  final encoded = await encodeText(inputs.join(separator));
+  final segments = <List<int>>[<int>[]];
+  for (final byte in encoded) {
+    if (byte == 0x1f) {
+      segments.add(<int>[]);
+    } else {
+      segments.last.add(byte);
+    }
+  }
+  if (segments.length != inputs.length) {
+    throw StateError('Korean Wansung batch encoding changed field boundaries.');
+  }
+  return [for (final segment in segments) _bytesToHex(segment)];
+}

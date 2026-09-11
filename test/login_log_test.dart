@@ -30,4 +30,14 @@ void main() {
     expect(sql, isNot(contains('OPENJSON')));
     expect(sql, isNot(contains('TRY_CONVERT')));
   });
+
+  test('login history records the server-observed client address', () {
+    final sql = LoginLogDAO.insertSql;
+
+    expect(
+      'client_net_address'.allMatches(sql),
+      hasLength(2),
+    );
+    expect(sql, isNot(contains('@loginIP')));
+  });
 }
