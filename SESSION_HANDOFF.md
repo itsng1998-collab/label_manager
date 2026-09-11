@@ -1,7 +1,7 @@
 # 세션 핸드오프
 
 ## 최우선 순서 (2026-09-11)
-1. **사용자 재테스트 대기**: 품목 순서 저장 후 하단 `처리 중`이 고착되는 문제의 수정과 focused 검증을 완료했다.
+1. **사용자 재테스트 대기**: 품목 순서 저장 후 하단 `처리 중`이 고착되는 문제의 수정과 focused 검증을 완료했다. 기능 커밋은 `c9a9637`이다.
 2. 제출된 v1.3.106 로그에서는 DB 갱신과 재조회가 모두 완료됐지만, 재조회 중 `commandBusy=true`로 생성된 탭 콘텐츠가 캐시되고 이후 단순 `setState`로 교체되지 않았다.
 3. [lib/home_page_manager.dart](lib/home_page_manager.dart)의 순서변경 `finally`에서 busy 해제 후 `_resetTabs()`를 호출하고 `itemOrder finished` 로그를 추가했다. 버전은 PATCH **1.3.113 -> 1.3.114**로 갱신했다.
 4. 이 오동작 수정과 검증/커밋을 마친 뒤 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)에서 역상 문제를 재개한다. 두 문제의 가설과 변경을 섞지 않는다.
@@ -17,7 +17,7 @@
 - 제출 로그 [.tmp/1.3.106 2차 log/품목순서변경후 무한로딩.log](.tmp/1.3.106%202차%20log/품목순서변경후%20무한로딩.log)는 v1.3.106이며 DB 저장과 `reload completed`까지 정상이다. 마지막 탭 생성 시 `busy=true`였고 이후 ItemManage 재빌드 없이 표시가 고착됐다.
 - 범위 밖 기존 변경: [lib/core/app.dart](lib/core/app.dart), [pubspec.lock](pubspec.lock). 원복하거나 함께 stage/commit하지 않는다. 오동작과 관련되면 먼저 diff를 읽고 사용자 변경을 보존하면서 조사한다.
 - 이번 수정 버전은 PATCH **1.3.113 -> 1.3.114**. native 인쇄 코드는 변경하지 않아 native 인쇄 마크는1.3.107이다.
-- 기능 커밋 대상: [lib/home_page_manager.dart](lib/home_page_manager.dart), [pubspec.yaml](pubspec.yaml), [SESSION_HANDOFF.md](SESSION_HANDOFF.md)만 stage한다.
+- 기능 커밋 완료: `c9a9637` (`품목 순서 저장 후 처리 중 상태 해제`). [lib/home_page_manager.dart](lib/home_page_manager.dart), [pubspec.yaml](pubspec.yaml), [SESSION_HANDOFF.md](SESSION_HANDOFF.md)만 포함했다.
 
 ## 앱 오동작 시작점
 - 사용자가 지정한 로그/화면을 최우선으로 한다. 현재 증상이 아직 없으므로 과거 문제를 새 오동작이라고 가정하지 않는다.
