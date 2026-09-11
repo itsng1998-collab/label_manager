@@ -1,7 +1,7 @@
 # 세션 핸드오프
 
 ## 최우선 순서 (2026-09-11)
-1. **사용자 재테스트 대기**: 품목 이미지 선택 후 출력내용 미리보기에 BMP가 표시되지 않는 문제의 수정과 focused 검증을 완료했다.
+1. **사용자 재테스트 대기**: 품목 이미지 선택 후 출력내용 미리보기에 BMP가 표시되지 않는 문제의 수정과 focused 검증을 완료했다. 기능 커밋은 `f5ea0bb`이다.
 2. 제출된 v1.3.106 로그에는 이미지 선택/파일 탐색 이벤트가 없었다. 제출 `logo.bmp`는 정상 120x93, 1-bit 비압축 BMP다.
 3. 기존 수정은 파일명만 저장한 뒤 고정 폴더를 재탐색했다. [lib/features/item/application/item_image_preview.dart](lib/features/item/application/item_image_preview.dart)에 선택 바이트 캐시와 해석 출처 로그를 추가하고, [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)에서 선택 직후 바이트를 등록했다.
 4. 버전은 PATCH **1.3.114 -> 1.3.115**로 갱신했다. 이 오동작 수정과 검증/커밋 후 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)에서 역상 문제를 재개한다.
@@ -14,7 +14,7 @@
 - Windows 디버그 앱 v1.3.115 빌드/실행 및 hot reload 완료: 로그 버전 확인, `Reloaded 0 libraries in 206ms`, runtime 예외 없이 정상 종료.
 - 사용자 재테스트 로그 판별점: `operation=itemImage event=selected` 뒤 `itemBmpPreview resolved source=selected`가 기록되어야 한다. 실패 시 `readFailed` 또는 `itemBmpPreview missing`으로 원인을 구분한다.
 - 최종 diagnostics와 `git diff --check` 통과. formatter 변경은 ItemManage 19줄로 제한됐다.
-- 기능 커밋 대상: [lib/features/item/application/item_image_preview.dart](lib/features/item/application/item_image_preview.dart), [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart), [test/item_image_preview_test.dart](test/item_image_preview_test.dart), [pubspec.yaml](pubspec.yaml), [SESSION_HANDOFF.md](SESSION_HANDOFF.md)만 stage한다. 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+- 기능 커밋 완료: `f5ea0bb` (`선택한 BMP 이미지 미리보기 즉시 반영`). 관련 5개 파일만 포함했으며 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 제외했다.
 
 ## 품목 순서 저장 오동작 검증
 - focused 테스트 완료: `flutter test test/home_page_manager_session_test.dart test/item_order_dialog_test.dart test/item_manager_save_dao_test.dart` 결과 **6건 통과**.
