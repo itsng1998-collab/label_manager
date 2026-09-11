@@ -1,17 +1,23 @@
 # 세션 핸드오프
 
 ## 최우선 순서 (2026-09-11)
-1. [SESSION_RULES.md](SESSION_RULES.md)를 읽고 **앱 오동작 디버깅을 먼저 진행**한다. 이번 요청은 문서 정리이며 앱 수정/재현은 아직 시작하지 않았다.
-2. 구체적인 오동작 증상, 재현 순서, 기대/실제 결과, 발생 시각과 로그 또는 사진을 사용자에게 확인한다. 이전 역상 작업을 자동으로 계속하지 않는다.
-3. 오동작 수정과 focused 검증/관련 커밋을 마친 뒤 사용자 우선순위를 확인하고 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)에서 역상 문제를 재개한다. 두 문제의 가설과 변경을 섞지 않는다.
+1. **사용자 재테스트 대기**: 품목 순서 저장 후 하단 `처리 중`이 고착되는 문제의 수정과 focused 검증을 완료했다.
+2. 제출된 v1.3.106 로그에서는 DB 갱신과 재조회가 모두 완료됐지만, 재조회 중 `commandBusy=true`로 생성된 탭 콘텐츠가 캐시되고 이후 단순 `setState`로 교체되지 않았다.
+3. [lib/home_page_manager.dart](lib/home_page_manager.dart)의 순서변경 `finally`에서 busy 해제 후 `_resetTabs()`를 호출하고 `itemOrder finished` 로그를 추가했다. 버전은 PATCH **1.3.113 -> 1.3.114**로 갱신했다.
+4. 이 오동작 수정과 검증/커밋을 마친 뒤 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)에서 역상 문제를 재개한다. 두 문제의 가설과 변경을 섞지 않는다.
+
+## 품목 순서 저장 오동작 검증
+- focused 테스트 완료: `flutter test test/home_page_manager_session_test.dart test/item_order_dialog_test.dart test/item_manager_save_dao_test.dart` 결과 **6건 통과**.
+- analyzer 완료: `flutter analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart test/item_order_dialog_test.dart test/item_manager_save_dao_test.dart` 결과 **No issues found**.
+- Windows 디버그 앱 v1.3.114 실행 및 hot reload 완료: `Reloaded 0 libraries in 687ms`, runtime 예외 없이 정상 로그아웃/DB 연결 종료 후 앱을 닫았다.
+- 사용자 재테스트 로그 판별점: `operation=itemOrder event=finished mounted=true busy=false` 뒤 `_buildTabs`와 `_ItemManageState.build`가 이어져야 한다.
 
 ## 현재 실행 및 작업 트리
-- 마지막 검증 앱은 **v1.3.112 일반 모드**. 빌드/hot reload 시점에는 runtime 오류가 없었으나 이후 터미널이 비정상 종료됐다는 알림을 받았다. 종료 원인은 미확정이며 앱 충돌/RTF 수정의 회귀로 단정하지 않는다.
-- 종료된 run ID `62f68d45-1c1d-4bbb-b7b8-33d7a4d4dfb7`와 과거 DTD/VM 주소는 재사용하지 않는다. 2026-09-11 조회에서 `label_manager` 프로세스가 없었다. 새 세션에서는 다시 확인한다.
-- 현재 확인된 최신 로그: [.tmp/log/app_2026-09-09_23-48-43.log](.tmp/log/app_2026-09-09_23-48-43.log). 마지막 수정 시각은 9월9일23:49:19. 다음 세션에서 최신 `app_*.log`를 다시 선택하고 시작 버전을 확인한다.
-- 전달된 종료 알림에는 품목 세션 `renderReady/completed` 및 hot reload 성공까지 있다. 종료 예외/스택/종료 원인은 제시되지 않았다. `sqflite default factory` 경고만으로 원인 판정 금지.
+- 마지막 검증 앱은 **v1.3.114 일반 모드**. 초기 품목 세션 `renderReady/completed`, hot reload, 정상 로그아웃과 DB 연결 종료까지 확인했다. 실사용 순서 저장은 DB 변경을 피하기 위해 실행하지 않았다.
+- 제출 로그 [.tmp/1.3.106 2차 log/품목순서변경후 무한로딩.log](.tmp/1.3.106%202차%20log/품목순서변경후%20무한로딩.log)는 v1.3.106이며 DB 저장과 `reload completed`까지 정상이다. 마지막 탭 생성 시 `busy=true`였고 이후 ItemManage 재빌드 없이 표시가 고착됐다.
 - 범위 밖 기존 변경: [lib/core/app.dart](lib/core/app.dart), [pubspec.lock](pubspec.lock). 원복하거나 함께 stage/commit하지 않는다. 오동작과 관련되면 먼저 diff를 읽고 사용자 변경을 보존하면서 조사한다.
-- 이번 문서 정리에 따른 버전은 PATCH **1.3.112 -> 1.3.113**. 앱 코드/의존성 변경이나 빌드는 하지 않으므로 마지막 검증 EXE는1.3.112, native 인쇄 마크는1.3.107이다.
+- 이번 수정 버전은 PATCH **1.3.113 -> 1.3.114**. native 인쇄 코드는 변경하지 않아 native 인쇄 마크는1.3.107이다.
+- 기능 커밋 대상: [lib/home_page_manager.dart](lib/home_page_manager.dart), [pubspec.yaml](pubspec.yaml), [SESSION_HANDOFF.md](SESSION_HANDOFF.md)만 stage한다.
 
 ## 앱 오동작 시작점
 - 사용자가 지정한 로그/화면을 최우선으로 한다. 현재 증상이 아직 없으므로 과거 문제를 새 오동작이라고 가정하지 않는다.
@@ -23,7 +29,7 @@
 ## 최근 완료 및 남은 확인
 - **RTF 단위 수정 `02864cf` / 기록 `f1a1763`**: 새5/6/8pt 가져오기에서 Windows14/17/23dot 보존, 코덱 저장/재로드 보존, 기존 시트8pixel 일반/역상17dot 유지. 가져오기 관련203건/인쇄27건 통과(일부 중복), 관련3개 파일 analyze 및 Debug `/WX` 빌드/hot reload 통과. 실물 개선은 미검증.
 - **레거시 글리프 비교 `eb2a01f`**: 동일 twip의 RTF/평문 재구성 글리프는 차이0. 크기 단위 차이를 무출력 native probe로 재현, CTest2/2 통과. 현재 실패17dot의 원본이8pt라는 증거는 아니다.
-- 과거 사용자 확인 대기 유지: 품목값 편집 후 가로 스크롤(`6bccfd5`), BMP 미리보기(`logo.bmp` 실파일), 품목 순서 변경 후 로딩. 각각 구현/focused 검증은 완료됐으나 실제 환경 확인이 남았다. 새 증상과 관련될 때만 확인하며 과거 버전 실행을 요구하지 않는다.
+- 사용자 확인 대기: 품목 순서 변경 후 로딩은 이번 v1.3.114로 재테스트한다. 품목값 편집 후 가로 스크롤(`6bccfd5`)과 BMP 미리보기(`logo.bmp` 실파일)는 새 증상과 관련될 때만 확인한다.
 - 완료된 공지/로그인/품목 편집 등의 상세 작업 로그는 Git 이력으로 넘긴다. 계정 전환/방향키는 `503fa16`, 편집 가능 기본값은 `9e1db2a`, 로그인/종료 속도는 `13396fa`를 기준으로 조회할 수 있다.
 
 ## 역상 복귀 시 요약

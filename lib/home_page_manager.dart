@@ -2773,7 +2773,16 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       if (mounted) _showItemDraftError('품목 순서 변경 실패', error);
     } finally {
-      if (mounted) setState(() => _itemDraftCommandBusy = false);
+      if (mounted) {
+        _itemDraftCommandBusy = false;
+        _resetTabs();
+      }
+      ItemManagerDebugLog.event(
+        'itemOrder',
+        'finished',
+        trace: trace,
+        fields: {'mounted': mounted, 'busy': _itemDraftCommandBusy},
+      );
     }
   }
 
