@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:label_manager/features/item/application/item_image_preview.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
@@ -1360,12 +1361,30 @@ class _ItemManageState extends State<ItemManage> {
       RegExp(r'\.bmp$', caseSensitive: false),
       '',
     );
+    late final Uint8List bytes;
+    try {
+      bytes = await file.readAsBytes();
+    } catch (error) {
+      ItemManagerDebugLog.event(
+        'itemImage',
+        'readFailed',
+        fields: {'fileName': file.name, 'path': file.path, 'error': error.runtimeType},
+      );
+      if (mounted) _showWarning('선택한 BMP 이미지를 읽지 못했습니다.\n$error');
+      return;
+    }
     try {
       await widget.onBeforeColumnChange?.call(targetDraft, column.columnId);
     } catch (error) {
       if (mounted) _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
       return;
     }
+    cacheSelectedItemBmpPreview(fileName, bytes);
+    ItemManagerDebugLog.event(
+      'itemImage',
+      'selected',
+      fields: {'fileName': file.name, 'path': file.path, 'bytes': bytes.length},
+    );
     widget.draftController!.updateColumnValue(
       targetDraft.rowKey,
       columnId: column.columnId,

@@ -7,6 +7,8 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/features/item/application/item_image_preview.dart';
 
 void main() {
+  setUp(clearSelectedItemBmpPreviewCache);
+
   test('품목 BMP 기본 탐색 폴더에 LabelManager와 BCSManager를 포함한다', () {
     expect(itemBmpPreviewDirectories, const <String>[
       r'C:\ITS\LabelManager\bmp files',
@@ -73,6 +75,24 @@ void main() {
     );
 
     expect(dataUri, startsWith('data:image/png;base64,'));
+  });
+
+  test('선택한 BMP는 기본 탐색 폴더 밖에서도 즉시 미리보기에 사용한다', () {
+    final source = _oneBitBmp();
+    cacheSelectedItemBmpPreview(r'C:\other\logo.bmp', source);
+
+    final dataUri = itemBmpPreviewDataUriForFileName(
+      'logo',
+      directories: const <String>[],
+    );
+
+    expect(dataUri, startsWith('data:image/png;base64,'));
+    expect(
+      imglib.decodePng(
+        base64Decode(dataUri!.substring(dataUri.indexOf(',') + 1)),
+      ),
+      isNotNull,
+    );
   });
 }
 
