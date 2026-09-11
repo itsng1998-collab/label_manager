@@ -24,6 +24,12 @@ import 'package:label_manager/widgets/notice_display.dart';
 const int startupNoticeContentFlex = 1;
 const int startupNoticeAdFlex = 1;
 
+@visibleForTesting
+bool didNoticeUserChange(String? currentUserId, String? nextUserId) =>
+  currentUserId != null &&
+  nextUserId != null &&
+  currentUserId.trim().toLowerCase() != nextUserId.trim().toLowerCase();
+
 /// 독립적으로 호출 가능한 시작 다이얼로그
 class StartupDialog extends StatefulWidget {
   final VoidCallback onLogin;
@@ -122,8 +128,14 @@ class _StartupDialogState extends State<StartupDialog> {
       onNoticeUpdate: (result) {
         if (!mounted) return;
         final isSuppressed = result.notice.state == 1;
+        final nextNoticeUserId = result.user?.userId;
+        final userChanged = didNoticeUserChange(
+          _noticeUserId,
+          nextNoticeUserId,
+        );
         setState(() {
-          _noticeUserId = result.user?.userId;
+          if (userChanged) _noticeConfirmed = false;
+          _noticeUserId = nextNoticeUserId;
           _effectiveContent = expandTabs(result.notice.message);
           _dontShowUntilNextUpdate = isSuppressed;
           _noticeClosed =

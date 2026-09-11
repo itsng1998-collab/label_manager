@@ -282,6 +282,12 @@ void main() {
     expect(find.byType(NoticeDisplayPanel), findsOneWidget);
   });
 
+  test('notice confirmation resets only when user id changes', () {
+    expect(didNoticeUserChange('3575', 'TESTER1'), isTrue);
+    expect(didNoticeUserChange(' tester1 ', 'TESTER1'), isFalse);
+    expect(didNoticeUserChange(null, 'TESTER1'), isFalse);
+  });
+
   testWidgets('notice confirmation saves suppression before closing', (
     tester,
   ) async {
