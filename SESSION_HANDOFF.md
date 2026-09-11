@@ -12,7 +12,7 @@
 9. 최종 관련 테스트 **9건 통과**, 변경 파일 focused analyze **No issues found**, diagnostics 및 `git diff --check` 통과. 성능 회귀 테스트는 CP949 한글 결과를 검증하고 10초 내 완료로 멈춤을 감지한다.
 10. Windows v1.3.119 디버그 빌드/실행 및 hot reload 성공, runtime error 없음. 앱은 정상 종료했다. Flutter Driver 확장이 없어 실제 UI 자동 계정 전환은 수행하지 않았다.
 11. 사용자 재테스트 로그에서 `labelSheetDraftFromRichEditRtfAsync: async convert start` 뒤 `charset decode success charset=Win32-CP949`, `async decode done`, `async convert done`이 이어져야 한다.
-12. 커밋 대상은 `lib/utils/windows_cp949.dart`, `lib/features/label_sheet/application/label_sheet_rtf_import.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+12. 기능 커밋 `1136fb9` (`품목 미리보기 CP949 변환 멈춤 수정`) 완료. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외했다.
 
 ## 업데이트 메시지 재표시
 1. **완료**: 관리자가 선택한 TESTER1의 업데이트 메시지가 재로그인 시 표시되지 않는 문제를 수정했다.
