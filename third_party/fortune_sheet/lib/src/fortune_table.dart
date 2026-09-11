@@ -177,10 +177,18 @@ class FortuneTableScrollController extends ChangeNotifier {
   bool _hasHorizontalOverflow = false;
   bool _canScrollHorizontalLeft = false;
   bool _canScrollHorizontalRight = false;
+  double _horizontalContentWidth = 0;
+  double _horizontalViewportWidth = 0;
+  double _horizontalOffset = 0;
+  double _horizontalMaxScrollExtent = 0;
 
   bool get hasHorizontalOverflow => _hasHorizontalOverflow;
   bool get canScrollHorizontalLeft => _canScrollHorizontalLeft;
   bool get canScrollHorizontalRight => _canScrollHorizontalRight;
+  double get horizontalContentWidth => _horizontalContentWidth;
+  double get horizontalViewportWidth => _horizontalViewportWidth;
+  double get horizontalOffset => _horizontalOffset;
+  double get horizontalMaxScrollExtent => _horizontalMaxScrollExtent;
 
   void revealRow(int rowIndex) {
     if (rowIndex < 0) return;
@@ -214,15 +222,27 @@ class FortuneTableScrollController extends ChangeNotifier {
     required bool hasOverflow,
     required bool canScrollLeft,
     required bool canScrollRight,
+    required double contentWidth,
+    required double viewportWidth,
+    required double offset,
+    required double maxScrollExtent,
   }) {
     if (_hasHorizontalOverflow == hasOverflow &&
         _canScrollHorizontalLeft == canScrollLeft &&
-        _canScrollHorizontalRight == canScrollRight) {
+        _canScrollHorizontalRight == canScrollRight &&
+        _horizontalContentWidth == contentWidth &&
+        _horizontalViewportWidth == viewportWidth &&
+        _horizontalOffset == offset &&
+        _horizontalMaxScrollExtent == maxScrollExtent) {
       return;
     }
     _hasHorizontalOverflow = hasOverflow;
     _canScrollHorizontalLeft = canScrollLeft;
     _canScrollHorizontalRight = canScrollRight;
+    _horizontalContentWidth = contentWidth;
+    _horizontalViewportWidth = viewportWidth;
+    _horizontalOffset = offset;
+    _horizontalMaxScrollExtent = maxScrollExtent;
     notifyListeners();
   }
 
@@ -237,6 +257,10 @@ class FortuneTableScrollController extends ChangeNotifier {
       hasOverflow: false,
       canScrollLeft: false,
       canScrollRight: false,
+      contentWidth: 0,
+      viewportWidth: 0,
+      offset: 0,
+      maxScrollExtent: 0,
     );
   }
 }
@@ -448,6 +472,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   Future<void>? _pendingTextCommit;
   bool _horizontalStateUpdateScheduled = false;
   bool _pendingHorizontalOverflow = false;
+  double _pendingHorizontalContentWidth = 0;
+  double _pendingHorizontalViewportWidth = 0;
 
   @override
   void initState() {
@@ -596,7 +622,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                   .toDouble();
           final hasHorizontalOverflow =
               bodyWidth > horizontalViewportWidth + 0.5;
-          _scheduleHorizontalStateUpdate(hasHorizontalOverflow);
+          _scheduleHorizontalStateUpdate(
+            hasHorizontalOverflow,
+            contentWidth: bodyWidth,
+            viewportWidth: horizontalViewportWidth,
+          );
           final bodyViewportHeight =
               (constraints.maxHeight - widget.headerHeight)
                   .clamp(0, double.infinity)
@@ -1775,8 +1805,14 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _syncingHorizontal = false;
   }
 
-  void _scheduleHorizontalStateUpdate(bool hasOverflow) {
+  void _scheduleHorizontalStateUpdate(
+    bool hasOverflow, {
+    required double contentWidth,
+    required double viewportWidth,
+  }) {
     _pendingHorizontalOverflow = hasOverflow;
+    _pendingHorizontalContentWidth = contentWidth;
+    _pendingHorizontalViewportWidth = viewportWidth;
     if (_horizontalStateUpdateScheduled || widget.scrollController == null) {
       return;
     }
@@ -1799,6 +1835,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           _pendingHorizontalOverflow &&
           position != null &&
           position.pixels < position.maxScrollExtent,
+      contentWidth: _pendingHorizontalContentWidth,
+      viewportWidth: _pendingHorizontalViewportWidth,
+      offset: position?.pixels ?? 0,
+      maxScrollExtent: position?.maxScrollExtent ?? 0,
     );
   }
 

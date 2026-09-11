@@ -1,10 +1,14 @@
 # 세션 핸드오프
 
 ## 최우선 순서 (2026-09-11)
-1. **사용자 재테스트 대기**: 품목 이미지 선택 후 출력내용 미리보기에 BMP가 표시되지 않는 문제의 수정과 focused 검증을 완료했다. 기능 커밋은 `f5ea0bb`이다.
-2. 제출된 v1.3.106 로그에는 이미지 선택/파일 탐색 이벤트가 없었다. 제출 `logo.bmp`는 정상 120x93, 1-bit 비압축 BMP다.
-3. 기존 수정은 파일명만 저장한 뒤 고정 폴더를 재탐색했다. [lib/features/item/application/item_image_preview.dart](lib/features/item/application/item_image_preview.dart)에 선택 바이트 캐시와 해석 출처 로그를 추가하고, [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)에서 선택 직후 바이트를 등록했다.
-4. 버전은 PATCH **1.3.114 -> 1.3.115**로 갱신했다. 이 오동작 수정과 검증/커밋 후 [doc/godex_inverse_resume.md](doc/godex_inverse_resume.md)에서 역상 문제를 재개한다.
+1. **진행 중**: 품목값 `365 -> 360` Enter 편집 후 가로 스크롤이 사라지는 문제를 재현하고 수정한다.
+2. 제출된 v1.3.106 로그에는 편집 완료와 ItemManage 재빌드만 있고 열 너비/overflow/State 수명 로그는 없다. 기존 수정 `6bccfd5`(v1.3.100)는 v1.3.106과 현재 코드에 포함돼 있다.
+3. 실제 ItemManage 14개 동적 열에서 Enter 편집 전후 `RawScrollbar.thumbVisibility`를 검증하는 [test/item_manage_horizontal_scroll_test.dart](test/item_manage_horizontal_scroll_test.dart)를 추가했고 현재 코드에서는 편집/스크롤 유지가 재현되지 않았다.
+4. [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)의 실제 content/viewport/offset/maxExtent를 컨트롤러에 노출하고 [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)에 `operation=horizontalScroll event=changed` 진단 로그를 추가했다. 앱 버전은 **1.3.115 -> 1.3.116**, 로그 버전은 `item-manager-debug-v22`로 갱신했다.
+5. 회귀/기존 테스트 **75건 통과**: `flutter test test/item_manage_horizontal_scroll_test.dart test/fortune_table_test.dart`. 변경 Dart 파일 focused analyze도 **No issues found**.
+6. Windows v1.3.116 디버그 빌드/실행 완료. 로그에서 `DebugLogger version: 1.3.116`을 확인했고 hot reload 성공, runtime error 없음. 앱 실행은 정리했다.
+7. 이번 단계는 기존 코드에서 현상이 재현되지 않아 동작 추측 수정 없이 재현 테스트와 원인 판별 로그를 추가한 상태다. 사용자 재테스트 로그에서 `item-manager-debug-v22 operation=horizontalScroll`의 편집 전후 지표를 비교한다.
+8. 최종 diagnostics 및 `git diff --check` 통과. 기능 커밋 대상은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
 
 ## BMP 미리보기 오동작 검증
 - 제출 `logo.bmp` 헤더 확인: 120x93, 1-bit, compression 0, 정상 BMP. SHA256 `DD34E4EF943CE59F4907CB472D61443AC1F358A71FF7D2513496F74E7B2FAB65`.

@@ -202,6 +202,7 @@ class _ItemManageState extends State<ItemManage> {
   bool _contextMenuOpen = false;
   String _activeSearchColumnId = 'itemName';
   int _searchStartIndex = 0;
+  String? _lastHorizontalMetricsLog;
   bool _readyScheduled = false;
   bool _headerMinCheckBusy = false;
 
@@ -248,6 +249,33 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   void _handleTableScrollChanged() {
+    final metrics = [
+      _tableScrollController.hasHorizontalOverflow,
+      _tableScrollController.horizontalContentWidth.toStringAsFixed(1),
+      _tableScrollController.horizontalViewportWidth.toStringAsFixed(1),
+      _tableScrollController.horizontalOffset.toStringAsFixed(1),
+      _tableScrollController.horizontalMaxScrollExtent.toStringAsFixed(1),
+    ].join(':');
+    if (_lastHorizontalMetricsLog != metrics) {
+      _lastHorizontalMetricsLog = metrics;
+      ItemManagerDebugLog.event(
+        'horizontalScroll',
+        'changed',
+        fields: {
+          'state': identityHashCode(this),
+          'revision': widget.draftController?.contentRevision,
+          'columns': _columns.length,
+          'overflow': _tableScrollController.hasHorizontalOverflow,
+          'contentWidth': _tableScrollController.horizontalContentWidth
+              .toStringAsFixed(1),
+          'viewportWidth': _tableScrollController.horizontalViewportWidth
+              .toStringAsFixed(1),
+          'offset': _tableScrollController.horizontalOffset.toStringAsFixed(1),
+          'maxExtent': _tableScrollController.horizontalMaxScrollExtent
+              .toStringAsFixed(1),
+        },
+      );
+    }
     if (mounted) setState(() {});
   }
 
