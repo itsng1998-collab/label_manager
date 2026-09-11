@@ -12,6 +12,7 @@
 9. Windows 빌드/실행, hot reload, runtime error 없음 확인. 종료 전 미리보기 설정창과 dirty 품목은 정상 가드에 의해 차단됐고, 사용자 확인 후 discard하여 측정했다.
 10. 최종 focused 테스트 **17건 통과**, 관련 파일 diagnostics 및 `git diff --check` 통과. 임시 화면 캡처 7개를 정리했고 측정 로그는 보존했다.
 11. 기능 커밋 대상은 `lib/database/db_result_utils.dart`, `lib/features/login/application/startup_login_service.dart`, `lib/features/login_history/data/login_log_dao.dart`, `test/db_result_utils_test.dart`, `test/login_log_test.dart`, `test/startup_login_service_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+12. 기능 커밋 완료: `d64f1e6` (`로그인 이력 처리 지연 개선`). 사용자 재테스트 기준 버전은 v1.3.117이며 로그인/로그아웃/종료 이력은 기존과 같이 DB에 기록된다.
 
 ## 가로 스크롤 진단
 1. 품목값 `365 -> 360` Enter 편집 후 가로 스크롤이 사라지는 문제를 재현하고 수정한다.
