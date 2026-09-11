@@ -9048,6 +9048,57 @@ void main() {
     expect(draft.cells[const FortuneCellCoord(1, 1)]?.horizontalAlign, 'right');
   });
 
+  test('item preview RTF uses Win32 CP949 without platform channel', () async {
+    if (!Platform.isWindows) return;
+    final channel = const MethodChannel('charset_converter');
+    var platformCalls = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (_) async {
+          platformCalls += 1;
+          throw StateError('platform charset conversion must not be called');
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+    final sheet = FortuneSheet(id: 's1', name: 'Label');
+    final draft = await labelSheetDraftFromRichEditRtfAsync(
+      r"{\rtf1\ansi\ansicpg949\deff0\pard \'c1\'a6\'c7\'b0\'b8\'ed\par}",
+      sheet: sheet,
+      preferNative: false,
+      preferWindowsAnsiDecoder: true,
+    );
+
+    expect(platformCalls, 0);
+    expect(draft, isNotNull);
+    expect(draft!.cells[const FortuneCellCoord(0, 0)]?.value, '제품명');
+  });
+
+  test('large item preview RTF completes with Win32 CP949 decoder', () async {
+    if (!Platform.isWindows) return;
+    final koreanRuns = List.filled(
+      80,
+      r"\'c1\'a6\'c7\'b0\'b8\'ed\line ",
+    ).join();
+    final rtf = r'{\rtf1\ansi\ansicpg949\deff0\pard ' + koreanRuns + r'\par}';
+    expect(rtf.length, greaterThan(1235));
+    final stopwatch = Stopwatch()..start();
+
+    final draft = await labelSheetDraftFromRichEditRtfAsync(
+      rtf,
+      sheet: FortuneSheet(id: 's1', name: 'Label'),
+      preferNative: false,
+      preferWindowsAnsiDecoder: true,
+    );
+
+    expect(draft, isNotNull);
+    expect(
+      draft!.cells[const FortuneCellCoord(0, 0)]?.value,
+      contains('제품명'),
+    );
+    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 10)));
+  });
+
   test('RTF import prefers native rtf2html FortuneSheet draft', () async {
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

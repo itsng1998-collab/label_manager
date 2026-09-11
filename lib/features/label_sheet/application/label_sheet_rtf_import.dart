@@ -14,6 +14,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_impor
 import 'package:label_manager/features/label_sheet/application/label_sheet_native_open_xml.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_open_xml_export.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/windows_cp949.dart';
 
 String? _preferredKoreanAnsiCharset;
 
@@ -561,6 +562,7 @@ Future<LabelSheetImageImportDraft?> labelSheetDraftFromRichEditRtfAsync(
   required FortuneSheet sheet,
   FortuneBarcodeRenderer? barcodeRenderer,
   bool preferNative = true,
+  bool preferWindowsAnsiDecoder = false,
 }) async {
   final stopwatch = Stopwatch()..start();
   _rtfLog('async convert start length=${rtf.length} hash=${rtf.hashCode}');
@@ -574,7 +576,10 @@ Future<LabelSheetImageImportDraft?> labelSheetDraftFromRichEditRtfAsync(
   if (nativeDraft != null) {
     var draft = nativeDraft;
     if (barcodeRenderer != null) {
-      final decodedForImages = await _decodeRtfAnsiHex(rtf);
+      final decodedForImages = await _decodeRtfAnsiHex(
+        rtf,
+        preferWindowsAnsiDecoder: preferWindowsAnsiDecoder,
+      );
       final document = _RtfDocumentReader(decodedForImages).read();
       final images = await _rtfPicturesToImagesAsync(
         document.pictures,
@@ -599,7 +604,10 @@ Future<LabelSheetImageImportDraft?> labelSheetDraftFromRichEditRtfAsync(
     );
     return draft;
   }
-  final decoded = await _decodeRtfAnsiHex(rtf);
+  final decoded = await _decodeRtfAnsiHex(
+    rtf,
+    preferWindowsAnsiDecoder: preferWindowsAnsiDecoder,
+  );
   _rtfLog(
     'async decode done elapsedMs=${stopwatch.elapsedMilliseconds} '
     'decodedLength=${decoded.length} decodedHash=${decoded.hashCode}',
@@ -944,7 +952,10 @@ String _bytesDataUri(Uint8List bytes, String mimeType) {
   return 'data:$mimeType;base64,${base64Encode(bytes)}';
 }
 
-Future<String> _decodeRtfAnsiHex(String rtf) async {
+Future<String> _decodeRtfAnsiHex(
+  String rtf, {
+  bool preferWindowsAnsiDecoder = false,
+}) async {
   final stopwatch = Stopwatch()..start();
   final runPattern = RegExp(r"(?:\\'[0-9a-fA-F]{2})+");
   final buffer = StringBuffer();
@@ -967,7 +978,12 @@ Future<String> _decodeRtfAnsiHex(String rtf) async {
         'bytes=${bytes.length} elapsedMs=${stopwatch.elapsedMilliseconds}',
       );
     }
-    buffer.write(await _decodeKoreanAnsiBytes(bytes));
+    buffer.write(
+      await _decodeKoreanAnsiBytes(
+        bytes,
+        preferWindowsDecoder: preferWindowsAnsiDecoder,
+      ),
+    );
     offset = match.end;
   }
   buffer.write(rtf.substring(offset));
@@ -978,9 +994,17 @@ Future<String> _decodeRtfAnsiHex(String rtf) async {
   return buffer.toString();
 }
 
-Future<String> _decodeKoreanAnsiBytes(List<int> bytes) async {
+Future<String> _decodeKoreanAnsiBytes(
+  List<int> bytes, {
+  bool preferWindowsDecoder = false,
+}) async {
   if (bytes.isEmpty) {
     return '';
+  }
+  if (preferWindowsDecoder && Platform.isWindows) {
+    final decoded = decodeWindowsCp949(bytes);
+    _rtfLog('charset decode success charset=Win32-CP949 bytes=${bytes.length}');
+    return decoded;
   }
   final data = Uint8List.fromList(bytes);
   final preferred = _preferredKoreanAnsiCharset;

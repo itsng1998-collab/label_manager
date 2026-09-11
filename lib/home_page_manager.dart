@@ -9674,6 +9674,7 @@ Future<fs.FortuneWorkbook?> _itemElementWorkbookFromRichEditRtfAsync(
     rtf,
     sheet: base.sheets.first,
     preferNative: false,
+    preferWindowsAnsiDecoder: true,
   );
   if (draft == null || draft.cells.isEmpty) return null;
   final cell = _itemElementSingleCellFromDraftCells(draft.cells);

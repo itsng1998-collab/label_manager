@@ -1,6 +1,20 @@
 # 세션 핸드오프
 
 ## 최우선 순서 (2026-09-11)
+1. **완료**: 사용자 관리에서 3575가 김영모(75806065) 계정으로 접속할 때 화면 전환 후 멈추는 재발 문제를 수정했다.
+2. 제출된 v1.3.106 로그에서 대상 세션은 `renderReady/completed`까지 완료됐고 마지막 로그는 `labelSheetDraftFromRichEditRtfAsync: async convert start length=1235 hash=363178412`다. DB/화면 전환이 아니라 품목 미리보기 RTF 변환에서 멈췄다.
+3. 과거 `503fa16`의 `preferNative:false`는 현재도 유지된다. 정상 325자 RTF도 CP949 첫 플랫폼 변환에 약 2.8초가 걸려, Windows item preview의 `CharsetConverter.decode` 플랫폼 채널을 Win32 `MultiByteToWideChar(CP949)` 직접 호출로 교체할 예정이다.
+4. [lib/utils/windows_cp949.dart](lib/utils/windows_cp949.dart)에 Win32 CP949 decoder를 추가하고, [lib/features/label_sheet/application/label_sheet_rtf_import.dart](lib/features/label_sheet/application/label_sheet_rtf_import.dart)에 item preview 전용 선택 옵션을 연결했다.
+5. [lib/home_page_manager.dart](lib/home_page_manager.dart)의 품목 단일 셀 RTF preview는 native RTF 변환과 charset 플랫폼 채널을 모두 우회한다. 일반 RTF 저장/편집과 비-Windows fallback은 유지한다.
+6. [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart)에 CP949 `제품명` 복원 및 플랫폼 채널 0회 회귀 테스트를 추가했고 해당 테스트 **1건 통과**. 버전은 PATCH **1.3.118 -> 1.3.119**로 갱신했다.
+7. 제출 로그의 1235자보다 큰 다중 CP949 RTF 성능 테스트를 추가했다. Windows 직접 변환은 동기 **52ms**, 전체 **72ms**에 완료돼 2초 제한 내 통과했다.
+8. `label_sheet_toolbar_test.dart`와 `home_page_manager_session_test.dart` 전체 실행은 **205건 통과, 1건 실패**다. 실패는 범위 밖 Gemini API의 `429 RESOURCE_EXHAUSTED` quota이며 RTF/홈 세션 테스트 실패는 없다.
+9. 최종 관련 테스트 **9건 통과**, 변경 파일 focused analyze **No issues found**, diagnostics 및 `git diff --check` 통과. 성능 회귀 테스트는 CP949 한글 결과를 검증하고 10초 내 완료로 멈춤을 감지한다.
+10. Windows v1.3.119 디버그 빌드/실행 및 hot reload 성공, runtime error 없음. 앱은 정상 종료했다. Flutter Driver 확장이 없어 실제 UI 자동 계정 전환은 수행하지 않았다.
+11. 사용자 재테스트 로그에서 `labelSheetDraftFromRichEditRtfAsync: async convert start` 뒤 `charset decode success charset=Win32-CP949`, `async decode done`, `async convert done`이 이어져야 한다.
+12. 커밋 대상은 `lib/utils/windows_cp949.dart`, `lib/features/label_sheet/application/label_sheet_rtf_import.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+
+## 업데이트 메시지 재표시
 1. **완료**: 관리자가 선택한 TESTER1의 업데이트 메시지가 재로그인 시 표시되지 않는 문제를 수정했다.
 2. 제출된 v1.3.106 로그에서 TESTER1 대상 저장 배치는 성공/커밋됐고, 재로그인 공지 조회도 예외 없이 완료된 뒤 TESTER1 사용자 조회로 진행됐다. DB 저장 실패가 아니라 로그인 dialog의 사용자 전환 상태를 원인으로 확정했다.
 3. 3575 공지를 확인해 `_noticeConfirmed=true`가 된 뒤 같은 dialog에서 TESTER1을 조회해도 이 값이 초기화되지 않아, DB의 TESTER1 공지가 `state=0`이어도 `_noticeClosed=true`로 숨겨졌다.
