@@ -1,5 +1,13 @@
 # 세션 핸드오프
 
+## 품목관리 키보드 가로 스크롤 (2026-09-11)
+1. **완료**: 품목관리 표에 포커스가 있을 때 `Shift+왼쪽/오른쪽 방향키`로 가로 스크롤하도록 추가했다.
+2. [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)의 품목관리 전체 `Focus`에서 조합키를 처리하되 셀 텍스트 편집 중에는 기존 키 동작을 유지한다.
+3. [test/item_manage_horizontal_scroll_test.dart](test/item_manage_horizontal_scroll_test.dart)에서 오른쪽 키의 offset 증가와 왼쪽 키의 원점 복귀를 검증한다. 버전은 PATCH **1.3.119 -> 1.3.120**으로 갱신했다.
+4. 회귀 테스트 **1건 통과**, focused analyze **No issues found**, diagnostics 및 `git diff --check` 통과.
+5. Windows v1.3.120 디버그 빌드/실행 및 hot reload 성공. 터미널에 runtime 예외가 없었다. DTD에 앱이 노출되지 않아 실제 UI 자동 입력은 수행하지 않았다.
+6. 커밋 대상은 `lib/features/item/presentation/item_manage.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다. 기존 사용자 변경 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+
 ## 최우선 순서 (2026-09-11)
 1. **완료**: 사용자 관리에서 3575가 김영모(75806065) 계정으로 접속할 때 화면 전환 후 멈추는 재발 문제를 수정했다.
 2. 제출된 v1.3.106 로그에서 대상 세션은 `renderReady/completed`까지 완료됐고 마지막 로그는 `labelSheetDraftFromRichEditRtfAsync: async convert start length=1235 hash=363178412`다. DB/화면 전환이 아니라 품목 미리보기 RTF 변환에서 멈췄다.

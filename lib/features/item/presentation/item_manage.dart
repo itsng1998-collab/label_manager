@@ -418,13 +418,15 @@ class _ItemManageState extends State<ItemManage> {
       'rows=${displayItems.length}, '
       'dynamicColumns=${TColumn.datas?.length ?? 0}, columns=${columns.length}',
     );
-    return Column(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onSecondaryTapDown: _showEmptyTableContextMenu,
-            child: FortuneTable<ItemOfMarket>(
+    return Focus(
+      onKeyEvent: _handleHorizontalShortcut,
+      child: Column(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onSecondaryTapDown: _showEmptyTableContextMenu,
+              child: FortuneTable<ItemOfMarket>(
               rows: displayItems,
               columns: columns,
               autoFitColumns: true,
@@ -467,12 +469,30 @@ class _ItemManageState extends State<ItemManage> {
               onCellSecondaryTapDown: _showTableCellContextMenu,
               onRectChanged: widget.onTableRectChanged,
               rowColorBuilder: _rowColor,
+              ),
             ),
           ),
-        ),
-        _buildCommandFooter(),
-      ],
+          _buildCommandFooter(),
+        ],
+      ),
     );
+  }
+
+  KeyEventResult _handleHorizontalShortcut(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        _editingController.hasActiveEditing ||
+        !HardwareKeyboard.instance.isShiftPressed) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      _tableScrollController.scrollHorizontalLeft();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      _tableScrollController.scrollHorizontalRight();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   void _scheduleReady() {

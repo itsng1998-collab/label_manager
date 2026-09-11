@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/core/barcode.dart';
@@ -109,6 +110,19 @@ void main() {
       greaterThan(scrollController.horizontalViewportWidth),
     );
     expect(scrollController.horizontalMaxScrollExtent, greaterThan(0));
+
+    expect(scrollController.horizontalOffset, 0);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(scrollController.horizontalOffset, greaterThan(0));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(scrollController.horizontalOffset, 0);
     await tester.pump(const Duration(milliseconds: 50));
   });
 }
