@@ -1,5 +1,14 @@
 # 세션 핸드오프
 
+## 실제 테스트 요청 파일 재실행 (2026-09-12, 검증 완료/실물 미확인)
+- 사용자1.3.127 테스트 출력/스캔 미제출. `app_2026-09-12_17-36-46.log`17:37요청은 `bitmap_print_requests/v1.3.127_1789202263403717_0.bin`(1,255,700bytes)에 저장됐고 실제 접수accepted=true. 이번에는 합성입력이 아니라 사용자가 출력한 전체 입력을 확보했다.
+- `LABEL_MANAGER_DEBUG_PRINT_FILE`을새 절대 로컬 PRN으로 지정한 `C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub` 빌드13.9초PASS. 앱내환경변수확인 후 `replayDebugRequest`로 실제입력 실행. native문자36/테두리225/재축소3/역상흰2693/후속손실0, `debugFileCaptured=true physicalPrintSubmitted=false` 확인. 로그 `app_2026-09-12_17-39-15.log`, 파일 `godex_inverse/actual_request_v127_replay.prn/.png`.
+- 원래출력 prefix `v1.3.107_16340_30196421_1`, `30196437_2`, `30196671_1_after_native`. 재실행은 `v1.3.107_18888_30318015_1`, `30318046_2`, `30318281_1_after_native`. 두comparison BMP와after_native BMP가각각 원래출력/재실행 SHA256동일.
+- `./tools/inspect_inverse_driver_file.ps1 -Path .tmp/log/godex_inverse/actual_request_v127_replay.prn -SourcePrefix <각 원래출력 prefix>` 두건PASS. Q10,11,76,472/백색패딩1824. 알레르기흰1266/영양정보흰1427 각각 whiteLost=0/whiteGained=0/mismatches=0. 이전EMF재생이아니라 전체실제입력을앱인쇄함수로실행해확인했다.
+- 일반문자 참조비교 주의: after_native는32bpp/컬러안티앨리어싱이 포함된 별도EMF메모리재생이다(R채널중간값11051개). 흰255기준전체비교 lost2444/gained8495를실제획손실로해석하지않는다. 워터마크제외y0..459/휘도128참고비교도3574/4239로달라, 일반문자참조와driver이미지의동등성을주장하지않는다. 원본보존PNG `actual_request_v127_reference.png` 추가. 역상은원본/driver도트직접비교0을별도확인했다.
+- **해소/남은경계**: 실제요청부족은해소됐으며 동일캡처를다시요구하지않는다. 이번PRN은파일대상재실행이며원래USB/스풀을가로챈파일은아니다. 역상생성~앱전체경로~파일드라이버변환에서소실미재현. 새실물/USB전송/레거시실제작업과의동등성은미검증. 스캔없으므로이번종이출력의성공/실패도단정하지않는다. 프린터결함/열문제로확정하거나효과없는글꼴보정을추가하지않는다.
+- 생산 코드 변경 없음. 검증 기록 PATCH1.3.127->1.3.128이며 출력 개선 버전이 아니다. 런타임 오류 없음/검증 앱 정상 종료/환경변수 해제 완료. 문서와 pubspec만 커밋 예정. 진단 파일은 로컬 보존/커밋 제외. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 보존. 물리 인쇄/업무 DB 변경/프린터 전역 설정 변경/배포 없음.
+
 ## IMG0005 전체 요청 재현 (2026-09-12, 진단 기능 완료)
 - 사진 `.tmp/IMG_20260912_0005.png`에서 역상 획 소실 지속. 로그 `app_2026-09-12_17-23-42.log`의17:24출력은1.3.126, native36/재축소3/역상scaleX1/흰2693/후속손실0으로 이전과 같다.1.3.126에는 역상 수정이 없었다.
 - `WindowsBitmapPrinter.print`는 Debug 요청 전체(BGRA/문자/테두리/용지/매수)를 StandardMessageCodec으로 `.tmp/log/bitmap_print_requests`에 전송 전 보존한다. 저장 실패는 정상 인쇄 결과를 바꾸지 않는다. `replayDebugRequest`는 저장한 입력을 실제 native `PrintBitmap`에 전달한다. Release 저장 없음, 라벨내용 포함 파일은 로컬 보존/커밋 제외.
