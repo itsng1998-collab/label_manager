@@ -9,7 +9,7 @@
 - `C:/Flutter/bin/flutter.bat analyze --no-pub lib/printing/label_sheet_print_job.dart test/label_sheet_print_job_test.dart third_party/fortune_sheet/lib/src/fortune_print_plan.dart`: 기존 `_unusedDarkBandCheckerboard`/`_unusedFeedLeadWhiteRelief` 미사용 경고2건으로exit1, 새 오류 없음. 로그 `.tmp/cell_width_v125_analyze.log`. 범위 밖 실험함수는 그대로 둔다.
 - `flutter run -d windows --debug --no-pub`의 Debug build48.8초/앱1.3.125실행/hot reloadPASS, 런타임 오류없음. 파일전용 환경변수로 실행했지만 인쇄 호출/PRN생성은 하지 않았다. 로그 `app_2026-09-12_15-06-41.log`, 검증 앱은q로 정상종료/환경변수해제.
 - **남은 검증**: 실제 업무 라벨의 nativeTextFitted25 감소와 실물 일반문자 품질. 이번 회귀는 전달영역 계약을 입증하며 실제 감소량을 입증하지 않는다. 역상 획소실도 미해결이며 같은 역상 재출력을 요구하지 않는다.
-- stage/commit 대상5개: print_job, 해당test, 공용fortune_print_plan, pubspec, 이handoff. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외. 임시로그/사진 보존, 배포/실물인쇄/원격push 없음.
+- 기능 커밋 **`291107a`** (`시트 일반 문자 셀폭 유지 및 다중행 텍스트 반복 수정`) 완료. print_job, 해당test, 공용fortune_print_plan, pubspec, 이handoff의5개만 포함. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외. 임시로그/사진 보존, 배포/실물인쇄/원격push 없음. 해시기록 후속문서는 같은 요청으로 버전을 다시 올리지 않는다.
 
 ## 시트 기반 레거시 좌표 적용 (2026-09-12)
 - **일반 문자 장치 좌표 적용/무출력 검증 완료, 실물 품질 미검증**. 실제 출력 원본은 현재 시트만 사용한다. RTF는 이전 라벨 변환 참고용이며 원본RTF 직접 출력/시트->RTF 변환 제안은 철회했다. 편집/저장/변수치환은 유지한다.
