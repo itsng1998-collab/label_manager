@@ -4,6 +4,7 @@
 #include "inverse_text_bitmap.h"
 #include "inverse_text_geometry.h"
 #include "native_text_comparison.h"
+#include "native_text_device_layout.h"
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
@@ -1572,13 +1573,18 @@ bool RenderNativeTextToPrinterDc(
             std::to_string(GetLastError());
     return false;
   }
-  SetMapMode(printer_dc, MM_ANISOTROPIC);
-  SetWindowExtEx(printer_dc, source_width, source_height, nullptr);
-  SetViewportExtEx(printer_dc, target_width, target_height, nullptr);
-  SetViewportOrgEx(printer_dc, 0, 0, nullptr);
+  if (!SetNativeTextDeviceCoordinates(printer_dc)) {
+    error = "SetNativeTextDeviceCoordinates failed: " +
+            std::to_string(GetLastError());
+    RestoreDC(printer_dc, text_dc_state);
+    return false;
+  }
   const int previous_background_mode = SetBkMode(printer_dc, TRANSPARENT);
   for (const auto& descriptor : text_descriptors) {
-    const int font_pixel_height = std::max(1, descriptor.font_pixel_height);
+    const auto device_layout = MapNativeTextToDevice(
+        descriptor.rect, descriptor.font_pixel_height,
+        source_width, source_height, target_width, target_height);
+    const int font_pixel_height = device_layout.font_height;
     HFONT font = CreateFontW(
         -font_pixel_height, 0, 0, 0,
         descriptor.bold ? FW_BOLD : FW_NORMAL, descriptor.italic,
@@ -1602,12 +1608,7 @@ bool RenderNativeTextToPrinterDc(
     }
     const COLORREF previous_color =
         SetTextColor(printer_dc, descriptor.color);
-    RECT text_rect{
-        descriptor.rect.left,
-        descriptor.rect.top,
-        descriptor.rect.right,
-        descriptor.rect.bottom,
-    };
+    RECT text_rect = device_layout.rect;
     UINT flags = DT_NOPREFIX | DT_EDITCONTROL;
     if (descriptor.horizontal_align == "0") {
       flags |= DT_CENTER;
@@ -2378,7 +2379,8 @@ EncodableValue PrintBitmap(const EncodableMap& args) {
                   << " nativeTextNoOutlineFonts="
                   << native_text_stats.no_outline_fonts
                   << " nativeTextCharacters=" << native_text_stats.characters
-                  << " nativeTextMapping=anisotropicSplit"
+                  << " nativeTextMapping=devicePixelsMMText"
+                  << " nativeTextDeviceVersion=1.3.124"
                   << " nativeTextComposite="
                   << (godex_v1358_driver_direct
                           ? "inverseBlackRegionThenBlackPrinterDc"

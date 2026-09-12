@@ -6,6 +6,8 @@ target_compile_definitions(inverse_rich_edit_probe PRIVATE UNICODE _UNICODE NOMI
 target_compile_options(inverse_rich_edit_probe PRIVATE /W4 /WX /utf-8)
 target_link_libraries(inverse_rich_edit_probe PRIVATE user32 gdi32 winspool)
 enable_testing()
+add_test(NAME native_text_device_layout
+	COMMAND inverse_rich_edit_probe --native-device-text)
 add_test(NAME inverse_rich_edit_layout
 	COMMAND inverse_rich_edit_probe --synthetic "${CMAKE_CURRENT_BINARY_DIR}/capture")
 add_test(NAME inverse_font_reference

@@ -5,6 +5,36 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 계열과 `--comparison-label` 계열은 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## 시트 일반 문자 장치 좌표 (v1.3.124)
+
+실제 인쇄 원본은 현재 시트다. RTF는 이전 라벨 변환 참고용이며,
+시트->RTF 변환이나 과거RTF 조회를 출력 경로에 추가하지 않는다.
+아래 기존 RTF 합성 도구는 이전 원인 비교 기록이지 앱의 출력 입력 형식이 아니다.
+
+`RenderNativeTextToPrinterDc`는 시트 셀좌표를 목표 장치좌표로 먼저 변환하고
+MM_TEXT에서 글꼴을 측정/출력한다. 글자높이는 기존 세로배율로 환산하되
+페이지 가로배율을 글꼴에 적용하지 않는다. 셀내 긴 문구 맞춤/정렬/줄바꿈은 유지한다.
+배경/표선/역상/이미지/바코드 경로와 저장 형식은 변경하지 않는다.
+레거시의 물리 문자 좌표 방식을 적용한 것이며 전체 RichEdit 조판 이식은 아니다.
+
+```powershell
+cmake --build .tmp/inverse_probe_build --config Debug
+ctest --test-dir .tmp/inverse_probe_build -C Debug -R native_text_device_layout --output-on-failure
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --native-device-text
+```
+
+G500 printer DC/참조EMF로 검사하며 StartDoc를 호출하지 않는다.
+굴림Bold17dot 검사 문구의 이전640->620 MM_ANISOTROPIC 크기는171x17dot,
+MM_TEXT 참조는175x17dot이다. 새620x480/640x480/1240x960 입력 모두175x17dot,
+셀좌표/원점 초기화 동등성을 검증한다. 이 수치는 검사 문구 기준이며 실물 품질 증거는 아니다.
+생산 로그는 `nativeTextMapping=devicePixelsMMText`, `nativeTextDeviceVersion=1.3.124`이다.
+역상 전송/워터마크1.3.107은 유지하므로 앱버전/새 로그로 적용 여부를 구분한다.
+
+v1.3.124 Debug 앱의 파일전용 합성descriptor4개(굵기/가운데/우측/긴문구/두줄) 검사에서
+`nativeTextDrawn=4`, `nativeTextFailed=0`, `nativeTextFitted=1` 및 새mapping/version을 확인했다.
+`debugFileCaptured=true`, `physicalPrintSubmitted=false`, PRN해석/PNG 배치 확인을 통과했다.
+산출물은 `.tmp/log/godex_inverse/native_device_v124.prn/.png`이며 실제 종이 품질은 미검증이다.
+
 ## 기존 자료 기반 호출 비교 (v1.3.123)
 
 기존 레거시 정상 사진과 동일 PC/프린터 정보는 유효하며 재제출을 요구하지 않는다.

@@ -1,5 +1,17 @@
 # 세션 핸드오프
 
+## 시트 기반 레거시 좌표 적용 (2026-09-12)
+- **일반 문자 장치 좌표 적용/무출력 검증 완료, 실물 품질 미검증**. 실제 출력 원본은 현재 시트만 사용한다. RTF는 이전 라벨 변환 참고용이며 원본RTF 직접 출력/시트->RTF 변환 제안은 철회했다. 편집/저장/변수치환은 유지한다.
+- `native_text_device_layout.h`의 `MapNativeTextToDevice`/`SetNativeTextDeviceCoordinates`: 셀좌표를 기존 배율로 먼저 변환하고 글자높이는 세로배율로 환산한다. `RenderNativeTextToPrinterDc`는 MM_TEXT에서 측정/출력해 페이지 가로배율이 글꼴에 걸리지 않는다. 셀내 맞춤/정렬/줄바꿈/DC복원은 유지한다.
+- 범위: Windows driver 일반문자와 후속 참조 렌더에 적용. 시트저장/배경/표선/바코드/이미지/역상 엔진은 변경하지 않는다. 과거 실패한 역상 직접 흰글자 출력은 재사용하지 않는다. 전체 레거시 조판 엔진 이식 완료가 아니다.
+- pubspec PATCH1.3.123->1.3.124. 적용 로그는 `nativeTextMapping=devicePixelsMMText`, `nativeTextDeviceVersion=1.3.124`; 역상 전송/워터마크1.3.107과 구분한다.
+- 검증: `C:/Flutter/bin/flutter.bat build windows --debug --no-pub`47.4초PASS; probe build/CTest3건PASS. 강화된 `--native-device-text`는 G500 printer DC/참조EMF 기준 이전640->620의171x17dot vs MM_TEXT175x17dot 차이를 재현했고 새620/640/1240 입력은 모두175x17dot PASS. StartDoc 없는 메트릭 검사다.
+- `C:/Flutter/bin/flutter.bat test --no-pub test/windows_bitmap_printer_test.dart test/label_sheet_print_job_test.dart test/label_print_dispatcher_test.dart`32/32PASS(VS Code runTests 미발견으로CLI 대체). 빌드/테스트 로그 `.tmp/native_text_v124_build.log`, `.tmp/native_text_v124_tests.log` 보존.
+- 실제 앱 Debug 실행/hot reload/런타임 오류없음 확인. 환경변수 `LABEL_MANAGER_DEBUG_PRINT_FILE`의 로컬경로를 VM에서 먼저 확인한 뒤 합성descriptor4개(굵기/가운데/우측/긴문구/두줄)를 native채널로 직접 전달했다. `nativeTextDrawn=4`, `nativeTextFailed=0`, `nativeTextFitted=1`, 새mapping/version, `debugFileCaptured=true`, `physicalPrintSubmitted=false` 확인. PRN해석/PNG 배치 확인PASS. DB/업무 인쇄이력/물리인쇄/설정변경 없음.
+- 산출물 `.tmp/log/godex_inverse/native_device_v124.prn/.png`, 실행로그 `.tmp/native_text_v124_run.log`는 로컬 보존/커밋 제외. 파일전용 검증 앱은 Flutter q로 종료했다. 일반모드 앱은 새로 실행하지 않았다.
+- README/doc에 시트전용 원칙/변경 범위/검증 명령을 반영했다. 남은 이슈: 실물 일반문자 품질과 기존 역상 획소실 미확인. 역상 수정 버전으로 안내하거나 효과 없는 동일 역상 재출력을 요구하지 않는다.
+- stage/commit 예정8개: native helper/header+printer cpp, probe main/CMake/README, doc/godex_inverse_resume.md, pubspec.yaml, 이handoff. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외. 배포 빌드/원격push 없음.
+
 ## 기존 레거시 근거로 조사 재개 (2026-09-12)
 - **코드 비교/무출력 검증 완료, 실물 문제 미해결**. 기존 `.tmp/IMG_v0.Legacy_print.png`와 제공된 정보/환경은 그대로 유효하다. 레거시 재출력·동일 자료 재제출을 요구한 안내는 철회했다. 진단 A/B는 실제 레거시 프로그램 출력이 아니며 정상 레거시 기준을 대체하지 않는다. 비교 라벨 실물 제출을 선행 조건으로 두지 않는다.
 - 레거시 `CITSnGRichEditCtrl::PreCreateWindow`도 RICHEDIT50W이다. `SetRTFText`는 장평 초기화 후 원본을SF_RTF로 읽고, `PrintRichEdit`는 printer DC의 FormatRange(TRUE) 직후 DisplayBand(&rc)를 호출한다.

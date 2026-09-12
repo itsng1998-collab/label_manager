@@ -9,6 +9,7 @@
 #include "../../windows/runner/inverse_text_bitmap.h"
 #include "../../windows/runner/inverse_text_geometry.h"
 #include "../../windows/runner/native_text_comparison.h"
+#include "../../windows/runner/native_text_device_layout.h"
 #include "driver_file_probe.h"
 #include "../../windows/runner/debug_print_file_target.h"
 #include "font_reference_probe.h"
@@ -317,7 +318,90 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
   return valid ? 0 : 1;
 }
 
+bool VerifyNativeTextDeviceLayout() {
+  HDC reference = CreateInverseProbePrinter();
+  HDC target = reference == nullptr
+      ? nullptr : CreateEnhMetaFileW(reference, nullptr, nullptr, nullptr);
+  HFONT font = CreateFontW(-17, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+      DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+      DEFAULT_QUALITY, DEFAULT_PITCH, L"\uad74\ub9bc");
+  if (reference == nullptr || target == nullptr || font == nullptr) {
+    if (reference != nullptr) DeleteDC(reference);
+    if (target != nullptr) DeleteEnhMetaFile(CloseEnhMetaFile(target));
+    if (font != nullptr) DeleteObject(font);
+    return false;
+  }
+  const auto previous_font = SelectObject(reference, font);
+  constexpr wchar_t text[] = L"\uc81c\ud488\uba85 \uc54c\ub808\ub974\uae30 120g";
+  SIZE expected{};
+  bool success = GetTextExtentPoint32W(reference, text,
+      static_cast<int>(std::size(text) - 1), &expected) != FALSE;
+  const int previous_state = SaveDC(target);
+  SetMapMode(target, MM_ANISOTROPIC);
+  SetWindowExtEx(target, 640, 480, nullptr);
+  SetViewportExtEx(target, 620, 480, nullptr);
+  SelectObject(target, font);
+  SIZE previous_size{};
+  success = GetTextExtentPoint32W(target, text,
+      static_cast<int>(std::size(text) - 1), &previous_size) != FALSE && success;
+  POINT previous_extent{previous_size.cx, previous_size.cy};
+  success = LPtoDP(target, &previous_extent, 1) != FALSE && success;
+  std::cout << "previousAnisotropicExtent=" << previous_extent.x << ","
+            << previous_extent.y << " reference=" << expected.cx << ","
+            << expected.cy << "\n";
+  success = success && previous_extent.x != expected.cx;
+  RestoreDC(target, previous_state);
+  for (const int source_width : {620, 640, 1240}) {
+    const int source_height = source_width == 1240 ? 960 : 480;
+    const int source_font_height = source_width == 1240 ? 34 : 17;
+    const RECT source_rect{16, 20, source_width - 16, source_height - 20};
+    const auto layout = MapNativeTextToDevice(source_rect, source_font_height,
+        source_width, source_height, 620, 480);
+    const int saved = SaveDC(target);
+    SetMapMode(target, MM_ANISOTROPIC);
+    SetWindowExtEx(target, source_width, source_height, nullptr);
+    SetViewportExtEx(target, 620, 480, nullptr);
+    SetWindowOrgEx(target, 3, 5, nullptr);
+    SetViewportOrgEx(target, 7, 9, nullptr);
+    success = SetNativeTextDeviceCoordinates(target) && success;
+    POINT corners[2]{{layout.rect.left, layout.rect.top},
+                     {layout.rect.right, layout.rect.bottom}};
+    success = LPtoDP(target, corners, 2) != FALSE && success;
+    success = success && GetMapMode(target) == MM_TEXT &&
+        corners[0].x == layout.rect.left && corners[0].y == layout.rect.top &&
+        corners[1].x == layout.rect.right && corners[1].y == layout.rect.bottom &&
+        layout.rect.left == MulDiv(16, 620, source_width) &&
+        layout.rect.top == MulDiv(20, 480, source_height) &&
+        layout.rect.right == MulDiv(source_width - 16, 620, source_width) &&
+        layout.rect.bottom == MulDiv(source_height - 20, 480, source_height) &&
+        layout.font_height == 17;
+    SelectObject(target, font);
+    SIZE measured{};
+    success = GetTextExtentPoint32W(target, text,
+        static_cast<int>(std::size(text) - 1), &measured) != FALSE && success;
+    POINT extent{measured.cx, measured.cy};
+    success = LPtoDP(target, &extent, 1) != FALSE && success;
+    success = success && extent.x == expected.cx && extent.y == expected.cy;
+    std::cout << "nativeDeviceText source=" << source_width << "x" << source_height
+              << " fontHeight=" << layout.font_height << " physicalExtent="
+              << extent.x << "," << extent.y << " reference="
+              << expected.cx << "," << expected.cy << "\n";
+    RestoreDC(target, saved);
+  }
+  SelectObject(reference, previous_font);
+  DeleteObject(font);
+  DeleteDC(reference);
+  const auto metafile = CloseEnhMetaFile(target);
+  success = success && metafile != nullptr;
+  if (metafile != nullptr) DeleteEnhMetaFile(metafile);
+  std::cout << "nativeDeviceText=" << (success ? "PASS" : "FAIL") << "\n";
+  return success;
+}
+
 int wmain(int count, wchar_t** arguments) {
+  if (count == 2 && std::wstring(arguments[1]) == L"--native-device-text") {
+    return VerifyNativeTextDeviceLayout() ? 0 : 1;
+  }
   if (count == 3 && std::wstring(arguments[1]) == L"--comparison-label-display-band") {
     return CreateInverseComparisonLabel(arguments[2], false, true);
   }
