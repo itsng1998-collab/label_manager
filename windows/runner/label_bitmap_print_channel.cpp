@@ -1943,8 +1943,10 @@ EncodableValue PrintResult(bool ok, const std::string& diagnostics,
   return EncodableValue(result);
 }
 
-EncodableValue PrintBitmap(const EncodableMap& args, bool file_only) {
-  const auto debug_file = ReadDebugPrintFileTarget();
+EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
+                           const DebugPrintFileTarget* generated_file = nullptr) {
+  const auto debug_file = generated_file == nullptr
+                              ? ReadDebugPrintFileTarget() : *generated_file;
   if (!debug_file.AllowsRequest(file_only)) {
     return PrintResult(false, "debugFileOnly=true physicalPrintSubmitted=false",
         "File capture requires a Debug build and LABEL_MANAGER_DEBUG_PRINT_FILE with a new absolute local .prn path in an existing directory");
@@ -2130,7 +2132,10 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only) {
   document_info.lpszDocName = document_name.c_str();
   if (debug_file.enabled) {
     document_info.lpszOutput = debug_file.path.c_str();
-    diagnostics << " debugFileOnly=true debugPrintFile=" << debug_file.path.u8string();
+    diagnostics << (generated_file == nullptr
+                        ? " debugFileOnly=true debugPrintFile="
+                        : " driverPrnOnly=true driverPrnFile=")
+                << debug_file.path.u8string();
   }
   if (StartDocW(printer_dc, &document_info) <= 0) {
     const DWORD error = GetLastError();
@@ -2448,12 +2453,63 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only) {
   }
   DeleteDC(printer_dc);
   if (debug_file.enabled && ok) {
-    diagnostics << " debugFileCaptured=true physicalPrintSubmitted=false";
-    return PrintResult(false, diagnostics.str(),
+    diagnostics << (generated_file == nullptr
+                        ? " debugFileCaptured=true physicalPrintSubmitted=false"
+                        : " driverPrnGenerated=true");
+    auto result = PrintResult(false, diagnostics.str(),
         "Debug print file captured; no physical print was submitted. "
         "Print history and auto-increment must not be committed.");
+    std::get<EncodableMap>(result)[EncodableValue("fileCaptured")] =
+        EncodableValue(true);
+    return result;
   }
   return PrintResult(ok, diagnostics.str(), error);
+}
+
+EncodableValue RenderBitmapToPrn(const EncodableMap& args) {
+  if (ReadDebugPrintFileTarget().enabled) return PrintBitmap(args, true);
+  struct TemporaryPrn {
+    std::filesystem::path path;
+    ~TemporaryPrn() {
+      if (path.empty()) return;
+      std::error_code ignored;
+      std::filesystem::remove(path, ignored);
+      std::filesystem::remove(path.parent_path(), ignored);
+    }
+  } temporary;
+  try {
+    static uint64_t sequence = 0;
+    const auto directory = std::filesystem::temp_directory_path() /
+        ("label_manager_driver_" + std::to_string(GetCurrentProcessId()) + "_" +
+         std::to_string(GetTickCount64()) + "_" + std::to_string(++sequence));
+    if (!std::filesystem::create_directory(directory)) {
+      return PrintResult(false, {}, "Could not create driver PRN directory");
+    }
+    temporary.path = directory / L"page.prn";
+    const DebugPrintFileTarget target{true, true, temporary.path};
+    auto rendered = PrintBitmap(args, true, &target);
+    auto& values = std::get<EncodableMap>(rendered);
+    const auto captured = values.find(EncodableValue("fileCaptured"));
+    if (captured == values.end() || !std::get<bool>(captured->second)) {
+      return rendered;
+    }
+    std::ifstream input(temporary.path, std::ios::binary);
+    if (!input.is_open()) {
+      return PrintResult(false, {}, "Could not read generated driver PRN");
+    }
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)),
+                                std::istreambuf_iterator<char>());
+    if (input.bad() || bytes.empty()) {
+      return PrintResult(false, {}, "Generated driver PRN is empty or unreadable");
+    }
+    input.close();
+    values[EncodableValue("ok")] = EncodableValue(true);
+    values.erase(EncodableValue("error"));
+    values[EncodableValue("prnBytes")] = EncodableValue(std::move(bytes));
+    return rendered;
+  } catch (const std::filesystem::filesystem_error& error) {
+    return PrintResult(false, {}, error.what());
+  }
 }
 
 }  // namespace
@@ -2466,7 +2522,8 @@ void RegisterLabelBitmapPrintChannel(flutter::FlutterEngine* engine) {
       [](const flutter::MethodCall<EncodableValue>& call,
          std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
         const bool file_only = call.method_name() == "replayBitmapToFile";
-        if (call.method_name() != "printBitmap" && !file_only) {
+        const bool render_prn = call.method_name() == "renderBitmapToPrn";
+        if (call.method_name() != "printBitmap" && !file_only && !render_prn) {
           result->NotImplemented();
           return;
         }
@@ -2475,6 +2532,7 @@ void RegisterLabelBitmapPrintChannel(flutter::FlutterEngine* engine) {
           result->Error("invalid_arguments", "Expected argument map");
           return;
         }
-        result->Success(PrintBitmap(*args, file_only));
+        result->Success(render_prn ? RenderBitmapToPrn(*args)
+                 : PrintBitmap(*args, file_only));
       });
 }

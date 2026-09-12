@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
+import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/printing/windows_bitmap_printer.dart';
 import 'package:printing/printing.dart';
 
@@ -12,17 +13,30 @@ void main() {
   final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   late Directory captureDirectory;
+  final driverBytes = Uint8List.fromList([94, 67, 49, 13, 69, 13]);
+  var rawCalls = 0;
   setUp(() async {
     captureDirectory = await Directory.systemTemp.createTemp('bitmap_request_');
     WindowsBitmapPrinter.debugCaptureDirectory = captureDirectory;
+    rawCalls = 0;
+    WindowsBitmapPrinter.rawSender = (printer, bytes) async {
+      rawCalls++;
+      expect(printer.name, 'Godex G500');
+      expect(bytes, driverBytes);
+      return RawPrinterWriteResult(jobId: 1,
+          requestedBytes: bytes.length, writtenBytes: bytes.length);
+    };
   });
   tearDown(() async {
     messenger.setMockMethodCallHandler(channel, null);
     WindowsBitmapPrinter.debugCaptureDirectory = null;
+    WindowsBitmapPrinter.rawSender = RawPrinterWin32.sendRaw;
     await captureDirectory.delete(recursive: true);
   });
 
-  Future<WindowsBitmapPrintResult> printSample() => WindowsBitmapPrinter.print(
+  Future<WindowsBitmapPrintResult> printSample({
+    LegacyPrinterType type = LegacyPrinterType.godex,
+  }) => WindowsBitmapPrinter.print(
     printer: const Printer(url: 'test', name: 'Godex G500'),
     documentName: 'file-capture-contract',
     bgraBytes: Uint8List.fromList([255, 255, 255, 255]),
@@ -32,12 +46,12 @@ void main() {
     pageHeightMm: 60,
     copies: 1,
     widthAppendMm: 0,
-    legacyPrinterType: LegacyPrinterType.godex,
+    legacyPrinterType: type,
   );
 
   test('file-only capture cannot become an accepted print', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
-      expect(call.method, 'printBitmap');
+      expect(call.method, 'renderBitmapToPrn');
       return <String, Object>{
         'ok': false,
         'diagnostics': 'debugFileCaptured=true physicalPrintSubmitted=false',
@@ -52,16 +66,22 @@ void main() {
         contains('debugFileCaptured=true'),
       )),
     );
+    expect(rawCalls, 0);
   }, skip: !Platform.isWindows);
 
-  test('normal native success remains accepted', () async {
+  test('GoDEX submits driver PRN unchanged and only then accepts print', () async {
     messenger.setMockMethodCallHandler(channel, (_) async => <String, Object>{
       'ok': true,
       'diagnostics': 'normal-driver-output',
+      'prnBytes': driverBytes,
     });
     final result = await printSample();
     expect(result.accepted, isTrue);
-    expect(result.diagnostics, 'normal-driver-output');
+    expect(result.diagnostics, contains('driverTransport=generatedPrnRaw'));
+    expect(rawCalls, 1);
+    final files = await captureDirectory.list().where((entry) => entry.path.endsWith('.prn')).toList();
+    expect(files, hasLength(1));
+    expect(await File(files.single.path).readAsBytes(), driverBytes);
   }, skip: !Platform.isWindows);
 
   test('capture preserves the exact channel request before dispatch', () async {
@@ -75,7 +95,7 @@ void main() {
       expect(capture['schemaVersion'], 1);
       expect(capture['arguments'], call.arguments);
       expect((capture['arguments'] as Map)['bgra'], isA<Uint8List>());
-      return <String, Object>{'ok': true, 'diagnostics': 'captured'};
+      return <String, Object>{'ok': true, 'diagnostics': 'captured', 'prnBytes': driverBytes};
     });
     await printSample();
   }, skip: !Platform.isWindows);
@@ -133,7 +153,34 @@ void main() {
     WindowsBitmapPrinter.debugCaptureDirectory = Directory(blocker.path);
     messenger.setMockMethodCallHandler(channel, (_) async => <String, Object>{
       'ok': true, 'diagnostics': 'normal-driver-output',
+      'prnBytes': driverBytes,
     });
     expect((await printSample()).accepted, isTrue);
+  }, skip: !Platform.isWindows);
+
+  test('missing PRN and RAW failure never become accepted prints', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async => <String, Object>{
+      'ok': true, 'diagnostics': 'rendered',
+    });
+    await expectLater(printSample(), throwsStateError);
+    expect(rawCalls, 0);
+    messenger.setMockMethodCallHandler(channel, (_) async => <String, Object>{
+      'ok': true, 'diagnostics': 'rendered', 'prnBytes': driverBytes,
+    });
+    WindowsBitmapPrinter.rawSender = (printer, bytes) async => throw StateError('write failed');
+    await expectLater(printSample(), throwsStateError);
+    WindowsBitmapPrinter.rawSender = (_, bytes) async => RawPrinterWriteResult(
+      jobId: 2, requestedBytes: bytes.length, writtenBytes: bytes.length - 1,
+    );
+    await expectLater(printSample(), throwsStateError);
+  }, skip: !Platform.isWindows);
+
+  test('other vendors retain direct GDI submission', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'printBitmap');
+      return <String, Object>{'ok': true, 'diagnostics': 'direct'};
+    });
+    expect((await printSample(type: LegacyPrinterType.bixolon)).accepted, isTrue);
+    expect(rawCalls, 0);
   }, skip: !Platform.isWindows);
 }

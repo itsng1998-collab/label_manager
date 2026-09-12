@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
+import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:printing/printing.dart';
 
 class WindowsBitmapPrintResult {
@@ -25,9 +26,12 @@ class WindowsBitmapPrinter {
 
   @visibleForTesting
   static Directory? debugCaptureDirectory;
+  @visibleForTesting
+  static Future<RawPrinterWriteResult> Function(Printer, Uint8List) rawSender =
+      RawPrinterWin32.sendRaw;
   static int _captureSequence = 0;
 
-  static Future<void> _captureDebugRequest(Map<String, Object?> arguments) async {
+  static Future<File?> _captureDebugRequest(Map<String, Object?> arguments) async {
     final directory = debugCaptureDirectory ??
         Directory('.tmp/log/bitmap_print_requests');
     try {
@@ -45,8 +49,10 @@ class WindowsBitmapPrinter {
       ), flush: true);
       debugPrint('bitmapRequestCaptureVersion=1.3.127 '
           'requestFile=${file.path} notActualSpoolCapture=true');
+      return file;
     } on FileSystemException catch (error) {
       debugPrint('bitmapRequestCaptureFailed=${error.message}');
+      return null;
     }
   }
 
@@ -110,20 +116,43 @@ class WindowsBitmapPrinter {
             descriptor.toChannelMap(),
         ],
       };
-    if (kDebugMode) await _captureDebugRequest(arguments);
+    final requestCapture = kDebugMode ? await _captureDebugRequest(arguments) : null;
+    final useDriverPrn = legacyPrinterType == LegacyPrinterType.godex;
     final result = await _channel.invokeMapMethod<String, Object?>(
-      'printBitmap', arguments,
+      useDriverPrn ? 'renderBitmapToPrn' : 'printBitmap', arguments,
     );
     if (result == null) {
       throw StateError('Windows bitmap printer returned no result.');
     }
-    final diagnostics = result['diagnostics']?.toString() ?? '';
+    var diagnostics = result['diagnostics']?.toString() ?? '';
     final accepted = result['ok'] == true;
     if (!accepted) {
       throw StateError(
         'Windows bitmap print failed: ${result['error'] ?? 'unknown error'} '
         '$diagnostics',
       );
+    }
+    if (useDriverPrn) {
+      final bytes = result['prnBytes'];
+      if (bytes is! Uint8List || bytes.isEmpty) {
+        throw StateError('GoDEX driver returned no PRN data.');
+      }
+      if (requestCapture != null) {
+        try {
+          final file = File('${requestCapture.path}.prn');
+          await file.writeAsBytes(bytes, flush: true);
+          debugPrint('driverPrnVersion=1.3.129 driverPrnFile=${file.path}');
+        } on FileSystemException catch (error) {
+          debugPrint('driverPrnCaptureFailed=${error.message}');
+        }
+      }
+      final submitted = await rawSender(printer, bytes);
+      if (submitted.writtenBytes != bytes.length) {
+        throw StateError('GoDEX driver PRN was not completely submitted.');
+      }
+      diagnostics = '$diagnostics driverTransport=generatedPrnRaw '
+          'driverTransportVersion=1.3.129 ${submitted.diagnostics} '
+          'physicalPrintSubmitted=true';
     }
     return WindowsBitmapPrintResult(
       accepted: true,

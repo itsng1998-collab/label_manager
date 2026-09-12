@@ -5,6 +5,27 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 계열과 `--comparison-label` 계열은 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## GoDEX 드라이버 PRN 제출 (v1.3.129)
+
+IMG0006은 동일한 앱 입력과 중간 렌더에서도 종이에 제조원 반복/하단 분할이 발생했다.
+사용자가 승인한 기존 드라이버 PRN의 RAW 1매 전송에서 제조원/주소/하단 배치가 정상임을
+확인했다. 역상 질문은 미응답이므로 역상 해결을 입증한 검사는 아니다.
+
+GoDEX의 `WindowsBitmapPrinter.print`는 native `renderBitmapToPrn`으로 기존 드라이버의
+PRN 바이트를 생성한 뒤 `RawPrinterWin32.sendRaw`에 수정 없이 전달한다.
+시트/글꼴/좌표/역상 합성은 유지하며 자체 EZPL 명령 생성이나 RTF 변환을 추가하지 않는다.
+다른 벤더는 기존 GDI 직접 제출을 유지한다. PRN 생성 또는 RAW 제출 실패는 인쇄 성공으로
+처리하지 않으며 자동 재시도하지 않는다. 매수는 기존 드라이버 PRN에 포함된 값을 사용한다.
+
+native 생성 함수는 임시 파일을 읽은 후 파일/디렉터리를 정리하며 자체 물리 제출은 하지 않는다.
+Debug에서는 실제 제출할 바이트를 요청 캡처 옆의 `.bin.prn` 파일에도 보존한다.
+`LABEL_MANAGER_DEBUG_PRINT_FILE`을 지정한 경우 기존 파일전용 완료(ok=false)를 유지해
+RAW 제출/업무 인쇄 성공 처리로 넘어가지 않는다. 요청 캡처 v1.3.127은 포맷 식별용이며
+앱 버전 및 `driverTransportVersion=1.3.129`로 새 제출 경로를 확인한다.
+
+실제 요청으로 새 native 생성 함수를 검사한 PRN은 위 승인된 파일과 SHA256이 같았다.
+자동 연결된 앱 전체의 새 실물 검증은 아직 수행하지 않았고, 추가 인쇄는 승인 없이 하지 않는다.
+
 ## 실제 앱 요청 보존과 파일 전용 재실행 (v1.3.127)
 
 Debug의 `WindowsBitmapPrinter.print`는 네이티브 전송 전에 전체 요청을

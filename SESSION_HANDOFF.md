@@ -1,5 +1,16 @@
 # 세션 핸드오프
 
+## IMG0006 GoDEX 제출 경로 수정 (2026-09-12, 구현/검증 완료)
+- 앱1.3.128의17:48출력은 제조원 반복/하단 좌우 분할이 발생했고, 사용자가 종이에도 동일하다고 확인했다. 로그 `app_2026-09-12_17-48-19.log`, 요청 `v1.3.127_1789202935380639_0.bin`. 이전17:37요청과의 코덱 비교에서 documentName 시간값만 다르고 BGRA/문자36/서식/좌표/테두리225/용지/매수는 전부 동일했다. 후속참조BMP 해시도 동일(511841...202DD2). 비교 JSON은 `.tmp/log/godex_inverse/img0006_request_comparison.json`.
+- 사용자가 **기존 PRN의 실제 RAW 1매 전송을 명시 승인**했다. `RawPrinterWin32.sendRaw` 한 번만 실행: jobId23, 35,933/35,933bytes 전송, ^C1/^P1. 대상 `actual_request_v127_replay.prn` SHA256=`760646E9D32696B9A1603CD7CBDBE0E1264C5C3ED3CC9229CABD0F6DF5F6B7F5`. 재시도 없음/환경변수 해제/임시 전송 코드 삭제 완료.
+- **사용자 실물 결과: RAW 전송에서 제조원·주소·하단 영양정보 배치 정상. 역상 질문은 미응답.** 정확한 드라이버 내부 원인을 확정한 것은 아니지만 동일 데이터의 제출 경로 변경으로 배치 정상인 결과를 확보했다. 추가 물리 인쇄 승인은 없으며 역상 해결로 확대 해석하지 않는다.
+- PATCH1.3.128->1.3.129. `WindowsBitmapPrinter.print`의 GoDEX만 `renderBitmapToPrn`으로 드라이버 데이터를 생성한 후 기존 RAW 함수에 그대로 제출한다. 전송 완료 후만accepted, 실패/빈PRN/부분전송은오류, 자동재시도없음. Debug에는 실제 제출 바이트도 `.bin.prn`으로 보존. 다른 벤더의 직접 GDI 제출, 시트/좌표/글꼴/역상 합성/RTF 정책은 유지한다.
+- native `RenderBitmapToPrn`: 소유한 임시 폴더에서 기존PrintBitmap 실행, 구조화된fileCaptured성공일때만 바이트 반환, 파일/폴더 정리. 생성 함수는 물리 제출하지 않는다. `LABEL_MANAGER_DEBUG_PRINT_FILE` 지정 시 기존ok=false 파일전용 완료로 RAW/업무성공 처리 차단. Release에서도 일반 생성 경로 사용 가능하나 Release 빌드는 수행하지 않았다.
+- `C:/Flutter/bin/flutter.bat test --no-pub test/windows_bitmap_printer_test.dart test/label_print_dispatcher_test.dart`15/15PASS(`.tmp/driver_prn_v129_tests.log`). 같은 변경 Dart 두파일 analyze 오류없음. Debug build48.3초PASS/앱실행build37.4초PASS, hot reload/런타임 오류없음 확인. 기존 전송 함수 자체는 변경하지 않았다.
+- 실앱에서 최신 실제 요청을 새native생성함수로만 실행한 `img0006_driver_v129.prn`은 위 승인된 정상배치PRN과 전체SHA256동일/35,933bytes. 임시폴더 잔류없음. 로그 `app_2026-09-12_18-05-02.log`. 자동 연결된 앱 전체를 통한 추가 종이 출력은 하지 않았다. 검증 앱q정상종료. 승인된1매 외 물리 인쇄/프린터 설정/업무 DB 변경 없음.
+- 임시 입력비교/실물전송 테스트 코드는 삭제하고 결과JSON/캡처/PRN/스캔은.tmp에 보존한다. README에 새 제출 경로와 검증 한계 기록. 관련6개파일만 커밋 예정: Dart printer/test, native channel, probe README, pubspec, handoff. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외.
+- **남은 확인**: 새 앱의 일반 인쇄에서 `driverTransportVersion=1.3.129`와 실제 배치 확인, 이미 출력한 RAW 종이의 역상 흰 획 상태 확인. 추가 실물 인쇄는 별도 승인 없이 실행하지 않는다.
+
 ## 실제 테스트 요청 파일 재실행 (2026-09-12, 검증 완료/실물 미확인)
 - 사용자1.3.127 테스트 출력/스캔 미제출. `app_2026-09-12_17-36-46.log`17:37요청은 `bitmap_print_requests/v1.3.127_1789202263403717_0.bin`(1,255,700bytes)에 저장됐고 실제 접수accepted=true. 이번에는 합성입력이 아니라 사용자가 출력한 전체 입력을 확보했다.
 - `LABEL_MANAGER_DEBUG_PRINT_FILE`을새 절대 로컬 PRN으로 지정한 `C:/Flutter/bin/flutter.bat run -d windows --debug --no-pub` 빌드13.9초PASS. 앱내환경변수확인 후 `replayDebugRequest`로 실제입력 실행. native문자36/테두리225/재축소3/역상흰2693/후속손실0, `debugFileCaptured=true physicalPrintSubmitted=false` 확인. 로그 `app_2026-09-12_17-39-15.log`, 파일 `godex_inverse/actual_request_v127_replay.prn/.png`.
