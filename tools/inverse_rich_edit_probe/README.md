@@ -5,6 +5,40 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 모드만 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## 실물 비교 진단 (v1.3.122)
+
+IMG_20260912_0002에서 v1.3.121 공백 맞춤 적용(scaleX1) 후에도 획 소실이 남았다.
+이번 버전은 진단 도구 추가이며 생산 인쇄 경로를 변경하지 않는다.
+같은 문구의 일반/역상을 각 구역에 넣고 A/C는100twip(5pt), B/D는121twip(17dot)을 사용한다.
+A/B는 RichEdit FormatRange를 printer DC로 직접 호출하며 C/D는 현재1bpp 합성/검정region 경로다.
+실패했던 직접 흰 글자 출력의 생산 재적용이 아니라 레거시 방식과 비교하기 위한 진단이다.
+원본 RTF 전체/저장 라벨을 복원하지 않으며 DB를 사용하지 않는다.
+
+파일 준비와 미리보기는 실제 인쇄하지 않는다. 기존 PRN은 덮어쓰지 않는다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --comparison-label .tmp/log/godex_inverse/inverse_comparison_v122.prn
+./tools/inspect_inverse_driver_file.ps1 -Path .tmp/log/godex_inverse/inverse_comparison_v122.prn
+```
+
+생성한 PRN의8개 Q블록에서 미리보기를 추출한다. 미리보기 모드에만 다중 Q를 허용하며
+기존 SourcePrefix 원본 비교는 단일 Q 조건을 유지한다. 해석기 회귀9건 통과.
+현재 파일에서 A/C의 역상 픽셀 차이는0, B/D는132다. 기본/고급 조판5/6/8pt
+동일 twip 글리프 비교는 차이0이며, 실물 정상이나 USB 전달 동일성을 입증하지 않는다.
+
+아래 명령은 **사용자가 직접 실행할 때만 GoDEX G500에 준비된 PRN을 RAW로 실제 제출한다**.
+PNG를 이미지 뷰어에서 인쇄하면 다른 크기/변환이 개입하므로 비교에는 아래 PRN 제출을 사용한다.
+매수1인 파일을 그대로 보내며 성공은 큐 접수 결과이지 실물 품질 확인이 아니다.
+에이전트는 준비 단계에서 이 명령을 실행하지 않는다. 제출 기능 자체는 실물 미검증이다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --submit-comparison-label .tmp/log/godex_inverse/inverse_comparison_v122.prn
+```
+
+네 구역이 모두 보이는 출력 사진에서 같은 크기의 A/C 및 B/D, 같은 경로의 A/B 및 C/D를 비교한다.
+구역의 Y좌표도 다르므로 파일의132픽셀 차이를 출력 경로만의 영향으로 단정하지 않는다.
+특정 구역의 결과만으로 프린터 결함이나 소프트웨어 개선 불가를 단정하지 않는다.
+
 ## 공백 맞춤 검사 (v1.3.121)
 
 긴 내부 연속 공백으로 넘치는 역상은 공백 자간만 줄여 글자 X축 배율1을 유지한다.

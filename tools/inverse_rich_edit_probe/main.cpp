@@ -318,6 +318,12 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
 }
 
 int wmain(int count, wchar_t** arguments) {
+  if (count == 3 && std::wstring(arguments[1]) == L"--comparison-label") {
+    return CreateInverseComparisonLabel(arguments[2]);
+  }
+  if (count == 3 && std::wstring(arguments[1]) == L"--submit-comparison-label") {
+    return SubmitInverseComparisonLabel(arguments[2]);
+  }
   if (count == 3 && std::wstring(arguments[1]) == L"--font-reference") {
     return CompareInverseFontReference(arguments[2]);
   }

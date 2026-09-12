@@ -55,4 +55,29 @@ $rejected = $false
 try { & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path -SourcePrefix $prefix | Out-Null }
 catch { $rejected = $_.Exception.Message -eq 'Q has nonwhite pixels outside the diagnostic page' }
 if (!$rejected) { throw 'Nonwhite page overflow was not rejected' }
-Write-Output 'inverseDriverFileParser=PASS cases=7'
+[System.IO.File]::WriteAllBytes($path, [byte[]]($header + [byte[]]@(127, 254) + $tail))
+$preview = & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path
+if (!($preview | Where-Object { $_.StartsWith('decodedImage=') }) -or
+    ($preview | Where-Object { $_.StartsWith('clip=') })) {
+    throw 'Preview-only mode did not stay separate from source comparison'
+}
+$decoded = [System.Drawing.Bitmap]::new([System.IO.Path]::ChangeExtension($path, '.png'))
+try {
+    if ($decoded.Width -ne 640 -or $decoded.Height -ne 480 -or
+        $decoded.GetPixel(15, 83).R -ne 255 -or
+        $decoded.GetPixel(16, 83).R -ne 0) {
+        throw 'Preview-only image pixel contract failed'
+    }
+} finally { $decoded.Dispose() }
+$secondHeader = [System.Text.Encoding]::ASCII.GetBytes("`r`nQ30,90,1,1`r")
+[System.IO.File]::WriteAllBytes($path, [byte[]](
+    $header + [byte[]]@(127, 254) + $secondHeader + [byte[]]@(128) + $tail))
+$preview = & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path
+$decoded = [System.Drawing.Bitmap]::new([System.IO.Path]::ChangeExtension($path, '.png'))
+try {
+    if ($decoded.GetPixel(16, 83).R -ne 0 -or $decoded.GetPixel(30, 90).R -ne 0 -or
+        $decoded.GetPixel(31, 90).R -ne 255) {
+        throw 'Multi-pattern preview pixel contract failed'
+    }
+} finally { $decoded.Dispose() }
+Write-Output 'inverseDriverFileParser=PASS cases=9'

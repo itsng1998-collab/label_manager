@@ -1,7 +1,28 @@
 # 세션 핸드오프
 
+## 역상 두 번째 재테스트 (2026-09-12)
+- **진단 준비 완료, 실물 비교 대기**: `.tmp/IMG_20260912_0002.png`에서도 획 소실 지속. 앱1.3.121 실제 출력의 두 TXT는 padding11/4twip, scaleX1/width585/17dot이며 이전 수정 미적용이 아니다. 공백 맞춤만으로 실물 문제를 해결하지 못했다.
+- 실제 새 원본은 `.tmp/log/godex_inverse/v1.3.107_12208_4741203_1`, `4741234_2`, `4741546_1_after_native`. 보기용 `sep12_v121_source.png`를 생성했으며 원본은 보존했다.
+- 국소 가설: 공백 자간에 필요한 TO_ADVANCEDTYPOGRAPHY가 비공백 글리프도 바꿀 수 있다. `tools/inverse_rich_edit_probe/font_reference_probe.h`에 같은 RTF 크기의 고급 조판 variant3와 픽셀 동등성 조건을 추가했다(미검증). 생산 코드 변경 전 기존 글리프 검사로 판별한다.
+- 검증 예정: `cmake --build .tmp/inverse_probe_build --config Debug`, `ctest --test-dir .tmp/inverse_probe_build -C Debug -R inverse_font_reference --output-on-failure`. 무출력이며 DB/설정/실물 출력은 변경하지 않는다.
+- 글리프 모드 비교 build/CTest통과:5/6/8pt 기본/고급 조판의 동일 twip 픽셀 동등성 통과. 해당 모드 자체가 글리프를 바꾼다는 가설은 지지되지 않았다. 생산 글리프 보정은 추가하지 않았다.
+- 다음 실행: `.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --driver-file-page .tmp/log/godex_inverse/v1.3.107_12208_4741234_2 .tmp/log/godex_inverse/v1.3.107_12208_4741546_1_after_native .tmp/log/godex_inverse/sep12_v121_page.prn`. 기존 명시적 파일 전용 경로이며 실물 fallback/설정 변경 없음. 이후 `tools/inspect_inverse_driver_file.ps1`로 두 clip을 각각 비교한다.
+- 새 원본 driver-file-page 성공, 두 clip whiteLost/whiteGained/mismatches 모두0. 흰1266/1427이 보존됐다. 생성/파일 변환에서는 실물 손실이 재현되지 않으며 USB 데이터 동일성은 여전히 미확정이다.
+- 사용자 선택: **별도 비교 진단 라벨 준비**, 자동 인쇄 없음.5pt/17dot과 RTF직접/현재비트맵 합성을 한 장에서 비교한다. 저장 라벨/프린터 설정 변경 없이 파일 생성과 명시적 수동 제출을 분리한다.
+- `driver_file_probe.h`의 기존80x60/203dpi 프린터 DC 구성을 `CreateInverseProbePrinter`로 추출해 진단 생성에 재사용한다. 같은 build 및 CTest로 우선 검증 후 비교 라벨 생성 기능을 연결한다.
+- 공용 DC 구성 build통과. 기존 font reference 도구에 A/B=RTF직접100/121twip, C/D=현재1bpp+검정region100/121twip 진단 생성 함수를 추가했다. 모든 구역에 같은 문구의 일반/역상을 배치하고 글자크기/문구/전체수용을 검사한다(미검증). `--comparison-label`은 파일 생성 전용, `--submit-comparison-label`은 사용자가 명시 실행할 실제 제출 경로로 분리했다. 에이전트는 submit 명령을 실행하지 않는다.
+- 검증 예정: 같은 Debug build/CTest 후 `--comparison-label .tmp/log/godex_inverse/inverse_comparison_v122.prn` 실행. 준비된 파일을 해석한 미리보기를 확인하고 실물 제출은 사용자에게 맡긴다.
+- 비교 도구 build통과/파일 생성PASS.8개 일반·역상 문구의 크기/전체수용 검증 통과, physicalPrintRequested=false. `inspect_inverse_driver_file.ps1`에 SourcePrefix 생략 미리보기 모드를 추가했고 기존 테스트 파일에 해당 PNG 픽셀 계약을 추가했다(미검증). 다음 명령: `./tools/test_inverse_driver_file.ps1 -OutputDirectory .tmp/inverse_driver_parser_v122`.
+- 해석기8건PASS. 실제 PRN은 Q블록8개라 기존 단일블록 조건에서 거부됐다. 미리보기 모드에만 다중Q를 허용하고 두 블록의 픽셀 보존 검사를 추가했다. 같은 해석기 테스트 및 실제 PRN 해석을 재실행한다.
+- 해석기9건PASS, native CTest2/2 PASS, 진단PNG 시각 확인 완료(네 구역/8문구 잘림·겹침없음). PRN의 역상 정렬 비교는 A/C차이0, B/D차이132다. 실제 실물 비교 결과는 아직 없다.
+- 버전 PATCH1.3.121 -> 1.3.122: 생산 인쇄 동작 변경 없이 진단 도구/검사 추가. 폰트 face 확인도 진단 계약에 추가했으며 같은 build/CTest로 최종검증한다. Windows 앱 재빌드/실행/배포 및 DB 변경은 이번 단계에서 하지 않는다.
+- 진단 도구 README에 파일 생성/미리보기/사용자 수동 RAW 제출 명령을 기록했다. 제출 경로는 실제 인쇄 미검증이며 에이전트는 실행하지 않는다. `.tmp/log/godex_inverse/inverse_comparison_v122.prn`/`.png`는 로컬 보존/커밋 제외한다.
+- 최종 build/CTest2건/해석기9건 및 diagnostics/공백 검사PASS. 최종 코드 재생성 파일과 준비된 PRN SHA256동일(`4C4D6074FDC6C20276ECA493D3987D0424CC8DAE400EEF27E55B6307A2E4B360`), 기존파일 덮어쓰기 거부PASS. 새 임시 PRN과 원본 증거는 삭제/외부전송/stage하지 않는다.
+- 다음 액션: 사용자가 README의 `--submit-comparison-label`을 명시 실행해 비교 한 장을 출력한 후 A/B/C/D가 모두 보이는 사진을 확인한다. 이미지뷰어 PNG 인쇄는 다른 배율/변환을 넣으므로 사용하지 않는다. 구역별Y좌표도 달라 B/D파일132픽셀차이를 경로만의 영향으로 단정하지 않는다.
+- 커밋 예정9개: 이 문서, `pubspec.yaml`, `doc/godex_inverse_resume.md`, probe `README.md`/`main.cpp`/`font_reference_probe.h`/`driver_file_probe.h`, `tools/inspect_inverse_driver_file.ps1`, `tools/test_inverse_driver_file.ps1`. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다. 생산 코드 변경 없음/앱 종료 상태 유지.
+
 ## 역상 재개 (2026-09-12)
-- **보완 구현/무출력 검증 완료, 실물 개선 미검증**. 사용자 사진 `.tmp/IMG_20260912_0001.png`와 앱1.3.120 로그에서 brand1526/labelSize8114/item722292의 흰 획 소실 지속을 확인했다. 기존 두 역상은17dot/121twip, scaleX0.919811/0.949675, 후속 참조 흰 손실0이다.
+- **이전 보완 구현/무출력 검증 완료, 후속 IMG0002 실물 실패**. 사용자 사진 `.tmp/IMG_20260912_0001.png`와 앱1.3.120 로그에서 brand1526/labelSize8114/item722292의 흰 획 소실 지속을 확인했다. 기존 두 역상은17dot/121twip, scaleX0.919811/0.949675, 후속 참조 흰 손실0이다.
 - **v1.3.121**: [windows/runner/inverse_text_layout.h](windows/runner/inverse_text_layout.h)의 `MeasureInverseTextLayout`은 내부 연속 공백만 줄여 수용 가능한 경우 글자 배율1을 유지한다. 공백만으로 부족하면 원래 간격/조판 옵션을 복원하고 기존 X축 fit을 사용한다. 일반 글자/표선/저장 크기/문구는 변경하지 않았다.
 - [windows/runner/label_bitmap_print_channel.cpp](windows/runner/label_bitmap_print_channel.cpp)의 `RenderWhiteTextIntoBitmap`은 descriptor마다 자간을 초기화하고 렌더 후 조판 옵션을 복원한다. 로그 `inversePaddingFitVersion=1.3.121`, `inversePaddingReductionTwips`, TXT `layoutPolicy=paddingSpacingThenMeasuredWidthV121`로 적용 여부를 확인한다. 기존 전송/워터마크1.3.107과 별도다.
 - 읽기 전용 앱/DB 확인: `RICH_FORM_DATA`4396자와 `RICH_FORM_SHEET`4624자 모두 ZIP/base64 시트이며 역상 셀(3,1)/(9,1)은 fontSize8/raw8/runs없음이다. 새 RTF 가져오기 수정은 적용되지 않는다. 이력55202(2026-06-30)의 두 제목은5pt/별도 셀 구조여서 현재8px을 원래8pt의 축소로 단정할 수 없다. 강제 재생성/재저장/4:3 확대는 하지 않았다.

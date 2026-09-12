@@ -21,6 +21,48 @@ struct DriverPageText {
   }
 };
 
+inline HDC CreateInverseProbePrinter(bool legacy_devmode = false) {
+  wchar_t printer_name[] = L"Godex G500";
+  HANDLE queue = nullptr;
+  if (!OpenPrinterW(printer_name, &queue, nullptr)) return nullptr;
+  const LONG mode_size = DocumentPropertiesW(nullptr, queue, printer_name,
+                                             nullptr, nullptr, 0);
+  if (mode_size <= 0) {
+    ClosePrinter(queue);
+    return nullptr;
+  }
+  std::vector<uint8_t> storage(static_cast<size_t>(mode_size));
+  auto* mode = reinterpret_cast<DEVMODEW*>(storage.data());
+  bool configured = DocumentPropertiesW(nullptr, queue, printer_name, mode,
+                                         nullptr, DM_OUT_BUFFER) == IDOK;
+  if (configured) {
+    if (legacy_devmode) mode->dmFields = 0;
+    mode->dmFields |= DM_PAPERSIZE | DM_PAPERWIDTH | DM_PAPERLENGTH |
+                      DM_ORIENTATION | DM_COPIES;
+    mode->dmPaperSize = DMPAPER_USER;
+    mode->dmPaperWidth = 800;
+    mode->dmPaperLength = 600;
+    mode->dmOrientation = DMORIENT_PORTRAIT;
+    mode->dmCopies = 1;
+    if (!legacy_devmode) {
+      configured = DocumentPropertiesW(nullptr, queue, printer_name, mode, mode,
+                                        DM_IN_BUFFER | DM_OUT_BUFFER) == IDOK;
+    }
+  }
+  ClosePrinter(queue);
+  if (!configured) return nullptr;
+  HDC printer = CreateDCW(L"WINSPOOL", printer_name, nullptr, mode);
+  if (printer != nullptr &&
+      (GetDeviceCaps(printer, HORZRES) != 620 ||
+       GetDeviceCaps(printer, VERTRES) != 480 ||
+       GetDeviceCaps(printer, LOGPIXELSX) != 203 ||
+       GetDeviceCaps(printer, LOGPIXELSY) != 203)) {
+    DeleteDC(printer);
+    return nullptr;
+  }
+  return printer;
+}
+
 inline bool SetDriverPageTextFrame(DriverPageText& text) {
   ENHMETAHEADER header{};
   if (text.metafile == nullptr ||
@@ -107,40 +149,8 @@ inline int CaptureInverseDriverFile(const std::filesystem::path& prefix,
   if (!input) return 3;
   const auto geometry = PrepareInverseTextGeometry(raster, 620, 480, clips);
   if (!geometry.success) return 4;
-  wchar_t printer_name[] = L"Godex G500";
-  HANDLE queue = nullptr;
-  if (!OpenPrinterW(printer_name, &queue, nullptr)) return 5;
-  const LONG mode_size = DocumentPropertiesW(nullptr, queue, printer_name, nullptr, nullptr, 0);
-  if (mode_size <= 0) {
-    ClosePrinter(queue);
-    return 5;
-  }
-  std::vector<uint8_t> storage(static_cast<size_t>(mode_size));
-  auto* mode = reinterpret_cast<DEVMODEW*>(storage.data());
-  bool configured = DocumentPropertiesW(nullptr, queue, printer_name, mode, nullptr,
-                                        DM_OUT_BUFFER) == IDOK;
-  if (configured) {
-    if (legacy_devmode) mode->dmFields = 0;
-    mode->dmFields |= DM_PAPERSIZE | DM_PAPERWIDTH | DM_PAPERLENGTH | DM_ORIENTATION | DM_COPIES;
-    mode->dmPaperSize = DMPAPER_USER;
-    mode->dmPaperWidth = 800;
-    mode->dmPaperLength = 600;
-    mode->dmOrientation = DMORIENT_PORTRAIT;
-    mode->dmCopies = 1;
-    if (!legacy_devmode) {
-      configured = DocumentPropertiesW(nullptr, queue, printer_name, mode, mode,
-                                       DM_IN_BUFFER | DM_OUT_BUFFER) == IDOK;
-    }
-  }
-  ClosePrinter(queue);
-  if (!configured) return 5;
-  HDC printer = CreateDCW(L"WINSPOOL", printer_name, nullptr, mode);
+  HDC printer = CreateInverseProbePrinter(legacy_devmode);
   if (printer == nullptr) return 6;
-  if (GetDeviceCaps(printer, HORZRES) != 620 || GetDeviceCaps(printer, VERTRES) != 480 ||
-      GetDeviceCaps(printer, LOGPIXELSX) != 203 || GetDeviceCaps(printer, LOGPIXELSY) != 203) {
-    DeleteDC(printer);
-    return 6;
-  }
   DOCINFOW document{};
   document.cbSize = sizeof(document);
   document.lpszDocName = L"Inverse diagnostic - local file only";

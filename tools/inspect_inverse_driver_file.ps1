@@ -1,12 +1,14 @@
 ﻿param(
     [Parameter(Mandatory = $true)][string]$Path,
-    [Parameter(Mandatory = $true)][string]$SourcePrefix
+    [string]$SourcePrefix
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $Path).Path)
-$source = [System.Drawing.Bitmap]::new((Resolve-Path ($SourcePrefix + '_comparison.bmp')).Path)
+$source = if ($SourcePrefix) {
+    [System.Drawing.Bitmap]::new((Resolve-Path ($SourcePrefix + '_comparison.bmp')).Path)
+} else { $null }
 $decoded = [System.Drawing.Bitmap]::new(640, 480)
 $graphics = [System.Drawing.Graphics]::FromImage($decoded)
 $graphics.Clear([System.Drawing.Color]::White)
@@ -50,7 +52,13 @@ try {
             throw "Unsupported command at byte $start"
         }
     }
-    if ($patterns -ne 1) { throw 'Expected exactly one Q pattern in this probe' }
+    if ($patterns -lt 1 -or ($SourcePrefix -and $patterns -ne 1)) {
+        throw 'Expected exactly one Q pattern in this probe'
+    }
+    $imagePath = [System.IO.Path]::ChangeExtension((Resolve-Path $Path).Path, '.png')
+    $decoded.Save($imagePath, [System.Drawing.Imaging.ImageFormat]::Png)
+    Write-Output "decodedImage=$imagePath"
+    if (!$source) { return }
     $clipLine = Get-Content ($SourcePrefix + '.txt') | Where-Object { $_.StartsWith('clip=') } | Select-Object -First 1
     if ($clipLine -notmatch '^clip=(-?\d+),(-?\d+),(-?\d+),(-?\d+)$') { throw 'Missing inverse clip' }
     $left, $top, $right, $bottom = 1..4 | ForEach-Object { [int]$Matches[$_] }
@@ -66,11 +74,8 @@ try {
             if (!$before -and $after) { $gained++ }
         }
     }
-    $imagePath = [System.IO.Path]::ChangeExtension((Resolve-Path $Path).Path, '.png')
-    $decoded.Save($imagePath, [System.Drawing.Imaging.ImageFormat]::Png)
     Write-Output "clip=$left,$top,$right,$bottom sourceWhite=$white whiteLost=$lost whiteGained=$gained mismatches=$($lost + $gained)"
-    Write-Output "decodedImage=$imagePath"
 } finally {
-    $source.Dispose()
+    if ($source) { $source.Dispose() }
     $decoded.Dispose()
 }
