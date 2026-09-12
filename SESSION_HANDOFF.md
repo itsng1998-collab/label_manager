@@ -1,7 +1,18 @@
 # 세션 핸드오프
 
+## 기존 레거시 근거로 조사 재개 (2026-09-12)
+- **코드 비교/무출력 검증 완료, 실물 문제 미해결**. 기존 `.tmp/IMG_v0.Legacy_print.png`와 제공된 정보/환경은 그대로 유효하다. 레거시 재출력·동일 자료 재제출을 요구한 안내는 철회했다. 진단 A/B는 실제 레거시 프로그램 출력이 아니며 정상 레거시 기준을 대체하지 않는다. 비교 라벨 실물 제출을 선행 조건으로 두지 않는다.
+- 레거시 `CITSnGRichEditCtrl::PreCreateWindow`도 RICHEDIT50W이다. `SetRTFText`는 장평 초기화 후 원본을SF_RTF로 읽고, `PrintRichEdit`는 printer DC의 FormatRange(TRUE) 직후 DisplayBand(&rc)를 호출한다.
+- v1.3.123: 진단 `CreateInverseComparisonLabel`/main의 `--comparison-label-swapped`로 같은 좌표/크기에서 직접·비트맵을 비교한다.5pt 차이0,17dot 차이132(흰66개씩 이동), 차이는120g 구간뿐이고 한글 차이0이다. 기존120/121twip font-reference BMP도 해시동일. 해당 검사에서 한글 획 소실을 설명하지 못한다.
+- `RenderInverseComparisonText`/main의 `--comparison-label-display-band`는 직접 구역에 레거시 후속 호출을 적용하고 실패 반환을 FAIL로 처리한다.4회 반환1, 추가 전후PRN SHA256동일(`4C4D6074FDC6C20276ECA493D3987D0424CC8DAE400EEF27E55B6307A2E4B360`). 해당 호출을 생산에 추가하지 않는다.
+- 검증 완료: probe Debug build, `ctest --test-dir .tmp/inverse_probe_build -C Debug --output-on-failure`2/2, `./tools/test_inverse_driver_file.ps1 -OutputDirectory .tmp/inverse_driver_parser_v123`9건, 세 모드 파일생성/동일좌표0/132/0/132 및120g 밖0 자동검사, 기존v122 baseline/DisplayBand해시 동등성, 후속 반환값 검사 build/실행, diagnostics/`git diff --check` 모두PASS.
+- 산출물 `.tmp/log/godex_inverse/inverse_paths_swapped*`, `inverse_display_band.prn`, `inverse_v123_checked_*`, `inverse_v123_display_result.prn`과 기존 증거는 로컬 보존/커밋 제외. 원본삭제/외부전송/DB/프린터 설정/실물 인쇄/앱 재실행 없음. 마지막 앱은1.3.121이며 종료 상태다.
+- 진단README/doc의 재제출·실물대기 지시를 철회했다. pubspec PATCH1.3.122 ->1.3.123(진단/문서 변경). 비교 파일 형식1.3.122와 실행로그 probeVersion1.3.123을 구분한다. 생산 출력 코드는 변경하지 않았다.
+- 남은 경계: 생성/파일변환에서 보존된 한글 획과 실물 소실의 차이. 사진상 레거시는 문구 주변 국소 검정, 현재는 전체 행 검정이나 이것을 원인으로 확정하거나 레이아웃/열 설정을 임의 변경하지 않는다. 효과를 입증할 생산 수정은 아직 특정하지 못했다.
+- stage/commit 예정: probe header/main/README, doc/godex_inverse_resume.md, pubspec.yaml, 이handoff의6개 파일. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다. 원격push 없음.
+
 ## 역상 두 번째 재테스트 (2026-09-12)
-- **진단 준비 완료, 실물 비교 대기**: `.tmp/IMG_20260912_0002.png`에서도 획 소실 지속. 앱1.3.121 실제 출력의 두 TXT는 padding11/4twip, scaleX1/width585/17dot이며 이전 수정 미적용이 아니다. 공백 맞춤만으로 실물 문제를 해결하지 못했다.
+- **진단 준비 완료, 실물 문제 미해결**: `.tmp/IMG_20260912_0002.png`에서도 획 소실 지속. 앱1.3.121 실제 출력의 두 TXT는 padding11/4twip, scaleX1/width585/17dot이며 이전 수정 미적용이 아니다. 공백 맞춤만으로 실물 문제를 해결하지 못했다.
 - 실제 새 원본은 `.tmp/log/godex_inverse/v1.3.107_12208_4741203_1`, `4741234_2`, `4741546_1_after_native`. 보기용 `sep12_v121_source.png`를 생성했으며 원본은 보존했다.
 - 글리프 모드 비교 build/CTest통과:5/6/8pt 기본/고급 조판의 동일 twip 픽셀 동등성 통과. 해당 모드 자체가 글리프를 바꾼다는 가설은 지지되지 않았다. 생산 글리프 보정은 추가하지 않았다.
 - 새 원본 driver-file-page 성공, 두 clip whiteLost/whiteGained/mismatches 모두0. 흰1266/1427이 보존됐다. 생성/파일 변환에서는 실물 손실이 재현되지 않으며 USB 데이터 동일성은 여전히 미확정이다.
@@ -12,7 +23,7 @@
 - 버전 PATCH1.3.121 -> 1.3.122: 생산 인쇄 동작 변경 없이 진단 도구/검사 추가. Windows 앱 재빌드/실행/배포 및 DB 변경은 이번 단계에서 하지 않았다.
 - 진단 도구 README에 파일 생성/미리보기/사용자 수동 RAW 제출 명령을 기록했다. 제출 경로는 실제 인쇄 미검증이며 에이전트는 실행하지 않는다. `.tmp/log/godex_inverse/inverse_comparison_v122.prn`/`.png`는 로컬 보존/커밋 제외한다.
 - 최종 build/CTest2건/해석기9건 및 diagnostics/공백 검사PASS. 최종 코드 재생성 파일과 준비된 PRN SHA256동일(`4C4D6074FDC6C20276ECA493D3987D0424CC8DAE400EEF27E55B6307A2E4B360`), 기존파일 덮어쓰기 거부PASS. 새 임시 PRN과 원본 증거는 삭제/외부전송/stage하지 않는다.
-- 다음 액션: 사용자가 README의 `--submit-comparison-label`을 명시 실행해 비교 한 장을 출력한 후 A/B/C/D가 모두 보이는 사진을 확인한다. 이미지뷰어 PNG 인쇄는 다른 배율/변환을 넣으므로 사용하지 않는다. 구역별Y좌표도 달라 B/D파일132픽셀차이를 경로만의 영향으로 단정하지 않는다.
+- 실물 비교/사진 제출을 다음 필수 액션으로 삼은 안내는 철회했다. 준비된 파일/수동제출 기능은 보존하지만 추가승인 없이 실행하지 않는다.132픽셀차이는 위 동일좌표 검사에서120g 구간으로 분리했다.
 - 기능 커밋 **`40af7eb`** (`역상 실물 판별용 글자 크기와 출력 경로 비교 진단 추가`) 완료. 진단/검사/문서9개만 포함하고 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외했다. 생산 코드 변경 없음/앱 종료 상태 유지. 후속 기록은 같은 요청의 문서 정리로 버전을 다시 올리지 않는다.
 
 ## 역상 재개 (2026-09-12)

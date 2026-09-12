@@ -2,8 +2,36 @@
 
 Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린터 큐가 필요하다.
 기본 CTest/`--replay`는 큐의 DC를 참조하지만 `StartDoc`를 호출하지 않는다.
-별도 `--driver-file` 모드만 출력 파일을 명시한 `StartDoc`를 호출한다.
+별도 `--driver-file` 계열과 `--comparison-label` 계열은 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
+
+## 기존 자료 기반 호출 비교 (v1.3.123)
+
+기존 레거시 정상 사진과 동일 PC/프린터 정보는 유효하며 재제출을 요구하지 않는다.
+아래 합성 RTF 진단은 실제 레거시 프로그램 실행이나 원본 RTF 전체 출력을 대체하지 않는다.
+비교 라벨 실물 제출도 코드 조사의 선행 조건이 아니다.
+
+`--comparison-label-swapped`는 크기와 좌표를 유지하고 A/B를 비트맵, C/D를 직접 출력으로 바꾼다.
+`--comparison-label-display-band`는 기본 A/B 직접 출력에만 레거시의
+FormatRange(TRUE) -> DisplayBand(&rc) 순서를 적용한다. 캐시는 그 뒤 해제한다.
+두 모드 모두 새 로컬 PRN만 생성하며 물리 제출 기능을 호출하지 않는다.
+기존 파일과 바이트 비교할 수 있도록 라벨 문구/형식은 v1.3.122를 유지하고 실행 로그에
+`probeVersion=1.3.123`, `swapPaths`, `displayBand`를 따로 출력한다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --comparison-label-swapped .tmp/log/godex_inverse/inverse_paths_swapped.prn
+./tools/inspect_inverse_driver_file.ps1 -Path .tmp/log/godex_inverse/inverse_paths_swapped.prn
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --comparison-label-display-band .tmp/log/godex_inverse/inverse_display_band.prn
+Get-FileHash .tmp/log/godex_inverse/inverse_comparison_v122.prn,.tmp/log/godex_inverse/inverse_display_band.prn
+```
+
+현재 G500 파일 결과: 동일 좌표의5pt 역상 차이0,17dot 차이132(흰66개씩 양방향 이동).
+17dot 차이는 뒤쪽120g 위치에만 있고 한글 영역은 차이0이다. Y위치를 통제해도 같았다.
+PNG 물리 좌표의 비교 영역은 x10..609, y75..106/180..211/285..316/390..421이다.
+DisplayBand는4회 모두1을 반환했고, 생성 PRN은 기본 파일과 전체 SHA256이 같다.
+따라서 이 호출 누락은 해당 검사에서 차이를 설명하지 못하며 생산에 추가하지 않는다.
+기존 font-reference의120twip(`6pt_0.bmp`)/121twip(`8pt_2.bmp`)도 파일 해시가 같다.
+합성 검사 문구에서의 결과이며 실제 라벨 전체나 실물 품질의 동등성은 입증하지 않는다.
 
 ## 실물 비교 진단 (v1.3.122)
 
@@ -11,7 +39,7 @@ IMG_20260912_0002에서 v1.3.121 공백 맞춤 적용(scaleX1) 후에도 획 소
 이번 버전은 진단 도구 추가이며 생산 인쇄 경로를 변경하지 않는다.
 같은 문구의 일반/역상을 각 구역에 넣고 A/C는100twip(5pt), B/D는121twip(17dot)을 사용한다.
 A/B는 RichEdit FormatRange를 printer DC로 직접 호출하며 C/D는 현재1bpp 합성/검정region 경로다.
-실패했던 직접 흰 글자 출력의 생산 재적용이 아니라 레거시 방식과 비교하기 위한 진단이다.
+실패했던 직접 흰 글자 출력의 생산 재적용이 아니라 두 렌더 경로를 비교하기 위한 진단이다.
 원본 RTF 전체/저장 라벨을 복원하지 않으며 DB를 사용하지 않는다.
 
 파일 준비와 미리보기는 실제 인쇄하지 않는다. 기존 PRN은 덮어쓰지 않는다.
@@ -35,8 +63,8 @@ PNG를 이미지 뷰어에서 인쇄하면 다른 크기/변환이 개입하므�
 .tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --submit-comparison-label .tmp/log/godex_inverse/inverse_comparison_v122.prn
 ```
 
-네 구역이 모두 보이는 출력 사진에서 같은 크기의 A/C 및 B/D, 같은 경로의 A/B 및 C/D를 비교한다.
-구역의 Y좌표도 다르므로 파일의132픽셀 차이를 출력 경로만의 영향으로 단정하지 않는다.
+향후 별도로 실물 비교를 승인한 경우에만 같은 크기의 A/C 및 B/D, 같은 경로의 A/B 및 C/D를 비교한다.
+현재 사용자에게 실행이나 사진을 요청한 상태가 아니다. 파일의132픽셀 차이는 위 동일 좌표 검사로 분리했다.
 특정 구역의 결과만으로 프린터 결함이나 소프트웨어 개선 불가를 단정하지 않는다.
 
 ## 공백 맞춤 검사 (v1.3.121)

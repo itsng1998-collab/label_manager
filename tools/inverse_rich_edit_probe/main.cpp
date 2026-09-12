@@ -318,6 +318,12 @@ int ReplaySavedComposite(const std::filesystem::path& prefix,
 }
 
 int wmain(int count, wchar_t** arguments) {
+  if (count == 3 && std::wstring(arguments[1]) == L"--comparison-label-display-band") {
+    return CreateInverseComparisonLabel(arguments[2], false, true);
+  }
+  if (count == 3 && std::wstring(arguments[1]) == L"--comparison-label-swapped") {
+    return CreateInverseComparisonLabel(arguments[2], true);
+  }
   if (count == 3 && std::wstring(arguments[1]) == L"--comparison-label") {
     return CreateInverseComparisonLabel(arguments[2]);
   }

@@ -219,7 +219,8 @@ inline int CompareInverseFontReference(const std::filesystem::path& directory) {
 inline bool RenderInverseComparisonText(HDC printer, HWND edit,
                                        const RECT& clip, int twips,
                                        bool inverse,
-                                       std::vector<uint8_t>* raster) {
+                                       std::vector<uint8_t>* raster,
+                                       bool display_band = false) {
   const std::wstring text =
       L"\uc54c\ub808\ub974\uae30\uc720\ubc1c\ubb3c\uc9c8 "
       L"\uc6b0\uc720,\ubc00,\uacc4\ub780,\ud638\ub450 \ud568\uc720 120g";
@@ -270,9 +271,15 @@ inline bool RenderInverseComparisonText(HDC printer, HWND edit,
   range.hdc = target;
   const auto until = SendMessageW(edit, EM_FORMATRANGE, TRUE,
                                   reinterpret_cast<LPARAM>(&range));
+  bool success = until >= static_cast<LRESULT>(text.size());
+  if (display_band) {
+    const auto displayed = SendMessageW(edit, EM_DISPLAYBAND, 0,
+                                        reinterpret_cast<LPARAM>(&range.rc));
+    success = success && displayed != 0;
+    std::cout << "comparisonDisplayBand result=" << displayed << "\n";
+  }
   SendMessageW(edit, EM_FORMATRANGE, FALSE, 0);
   RestoreDC(target, saved);
-  bool success = until >= static_cast<LRESULT>(text.size());
   if (raster != nullptr) {
     HENHMETAFILE metafile = CloseEnhMetaFile(target);
     const auto composite = CompositeInverseTextBitmap(
@@ -285,7 +292,9 @@ inline bool RenderInverseComparisonText(HDC printer, HWND edit,
   return success;
 }
 
-inline int CreateInverseComparisonLabel(const std::filesystem::path& path) {
+inline int CreateInverseComparisonLabel(const std::filesystem::path& path,
+                                       bool swap_paths = false,
+                                       bool display_band = false) {
   const auto output = std::filesystem::absolute(path);
   if (output.extension() != L".prn" || std::filesystem::exists(output) ||
       !std::filesystem::is_directory(output.parent_path())) return 2;
@@ -300,10 +309,15 @@ inline int CreateInverseComparisonLabel(const std::filesystem::path& path) {
   std::vector<uint8_t> raster(620 * 480 * 4, 255);
   std::vector<RECT> clips;
   const std::array<int, 4> sizes{100, 121, 100, 121};
-  const std::array<std::wstring, 4> headings{
+  std::array<std::wstring, 4> headings{
       L"A  RTF 5pt / 100twip", L"B  RTF 17dot / 121twip",
       L"C  Bitmap 5pt / 100twip", L"D  Bitmap 17dot / 121twip"};
-  for (int index = 2; success && index < 4; ++index) {
+  if (swap_paths) {
+    headings = {L"A  Bitmap 5pt / 100twip", L"B  Bitmap 17dot / 121twip",
+                L"C  RTF 5pt / 100twip", L"D  RTF 17dot / 121twip"};
+  }
+  const int raster_start = swap_paths ? 0 : 2;
+  for (int index = raster_start; success && index < raster_start + 2; ++index) {
     const int top = 25 + index * 105;
     const RECT band{10, top + 50, 610, top + 82};
     clips.push_back(band);
@@ -338,14 +352,17 @@ inline int CreateInverseComparisonLabel(const std::filesystem::path& path) {
     success = StretchDIBits(printer, 0, 0, 620, 480, 0, 0, 620, 480,
         raster.data(), &info, DIB_RGB_COLORS, SRCCOPY) == 480 &&
         RenderInverseTextGeometry(printer, geometry, 0, 0);
-    for (int index = 0; success && index < 2; ++index) {
+    const int direct_start = swap_paths ? 2 : 0;
+    for (int index = direct_start; success && index < direct_start + 2; ++index) {
       const int top = 25 + index * 105;
       const RECT band{10, top + 50, 610, top + 82};
       FillRect(printer, &band, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
       success = RenderInverseComparisonText(printer, edit,
-          RECT{15, top + 22, 605, top + 41}, sizes[index], false, nullptr) &&
+          RECT{15, top + 22, 605, top + 41}, sizes[index], false, nullptr,
+          display_band) &&
           RenderInverseComparisonText(printer, edit,
-          RECT{15, top + 54, 605, top + 73}, sizes[index], true, nullptr);
+          RECT{15, top + 54, 605, top + 73}, sizes[index], true, nullptr,
+          display_band);
     }
     HFONT font = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -372,7 +389,9 @@ inline int CreateInverseComparisonLabel(const std::filesystem::path& path) {
   if (module != nullptr) FreeLibrary(module);
   if (printer != nullptr) DeleteDC(printer);
   std::cout << "comparisonLabel=" << (success ? "PASS" : "FAIL")
-            << " physicalPrintRequested=false version=1.3.122\n";
+            << " swapPaths=" << swap_paths
+            << " displayBand=" << display_band
+            << " physicalPrintRequested=false version=1.3.122 probeVersion=1.3.123\n";
   return success ? 0 : 5;
 }
 
