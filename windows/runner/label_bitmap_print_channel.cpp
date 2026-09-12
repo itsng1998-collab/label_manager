@@ -1266,7 +1266,8 @@ std::string SaveInverseComparison(
            << "\nfontDots=" << descriptor.font_pixel_height
            << "\nfontTwips=" << font_twips << "\nbold=" << descriptor.bold
            << "\nwrapRequested=" << descriptor.wrap
-           << "\nlayoutPolicy=richEditMeasuredWidth"
+           << "\nlayoutPolicy=paddingSpacingThenMeasuredWidthV121"
+           << "\npaddingReductionTwips=" << layout.padding_reduction_twips
            << "\nlayoutWidth=" << layout.width
            << "\nwidthFitted=" << layout.fitted
            << "\nscaleX=" << layout.transform.eM11
@@ -1359,7 +1360,7 @@ bool RenderWhiteTextIntoBitmap(
     character_format.cbSize = sizeof(character_format);
     character_format.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR |
                               CFM_BACKCOLOR | CFM_BOLD | CFM_ITALIC |
-                              CFM_UNDERLINE | CFM_STRIKEOUT;
+                              CFM_UNDERLINE | CFM_STRIKEOUT | CFM_SPACING;
     character_format.dwEffects = 0;
     if (descriptor.bold) character_format.dwEffects |= CFE_BOLD;
     if (descriptor.italic) character_format.dwEffects |= CFE_ITALIC;
@@ -1413,6 +1414,8 @@ bool RenderWhiteTextIntoBitmap(
         rich_edit, EM_FORMATRANGE, TRUE,
         reinterpret_cast<LPARAM>(&format_range));
     SendMessageW(rich_edit, EM_FORMATRANGE, FALSE, 0);
+    SendMessageW(rich_edit, EM_SETTYPOGRAPHYOPTIONS,
+                 layout.original_typography_options, TO_ADVANCEDTYPOGRAPHY);
     resources.metafile = CloseEnhMetaFile(resources.recording);
     resources.recording = nullptr;
     if (resources.metafile == nullptr || formatted_until <= 0) {
@@ -1431,6 +1434,8 @@ bool RenderWhiteTextIntoBitmap(
     }
     const LONG rich_edit_length = GetWindowTextLengthW(rich_edit);
     diagnostics << " inverseTextLength=" << rich_edit_length
+          << " inversePaddingFitVersion=1.3.121"
+          << " inversePaddingReductionTwips=" << layout.padding_reduction_twips
           << " inverseLayoutWidth=" << layout.width
           << " inverseScaleX=" << layout.transform.eM11
           << " inverseFormattedUntil=" << formatted_until

@@ -1,5 +1,17 @@
 # 세션 핸드오프
 
+## 역상 재개 (2026-09-12)
+- **보완 구현/무출력 검증 완료, 실물 개선 미검증**. 사용자 사진 `.tmp/IMG_20260912_0001.png`와 앱1.3.120 로그에서 brand1526/labelSize8114/item722292의 흰 획 소실 지속을 확인했다. 기존 두 역상은17dot/121twip, scaleX0.919811/0.949675, 후속 참조 흰 손실0이다.
+- **v1.3.121**: [windows/runner/inverse_text_layout.h](windows/runner/inverse_text_layout.h)의 `MeasureInverseTextLayout`은 내부 연속 공백만 줄여 수용 가능한 경우 글자 배율1을 유지한다. 공백만으로 부족하면 원래 간격/조판 옵션을 복원하고 기존 X축 fit을 사용한다. 일반 글자/표선/저장 크기/문구는 변경하지 않았다.
+- [windows/runner/label_bitmap_print_channel.cpp](windows/runner/label_bitmap_print_channel.cpp)의 `RenderWhiteTextIntoBitmap`은 descriptor마다 자간을 초기화하고 렌더 후 조판 옵션을 복원한다. 로그 `inversePaddingFitVersion=1.3.121`, `inversePaddingReductionTwips`, TXT `layoutPolicy=paddingSpacingThenMeasuredWidthV121`로 적용 여부를 확인한다. 기존 전송/워터마크1.3.107과 별도다.
+- 읽기 전용 앱/DB 확인: `RICH_FORM_DATA`4396자와 `RICH_FORM_SHEET`4624자 모두 ZIP/base64 시트이며 역상 셀(3,1)/(9,1)은 fontSize8/raw8/runs없음이다. 새 RTF 가져오기 수정은 적용되지 않는다. 이력55202(2026-06-30)의 두 제목은5pt/별도 셀 구조여서 현재8px을 원래8pt의 축소로 단정할 수 없다. 강제 재생성/재저장/4:3 확대는 하지 않았다.
+- 검증: probe Debug `/W4 /WX` 빌드, `ctest --test-dir .tmp/inverse_probe_build -C Debug --output-on-failure` **2/2 통과**. 합성 문구의 기존 폭659/배율0.887709 실패를 먼저 재현했고 수정 후585/1이다. 글자121twip/자간0, selection 및 공백 부족 fallback 복원도 통과했다.
+- 오늘 실제 EMF의 원문72/75자 `--exact-emf` 검사 각각PASS. 공백 감소11/4twip, 두 배율1/폭585, 합성 불일치0이다. 숫자 꼬리를 붙이는 기존 모드도 두 건PASS. 이 검사는 StartDoc 없는 참조 검사이며 실물/실제 USB 전달을 입증하지 않는다.
+- Windows Debug build성공, 일반 모드 v1.3.121 재실행/DTD 연결/hot reload성공, runtime error없음. 현재 앱은 실행 중이며 로그는 `.tmp/log/app_2026-09-12_10-10-25.log`, 빌드/실행 로그는 `.tmp/inverse_v121_windows_build.log`/`.tmp/inverse_v121_windows_run.log`이다. 자동 실물 인쇄는 하지 않았다.
+- 증거 보존: `.tmp/log/godex_inverse/v1.3.107_12824_2240312_1`, `2240343_2`, `2240656_1_after_native` EMF/BMP/TXT 및 보기용 `sep12_source.png`. 새 무출력 결과는 `.tmp/inverse_sep12_exact_allergy`/`.tmp/inverse_sep12_exact_nutrition`이다. 임시 판별 코드는 제거했고 로컬 자료/캐시는 삭제하거나 stage하지 않는다.
+- 버전 PATCH **1.3.120 -> 1.3.121**: 저장 형식과 글자 높이를 유지하는 역상 배치 보완. 다음은 새 버전 실물 결과에서 흰 획을 비교하는 단계이며 같은 미변경 코드의 반복 출력은 요구하지 않는다.
+- 최종 diagnostics/`git diff --check` 통과. stage/commit 대상7개: 이 문서, `pubspec.yaml`, 위 native2개, `tools/inverse_rich_edit_probe/main.cpp`, 해당 README, `doc/godex_inverse_resume.md`. 범위 밖 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ## 품목관리 키보드 가로 스크롤 (2026-09-11)
 1. **완료**: 품목관리 표에 포커스가 있을 때 `Shift+왼쪽/오른쪽 방향키`로 가로 스크롤하도록 추가했다.
 2. [lib/features/item/presentation/item_manage.dart](lib/features/item/presentation/item_manage.dart)의 품목관리 전체 `Focus`에서 조합키를 처리하되 셀 텍스트 편집 중에는 기존 키 동작을 유지한다.

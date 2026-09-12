@@ -5,6 +5,25 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 모드만 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## 공백 맞춤 검사 (v1.3.121)
+
+긴 내부 연속 공백으로 넘치는 역상은 공백 자간만 줄여 글자 X축 배율1을 유지한다.
+글자 크기/글자 자간은 변경하지 않으며 공백은 최소1dot advance를 남긴다.
+공백만으로 수용할 수 없으면 원래 자간/조판 옵션을 복원한 뒤 기존 X축 fit을 사용한다.
+짧은 문구, wrap, 명시적 개행은 기존 동작을 유지한다.
+native CTest는 전체 문구 수용, 글자121twip/자간0, selection 보존과 fallback 복원을 검사한다.
+
+원문을 변경하지 않는 제출 EMF 검사는 아래 모드를 사용한다. 배율1/공백 맞춤을 기대하는
+17dot 역상 진단용이며, 기존 EMF 입력 모드의 합성 숫자 꼬리를 붙이지 않는다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe --exact-emf <source.emf> .tmp/inverse_exact
+```
+
+검사는 StartDoc 없이 수행한다. 배율1과 무출력 합성 통과가 실물 개선을 입증하지는 않는다.
+v1.3.121은 `inversePaddingFitVersion`과 `inversePaddingReductionTwips`로 구분하며,
+기존 전송/워터마크1.3.107을 유지한다. 아래 v1.3.94 이후 기록은 이전 검증 이력이다.
+
 ```powershell
 cmake -S tools/inverse_rich_edit_probe -B .tmp/inverse_probe_build -G "Visual Studio 17 2022" -A x64
 cmake --build .tmp/inverse_probe_build --config Debug

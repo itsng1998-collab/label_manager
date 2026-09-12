@@ -333,20 +333,23 @@ int wmain(int count, wchar_t** arguments) {
   if (count == 4 && std::wstring(arguments[1]) == L"--replay") {
     return ReplaySavedComposite(arguments[2], arguments[3]);
   }
-  if (count != 3) return 2;
-  const auto output_directory = std::filesystem::path(arguments[2]);
+  const bool exact_emf =
+      count == 4 && std::wstring(arguments[1]) == L"--exact-emf";
+  if (count != 3 && !exact_emf) return 2;
+  const auto output_directory =
+      std::filesystem::path(arguments[exact_emf ? 3 : 2]);
   std::filesystem::create_directories(output_directory);
   std::wstring text;
   if (std::wstring(arguments[1]) == L"--synthetic") {
     text = L"\uc601\uc591\uc815\ubcf4" + std::wstring(55, L' ') +
            L"TOTAL 120g 30x430g 123456789";
   } else {
-    HENHMETAFILE source = GetEnhMetaFileW(arguments[1]);
+    HENHMETAFILE source = GetEnhMetaFileW(arguments[exact_emf ? 2 : 1]);
     if (source == nullptr) return 3;
     EnumEnhMetaFile(nullptr, source, CollectText,
                    reinterpret_cast<void*>(&text), nullptr);
     DeleteEnhMetaFile(source);
-    text += L" 123456789";
+    if (!exact_emf) text += L" 123456789";
   }
   HDC printer = CreateDCW(L"WINSPOOL", L"Godex G500", nullptr, nullptr);
   HMODULE module = LoadLibraryW(L"Msftedit.dll");
@@ -411,8 +414,33 @@ int wmain(int count, wchar_t** arguments) {
       const auto wrapped = MeasureInverseTextLayout(
           edit, printer, RECT{15, 291, 600, 310}, text, true);
       success = success && !wrapped.fitted && wrapped.width == 585;
+      CHARRANGE selection_before{};
+      SendMessageW(edit, EM_EXGETSEL, 0,
+                   reinterpret_cast<LPARAM>(&selection_before));
       layout = MeasureInverseTextLayout(edit, printer, RECT{15, 291, 600, 310},
-                                         text, false);
+                                        text, false);
+      if (std::wstring(arguments[1]) == L"--synthetic" || exact_emf) {
+        success = success && layout.all_characters_fit &&
+                  layout.transform.eM11 == 1.0f && layout.width == 585 &&
+                  layout.padding_reduction_twips > 0;
+        CHARRANGE selection{};
+        SendMessageW(edit, EM_EXGETSEL, 0,
+                     reinterpret_cast<LPARAM>(&selection));
+        success = success && selection.cpMin == selection_before.cpMin &&
+                  selection.cpMax == selection_before.cpMax;
+        SendMessageW(edit, EM_SETSEL, 0, 4);
+        CHARFORMAT2W glyph{};
+        glyph.cbSize = sizeof(glyph);
+        SendMessageW(edit, EM_GETCHARFORMAT, SCF_SELECTION,
+                     reinterpret_cast<LPARAM>(&glyph));
+        std::cout << "paddingSelection=" << selection.cpMin << ","
+                  << selection.cpMax << " glyphTwips=" << glyph.yHeight
+                  << " glyphSpacing=" << glyph.sSpacing << "\n";
+        success = success && glyph.yHeight == character.yHeight &&
+                  glyph.sSpacing == 0 && (glyph.dwEffects & CFE_BOLD) != 0;
+        SendMessageW(edit, EM_EXSETSEL, 0,
+                     reinterpret_cast<LPARAM>(&selection));
+      }
       range = layout.range;
       range.hdc = recording;
       SetGraphicsMode(recording, GM_ADVANCED);
@@ -422,6 +450,8 @@ int wmain(int count, wchar_t** arguments) {
     const LRESULT until = SendMessageW(edit, EM_FORMATRANGE, TRUE,
                                        reinterpret_cast<LPARAM>(&range));
     SendMessageW(edit, EM_FORMATRANGE, FALSE, 0);
+    SendMessageW(edit, EM_SETTYPOGRAPHYOPTIONS,
+                 layout.original_typography_options, TO_ADVANCEDTYPOGRAPHY);
     HENHMETAFILE result = CloseEnhMetaFile(recording);
     if (variant >= 5) {
       std::wstring recorded;
@@ -437,6 +467,29 @@ int wmain(int count, wchar_t** arguments) {
       const auto multiline = MeasureInverseTextLayout(
         edit, printer, RECT{15, 291, 600, 310}, L"FIRST\r\nSECOND", false);
       success = success && !multiline.fitted && multiline.width == 585;
+      const std::wstring insufficient_padding =
+          std::wstring(50, L'W') + L"  " + std::wstring(50, L'W');
+      SetWindowTextW(edit, insufficient_padding.c_str());
+      const auto original_typography =
+          SendMessageW(edit, EM_GETTYPOGRAPHYOPTIONS, 0, 0);
+      const auto fallback = MeasureInverseTextLayout(
+          edit, printer, RECT{15, 291, 600, 310}, insufficient_padding, false);
+      SendMessageW(edit, EM_SETSEL, 50, 52);
+      CHARFORMAT2W restored{};
+      restored.cbSize = sizeof(restored);
+      SendMessageW(edit, EM_GETCHARFORMAT, SCF_SELECTION,
+                   reinterpret_cast<LPARAM>(&restored));
+      std::cout << "paddingFallback fitted=" << fallback.fitted
+                << " allFit=" << fallback.all_characters_fit
+                << " reduction=" << fallback.padding_reduction_twips
+                << " spacing=" << restored.sSpacing << " typography="
+                << SendMessageW(edit, EM_GETTYPOGRAPHYOPTIONS, 0, 0)
+                << " original=" << original_typography << "\n";
+      success = success && fallback.fitted && fallback.all_characters_fit &&
+                fallback.padding_reduction_twips == 0 &&
+                restored.sSpacing == 0 &&
+                SendMessageW(edit, EM_GETTYPOGRAPHYOPTIONS, 0, 0) ==
+                    original_typography;
     }
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -513,6 +566,7 @@ int wmain(int count, wchar_t** arguments) {
     std::cout << "variant=" << variant << " input=" << text.size()
               << " until=" << until << " whiteColumns=" << white_columns
               << " replay=" << replayed << " layoutWidth=" << layout.width
+              << " paddingTwips=" << layout.padding_reduction_twips
               << " scaleX=" << layout.transform.eM11 << "\n";
     success = success && replayed != FALSE;
     if (variant == 0) success = success && until < static_cast<LRESULT>(text.size()) && white_columns > 0;
