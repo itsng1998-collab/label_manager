@@ -11,6 +11,7 @@
 - 증거 보존: `.tmp/log/godex_inverse/v1.3.107_12824_2240312_1`, `2240343_2`, `2240656_1_after_native` EMF/BMP/TXT 및 보기용 `sep12_source.png`. 새 무출력 결과는 `.tmp/inverse_sep12_exact_allergy`/`.tmp/inverse_sep12_exact_nutrition`이다. 임시 판별 코드는 제거했고 로컬 자료/캐시는 삭제하거나 stage하지 않는다.
 - 버전 PATCH **1.3.120 -> 1.3.121**: 저장 형식과 글자 높이를 유지하는 역상 배치 보완. 다음은 새 버전 실물 결과에서 흰 획을 비교하는 단계이며 같은 미변경 코드의 반복 출력은 요구하지 않는다.
 - 최종 diagnostics/`git diff --check` 통과. stage/commit 대상7개: 이 문서, `pubspec.yaml`, 위 native2개, `tools/inverse_rich_edit_probe/main.cpp`, 해당 README, `doc/godex_inverse_resume.md`. 범위 밖 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋 **`afc0201`** (`역상 공백 우선 맞춤으로 글자 가로 축소 방지`) 완료. 커밋 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 
 ## 품목관리 키보드 가로 스크롤 (2026-09-11)
 1. **완료**: 품목관리 표에 포커스가 있을 때 `Shift+왼쪽/오른쪽 방향키`로 가로 스크롤하도록 추가했다.
