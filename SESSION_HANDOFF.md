@@ -8,7 +8,7 @@
 - native `RenderBitmapToPrn`: 소유한 임시 폴더에서 기존PrintBitmap 실행, 구조화된fileCaptured성공일때만 바이트 반환, 파일/폴더 정리. 생성 함수는 물리 제출하지 않는다. `LABEL_MANAGER_DEBUG_PRINT_FILE` 지정 시 기존ok=false 파일전용 완료로 RAW/업무성공 처리 차단. Release에서도 일반 생성 경로 사용 가능하나 Release 빌드는 수행하지 않았다.
 - `C:/Flutter/bin/flutter.bat test --no-pub test/windows_bitmap_printer_test.dart test/label_print_dispatcher_test.dart`15/15PASS(`.tmp/driver_prn_v129_tests.log`). 같은 변경 Dart 두파일 analyze 오류없음. Debug build48.3초PASS/앱실행build37.4초PASS, hot reload/런타임 오류없음 확인. 기존 전송 함수 자체는 변경하지 않았다.
 - 실앱에서 최신 실제 요청을 새native생성함수로만 실행한 `img0006_driver_v129.prn`은 위 승인된 정상배치PRN과 전체SHA256동일/35,933bytes. 임시폴더 잔류없음. 로그 `app_2026-09-12_18-05-02.log`. 자동 연결된 앱 전체를 통한 추가 종이 출력은 하지 않았다. 검증 앱q정상종료. 승인된1매 외 물리 인쇄/프린터 설정/업무 DB 변경 없음.
-- 임시 입력비교/실물전송 테스트 코드는 삭제하고 결과JSON/캡처/PRN/스캔은.tmp에 보존한다. README에 새 제출 경로와 검증 한계 기록. 관련6개파일만 커밋 예정: Dart printer/test, native channel, probe README, pubspec, handoff. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외.
+- 임시 입력비교/실물전송 테스트 코드는 삭제하고 결과JSON/캡처/PRN/스캔은.tmp에 보존한다. README에 새 제출 경로와 검증 한계 기록. 기능 커밋 `d3b682c` 완료: Dart printer/test, native channel, probe README, pubspec, handoff의6개만 포함. 최종 diagnostics/공백검사PASS. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외. 해시 후속 기록은 버전을 다시 올리지 않는다.
 - **남은 확인**: 새 앱의 일반 인쇄에서 `driverTransportVersion=1.3.129`와 실제 배치 확인, 이미 출력한 RAW 종이의 역상 흰 획 상태 확인. 추가 실물 인쇄는 별도 승인 없이 실행하지 않는다.
 
 ## 실제 테스트 요청 파일 재실행 (2026-09-12, 검증 완료/실물 미확인)
