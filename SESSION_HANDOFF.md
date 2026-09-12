@@ -6,7 +6,7 @@
 - 파일 전용 `--driver-file-page`로 `sep12_v125_page.prn` 생성PASS(physicalPrintRequested=false). `inspect_inverse_driver_file.ps1 -Path .tmp/log/godex_inverse/sep12_v125_page.prn -SourcePrefix <각원본prefix>` 두건 모두 whiteLost/whiteGained/mismatches0. Q10,11,76,472/백색패딩1824. PNG에서도 일반문자의 사진상 불균일 굵기는 재현되지 않았다.
 - **판별 한계/블로커**: 이 PRN은 참조EMF를 재생한 파일이며 사용자가 출력한 실제 작업의USB/스풀 캡처가 아니다. 생성·파일재생에서 같은 실물 결함이 재현되지 않아 남은 소프트웨어 원인을 특정하지 못했다. 프린터 결함·열 문제로 확정하지 않으며 추가 글꼴/배경/농도 보정도 하지 않는다. 기존 자료 재제출·동일 역상 재출력을 요구하지 않는다.
 - 이번 단계는 출력 결과 검증/기록만 수행. 생산 출력 변경/앱 실행/물리인쇄/DB/프린터설정 변경 없음. 기록 PATCH1.3.125->1.3.126이며 빌드된 앱은1.3.125 그대로다.1.3.126을 출력 개선 테스트 버전으로 안내하지 않는다. 원본/산출물은.tmp에 보존하고커밋제외.
-- 커밋 예정은 이handoff와pubspec만. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외. 원격push/배포 없음.
+- 검증기록 커밋 `67eb8c5` 완료(handoff/pubspec만). diagnostics/공백검사PASS. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외. 원격push/배포 없음. 이 해시 후속기록은 같은 요청으로 버전증가 없음.
 
 ## IMG0003 셀 폭 재축소 조사 (2026-09-12)
 - **수정/회귀 검증 완료, 실물 미검증**. IMG0003의 앱1.3.124/MM_TEXT 적용은 확인됐으나 일반문자33개 중25개 재축소(nativeTextFitted=25), 역상2개 scaleX1/padding11,4/흰2693/후속손실0. 대응로그 `app_2026-09-12_11-22-37.log`11:32출력.
