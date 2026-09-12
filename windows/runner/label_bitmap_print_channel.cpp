@@ -1943,11 +1943,11 @@ EncodableValue PrintResult(bool ok, const std::string& diagnostics,
   return EncodableValue(result);
 }
 
-EncodableValue PrintBitmap(const EncodableMap& args) {
+EncodableValue PrintBitmap(const EncodableMap& args, bool file_only) {
   const auto debug_file = ReadDebugPrintFileTarget();
-  if (!debug_file.valid) {
+  if (!debug_file.AllowsRequest(file_only)) {
     return PrintResult(false, "debugFileOnly=true physicalPrintSubmitted=false",
-        "LABEL_MANAGER_DEBUG_PRINT_FILE requires a new absolute local .prn path in an existing directory");
+        "File capture requires a Debug build and LABEL_MANAGER_DEBUG_PRINT_FILE with a new absolute local .prn path in an existing directory");
   }
   const auto* printer_name_utf8 = StringArg(args, "printerName");
   const auto* document_name_utf8 = StringArg(args, "documentName");
@@ -2465,7 +2465,8 @@ void RegisterLabelBitmapPrintChannel(flutter::FlutterEngine* engine) {
   channel->SetMethodCallHandler(
       [](const flutter::MethodCall<EncodableValue>& call,
          std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
-        if (call.method_name() != "printBitmap") {
+        const bool file_only = call.method_name() == "replayBitmapToFile";
+        if (call.method_name() != "printBitmap" && !file_only) {
           result->NotImplemented();
           return;
         }
@@ -2474,6 +2475,6 @@ void RegisterLabelBitmapPrintChannel(flutter::FlutterEngine* engine) {
           result->Error("invalid_arguments", "Expected argument map");
           return;
         }
-        result->Success(PrintBitmap(*args));
+        result->Success(PrintBitmap(*args, file_only));
       });
 }

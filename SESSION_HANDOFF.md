@@ -1,5 +1,15 @@
 # 세션 핸드오프
 
+## IMG0005 전체 요청 재현 (2026-09-12, 진단 기능 완료)
+- 사진 `.tmp/IMG_20260912_0005.png`에서 역상 획 소실 지속. 로그 `app_2026-09-12_17-23-42.log`의17:24출력은1.3.126, native36/재축소3/역상scaleX1/흰2693/후속손실0으로 이전과 같다.1.3.126에는 역상 수정이 없었다.
+- `WindowsBitmapPrinter.print`는 Debug 요청 전체(BGRA/문자/테두리/용지/매수)를 StandardMessageCodec으로 `.tmp/log/bitmap_print_requests`에 전송 전 보존한다. 저장 실패는 정상 인쇄 결과를 바꾸지 않는다. `replayDebugRequest`는 저장한 입력을 실제 native `PrintBitmap`에 전달한다. Release 저장 없음, 라벨내용 포함 파일은 로컬 보존/커밋 제외.
+- native `replayBitmapToFile`/`PrintBitmap(args,file_only)`와 `DebugPrintFileTarget::AllowsRequest`: 유효한 Debug 파일 대상이 없으면 프린터 접근/StartDoc 전에 거부한다. 기존 PRN 덮어쓰기와 물리 인쇄 fallback 없음. 파일 완료는ok=false/물리미제출로 업무 이력/자동 증가 경로와 분리한다. 역상 엔진/시트 포맷/RTF 처리 변경 없음.
+- PATCH1.3.126->1.3.127(진단 기능, 역상 품질 수정 아님). `C:/Flutter/bin/flutter.bat test --no-pub test/windows_bitmap_printer_test.dart test/label_print_dispatcher_test.dart`13/13PASS(`.tmp/bitmap_request_v127_tests.log`). 입력보존/중첩서식/바이너리/잘못된포맷/실패처리 포함. 같은 두 Dart 파일 analyze 오류없음. probe Debug build 및 `ctest --test-dir .tmp/inverse_probe_build -C Debug -R inverse_rich_edit_layout --output-on-failure`1/1PASS.
+- `flutter run -d windows --debug --no-pub` Debug build44.8초/앱1.3.127/hot reload/런타임 오류없음PASS. 앱 내부 파일대상 확인 후 합성채널 입력을 저장하고 실제printBitmap/replayBitmapToFile 비교. 일반1/역상1 렌더, 두 PRN SHA256=`CF9437BFDA1E8E82CD4D0921AF32E38C8B134FC6FBE91C22019C57EAAEEED411` 동일. 기존 대상 재실행 거부도 확인. 실제 시트 전체 입력이나 실물 정상의 증거는 아니다.
+- 증거: `.tmp/log/app_2026-09-12_17-31-14.log`, `bitmap_print_requests/v1.3.127_1789201959080230_0.bin`, `godex_inverse/request_v127_baseline.prn` 및 `request_v127_runtime.prn`. 검증 앱q종료/환경변수해제 완료. 물리인쇄/업무DB변경/프린터전역설정변경/배포 없음. 임시 테스트 디렉터리는tearDown으로 정리, 진단 증거는 보존.
+- **블로커/다음**: IMG0005까지의 전체 입력은 없어 소급 재현 불가. 참조EMF 재생과 실제 전체 요청이 다를 수 있다는 가설은 아직 해당 라벨로 검증하지 못했다. 이후 보존된 요청을 파일전용으로 재실행해 드라이버 출력과 비교한다. 기존 정상 레거시 자료 재제출/동일 종이 재출력을 요구하지 않으며 파일 결과로 실물 품질 정상 또는 프린터 결함을 단정하지 않는다.
+- 커밋 예정: windows_bitmap_printer와test, native channel/header, probe main/README, pubspec, 이handoff의8개. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외. 코드/문서 최종 diagnostics 및공백검사 예정. formatter의 편집기 결과가 디스크에 반영되지 않아 수동 전체재포맷/사용자파일 일괄저장은 하지 않았으며 검증된 디스크 내용을 유지했다.
+
 ## IMG0004 출력 확인 (2026-09-12)
 - **v1.3.125 적용 확인, 실물 품질 미해결**. `.tmp/IMG_20260912_0004.png`와 `app_2026-09-12_15-14-55.log`15:15출력: nativeTextFitted25->3, descriptors36, 실패0. 셀폭 변경은 적용됐고 제조원/하단 안내의 두줄 원문도 출력됐다. 일반 글자의 글자별 굵기 차이와 역상 획소실은 사진에 남아 있다.
 - 실제 원본 prefix: `.tmp/log/godex_inverse/v1.3.107_17784_21647859_1`, `21647875_2`, `21648140_1_after_native`. 역상은scaleX1/padding11,4/흰1266+1427=2693/후속손실0. 원본은 보존하고 참조BMP의 PNG `sep12_v125_after_native.png`를 추가했다.

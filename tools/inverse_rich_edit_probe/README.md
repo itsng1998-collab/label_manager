@@ -5,6 +5,32 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 계열과 `--comparison-label` 계열은 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## 실제 앱 요청 보존과 파일 전용 재실행 (v1.3.127)
+
+Debug의 `WindowsBitmapPrinter.print`는 네이티브 전송 전에 전체 요청을
+`.tmp/log/bitmap_print_requests/v1.3.127_*.bin`에 저장한다. BGRA 바이트,
+시트 문자/서식/좌표, 테두리, 용지와 매수는 StandardMessageCodec으로 보존한다.
+이는 실제 스풀이나 USB 캡처가 아니라 앱의 네이티브 채널 입력이다.
+Release에서는 저장하지 않는다. 저장 실패는 진단만 남기고 기존 인쇄 결과를 바꾸지 않는다.
+파일에는 라벨 내용이 포함되므로 로컬에 보존하고 커밋/외부 전송하지 않는다.
+
+재실행할 Debug 앱을 시작하기 전에 `LABEL_MANAGER_DEBUG_PRINT_FILE`을
+존재하지 않는 절대 로컬 PRN 경로로 설정한다. 디렉터리는 미리 존재해야 한다.
+디버거/VM에서 `WindowsBitmapPrinter.replayDebugRequest(File(<보존한 bin 경로>))`를
+호출하면 `replayBitmapToFile` 채널로 실제 `PrintBitmap` 경로를 실행한다.
+네이티브도 Debug 파일 대상이 없거나 잘못됐으면 프린터 접근 전에 거부한다.
+기존 PRN은 덮어쓰지 않으며 Release에서도 재실행을 거부한다.
+성공은 `debugFileCaptured=true physicalPrintSubmitted=false`이며
+업무 인쇄 성공/이력/자동 증가로 처리하지 않는다. 환경변수 설정을 해제한 뒤 일반 앱을 시작한다.
+
+IMG0005(앱1.3.126)까지는 전체 요청이 저장되지 않아 소급 재현할 수 없다.
+이 기능은 역상 품질 수정이 아니며, 참조 EMF 재생과 실제 전체 요청 비교의 공백을 보완한다.
+시트 원본만 사용하고 RTF 변환/조회는 추가하지 않는다.
+
+합성 요청의 Debug 실앱 검사에서 일반/역상 각1개를 렌더한 최초 PRN과 저장 요청
+재실행 PRN의 전체 SHA256이 일치했다. 기존 대상 재실행 거부도 확인했다.
+이는 재실행 기능의 동등성 검사이며 IMG0005 라벨 자체나 실물 품질 검사가 아니다.
+
 ## 시트 일반 문자 장치 좌표 (v1.3.124)
 
 실제 인쇄 원본은 현재 시트다. RTF는 이전 라벨 변환 참고용이며,

@@ -107,18 +107,22 @@ bool VerifyDebugPrintFileTarget(const std::filesystem::path& directory) {
   const auto disabled = ValidateDebugPrintFileTarget(L"");
   const auto accepted = ValidateDebugPrintFileTarget(available.wstring());
   bool valid = !disabled.enabled && disabled.valid && accepted.enabled && accepted.valid;
+    valid = valid && disabled.AllowsRequest(false) && !disabled.AllowsRequest(true) &&
+      accepted.AllowsRequest(false) && accepted.AllowsRequest(true);
   for (const auto& value : {std::wstring(L"relative.prn"),
        std::wstring(L"\\\\server\\share\\capture.prn"),
        (directory / L"missing_parent" / L"capture.prn").wstring(),
        (directory / L"capture.txt").wstring()}) {
     const auto rejected = ValidateDebugPrintFileTarget(value);
-    valid = valid && rejected.enabled && !rejected.valid;
+        valid = valid && rejected.enabled && !rejected.valid &&
+          !rejected.AllowsRequest(false) && !rejected.AllowsRequest(true);
   }
   const auto existing = directory / L"existing_capture.prn";
   std::ofstream(existing).put('x');
   const auto rejected_existing = ValidateDebugPrintFileTarget(
       std::filesystem::absolute(existing).wstring());
-  valid = valid && rejected_existing.enabled && !rejected_existing.valid;
+    valid = valid && rejected_existing.enabled && !rejected_existing.valid &&
+      !rejected_existing.AllowsRequest(true);
   std::filesystem::remove(existing);
   std::cout << "debugPrintFileTarget=" << (valid ? "PASS" : "FAIL") << "\n";
   return valid;

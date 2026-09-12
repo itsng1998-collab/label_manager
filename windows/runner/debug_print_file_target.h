@@ -10,6 +10,10 @@ struct DebugPrintFileTarget {
   bool enabled = false;
   bool valid = true;
   std::filesystem::path path;
+
+  bool AllowsRequest(bool file_only) const {
+    return valid && (!file_only || enabled);
+  }
 };
 
 inline DebugPrintFileTarget ValidateDebugPrintFileTarget(const std::wstring& value) {
