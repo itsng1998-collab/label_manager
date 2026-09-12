@@ -1,5 +1,13 @@
 # 세션 핸드오프
 
+## IMG0004 출력 확인 (2026-09-12)
+- **v1.3.125 적용 확인, 실물 품질 미해결**. `.tmp/IMG_20260912_0004.png`와 `app_2026-09-12_15-14-55.log`15:15출력: nativeTextFitted25->3, descriptors36, 실패0. 셀폭 변경은 적용됐고 제조원/하단 안내의 두줄 원문도 출력됐다. 일반 글자의 글자별 굵기 차이와 역상 획소실은 사진에 남아 있다.
+- 실제 원본 prefix: `.tmp/log/godex_inverse/v1.3.107_17784_21647859_1`, `21647875_2`, `21648140_1_after_native`. 역상은scaleX1/padding11,4/흰1266+1427=2693/후속손실0. 원본은 보존하고 참조BMP의 PNG `sep12_v125_after_native.png`를 추가했다.
+- 파일 전용 `--driver-file-page`로 `sep12_v125_page.prn` 생성PASS(physicalPrintRequested=false). `inspect_inverse_driver_file.ps1 -Path .tmp/log/godex_inverse/sep12_v125_page.prn -SourcePrefix <각원본prefix>` 두건 모두 whiteLost/whiteGained/mismatches0. Q10,11,76,472/백색패딩1824. PNG에서도 일반문자의 사진상 불균일 굵기는 재현되지 않았다.
+- **판별 한계/블로커**: 이 PRN은 참조EMF를 재생한 파일이며 사용자가 출력한 실제 작업의USB/스풀 캡처가 아니다. 생성·파일재생에서 같은 실물 결함이 재현되지 않아 남은 소프트웨어 원인을 특정하지 못했다. 프린터 결함·열 문제로 확정하지 않으며 추가 글꼴/배경/농도 보정도 하지 않는다. 기존 자료 재제출·동일 역상 재출력을 요구하지 않는다.
+- 이번 단계는 출력 결과 검증/기록만 수행. 생산 출력 변경/앱 실행/물리인쇄/DB/프린터설정 변경 없음. 기록 PATCH1.3.125->1.3.126이며 빌드된 앱은1.3.125 그대로다.1.3.126을 출력 개선 테스트 버전으로 안내하지 않는다. 원본/산출물은.tmp에 보존하고커밋제외.
+- 커밋 예정은 이handoff와pubspec만. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart` 제외. 원격push/배포 없음.
+
 ## IMG0003 셀 폭 재축소 조사 (2026-09-12)
 - **수정/회귀 검증 완료, 실물 미검증**. IMG0003의 앱1.3.124/MM_TEXT 적용은 확인됐으나 일반문자33개 중25개 재축소(nativeTextFitted=25), 역상2개 scaleX1/padding11,4/흰2693/후속손실0. 대응로그 `app_2026-09-12_11-22-37.log`11:32출력.
 - `prepareLabelSheetWindowsHybridPrint`: 일반 단일서식 셀은 Flutter 글리프 조각폭 대신 `logicalTextLayoutBounds`의 가로영역과 셀정렬을 전달한다. 줄별Y/높이를 유지하며 역상/인라인 조각은 기존폭/정렬을 유지한다. 저장·RTF·네이티브 역상 엔진 변경 없음.
