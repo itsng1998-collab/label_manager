@@ -1,5 +1,16 @@
 # 세션 핸드오프
 
+## IMG0003 셀 폭 재축소 조사 (2026-09-12)
+- **수정/회귀 검증 완료, 실물 미검증**. IMG0003의 앱1.3.124/MM_TEXT 적용은 확인됐으나 일반문자33개 중25개 재축소(nativeTextFitted=25), 역상2개 scaleX1/padding11,4/흰2693/후속손실0. 대응로그 `app_2026-09-12_11-22-37.log`11:32출력.
+- `prepareLabelSheetWindowsHybridPrint`: 일반 단일서식 셀은 Flutter 글리프 조각폭 대신 `logicalTextLayoutBounds`의 가로영역과 셀정렬을 전달한다. 줄별Y/높이를 유지하며 역상/인라인 조각은 기존폭/정렬을 유지한다. 저장·RTF·네이티브 역상 엔진 변경 없음.
+- 다중행 회귀에서 둘째줄이 첫째줄로 반복되는 결함을 재현했다. 공용 `fortuneLayoutCellText`는 다음 줄 추출 전 CR/LF를 넘기도록 수정. 동일검사 실패->통과, CRLF/빈줄/선두빈줄/자동줄바꿈 원문 보존까지 통과했다.
+- 강제중지 복구 시 잔류 테스트/빌드/앱 프로세스 없음, 이전테스트23/23정상종료 확인. 무한대기 원인은 미확정이며 이번 테스트/앱 실행에서는 재현되지 않았다. 변경파일/증거는 보존했다.
+- 버전PATCH1.3.124->1.3.125. `C:/Flutter/bin/flutter.bat test --no-pub test/label_sheet_print_job_test.dart test/windows_bitmap_printer_test.dart test/label_print_dispatcher_test.dart`34/34PASS. 오른쪽·가운데 정렬/단일서식 셀폭/두줄/역상·인라인 조각 경계를 포함한다. 로그 `.tmp/cell_width_v125_final_tests.log` 및 중간 `.tmp/cell_width_v125_resume_test.log` 보존.
+- `C:/Flutter/bin/flutter.bat analyze --no-pub lib/printing/label_sheet_print_job.dart test/label_sheet_print_job_test.dart third_party/fortune_sheet/lib/src/fortune_print_plan.dart`: 기존 `_unusedDarkBandCheckerboard`/`_unusedFeedLeadWhiteRelief` 미사용 경고2건으로exit1, 새 오류 없음. 로그 `.tmp/cell_width_v125_analyze.log`. 범위 밖 실험함수는 그대로 둔다.
+- `flutter run -d windows --debug --no-pub`의 Debug build48.8초/앱1.3.125실행/hot reloadPASS, 런타임 오류없음. 파일전용 환경변수로 실행했지만 인쇄 호출/PRN생성은 하지 않았다. 로그 `app_2026-09-12_15-06-41.log`, 검증 앱은q로 정상종료/환경변수해제.
+- **남은 검증**: 실제 업무 라벨의 nativeTextFitted25 감소와 실물 일반문자 품질. 이번 회귀는 전달영역 계약을 입증하며 실제 감소량을 입증하지 않는다. 역상 획소실도 미해결이며 같은 역상 재출력을 요구하지 않는다.
+- stage/commit 대상5개: print_job, 해당test, 공용fortune_print_plan, pubspec, 이handoff. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외. 임시로그/사진 보존, 배포/실물인쇄/원격push 없음.
+
 ## 시트 기반 레거시 좌표 적용 (2026-09-12)
 - **일반 문자 장치 좌표 적용/무출력 검증 완료, 실물 품질 미검증**. 실제 출력 원본은 현재 시트만 사용한다. RTF는 이전 라벨 변환 참고용이며 원본RTF 직접 출력/시트->RTF 변환 제안은 철회했다. 편집/저장/변수치환은 유지한다.
 - `native_text_device_layout.h`의 `MapNativeTextToDevice`/`SetNativeTextDeviceCoordinates`: 셀좌표를 기존 배율로 먼저 변환하고 글자높이는 세로배율로 환산한다. `RenderNativeTextToPrinterDc`는 MM_TEXT에서 측정/출력해 페이지 가로배율이 글꼴에 걸리지 않는다. 셀내 맞춤/정렬/줄바꿈/DC복원은 유지한다.

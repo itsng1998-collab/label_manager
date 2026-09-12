@@ -231,7 +231,7 @@ void main() {
     expect(descriptor.fontPixelHeight, greaterThan(0));
     expect(descriptor.bold, isTrue);
     expect(descriptor.colorArgb, 0xff123456);
-    expect(descriptor.horizontalAlign, '1');
+    expect(descriptor.horizontalAlign, '2');
     expect(descriptor.verticalAlign, '1');
     expect(descriptor.wrap, isFalse);
     expect(
@@ -249,6 +249,149 @@ void main() {
     );
     expect(descriptor.toChannelMap()['text'], '원재료');
     expect(descriptor.toChannelMap()['colorArgb'], 0xff123456);
+    final geometry = resolveLabelSheetHybridPrintGeometry(
+      sheet: sheet,
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 80,
+        heightMm: 20,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 80,
+        labelHeightMm: 20,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+    final candidate = fs.fortuneBuildNativeCandidates(
+      settings: const fs.FortuneSettings(),
+      sheet: sheet,
+      range: geometry.range,
+      transform: geometry.transform,
+    ).firstWhere((candidate) => candidate.token == 'text:0:0');
+    final textBounds = geometry.transform.logicalRectToPrinterDots(
+      candidate.logicalTextLayoutBounds!,
+    );
+    expect(descriptor.left, textBounds.left.round());
+    expect(descriptor.right, textBounds.right.round());
+    expect(
+      preparation.descriptors.firstWhere(
+        (value) => value.candidateToken == 'text:0:1',
+      ).horizontalAlign,
+      '1',
+    );
+  });
+
+  test('Windows hybrid separates cell width from styled fragment widths', () {
+    const settings = fs.FortuneSettings();
+    const physicalSize = fs.FortuneSheetGridClientPhysicalSize(
+      widthMm: 80,
+      heightMm: 60,
+    );
+    const metrics = LabelSheetPrintPageMetrics(
+      labelWidthMm: 80,
+      labelHeightMm: 60,
+      dpi: 203.2,
+    );
+    const options = LabelSheetPrintOptions(
+      copies: 1,
+      leftMarginMm: 0,
+      topMarginMm: 0,
+      extraAreaMm: 0,
+      autoSpacingPercent: null,
+      orientation: LabelSheetPrintOrientation.horizontal,
+    );
+    final sheet = fs.FortuneSheet(
+      id: 'width-contract',
+      name: 'Sheet',
+      defaultColWidth: 180,
+      defaultRowHeight: 50,
+      cells: {
+        const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
+          value: '첫째\n둘째',
+          fontSize: 10,
+          horizontalAlign: '0',
+          textWrap: '2',
+        ),
+        const fs.FortuneCellCoord(1, 0): const fs.FortuneCell(
+          value: '역상',
+          fontSize: 10,
+          foreground: ui.Color(0xffffffff),
+          background: ui.Color(0xff000000),
+          horizontalAlign: '2',
+        ),
+        const fs.FortuneCellCoord(2, 0): const fs.FortuneCell(
+          fontSize: 10,
+          horizontalAlign: '0',
+          inlineRuns: [
+            fs.FortuneInlineTextRun(text: '일반'),
+            fs.FortuneInlineTextRun(text: '굵게', bold: true),
+          ],
+        ),
+      },
+    );
+    final geometry = resolveLabelSheetHybridPrintGeometry(
+      sheet: sheet,
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
+      options: options,
+    );
+    final candidates = fs.fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: sheet,
+      range: geometry.range,
+      transform: geometry.transform,
+    );
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: sheet,
+      settings: settings,
+      physicalSize: physicalSize,
+      metrics: metrics,
+      options: options,
+      lineSpacingPercent: null,
+    );
+    final plain = preparation.descriptors
+        .where((value) => value.candidateToken == 'text:0:0')
+        .toList();
+    expect(plain.map((value) => value.text), ['첫째', '둘째']);
+    expect(plain[1].top, greaterThanOrEqualTo(plain[0].bottom));
+    final plainBounds = geometry.transform.logicalRectToPrinterDots(
+      candidates.firstWhere((value) => value.token == 'text:0:0')
+          .logicalTextLayoutBounds!,
+    );
+    for (final descriptor in plain) {
+      expect(descriptor.left, plainBounds.left.round());
+      expect(descriptor.right, plainBounds.right.round());
+      expect(descriptor.horizontalAlign, '0');
+      expect(descriptor.verticalAlign, '1');
+      expect(descriptor.wrap, isFalse);
+    }
+    for (final token in ['text:1:0', 'text:2:0']) {
+      final bounds = geometry.transform.logicalRectToPrinterDots(
+        candidates.firstWhere((value) => value.token == token)
+            .logicalTextLayoutBounds!,
+      );
+      final fragments = preparation.descriptors
+          .where((value) => value.candidateToken == token).toList();
+      expect(fragments, hasLength(token == 'text:1:0' ? 1 : 2));
+      for (final fragment in fragments) {
+        expect(fragment.horizontalAlign, '1');
+        expect(fragment.right - fragment.left, lessThan(bounds.width / 2));
+        expect(fragment.left, greaterThanOrEqualTo(bounds.left.floor()));
+        expect(fragment.right, lessThanOrEqualTo(bounds.right.ceil()));
+      }
+      if (fragments.length == 2) {
+        expect(fragments[0].right, lessThanOrEqualTo(fragments[1].left));
+      }
+    }
   });
 
   test('Windows hybrid applies forced line spacing to native text layout', () {
@@ -286,6 +429,29 @@ void main() {
       preparation.plan.approvedCellTextCoords,
       {const fs.FortuneCellCoord(0, 0)},
     );
+  });
+
+  test('native line layout preserves hard breaks and soft wrap text', () {
+    for (final text in ['AA\nBB', 'AA\r\nBB', 'AA\n\nBB', '\nAA\nBB']) {
+      final layout = fs.fortuneLayoutCellText(
+        settings: const fs.FortuneSettings(),
+        cell: fs.FortuneCell(value: text, fontSize: 10, textWrap: '2'),
+        logicalBounds: const ui.Rect.fromLTWH(0, 0, 100, 100),
+      )!;
+      expect(layout.lines.map((line) => line.text), ['AA', 'BB'], reason: text);
+      expect(layout.lines.last.textStart, text.indexOf('BB'));
+      if (text.contains('\n\n')) {
+        expect(layout.lines.last.logicalTop - layout.lines.first.logicalTop,
+            greaterThanOrEqualTo(layout.lines.first.logicalHeight * 2));
+      }
+    }
+    final wrapped = fs.fortuneLayoutCellText(
+      settings: const fs.FortuneSettings(),
+      cell: const fs.FortuneCell(value: 'AABBCCDD', fontSize: 10, textWrap: '2'),
+      logicalBounds: const ui.Rect.fromLTWH(0, 0, 25, 100),
+    )!;
+    expect(wrapped.lines.length, greaterThan(1));
+    expect(wrapped.lines.map((line) => line.text).join(), 'AABBCCDD');
   });
 
   test('Windows hybrid moves all cell borders to one device mask', () {

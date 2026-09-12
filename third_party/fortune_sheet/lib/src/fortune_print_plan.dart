@@ -146,6 +146,14 @@ FortuneNativeCellTextLayout? fortuneLayoutCellText({
       );
     }
     offset = math.max(offset + 1, boundary.end);
+    if (offset < cell.renderedText.length &&
+        cell.renderedText.codeUnitAt(offset) == 0x0d) {
+      offset += 1;
+    }
+    if (offset < cell.renderedText.length &&
+        cell.renderedText.codeUnitAt(offset) == 0x0a) {
+      offset += 1;
+    }
   }
   if (lines.isEmpty) return null;
   return FortuneNativeCellTextLayout(

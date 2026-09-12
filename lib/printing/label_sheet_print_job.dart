@@ -782,12 +782,18 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
       if (layout == null || layout.painter.didExceedMaxLines) continue;
       final fragments = _labelSheetTextFragments(cell, layout, settings);
       if (fragments.isEmpty) continue;
+      final useCellTextWidth =
+          (cell.inlineRuns == null || cell.inlineRuns!.isEmpty) &&
+          cell.foreground.toARGB32() != 0xffffffff;
+        final textBounds =
+          candidate.logicalTextLayoutBounds ??
+          candidate.logicalPaintedFootprint;
       for (final fragment in fragments) {
         final target = geometry.transform.logicalRectToPrinterDots(
           ui.Rect.fromLTWH(
-            fragment.logicalLeft,
+            useCellTextWidth ? textBounds.left : fragment.logicalLeft,
             fragment.logicalTop,
-            fragment.logicalWidth,
+            useCellTextWidth ? textBounds.width : fragment.logicalWidth,
             fragment.logicalHeight,
           ),
         );
@@ -815,7 +821,8 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
             underline: fragment.underline,
             strikeThrough: fragment.strikeThrough,
             colorArgb: fragment.colorArgb,
-            horizontalAlign: '1',
+            horizontalAlign:
+                useCellTextWidth ? cell.normalizedHorizontalAlign : '1',
             verticalAlign: '1',
             wrap: false,
             predictedPaintedFootprint: candidate.printerPaintedFootprint,
