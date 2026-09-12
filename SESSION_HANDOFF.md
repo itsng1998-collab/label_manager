@@ -9,7 +9,7 @@
 - 산출물 `.tmp/log/godex_inverse/inverse_paths_swapped*`, `inverse_display_band.prn`, `inverse_v123_checked_*`, `inverse_v123_display_result.prn`과 기존 증거는 로컬 보존/커밋 제외. 원본삭제/외부전송/DB/프린터 설정/실물 인쇄/앱 재실행 없음. 마지막 앱은1.3.121이며 종료 상태다.
 - 진단README/doc의 재제출·실물대기 지시를 철회했다. pubspec PATCH1.3.122 ->1.3.123(진단/문서 변경). 비교 파일 형식1.3.122와 실행로그 probeVersion1.3.123을 구분한다. 생산 출력 코드는 변경하지 않았다.
 - 남은 경계: 생성/파일변환에서 보존된 한글 획과 실물 소실의 차이. 사진상 레거시는 문구 주변 국소 검정, 현재는 전체 행 검정이나 이것을 원인으로 확정하거나 레이아웃/열 설정을 임의 변경하지 않는다. 효과를 입증할 생산 수정은 아직 특정하지 못했다.
-- stage/commit 예정: probe header/main/README, doc/godex_inverse_resume.md, pubspec.yaml, 이handoff의6개 파일. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다. 원격push 없음.
+- 기능 커밋 **`9286d05`** (`역상 동일 좌표 및 레거시 후속 호출 비교 검증`) 완료: probe header/main/README, doc/godex_inverse_resume.md, pubspec.yaml, 이handoff의6개 파일만 포함했다. 기존 사용자 `.vscode/settings.json`, `lib/core/app.dart`는 제외했다. 원격push 없음. 이 해시 기록은 같은 요청의 후속 문서 커밋이며 추가 버전 증가는 없다.
 
 ## 역상 두 번째 재테스트 (2026-09-12)
 - **진단 준비 완료, 실물 문제 미해결**: `.tmp/IMG_20260912_0002.png`에서도 획 소실 지속. 앱1.3.121 실제 출력의 두 TXT는 padding11/4twip, scaleX1/width585/17dot이며 이전 수정 미적용이 아니다. 공백 맞춤만으로 실물 문제를 해결하지 못했다.
