@@ -12,6 +12,7 @@
 - DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
 - 버전은 호환 가능한 탭 정책 버그 수정이므로 PATCH 단계로 `1.4.0`에서 `1.4.1`로 갱신했다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기능 커밋: `cf53e0c` (`품목 편집 중 독립 탭 진입 허용`).
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
 
 ## 현재 작업: 품목관리 엑셀 행 다중 셀 붙여넣기
