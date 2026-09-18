@@ -80,6 +80,15 @@ void main() {
       expect(column.columnType.code, TColumnType.TYPE_BASE);
     });
 
+    test('SQL BIT false를 라벨 항목 숨김으로 복원한다', () {
+      expect(columnBoolValue(false), isFalse);
+      expect(columnBoolValue(true), isTrue);
+      expect(columnBoolValue(0), isFalse);
+      expect(columnBoolValue(1), isTrue);
+      expect(columnBoolValue('0'), isFalse);
+      expect(columnBoolValue('1'), isTrue);
+    });
+
     test('keeps column DAO sql and where/order constants', () {
       expect(TColumnDAO.selectSql, contains('BM_RICH_CHECK_COLUMNS'));
       expect(TColumnDAO.selectSql, contains('BM_RICH_COL_MIN'));

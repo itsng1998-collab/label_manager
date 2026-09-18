@@ -9,6 +9,13 @@ import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+bool columnBoolValue(Object? value) => switch (value) {
+  final bool flag => flag,
+  final num number => number != 0,
+  final String text => text == '1' || text.toLowerCase() == 'true',
+  _ => false,
+};
+
 TColumn tColumnFromRow(Map<String, dynamic> row) {
   String s(String key) => (row[key] ?? '').toString();
   dynamic v(String key) => row[key];
@@ -20,16 +27,16 @@ TColumn tColumnFromRow(Map<String, dynamic> row) {
     width: v('RICH_WIDTH'),
     height: v('RICH_HEIGHT'),
     barcodeType: _barcodeTypeFromDb(s('RICH_BARCODE_TYPE')),
-    useBarcodeCheckDigit: v('RICH_USE_BARCODE_CHECKDIGIT') != 0,
-    showBarcodeNum: v('RICH_SHOW_BARCODE_NUM') != 0,
-    showQRCodeText: v('RICH_SHOW_QRCODE_TEXT') != 0,
+    useBarcodeCheckDigit: columnBoolValue(v('RICH_USE_BARCODE_CHECKDIGIT')),
+    showBarcodeNum: columnBoolValue(v('RICH_SHOW_BARCODE_NUM')),
+    showQRCodeText: columnBoolValue(v('RICH_SHOW_QRCODE_TEXT')),
     qrTextAlignment: _qrTextAlignmentFromCode(v('RICH_QRTEXT_ALIGNMENT')),
-    useUserDefineQRData: v('RICH_USE_USER_DEFINE_QRDATA') != 0,
+    useUserDefineQRData: columnBoolValue(v('RICH_USE_USER_DEFINE_QRDATA')),
     userDefineQRData: s('RICH_USER_DEFINE_QRDATA'),
     userDefineQRText: s('RICH_USER_DEFINE_QRTEXT'),
     pixelSize: v('RICH_PIXELSIZE'),
     title: s('RICH_TITLE'),
-    visible: v('RICH_VISIBLE') != 0,
+    visible: columnBoolValue(v('RICH_VISIBLE')),
     qrCodeCreateType: _qrCodeCreateTypeFromCode(v('RICH_QRCODE_CREATE_TYPE')),
     natriumJoinString: s('RICH_NATRIUM_JOIN_STRING'),
     qrTextFontSize: v('RICH_QRTEXT_FONTSIZE'),
@@ -38,27 +45,27 @@ TColumn tColumnFromRow(Map<String, dynamic> row) {
     columnType: TColumnType.getFromCode(v('RICH_TYPE')),
     keyword: s('RICH_KEYWORD'),
     columnName: s('RICH_COLUMN_NAME'),
-    useMissingKeywordCheck: v('RICH_CHECK_YN') != 0,
-    useMinColumnCheck: v('RICH_MIN_CHECK') != 0,
+    useMissingKeywordCheck: columnBoolValue(v('RICH_CHECK_YN')),
+    useMinColumnCheck: columnBoolValue(v('RICH_MIN_CHECK')),
     timeBarcodeType: v('RICH_TIMEBARCODE_TYPE'),
-    autoInc: v('RICH_AUTO_INC') != 0,
+    autoInc: columnBoolValue(v('RICH_AUTO_INC')),
     autoIncSize: v('RICH_AUTO_INC_SIZE'),
     autoIncRange: v('RICH_AUTO_INC_RANGE'),
-    autoIncSave: v('RICH_AUTO_INC_SAVE') != 0,
-    autoIncZeroDel: v('RICH_AUTO_INC_ZERODEL') != 0,
-    searchPrint: v('RICH_SEARCH_PRINT') != 0,
+    autoIncSave: columnBoolValue(v('RICH_AUTO_INC_SAVE')),
+    autoIncZeroDel: columnBoolValue(v('RICH_AUTO_INC_ZERODEL')),
+    searchPrint: columnBoolValue(v('RICH_SEARCH_PRINT')),
     userDefineBarcodeText: s('RICH_USER_DEFINE_BARCODE_TEXT'),
     lineCheck: v('RICH_BARCODE_LINE'),
     lineSize: v('RICH_BARCODE_LINE_SIZE'),
     rotate: v('RICH_BARCODE_ROTATE'),
-    autoIncUpdate: v('RICH_AUTO_INC_UPDATE') != 0,
-    useDateRange: v('RICH_USE_DATERANGE') != 0,
+    autoIncUpdate: columnBoolValue(v('RICH_AUTO_INC_UPDATE')),
+    useDateRange: columnBoolValue(v('RICH_USE_DATERANGE')),
     dateRange: s('RICH_DATERANGE'),
     gs1ai: s('COLUMN_GS1_CODE'),
     formatOption: v('COLUMN_GS1_FORMAT_OPTION'),
-    useGS1Code: v('USE_GS1_CODE') != 0,
+    useGS1Code: columnBoolValue(v('USE_GS1_CODE')),
     containColumns: s('CONTAIN_COLUMNS_ID'),
-    showGS1Code: v('COLUMN_SHOW_GS1CODE') != 0,
+    showGS1Code: columnBoolValue(v('COLUMN_SHOW_GS1CODE')),
   );
 }
 

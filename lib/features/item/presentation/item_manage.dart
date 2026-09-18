@@ -17,6 +17,15 @@ import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/features/item/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+@visibleForTesting
+List<TColumn> itemManagerColumnsForUser({
+  required Iterable<TColumn> columns,
+  required bool canEdit,
+}) => [
+  for (final column in columns)
+    if (canEdit || column.visible) column,
+];
+
 class ItemManageController {
   Object? _owner;
   TableSearchResult Function(String query)? _search;
@@ -1520,7 +1529,10 @@ class _ItemManageState extends State<ItemManage> {
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final publishSelectionEnabled =
       !widget.commandBusy && widget.draftController?.isDirty != true;
-    final extras = List<TColumn>.from(TColumn.datas ?? const <TColumn>[]);
+    final extras = itemManagerColumnsForUser(
+      columns: TColumn.datas ?? const <TColumn>[],
+      canEdit: widget.canEdit,
+    );
     final elementColumn = _elementColumn;
     final extraColumns = extras
         .map(

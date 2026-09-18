@@ -1,5 +1,21 @@
 # SESSION HANDOFF
 
+## 현재 작업: 일반 사용자 라벨 항목 표시 적용
+- **완료**: 항목편집에서 제조일자만 `표시`로 저장했지만 일반 사용자 품목관리에 숨김 바코드까지 나타나는 1.3.120 증상을 수정했다.
+- 원인 확인 1: Windows ODBC SQL BIT `false`를 `RICH_VISIBLE != 0`으로 판정해 숨김값을 true로 복원한다.
+- 원인 확인 2: 품목관리 동적 열 구성은 `TColumn.datas` 전체를 사용하며 `visible`을 적용하지 않는다.
+- 구현 방향: 라벨 항목의 SQL BIT 필드를 bool/num/string으로 명시 변환하고, 일반 사용자는 `visible=true` 동적 열만 표시한다. 관리자는 항목 편집을 위해 전체 열을 유지한다.
+- [`test/column_mapping_test.dart`](test/column_mapping_test.dart) 테스트 추가: SQL BIT bool과 숫자/문자열 0·1 변환을 검증한다.
+- [`test/item_manage_horizontal_scroll_test.dart`](test/item_manage_horizontal_scroll_test.dart) 테스트 추가: 일반 사용자는 표시 열만, 관리자는 표시 여부와 무관하게 전체 열을 사용하는 정책을 검증한다.
+- [`lib/features/label_column/data/column_dao.dart`](lib/features/label_column/data/column_dao.dart) 편집 완료: `columnBoolValue`로 라벨 항목의 모든 SQL BIT 필드를 bool/num/string에서 정확히 복원한다.
+- [`lib/features/item/presentation/item_manage.dart`](lib/features/item/presentation/item_manage.dart) 편집 완료: `itemManagerColumnsForUser`를 동적 열 구성에 적용해 일반 사용자는 `visible=true` 열만, 관리자는 전체 열을 사용한다.
+- focused 검증 완료: SQL BIT 숨김 복원 **1/1**, 일반 사용자 표시 열 정책 **1/1** 통과.
+- 버전은 호환 가능한 항목 표시 버그 수정이므로 PATCH 단계로 `1.4.3`에서 `1.4.4`로 갱신했다.
+- 전체 검증 완료: `test/column_mapping_test.dart`, `test/item_manage_horizontal_scroll_test.dart` **6/6 통과**, focused analyze **No issues found**.
+- formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- stage/commit 대상: `lib/features/label_column/data/column_dao.dart`, `lib/features/item/presentation/item_manage.dart`, `test/column_mapping_test.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
 - 원인 확인: 120×120px QR 객체에도 선형 바코드용 기본 막대 높이 10mm(약 38px)를 본체 높이로 적용하고, module scale은 인코딩 폭에만 적용한다. 배율 1은 120×38, 배율 3은 40×38 소스를 120×38로 리사이즈해 상단 쏠림과 비대칭 왜곡이 발생한다.
@@ -104,7 +120,7 @@
 3. 인쇄이거나 DB 변경이 필요한 재현은 사용자 승인 없이 실행하지 않는다.
 
 ## 현재 기준
-- 현재 버전은 **1.4.3**이며 공용라벨 QR 삽입 시 2D module scale을 양 축에 동일 적용해 지정 정사각 영역을 채운다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
+- 현재 버전은 **1.4.4**이며 일반 사용자 품목관리는 항목편집에서 `표시`로 저장한 라벨 항목만 동적 열로 보여준다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
 - 정리 전 HEAD는 `3e188cd`, GoDEX 전송 변경 기능 커밋은 `d3b682c`, 새 세션용 정리 커밋은 `0c79b52`다. 이 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 원복하거나 함께 stage/commit하지 않는다.
 - 실행 중인 `label_manager`/`flutter` 프로세스는 없다. Windows 배포파일과 설치파일은 만들지 않았다.

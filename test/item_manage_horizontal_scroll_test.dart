@@ -14,6 +14,26 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 void main() {
+  test('일반 사용자는 표시 항목만 품목관리 열로 사용한다', () {
+    final visible = _column(id: 1, name: '제조일자');
+    final hidden = _column(id: 2, name: '바코드', visible: false);
+
+    expect(
+      itemManagerColumnsForUser(
+        columns: [visible, hidden],
+        canEdit: false,
+      ).map((column) => column.columnId),
+      [1],
+    );
+    expect(
+      itemManagerColumnsForUser(
+        columns: [visible, hidden],
+        canEdit: true,
+      ).map((column) => column.columnId),
+      [1, 2],
+    );
+  });
+
   testWidgets('Enter 편집 후 품목관리 가로 스크롤을 유지한다', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 600);
@@ -184,7 +204,7 @@ ItemOfMarket _item() {
   );
 }
 
-TColumn _column({required int id, required String name}) => TColumn(
+TColumn _column({required int id, required String name, bool visible = true}) => TColumn(
   columnId: id,
   labelSizeId: 20,
   order: id,
@@ -200,7 +220,7 @@ TColumn _column({required int id, required String name}) => TColumn(
   userDefineQRText: '',
   pixelSize: 0,
   title: '',
-  visible: true,
+  visible: visible,
   qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
   natriumJoinString: '',
   qrTextFontSize: 0,
