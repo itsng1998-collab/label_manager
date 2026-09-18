@@ -14,6 +14,7 @@
 - 전체 검증 완료: `test/column_mapping_test.dart`, `test/item_manage_horizontal_scroll_test.dart` **6/6 통과**, focused analyze **No issues found**.
 - formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
 - stage/commit 대상: `lib/features/label_column/data/column_dao.dart`, `lib/features/item/presentation/item_manage.dart`, `test/column_mapping_test.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기능 커밋: `d3ca08d` (`일반 사용자 라벨 항목 표시 적용`).
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
 
 ## 현재 작업: QR 배율 비례 왜곡 수정
