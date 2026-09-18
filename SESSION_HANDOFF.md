@@ -13,6 +13,7 @@
 - 전체 검증 완료: `test/label_sheet_toolbar_test.dart` **202/203 통과**. 남은 `item element RTF conversion decodes Korean ANSI hex` 1건은 실행 환경의 기존 한글 ANSI 기대 문자열 차이이며 QR 경로와 무관하다. focused analyze **No issues found**.
 - formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
 - stage/commit 대상: `lib/features/label_sheet/application/label_sheet_barcode_renderer.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기능 커밋: `c604c0f` (`QR 배율 비례 왜곡 수정`).
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
 
 ## 현재 작업: 라벨 전환 후 병합 복사 유지
