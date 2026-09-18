@@ -9,7 +9,7 @@
 - 검증 완료: `test/label_column_save_test.dart` **16/16 통과**, focused analyze **No issues found**(7.5초), formatter와 diagnostics 통과.
 - VS Code DTD는 연결돼 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
 - 기존 DB의 `RICH_EDITABLE=0`은 사용자가 명시한 불가 설정과 구분할 메타데이터가 없어 자동 변경하지 않는다. DB 마이그레이션 없이 이후 신규 키워드 콘텐츠의 기본 생성값만 바로잡는다.
-- stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `beb4721` (`추가 키워드 클라이언트 편집을 기본 허용`).
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
 
 ## 현재 작업: 품목관리 편집 후 가로 스크롤 소실
@@ -30,7 +30,7 @@
 3. 인쇄이거나 DB 변경이 필요한 재현은 사용자 승인 없이 실행하지 않는다.
 
 ## 현재 기준
-- 현재 버전은 **1.3.131**이며 품목관리 가로 스크롤 표시를 수정했다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
+- 현재 버전은 **1.3.132**이며 신규 추가 키워드의 클라이언트 편집 기본값을 허용으로 수정했다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
 - 정리 전 HEAD는 `3e188cd`, GoDEX 전송 변경 기능 커밋은 `d3b682c`, 새 세션용 정리 커밋은 `0c79b52`다. 이 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 원복하거나 함께 stage/commit하지 않는다.
 - 실행 중인 `label_manager`/`flutter` 프로세스는 없다. Windows 배포파일과 설치파일은 만들지 않았다.
