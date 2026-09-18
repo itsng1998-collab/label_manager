@@ -87,6 +87,7 @@ void main() {
         );
 
     expect(horizontalScrollbar().thumbVisibility, isTrue);
+    expect(horizontalScrollbar().trackVisibility, isTrue);
     await tester.tap(find.text('365'));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('365'));
@@ -110,6 +111,10 @@ void main() {
       greaterThan(scrollController.horizontalViewportWidth),
     );
     expect(scrollController.horizontalMaxScrollExtent, greaterThan(0));
+    expect(horizontalScrollbar().trackVisibility, isTrue);
+    await tester.pump(const Duration(seconds: 5));
+    expect(horizontalScrollbar().thumbVisibility, isTrue);
+    expect(horizontalScrollbar().trackVisibility, isTrue);
 
     expect(scrollController.horizontalOffset, 0);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);

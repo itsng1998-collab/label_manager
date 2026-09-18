@@ -1,5 +1,17 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목관리 편집 후 가로 스크롤 소실
+- **완료**: 1.3.120 로그에서 소비기한 `365`를 `360`으로 Enter 확정한 뒤 가로 스크롤이 사라진 증상을 수정했다.
+- 로그상 편집 전 `overflow=true`, `contentWidth=2023.6`, `viewportWidth=1849.7`이며 편집 후 overflow 변경 로그는 없다. 실제 thumb 페인트 소실 여부를 검증하는 focused widget test를 보강 중이다.
+- 편집 완료: 공용 `FortuneTable`은 가로 overflow 동안 `RawScrollbar.thumbVisibility`와 `trackVisibility`를 함께 유지한다. 회귀 테스트는 Enter 편집 직후와 5초 뒤에도 두 표시 속성, overflow, 실제 좌우 이동을 확인한다.
+- 버전은 호환 가능한 국소 UI 버그 수정이므로 PATCH 단계로 `1.3.130`에서 `1.3.131`로 갱신했다.
+- focused 검증 완료: `test/item_manage_horizontal_scroll_test.dart` **1/1 통과**. 편집 직후와 5초 뒤의 thumb/track 표시, overflow, 좌우 이동을 확인했다.
+- 변경 Dart 파일 formatter와 diagnostics를 통과했다. VS Code DTD에는 연결했으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
+- 추가 검증 완료: `C:/Flutter/bin/flutter.bat test --no-pub --reporter expanded test/item_manage_horizontal_scroll_test.dart test/fortune_table_test.dart` **75/75 통과**(13.5초).
+- 임시 테스트 로그는 `.tmp/copilot/item_scroll_tests.log`에만 생성했으며 Git에 포함하지 않는다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 새 세션 시작 순서
 1. 사용자가 새로 제시하는 디버깅 증상을 먼저 조사한다. 증상이 제시되기 전에는 과거 문제를 현재 문제로 가정하지 않는다.
 2. 새 디버깅을 마친 뒤 GoDEX G500 역상 흰 획 소실 문제를 재개한다.

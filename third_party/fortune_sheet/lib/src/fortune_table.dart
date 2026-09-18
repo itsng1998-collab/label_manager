@@ -719,6 +719,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                               child: RawScrollbar(
                                 controller: _hScrollBody,
                                 thumbVisibility: hasHorizontalOverflow,
+                                trackVisibility: hasHorizontalOverflow,
                                 thickness:
                                     fortuneTableHorizontalScrollbarThickness,
                                 radius: Radius.zero,
