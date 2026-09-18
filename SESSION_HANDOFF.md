@@ -17,6 +17,16 @@
 - 기능 커밋: `d3ca08d` (`일반 사용자 라벨 항목 표시 적용`).
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
 
+## 현재 작업: 공용라벨 Ctrl+Z 후 저장 불가
+- **완료**: 1.3.120에서 12행을 14·15행에 붙여넣고 15행 붙여넣기를 Ctrl+Z로 취소한 뒤 저장 버튼이 반응하지 않는 증상을 현재 1.4.4 기준으로 검증했다.
+- 로그상 첫 저장 callback은 약 51초 뒤 시작해 필수 누락 경고 후 DB 저장까지 완료되며, `SPRICE`는 누락 목록에 없다. 특별항목 필수 해제는 workbench를 다시 dirty로 표시하므로 저장 버튼 활성화 증상과 일치한다.
+- 조사 결과 FortuneSheet undo는 workbook `onChange`를 통지하고, `clearSheet` op는 명시적 전체 지우기에서만 생성된다.
+- [`test/label_sheet_toolbar_test.dart`](test/label_sheet_toolbar_test.dart) 테스트 추가: 14·15행 범위 변경 후 실제 Ctrl+Z 키 이벤트를 보냈을 때 저장 항목이 활성 상태이고, 저장 payload에는 14행만 남으며 15행은 제거되는지 검증한다.
+- focused 회귀 테스트 **1/1 통과**. 1.3.120 이후 dirty/save 및 command-state 변경이 반영된 현재 코드에서는 증상이 재현되지 않아 production 로직은 추가 변경하지 않는다.
+- 최종 검증 완료: Ctrl+Z 저장 focused 테스트 **1/1 통과**, `flutter analyze test/label_sheet_toolbar_test.dart` **No issues found**.
+- formatter와 `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- stage/commit 대상: `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
 - 원인 확인: 120×120px QR 객체에도 선형 바코드용 기본 막대 높이 10mm(약 38px)를 본체 높이로 적용하고, module scale은 인코딩 폭에만 적용한다. 배율 1은 120×38, 배율 3은 40×38 소스를 120×38로 리사이즈해 상단 쏠림과 비대칭 왜곡이 발생한다.

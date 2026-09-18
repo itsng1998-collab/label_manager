@@ -4565,8 +4565,8 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: SizedBox(
-          width: 400,
-          height: 300,
+          width: 640,
+          height: 700,
           child: LabelSheetWorkbench(
             initialWorkbook: FortuneWorkbook(
               sheets: [
@@ -4639,6 +4639,80 @@ void main() {
       (item) => item.key == labelSheetSaveToolbarCommand,
     );
     expect(saveItem.disabled, isTrue);
+  });
+
+  testWidgets('label sheet save remains available after undoing latest paste', (
+    tester,
+  ) async {
+    String? savedPayload;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 400,
+          height: 300,
+          child: LabelSheetWorkbench(
+            initialWorkbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 's1', name: 'Label')],
+            ),
+            onSave: (_, _, payload) {
+              savedPayload = payload;
+              return LabelSheetSaveResult.applied;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    sheetApp.controller!.setCellValuesByRange(
+      const [
+        ['#PURCHASE', '구매처'],
+      ],
+      const FortuneRange(
+        rowStart: 13,
+        rowEnd: 13,
+        columnStart: 0,
+        columnEnd: 1,
+      ),
+    );
+    await tester.pump();
+    sheetApp.controller!.setCellValuesByRange(
+      const [
+        ['#PURCHASE', '구매처'],
+      ],
+      const FortuneRange(
+        rowStart: 14,
+        rowEnd: 14,
+        columnStart: 0,
+        columnEnd: 1,
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    expect(saveItem.disabled, isFalse);
+    saveItem.onClick!(saveItem);
+    await tester.pump();
+    await tester.pump();
+
+    expect(savedPayload, isNotNull);
+    final savedSheet = labelSheetDecodeWorkbookSave(savedPayload!).activeSheet;
+    expect(
+      savedSheet.cells[const FortuneCellCoord(13, 0)]?.value,
+      '#PURCHASE',
+    );
+    expect(savedSheet.cells[const FortuneCellCoord(14, 0)], isNull);
   });
 
   testWidgets('filtered user workbook op does not mark sheet dirty', (
