@@ -530,14 +530,14 @@ void main() {
     expect(find.byTooltip('라벨 설정'), findsNothing);
   });
 
-  test('home tab clicks are blocked only for active dirty edit tabs', () {
+  test('home tab clicks delegate item targets and block auto update edits', () {
     expect(
       debugHomeTabTapBlockedForTesting(
         currentTabValue: 'items',
         itemDraftContextChangeBlocked: true,
         autoItemUpdateContextChangeBlocked: false,
       ),
-      isTrue,
+      isFalse,
     );
     expect(
       debugHomeTabTapBlockedForTesting(
@@ -3892,6 +3892,41 @@ void main() {
 
     expect(format.label, 'Micro QR Code');
     expect(format.ratio, 1.0);
+  });
+
+  test('QR module scale preserves square render geometry', () {
+    FortuneBarcodeRequest request(double moduleScale) => FortuneBarcodeRequest(
+      text: 'TEST',
+      formatId: 'qrCode',
+      width: 120,
+      height: 120,
+      rotation: 0,
+      moduleScale: moduleScale,
+      barHeight: 38,
+    );
+
+    expect(labelSheetBarcodeOutputSize(request(1)), (width: 120, height: 120));
+    expect(labelSheetBarcodeEncodeWidth(request(1)), 120);
+    expect(labelSheetBarcodeEncodeHeight(request(1)), 120);
+    expect(labelSheetBarcodeOutputSize(request(3)), (width: 120, height: 120));
+    expect(labelSheetBarcodeEncodeWidth(request(3)), 40);
+    expect(labelSheetBarcodeEncodeHeight(request(3)), 40);
+  });
+
+  test('linear barcode keeps its configured bar height', () {
+    const request = FortuneBarcodeRequest(
+      text: '1234567890',
+      formatId: 'code128',
+      width: 120,
+      height: 120,
+      rotation: 0,
+      moduleScale: 3,
+      barHeight: 38,
+    );
+
+    expect(labelSheetBarcodeOutputSize(request), (width: 120, height: 120));
+    expect(labelSheetBarcodeEncodeWidth(request), 120);
+    expect(labelSheetBarcodeEncodeHeight(request), 38);
   });
 
   testWidgets('label image import context menu only appears on sheet corner', (

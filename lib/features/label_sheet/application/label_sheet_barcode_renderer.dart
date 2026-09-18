@@ -64,20 +64,21 @@ Future<FortuneBarcodeRenderResult?> labelSheetBarcodeRenderer(
   final bodyHeight = geometry.bodyHeight;
   final drawableWidth = geometry.drawableWidth;
   final sourceWidth = labelSheetBarcodeEncodeWidth(request);
+  final sourceHeight = labelSheetBarcodeEncodeHeight(request);
   fortuneSheetDebugLog(
     'label barcode render requestFormat=${request.formatId} '
     'zxingFormat=${format.name} width=${request.width} height=${request.height} '
     'barHeight=${request.barHeight} moduleScale=${request.moduleScale} '
     'textFont=${request.humanReadableFontFamily}/${request.humanReadableFontSize} '
     'output=$width x $height bodyHeight=$bodyHeight '
-    'sourceWidth=$sourceWidth drawableWidth=$drawableWidth',
+    'source=$sourceWidth x $sourceHeight drawable=$drawableWidth x $bodyHeight',
   );
   final result = zxing.zx.encodeBarcode(
     contents: request.text,
     params: zxing.EncodeParams(
       format: format,
       width: sourceWidth,
-      height: bodyHeight,
+      height: sourceHeight,
       margin: 0,
       eccLevel: zxing.EccLevel.low,
     ),
@@ -89,7 +90,7 @@ Future<FortuneBarcodeRenderResult?> labelSheetBarcodeRenderer(
   final barcode = labelSheetDecodeEncodedBarcodeImage(
     data,
     width: sourceWidth,
-    height: bodyHeight,
+    height: sourceHeight,
     inferWidthFromLength: _labelSheetLinearBarcodeFormatIds.contains(
       request.formatId,
     ),
@@ -145,11 +146,12 @@ Future<FortuneBarcodeRenderResult?> labelSheetBarcodeRenderer(
 @visibleForTesting
 int labelSheetBarcodeEncodeWidth(FortuneBarcodeRequest request) {
   final geometry = _labelSheetBarcodeGeometry(request);
-  if (_labelSheetLinearBarcodeFormatIds.contains(request.formatId)) {
-    return geometry.drawableWidth;
-  }
   return geometry.sourceWidth;
 }
+
+@visibleForTesting
+int labelSheetBarcodeEncodeHeight(FortuneBarcodeRequest request) =>
+    _labelSheetBarcodeGeometry(request).sourceHeight;
 
 @visibleForTesting
 imglib.Image labelSheetDecodeEncodedBarcodeImage(
@@ -289,18 +291,25 @@ TextPainter _labelSheetBarcodeTextPainter(FortuneBarcodeRequest request) {
 _LabelSheetBarcodeGeometry _labelSheetBarcodeGeometry(
   FortuneBarcodeRequest request,
 ) {
+  final isLinear = _labelSheetLinearBarcodeFormatIds.contains(request.formatId);
   final moduleScale = request.moduleScale.round().clamp(1, 16);
   final textMetrics = request.showHumanReadableText
       ? _labelSheetBarcodeTextMetrics(request)
       : (width: 0, height: 0);
   final textHeight = textMetrics.height;
-  final barcodeHeight = request.barHeight.round().clamp(1, 4096);
   final contentWidth = math.max(1, request.text.length * 10 * moduleScale);
   final displayTextWidth = request.showHumanReadableText
       ? textMetrics.width
       : 0;
   final requestedWidth = request.width.round();
   final requestedHeight = request.height.round();
+  final barcodeHeight = isLinear
+      ? request.barHeight.round().clamp(1, 4096)
+      : (requestedHeight > 0
+            ? requestedHeight
+            : requestedWidth > 0
+            ? requestedWidth
+            : contentWidth).clamp(1, 4096);
   final width = requestedWidth > 0
       ? requestedWidth.clamp(1, 4096)
       : math.min(4096, math.max(contentWidth, displayTextWidth));
@@ -318,13 +327,19 @@ _LabelSheetBarcodeGeometry _labelSheetBarcodeGeometry(
     ),
   );
   final drawableWidth = math.max(1, width);
-  final sourceWidth = math.max(1, (drawableWidth / moduleScale).round());
+    final sourceWidth = isLinear
+      ? drawableWidth
+      : math.max(1, (drawableWidth / moduleScale).round());
+    final sourceHeight = isLinear
+      ? bodyHeight
+      : math.max(1, (bodyHeight / moduleScale).round());
   return _LabelSheetBarcodeGeometry(
     width: width,
     height: height,
     bodyHeight: bodyHeight,
     drawableWidth: drawableWidth,
     sourceWidth: sourceWidth,
+    sourceHeight: sourceHeight,
   );
 }
 
@@ -335,6 +350,7 @@ class _LabelSheetBarcodeGeometry {
     required this.bodyHeight,
     required this.drawableWidth,
     required this.sourceWidth,
+    required this.sourceHeight,
   });
 
   final int width;
@@ -342,4 +358,5 @@ class _LabelSheetBarcodeGeometry {
   final int bodyHeight;
   final int drawableWidth;
   final int sourceWidth;
+  final int sourceHeight;
 }

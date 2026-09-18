@@ -1,5 +1,20 @@
 # SESSION HANDOFF
 
+## 현재 작업: QR 배율 비례 왜곡 수정
+- **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
+- 원인 확인: 120×120px QR 객체에도 선형 바코드용 기본 막대 높이 10mm(약 38px)를 본체 높이로 적용하고, module scale은 인코딩 폭에만 적용한다. 배율 1은 120×38, 배율 3은 40×38 소스를 120×38로 리사이즈해 상단 쏠림과 비대칭 왜곡이 발생한다.
+- 구현 방향: QR 등 2D 코드는 지정 객체 높이 전체를 본체에 사용하고 module scale을 인코딩 폭과 높이에 동일 적용한다. 선형 바코드의 막대 높이 동작은 유지한다.
+- [`test/label_sheet_toolbar_test.dart`](test/label_sheet_toolbar_test.dart) 테스트 추가: 120×120 QR에서 배율 1은 120×120, 배율 3은 40×40 인코딩 소스를 사용하고 출력 크기는 모두 120×120임을 검증한다.
+- [`lib/features/label_sheet/application/label_sheet_barcode_renderer.dart`](lib/features/label_sheet/application/label_sheet_barcode_renderer.dart) 편집 완료: 2D 바코드는 지정 객체 높이 전체를 본체로 사용하고 source width/height에 module scale을 동일 적용한다. 선형 바코드는 기존 가로 해상도와 막대 높이를 유지한다.
+- focused 검증 완료: QR 정사각 geometry **1/1**, 선형 바코드 막대 높이 **1/1** 통과.
+- 실제 ZXing 생성 테스트는 Windows 테스트 러너가 `flutter_zxing.dll`을 로드하지 못해 실행할 수 없었고, native asset에 의존하지 않는 인코딩 geometry 테스트로 검증했다.
+- toolbar 전체 테스트에서 직전 독립 탭 정책과 반대인 구 기대값 1건을 발견해 현재 대상별 차단 위임 계약으로 갱신했다. 한글 ANSI 기대 문자열 1건은 실행 환경 인코딩 차이로 실패하며 QR 변경과 무관하다.
+- 버전은 호환 가능한 QR 렌더링 버그 수정이므로 PATCH 단계로 `1.4.2`에서 `1.4.3`으로 갱신했다.
+- 전체 검증 완료: `test/label_sheet_toolbar_test.dart` **202/203 통과**. 남은 `item element RTF conversion decodes Korean ANSI hex` 1건은 실행 환경의 기존 한글 ANSI 기대 문자열 차이이며 QR 경로와 무관하다. focused analyze **No issues found**.
+- formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- stage/commit 대상: `lib/features/label_sheet/application/label_sheet_barcode_renderer.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: 라벨 전환 후 병합 복사 유지
 - **완료**: 공용라벨관리에서 병합 영역을 복사한 뒤 다른 라벨로 전환하고 돌아와 붙여넣으면 병합 없이 텍스트만 반복되는 1.3.106 로그 증상을 수정했다.
 - 원인 확인: OS 클립보드에는 TSV 텍스트만 기록하고 병합·스타일 payload는 `FortuneSheetCanvas` State에만 저장한다. 라벨 전환으로 canvas가 교체되면 내부 payload가 사라져 일반 TSV 붙여넣기로 처리된다.
@@ -88,7 +103,7 @@
 3. 인쇄이거나 DB 변경이 필요한 재현은 사용자 승인 없이 실행하지 않는다.
 
 ## 현재 기준
-- 현재 버전은 **1.4.2**이며 라벨 전환 후에도 공용라벨의 내부 셀 복사 payload가 유지되어 병합·스타일을 그대로 붙여넣는다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
+- 현재 버전은 **1.4.3**이며 공용라벨 QR 삽입 시 2D module scale을 양 축에 동일 적용해 지정 정사각 영역을 채운다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
 - 정리 전 HEAD는 `3e188cd`, GoDEX 전송 변경 기능 커밋은 `d3b682c`, 새 세션용 정리 커밋은 `0c79b52`다. 이 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 원복하거나 함께 stage/commit하지 않는다.
 - 실행 중인 `label_manager`/`flutter` 프로세스는 없다. Windows 배포파일과 설치파일은 만들지 않았다.
