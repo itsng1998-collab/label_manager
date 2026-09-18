@@ -1,5 +1,17 @@
 # SESSION HANDOFF
 
+## 현재 작업: 추가 키워드 클라이언트 편집 기본값
+- **완료**: 품목관리에서 품명·주원료 외 신규 키워드가 별도 설정 없이 `클라이언트 편집 불가`로 생성되는 1.3.120 증상을 수정했다.
+- 원인 확인: `LabelColumnSaveDao._contentInsert(true)`가 신규 키워드의 기존 품목 콘텐츠 행을 만들 때 `RICH_EDITABLE=0`을 명시한다. 누락 행의 UI fallback은 이미 true이므로 생성 SQL이 직접적인 원인이다.
+- 편집 완료: 신규 키워드 콘텐츠 생성 기본값을 `RICH_EDITABLE=1`로 변경했다. 사용자가 명시적으로 저장한 기존 불가 상태는 변경하지 않으며 DB 마이그레이션은 수행하지 않는다.
+- 회귀 테스트 추가: optional editable 스키마의 생성 SQL이 1을 사용하고 기존 0 구문을 포함하지 않는지 확인한다.
+- 버전은 호환 가능한 국소 기본값 수정이므로 PATCH 단계로 `1.3.131`에서 `1.3.132`로 갱신했다.
+- 검증 완료: `test/label_column_save_test.dart` **16/16 통과**, focused analyze **No issues found**(7.5초), formatter와 diagnostics 통과.
+- VS Code DTD는 연결돼 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
+- 기존 DB의 `RICH_EDITABLE=0`은 사용자가 명시한 불가 설정과 구분할 메타데이터가 없어 자동 변경하지 않는다. DB 마이그레이션 없이 이후 신규 키워드 콘텐츠의 기본 생성값만 바로잡는다.
+- stage/commit 대상: `lib/features/label_column/data/label_column_save.dart`, `test/label_column_save_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: 품목관리 편집 후 가로 스크롤 소실
 - **완료**: 1.3.120 로그에서 소비기한 `365`를 `360`으로 Enter 확정한 뒤 가로 스크롤이 사라진 증상을 수정했다.
 - 로그상 편집 전 `overflow=true`, `contentWidth=2023.6`, `viewportWidth=1849.7`이며 편집 후 overflow 변경 로그는 없다. 실제 thumb 페인트 소실 여부를 검증하는 focused widget test를 보강 중이다.

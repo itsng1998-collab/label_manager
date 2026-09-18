@@ -487,6 +487,14 @@ void main() {
         contains('Main missing-keyword value changed after editing started.'),
       );
       expect(sql, contains('RICH_EDITABLE'));
+      expect(
+        sql,
+        contains('SELECT M.COLUMN_ID, I.RICH_ITEM_ID, 1, \'\''),
+      );
+      expect(
+        sql,
+        isNot(contains('SELECT M.COLUMN_ID, I.RICH_ITEM_ID, 0, \'\'')),
+      );
       expect(sql, contains('BM_UPDATE_ITEM'));
       expect(sql, contains('BM_UPDATE_COL_CONTENT'));
       expect(sql, contains('BM_RICH_STATUS_DATA'));
