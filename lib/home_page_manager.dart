@@ -154,11 +154,9 @@ Object? homeTabShortcutValue({
 }
 
 @visibleForTesting
-bool labelPrintTabSelectionBlocked({
-  required bool hasActiveEditing,
+bool independentItemTabSelectionBlocked({
   required bool itemDraftCommandBusy,
-  required bool itemDraftDirty,
-}) => hasActiveEditing || itemDraftCommandBusy || itemDraftDirty;
+}) => itemDraftCommandBusy;
 
 @visibleForTesting
 bool labelColumnEditAllowed({
@@ -244,7 +242,7 @@ bool homeTabTapBlocked({
   required bool itemDraftContextChangeBlocked,
   required bool autoItemUpdateContextChangeBlocked,
 }) => switch (currentTabValue) {
-  'items' => itemDraftContextChangeBlocked,
+  'items' => false,
   'auto_update' => autoItemUpdateContextChangeBlocked,
   _ => false,
 };
@@ -1985,28 +1983,25 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   bool _blockLabelPrintTabSelection() {
-    final blocked = labelPrintTabSelectionBlocked(
-      hasActiveEditing: _itemManageController.hasActiveEditing,
+    final blocked = independentItemTabSelectionBlocked(
       itemDraftCommandBusy: _itemDraftCommandBusy,
-      itemDraftDirty: _itemDraftController?.isDirty == true,
     );
     if (!blocked) return false;
     if (mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('품목 편집 내용을 저장하거나 취소한 뒤 라벨출력을 이용해 주세요.')),
+          const SnackBar(content: Text('현재 작업이 끝난 뒤 라벨출력을 이용해 주세요.')),
         );
     }
     return true;
   }
 
   bool _blockScaleOutputTabSelection() {
-    final blocked = labelPrintTabSelectionBlocked(
-      hasActiveEditing: _itemManageController.hasActiveEditing,
-      itemDraftCommandBusy: _itemDraftCommandBusy,
-      itemDraftDirty: _itemDraftController?.isDirty == true,
-    );
+    final blocked =
+        _itemManageController.hasActiveEditing ||
+        _itemDraftCommandBusy ||
+        _itemDraftController?.isDirty == true;
     if (!blocked) return false;
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -3033,6 +3028,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       tab?.value,
     )) {
       (true, _, _, 'label_print') => _blockLabelPrintTabSelection(),
+      (true, _, _, 'common_label') => independentItemTabSelectionBlocked(
+        itemDraftCommandBusy: _itemDraftCommandBusy,
+      ),
       (true, _, _, 'scale_output') => _blockScaleOutputTabSelection(),
       (true, _, _, _) => _blockItemDraftContextChange(),
       (_, true, _, _) => _blockAutoItemUpdateContextChange(),
@@ -3056,6 +3054,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         traceId: _lastItemDraftCancelTraceId,
       );
       return;
+    }
+    if (leavingItems &&
+        (tab?.value == 'common_label' || tab?.value == 'label_print') &&
+        _itemManageController.hasActiveEditing) {
+      unawaited(_itemManageController.commitEditing());
     }
     if (tab?.value == 'items' || tab?.value == 'auto_update') {
       _showItemPreviewWindow();

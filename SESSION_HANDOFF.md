@@ -1,5 +1,19 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목 수정 중 독립 탭 진입
+- **완료**: 품명 편집 진입 후 저장 전 공용라벨관리와 라벨출력 탭으로 이동하지 못하는 1.3.120 증상을 수정했다.
+- 원인 확인: 탭 클릭 선행 차단과 `_onTabSelection`이 품목 active editor·dirty를 공용라벨/라벨출력에도 전역 적용한다.
+- 데이터 소스 확인: 품목 발행 미리보기와 라벨출력 템플릿은 `_effectiveLabelSize.labelSizeCommon` 저장본을 사용하며, 공용라벨 저장 성공 콜백 전에는 `_currentLabelSize`가 교체되지 않는다.
+- [`lib/home_page_manager.dart`](lib/home_page_manager.dart) 편집 완료: 선행 품목 탭 차단을 대상별 `_onTabSelection`으로 위임하고, 공용라벨/라벨출력은 품목 draft 상태와 무관하게 진입하며 활성 셀 입력만 draft에 커밋한다. 품목 저장 명령 실행 중 차단과 저울출력의 기존 차단은 유지한다.
+- [`test/fortune_table_test.dart`](test/fortune_table_test.dart) 편집 완료: 독립 탭은 품목 active/dirty가 아닌 저장 명령 실행 여부만 차단하고 품목 탭 클릭은 대상별 정책으로 위임하는 회귀 계약을 추가했다.
+- focused 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "common label and label print tabs ignore item draft state"`, `flutter test test/fortune_table_test.dart --plain-name "item tab click delegates target-specific blocking"` 각각 통과.
+- 전체 검증 완료: `test/fortune_table_test.dart` **76/76 통과**, 저장된 공용라벨 fingerprint focused test **1/1 통과**, focused analyze **No issues found**, diagnostics 통과.
+- formatter 적용 후 같은 전체 검증을 재실행해 **76/76**, **1/1**, analyzer **No issues found**를 다시 확인했다.
+- DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- 버전은 호환 가능한 탭 정책 버그 수정이므로 PATCH 단계로 `1.4.0`에서 `1.4.1`로 갱신했다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: 품목관리 엑셀 행 다중 셀 붙여넣기
 - **완료**: 엑셀 내보내기 파일의 한 품목 행을 복사해 품목관리 셀에 붙이면 탭 구분 값 전체가 한 셀에 들어가는 1.3.120 증상을 수정했다.
 - 원인 확인: 공용 `FortuneTable`에 클립보드 붙여넣기 처리가 없어 편집 중 `EditableText`가 탭 포함 문자열 전체를 단일 셀 값으로 받는다.
@@ -55,7 +69,7 @@
 3. 인쇄이거나 DB 변경이 필요한 재현은 사용자 승인 없이 실행하지 않는다.
 
 ## 현재 기준
-- 현재 버전은 **1.4.0**이며 품목관리에서 엑셀 행의 탭 구분 값을 여러 셀에 붙여넣을 수 있다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
+- 현재 버전은 **1.4.1**이며 품목 draft를 유지한 채 공용라벨관리와 라벨출력으로 이동할 수 있다. 두 화면의 미리보기/출력은 저장된 공용라벨 데이터만 사용한다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
 - 정리 전 HEAD는 `3e188cd`, GoDEX 전송 변경 기능 커밋은 `d3b682c`, 새 세션용 정리 커밋은 `0c79b52`다. 이 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 원복하거나 함께 stage/commit하지 않는다.
 - 실행 중인 `label_manager`/`flutter` 프로세스는 없다. Windows 배포파일과 설치파일은 만들지 않았다.

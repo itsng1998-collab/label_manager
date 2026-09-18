@@ -317,29 +317,28 @@ void main() {
     );
   });
 
-  test('label print tab gate blocks only active item editing states', () {
+  test('common label and label print tabs ignore item draft state', () {
     expect(
-      labelPrintTabSelectionBlocked(
-        hasActiveEditing: false,
+      independentItemTabSelectionBlocked(
         itemDraftCommandBusy: false,
-        itemDraftDirty: false,
       ),
       isFalse,
     );
-    for (final blockedState in const [
-      (true, false, false),
-      (false, true, false),
-      (false, false, true),
-    ]) {
-      expect(
-        labelPrintTabSelectionBlocked(
-          hasActiveEditing: blockedState.$1,
-          itemDraftCommandBusy: blockedState.$2,
-          itemDraftDirty: blockedState.$3,
-        ),
-        isTrue,
-      );
-    }
+    expect(
+      independentItemTabSelectionBlocked(itemDraftCommandBusy: true),
+      isTrue,
+    );
+  });
+
+  test('item tab click delegates target-specific blocking', () {
+    expect(
+      homeTabTapBlocked(
+        currentTabValue: 'items',
+        itemDraftContextChangeBlocked: true,
+        autoItemUpdateContextChangeBlocked: false,
+      ),
+      isFalse,
+    );
   });
 
   test('app menu work gate covers item queries and every page editor', () {
