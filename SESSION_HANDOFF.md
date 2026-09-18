@@ -1,5 +1,16 @@
 # SESSION HANDOFF
 
+## 현재 작업: 공용라벨 특별항목 필수등록 복원
+- **완료**: `SWEIGHT`, `SPRICE` 필수등록을 해제해 저장한 뒤 재실행하면 다시 체크되는 1.3.120 증상을 수정했다.
+- 로그 확인: 저장 payload에 두 키워드 모두 `<checked>0</checked>`가 포함되고 트랜잭션도 성공했다. 재실행 시 동일 라벨크기에서 다시 조회했다.
+- 원인 확인 및 편집 완료: Windows ODBC는 SQL `BIT 0`을 Dart `false`로 반환하지만 `SpecialColumnDAO`가 `false != 0`으로 판정해 true로 복원했다. bool/num/string을 명시적으로 변환해 `RICH_CHECK_YN`과 같은 경로의 `RICH_MIN_CHECK`를 올바르게 읽는다.
+- 회귀 테스트 추가: SQL BIT `false/true`, 숫자 `0/1`, 문자열 `0/1`의 체크 상태 변환을 고정한다.
+- 버전은 호환 가능한 국소 상태 복원 버그 수정이므로 PATCH 단계로 `1.3.132`에서 `1.3.133`으로 갱신했다.
+- 검증 완료: `test/special_column_dao_test.dart`, `test/label_size_dao_test.dart`, `test/common_label_manage_test.dart` **19/19 통과**. focused analyze **No issues found**(6.3초), formatter와 diagnostics 통과.
+- VS Code DTD는 연결돼 있으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
+- stage/commit 대상: `lib/features/label_column/data/special_column_dao.dart`, `test/special_column_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: 추가 키워드 클라이언트 편집 기본값
 - **완료**: 품목관리에서 품명·주원료 외 신규 키워드가 별도 설정 없이 `클라이언트 편집 불가`로 생성되는 1.3.120 증상을 수정했다.
 - 원인 확인: `LabelColumnSaveDao._contentInsert(true)`가 신규 키워드의 기존 품목 콘텐츠 행을 만들 때 `RICH_EDITABLE=0`을 명시한다. 누락 행의 UI fallback은 이미 true이므로 생성 SQL이 직접적인 원인이다.

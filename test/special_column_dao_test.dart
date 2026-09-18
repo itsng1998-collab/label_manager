@@ -3,6 +3,15 @@ import 'package:label_manager/features/label_column/data/special_column_dao.dart
 import 'package:label_manager/features/label_column/domain/special_keyword.dart';
 
 void main() {
+  test('SQL BIT false를 특별항목 체크 해제로 복원한다', () {
+    expect(specialColumnCheckValue(false), isFalse);
+    expect(specialColumnCheckValue(true), isTrue);
+    expect(specialColumnCheckValue(0), isFalse);
+    expect(specialColumnCheckValue(1), isTrue);
+    expect(specialColumnCheckValue('0'), isFalse);
+    expect(specialColumnCheckValue('1'), isTrue);
+  });
+
   test('special keyword order keeps the fixed item column contract', () {
     expect(SpecalKeyword.values.map((value) => value.keyword), [
       'ITEMNAME',

@@ -6,6 +6,13 @@ import 'package:label_manager/features/label_column/domain/special_keyword.dart'
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+bool specialColumnCheckValue(Object? value) => switch (value) {
+  final bool flag => flag,
+  final num number => number != 0,
+  final String text => text == '1' || text.toLowerCase() == 'true',
+  _ => false,
+};
+
 class SpecialColumnDAO extends DAO {
   static const String selectCheckSql = '''
     SELECT RICH_CHECK_YN FROM BM_RICH_CHECK_COLUMNS
@@ -63,8 +70,9 @@ WHEN NOT MATCHED THEN
           columnType: TColumnType.getFromCode(TColumnType.TYPE_FIX),
           keyword: keyword.keyword,
           columnName: keyword.columnName,
-          useMissingKeywordCheck:
-              row != null && row['RICH_CHECK_YN'] != 0,
+          useMissingKeywordCheck: specialColumnCheckValue(
+            row?['RICH_CHECK_YN'],
+          ),
         );
 
         if (keyword == SpecalKeyword.INDEX_ELEMENT) {
@@ -76,8 +84,9 @@ WHEN NOT MATCHED THEN
             minCheckResult,
             throwIfNoRows: false,
           );
-          column.useMinColumnCheck =
-              minCheckRow != null && minCheckRow['RICH_MIN_CHECK'] != 0;
+          column.useMinColumnCheck = specialColumnCheckValue(
+            minCheckRow?['RICH_MIN_CHECK'],
+          );
         }
         columns.add(column);
       }
