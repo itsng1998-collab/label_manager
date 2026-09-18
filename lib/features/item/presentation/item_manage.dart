@@ -458,6 +458,7 @@ class _ItemManageState extends State<ItemManage> {
               focusController: _focusController,
               editingController: _editingController,
               scrollController: _tableScrollController,
+              tabSeparatedPasteEnabled: true,
               multiSelectionEnabled: true,
               onRowSelected: _handleRowSelected,
               onCellActivated: (_, _, columnId) {

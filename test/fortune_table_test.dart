@@ -1064,6 +1064,65 @@ void main() {
     expect(find.text('변경'), findsOneWidget);
   });
 
+  testWidgets('FortuneTable pastes tab-separated values across columns', (
+    tester,
+  ) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async => call.method == 'Clipboard.getData'
+          ? <String, Object?>{'text': 'A\tB\tC'}
+          : null,
+    );
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
+    });
+    final values = ['첫째', '읽기 전용', '셋째'];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 420,
+            height: 140,
+            child: StatefulBuilder(
+              builder: (context, setState) => FortuneTable<List<String>>(
+                rows: [values],
+                tabSeparatedPasteEnabled: true,
+                columns: List.generate(
+                  values.length,
+                  (columnIndex) => FortuneTableColumn<List<String>>(
+                    id: 'column_$columnIndex',
+                    header: '열 ${columnIndex + 1}',
+                    text: (row) => row[columnIndex],
+                    isTextEditable: (_, _) => columnIndex != 1,
+                    onTextCommitted: (row, _, value) {
+                      setState(() => row[columnIndex] = value);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('첫째'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('첫째'));
+    await tester.pump();
+    expect(find.byType(EditableText), findsOneWidget);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(values, ['A', '읽기 전용', 'C']);
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('FortuneTable focus controller reveals an off-screen cell', (
     tester,
   ) async {

@@ -370,6 +370,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.dragScrollEnabled = true,
     this.multiSelectionEnabled = false,
     this.keyboardSelectionShortcutsEnabled = true,
+    this.tabSeparatedPasteEnabled = false,
   }) : assert(autoFitSampleSize == null || autoFitSampleSize >= 0);
 
   final List<T> rows;
@@ -410,6 +411,7 @@ class FortuneTable<T> extends StatefulWidget {
   final bool dragScrollEnabled;
   final bool multiSelectionEnabled;
   final bool keyboardSelectionShortcutsEnabled;
+  final bool tabSeparatedPasteEnabled;
 
   @override
   State<FortuneTable<T>> createState() => _FortuneTableState<T>();
@@ -791,6 +793,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     }
     if (_editingRowIndex != null) {
       return KeyEventResult.ignored;
+    }
+    if (_isPasteShortcut(event) && widget.tabSeparatedPasteEnabled) {
+      unawaited(_pasteClipboardAtFocusedCell());
+      return KeyEventResult.handled;
     }
     if (
         (event.logicalKey == LogicalKeyboardKey.enter ||
@@ -1312,6 +1318,12 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       return Focus(
         onKeyEvent: (_, event) {
           if (event is KeyDownEvent &&
+              _isPasteShortcut(event) &&
+              widget.tabSeparatedPasteEnabled) {
+            unawaited(_pasteClipboardAtFocusedCell());
+            return KeyEventResult.handled;
+          }
+          if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape) {
             _cancelTextEditing();
             return KeyEventResult.handled;
@@ -1408,6 +1420,56 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   bool _isTextEditable(FortuneTableColumn<T> column, T row, int rowIndex) {
     return column.onTextCommitted != null &&
         (column.isTextEditable?.call(row, rowIndex) ?? true);
+  }
+
+  bool _isPasteShortcut(KeyEvent event) =>
+      event.logicalKey == LogicalKeyboardKey.keyV &&
+      (HardwareKeyboard.instance.isControlPressed ||
+          HardwareKeyboard.instance.isMetaPressed);
+
+  Future<void> _pasteClipboardAtFocusedCell() async {
+    final rowIndex = _editingRowIndex ?? _selectedIndex;
+    final columnIndex = _editingColumnIndex ?? _focusedColumnIndex;
+    if (rowIndex == null ||
+        columnIndex == null ||
+        rowIndex >= widget.rows.length ||
+        columnIndex >= widget.columns.length) {
+      return;
+    }
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted || data?.text == null) return;
+    final text = data!.text!;
+    if (!text.contains('\t')) {
+      final controller = _textEditorController;
+      if (controller != null) {
+        final selection = controller.selection;
+        final start = selection.isValid ? selection.start : controller.text.length;
+        final end = selection.isValid ? selection.end : controller.text.length;
+        controller.value = controller.value.copyWith(
+          text: controller.text.replaceRange(start, end, text),
+          selection: TextSelection.collapsed(offset: start + text.length),
+          composing: TextRange.empty,
+        );
+      }
+      return;
+    }
+    final values = text
+        .replaceFirst(RegExp(r'(?:\r\n|\r|\n)+$'), '')
+        .split('\t');
+    if (_editingRowIndex != null) {
+      setState(_clearTextEditingState);
+      widget.editingController?._editingStateMayHaveChanged();
+      _restoreTableFocus();
+    }
+    final row = widget.rows[rowIndex];
+    for (var offset = 0; offset < values.length; offset += 1) {
+      final targetColumnIndex = columnIndex + offset;
+      if (targetColumnIndex >= widget.columns.length) break;
+      final column = widget.columns[targetColumnIndex];
+      if (!_isTextEditable(column, row, rowIndex)) continue;
+      await column.onTextCommitted?.call(row, rowIndex, values[offset]);
+      if (!mounted) return;
+    }
   }
 
   void _startTextEditing(

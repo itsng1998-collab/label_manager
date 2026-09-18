@@ -1,5 +1,19 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목관리 엑셀 행 다중 셀 붙여넣기
+- **완료**: 엑셀 내보내기 파일의 한 품목 행을 복사해 품목관리 셀에 붙이면 탭 구분 값 전체가 한 셀에 들어가는 1.3.120 증상을 수정했다.
+- 원인 확인: 공용 `FortuneTable`에 클립보드 붙여넣기 처리가 없어 편집 중 `EditableText`가 탭 포함 문자열 전체를 단일 셀 값으로 받는다.
+- 편집 완료: `FortuneTable.tabSeparatedPasteEnabled` opt-in API를 추가하고 품목관리에서 활성화했다. 선택/편집 셀부터 탭 값을 표시 열 순서대로 소비하며 편집 불가 열은 쓰지 않고 해당 칸만 건너뛴다. 탭 없는 일반 텍스트는 기존 편집기 선택 영역에 붙여넣는다.
+- 테스트 추가: 공용 테이블의 탭 값 분배·읽기 전용 열 정렬 보존과 품목관리 활성화 연결을 검증한다.
+- 버전은 사용자에게 보이는 새 다중 셀 붙여넣기 기능이므로 MINOR 단계로 `1.3.133`에서 `1.4.0`으로 갱신했다.
+- focused 검증 완료: 더블클릭 편집 상태의 `FortuneTable pastes tab-separated values across columns` **1/1 통과**. formatter와 diagnostics도 통과했다.
+- 추가 검증 완료: `C:/Flutter/bin/flutter.bat test --no-pub --reporter expanded test/fortune_table_test.dart test/item_manage_horizontal_scroll_test.dart` **76/76 통과**.
+- 임시 테스트 로그는 `.tmp/copilot/item_tab_paste_suite.log`에만 생성했으며 Git에 포함하지 않는다.
+- focused analyze 완료: **No issues found**(15.8초).
+- VS Code DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `test/fortune_table_test.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: 공용라벨 특별항목 필수등록 복원
 - **완료**: `SWEIGHT`, `SPRICE` 필수등록을 해제해 저장한 뒤 재실행하면 다시 체크되는 1.3.120 증상을 수정했다.
 - 로그 확인: 저장 payload에 두 키워드 모두 `<checked>0</checked>`가 포함되고 트랜잭션도 성공했다. 재실행 시 동일 라벨크기에서 다시 조회했다.

@@ -105,6 +105,12 @@ void main() {
     final scrollController = tester
         .widget<FortuneTable<ItemOfMarket>>(tableFinder)
         .scrollController!;
+    expect(
+      tester
+          .widget<FortuneTable<ItemOfMarket>>(tableFinder)
+          .tabSeparatedPasteEnabled,
+      isTrue,
+    );
     expect(scrollController.hasHorizontalOverflow, isTrue);
     expect(
       scrollController.horizontalContentWidth,
