@@ -9,7 +9,7 @@
 - 변경 Dart 파일 formatter와 diagnostics를 통과했다. VS Code DTD에는 연결했으나 실행 중인 Flutter 앱이 없어 hot reload 대상은 없었다.
 - 추가 검증 완료: `C:/Flutter/bin/flutter.bat test --no-pub --reporter expanded test/item_manage_horizontal_scroll_test.dart test/fortune_table_test.dart` **75/75 통과**(13.5초).
 - 임시 테스트 로그는 `.tmp/copilot/item_scroll_tests.log`에만 생성했으며 Git에 포함하지 않는다.
-- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `777227f` (`품목 편집 후 가로 스크롤 표시 유지`).
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
 
 ## 새 세션 시작 순서
@@ -18,7 +18,7 @@
 3. 인쇄이거나 DB 변경이 필요한 재현은 사용자 승인 없이 실행하지 않는다.
 
 ## 현재 기준
-- 문서 정리 버전은 **1.3.130**이며 인쇄 동작 변경은 없다. 직전 인쇄 구현 기준은 **1.3.129**다.
+- 현재 버전은 **1.3.131**이며 품목관리 가로 스크롤 표시를 수정했다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
 - 정리 전 HEAD는 `3e188cd`, GoDEX 전송 변경 기능 커밋은 `d3b682c`, 새 세션용 정리 커밋은 `0c79b52`다. 이 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 원복하거나 함께 stage/commit하지 않는다.
 - 실행 중인 `label_manager`/`flutter` 프로세스는 없다. Windows 배포파일과 설치파일은 만들지 않았다.
