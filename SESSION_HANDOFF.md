@@ -1,5 +1,22 @@
 # SESSION HANDOFF
 
+## 현재 작업: 라벨 전환 후 병합 복사 유지
+- **완료**: 공용라벨관리에서 병합 영역을 복사한 뒤 다른 라벨로 전환하고 돌아와 붙여넣으면 병합 없이 텍스트만 반복되는 1.3.106 로그 증상을 수정했다.
+- 원인 확인: OS 클립보드에는 TSV 텍스트만 기록하고 병합·스타일 payload는 `FortuneSheetCanvas` State에만 저장한다. 라벨 전환으로 canvas가 교체되면 내부 payload가 사라져 일반 TSV 붙여넣기로 처리된다.
+- 구현 방향: 일반 복사의 내부 셀 payload를 FortuneSheet 인스턴스 간 공유해 클립보드 텍스트가 유지된 동안 병합·스타일을 복원한다. 원본 삭제 의미가 있는 잘라내기는 기존 canvas State 범위에 유지한다.
+- [`third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`](third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart) 테스트 추가: 두 병합 영역 복사 후 canvas를 교체하고 A5에 붙여넣어 병합 범위 복원을 검증한다.
+- 재현 테스트 확인: 수정 전 첫 병합 `row`가 `null`로 실패했고, 공용 payload 구현 후 **1/1 통과**했다.
+- 기존 workbook prop 교체 테스트도 클립보드가 유지된 동안 내부 스타일을 보존하는 새 계약으로 갱신했다.
+- [`third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart) 편집 완료: 일반 셀 복사의 범위·셀·병합·스타일·테두리·검증·필터·이미지 payload를 canvas 간 공용 슬롯에 저장하고, OS 클립보드 텍스트가 일치할 때 새 canvas에서 재사용한다. 잘라내기와 텍스트 불일치는 공용 payload를 사용하지 않는다.
+- focused 검증 완료: canvas 교체, workbook prop 교체, 기존 병합·스타일, CRLF, 상대 수식 테스트 **5/5 통과**. 재현 테스트에서 외부 TSV 변경 시 병합 payload를 무시하는 분기도 통과했다.
+- formatter 적용 완료. 포맷 후 묶음 검증은 실행 도구가 두 번째 테스트에서 종료되지 않아 결과에서 제외했으며, 해당 테스트 단독 재실행은 **1/1 통과**했다.
+- 최종 focused 검증 완료: canvas 교체 병합, 기존 병합·스타일, 다중행 병합, CRLF, 상대 수식 **5/5 통과**. workbook prop 교체 단독 테스트까지 합쳐 관련 검증 **6/6 통과**했다.
+- analyzer는 변경 구간 오류 없이 기존 이미지 레이어 미사용 코드 경고 10건만 보고했다. diagnostics와 `git diff --check`는 통과했다.
+- DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- 버전은 호환 가능한 복사/붙여넣기 버그 수정이므로 PATCH 단계로 `1.4.1`에서 `1.4.2`로 갱신했다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 유지하고 stage/commit에서 제외한다.
+
 ## 현재 작업: 품목 수정 중 독립 탭 진입
 - **완료**: 품명 편집 진입 후 저장 전 공용라벨관리와 라벨출력 탭으로 이동하지 못하는 1.3.120 증상을 수정했다.
 - 원인 확인: 탭 클릭 선행 차단과 `_onTabSelection`이 품목 active editor·dirty를 공용라벨/라벨출력에도 전역 적용한다.
@@ -70,7 +87,7 @@
 3. 인쇄이거나 DB 변경이 필요한 재현은 사용자 승인 없이 실행하지 않는다.
 
 ## 현재 기준
-- 현재 버전은 **1.4.1**이며 품목 draft를 유지한 채 공용라벨관리와 라벨출력으로 이동할 수 있다. 두 화면의 미리보기/출력은 저장된 공용라벨 데이터만 사용한다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
+- 현재 버전은 **1.4.2**이며 라벨 전환 후에도 공용라벨의 내부 셀 복사 payload가 유지되어 병합·스타일을 그대로 붙여넣는다. 인쇄 동작 변경은 없고 직전 인쇄 구현 기준은 **1.3.129**다.
 - 정리 전 HEAD는 `3e188cd`, GoDEX 전송 변경 기능 커밋은 `d3b682c`, 새 세션용 정리 커밋은 `0c79b52`다. 이 해시 기록은 같은 요청의 후속 문서 변경이며 버전을 다시 올리지 않는다.
 - 기존 사용자 변경 [`.vscode/settings.json`](.vscode/settings.json), [`lib/core/app.dart`](lib/core/app.dart)는 원복하거나 함께 stage/commit하지 않는다.
 - 실행 중인 `label_manager`/`flutter` 프로세스는 없다. Windows 배포파일과 설치파일은 만들지 않았다.

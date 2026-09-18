@@ -24936,6 +24936,130 @@ void main() {
     expect(follower?.merge?.column, 2);
   });
 
+  testWidgets('copy paste preserves merged ranges after canvas replacement', (
+    tester,
+  ) async {
+    var clipboardText = '';
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        switch (call.method) {
+          case 'Clipboard.setData':
+            clipboardText = (call.arguments as Map)['text'] as String;
+            return null;
+          case 'Clipboard.getData':
+            return <String, Object?>{'text': clipboardText};
+        }
+        return null;
+      },
+    );
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
+    });
+
+    final sourceCells = <FortuneCellCoord, FortuneCell>{};
+    for (var row = 0; row < 2; row += 1) {
+      for (var column = 0; column < 5; column += 1) {
+        sourceCells[FortuneCellCoord(row, column)] = FortuneCell(
+          value: row == 0 && column == 0 ? 'TEST1' : '',
+          merge: const FortuneCellMerge(
+            row: 0,
+            column: 0,
+            rowSpan: 2,
+            columnSpan: 5,
+          ),
+        );
+      }
+    }
+    for (var column = 0; column < 5; column += 1) {
+      sourceCells[FortuneCellCoord(2, column)] = FortuneCell(
+        value: column == 0 ? 'TEST2' : '',
+        merge: const FortuneCellMerge(row: 2, column: 0, columnSpan: 5),
+      );
+    }
+
+    Widget canvas(Key key, FortuneWorkbook workbook) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: SizedBox(
+        width: 640,
+        height: 420,
+        child: FortuneSheetCanvas(key: key, workbook: workbook),
+      ),
+    );
+
+    await tester.pumpWidget(
+      canvas(
+        const ValueKey('source-canvas'),
+        FortuneWorkbook(
+          sheets: [
+            FortuneSheet(id: 'source', name: 'Source', cells: sourceCells),
+          ],
+        ),
+      ),
+    );
+    var topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.dragFrom(
+      topLeft + const Offset(83, 100),
+      const Offset(292, 38),
+    );
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(clipboardText, isNotEmpty);
+
+    await tester.pumpWidget(
+      canvas(
+        const ValueKey('target-canvas'),
+        FortuneWorkbook(
+          sheets: [FortuneSheet(id: 'target', name: 'Target')],
+        ),
+      ),
+    );
+    await tester.pump();
+    topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 176));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    final cells = fortuneSheetPainter(tester).workbook.activeSheet.cells;
+    final firstMerge = cells[const FortuneCellCoord(4, 0)]?.merge;
+    expect(firstMerge?.row, 4);
+    expect(firstMerge?.column, 0);
+    expect(firstMerge?.rowSpan, 2);
+    expect(firstMerge?.columnSpan, 5);
+    final secondMerge = cells[const FortuneCellCoord(6, 0)]?.merge;
+    expect(secondMerge?.row, 6);
+    expect(secondMerge?.column, 0);
+    expect(secondMerge?.rowSpan, 1);
+    expect(secondMerge?.columnSpan, 5);
+
+    clipboardText = 'EXTERNAL\tVALUE';
+    await tester.tapAt(topLeft + const Offset(83, 271));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    final externalCells = fortuneSheetPainter(
+      tester,
+    ).workbook.activeSheet.cells;
+    final externalFirst = externalCells[const FortuneCellCoord(9, 0)];
+    final externalSecond = externalCells[const FortuneCellCoord(9, 1)];
+    expect(externalFirst?.renderedText, 'EXTERNAL');
+    expect(externalFirst?.merge, isNull);
+    expect(externalSecond?.renderedText, 'VALUE');
+    expect(externalSecond?.merge, isNull);
+  });
+
   testWidgets('copy paste preserves multiline merged cell as merged block', (
     tester,
   ) async {
@@ -58548,7 +58672,7 @@ void main() {
     expect(painter().selection.column, 3);
   });
 
-  testWidgets('workbook prop change clears internal clipboard copy state', (
+  testWidgets('workbook prop change preserves internal clipboard copy state', (
     tester,
   ) async {
     var clipboardText = '';
@@ -58648,7 +58772,7 @@ void main() {
     final pasted =
         painter().workbook.activeSheet.cells[const FortuneCellCoord(0, 1)];
     expect(pasted?.renderedText, 'old');
-    expect(pasted?.bold, isNot(isTrue));
+    expect(pasted?.bold, isTrue);
   });
 
   testWidgets('filter dropdown condition row is visible no-op', (tester) async {

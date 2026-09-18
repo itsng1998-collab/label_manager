@@ -1309,6 +1309,42 @@ class _FortuneObjectClipboardWriteLease {
   final bool wroteMarker;
 }
 
+class _FortuneCellClipboardPayload {
+  const _FortuneCellClipboardPayload({
+    required this.text,
+    required this.range,
+    required this.cells,
+    required this.isCut,
+    this.cellCoord,
+    this.borders,
+    this.dataVerification,
+    this.rawDataVerification,
+    this.rawHyperlinks,
+    this.filter,
+    this.rawFilter,
+    this.hasRawFilter = false,
+    this.filterSelect,
+    this.images,
+  });
+
+  final String text;
+  final FortuneCellCoord? cellCoord;
+  final FortuneRange range;
+  final Map<FortuneCellCoord, FortuneCell> cells;
+  final Map<FortuneCellCoord, FortuneCellBorders>? borders;
+  final Map<FortuneCellCoord, Object?>? dataVerification;
+  final Map<FortuneCellCoord, Object?>? rawDataVerification;
+  final Map<FortuneCellCoord, Object?>? rawHyperlinks;
+  final Map<String, Object?>? filter;
+  final Object? rawFilter;
+  final bool hasRawFilter;
+  final Object? filterSelect;
+  final List<FortuneImage>? images;
+  final bool isCut;
+}
+
+_FortuneCellClipboardPayload? _sharedFortuneCellClipboardPayload;
+
 class FortuneObjectSelectionSnapshot {
   FortuneObjectSelectionSnapshot({
     required this.attached,
@@ -37557,6 +37593,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
     Clipboard.setData(ClipboardData(text: text));
+    _sharedFortuneCellClipboardPayload = !cut && copyRanges.length == 1
+        ? _FortuneCellClipboardPayload(
+            text: text,
+            cellCoord: singleCoord,
+            range: range,
+            cells: Map.unmodifiable(copiedCells),
+            borders: Map.unmodifiable(copiedBorders),
+            dataVerification: Map.unmodifiable(copiedDataVerification),
+            rawDataVerification: Map.unmodifiable(copiedRawDataVerification),
+            rawHyperlinks: Map.unmodifiable(copiedRawHyperlinks),
+            filter: copiedFilter == null ? null : Map.unmodifiable(copiedFilter),
+            rawFilter: copiedRawFilter,
+            hasRawFilter: copiesFilterMetadata && sheet.hasRawFilter,
+            filterSelect: copiedFilterSelect,
+            images: List.unmodifiable(copiedImages),
+            isCut: false,
+          )
+        : null;
     setState(() {
       _cancelFormatPainterDrag(clearPainter: true);
       _clearCopiedImageLayerPanelClipboardState();
@@ -37711,11 +37765,37 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
   }
 
-  bool _clipboardTextMatchesInternalCopy(String text) {
-    final copiedText = _copiedClipboardText;
-    return copiedText != null &&
+  _FortuneCellClipboardPayload? _matchingCellClipboardPayload(String text) {
+    bool matches(String copiedText) =>
         _normalizedClipboardLineEndings(copiedText) ==
-            _normalizedClipboardLineEndings(text);
+        _normalizedClipboardLineEndings(text);
+
+    final copiedRange = _copiedCellRange;
+    final copiedCells = _copiedCells;
+    final copiedText = _copiedClipboardText;
+    if (copiedRange != null &&
+        copiedCells != null &&
+        copiedText != null &&
+        matches(copiedText)) {
+      return _FortuneCellClipboardPayload(
+        text: copiedText,
+        cellCoord: _copiedCellCoord,
+        range: copiedRange,
+        cells: copiedCells,
+        borders: _copiedBorders,
+        dataVerification: _copiedDataVerification,
+        rawDataVerification: _copiedRawDataVerification,
+        rawHyperlinks: _copiedRawHyperlinks,
+        filter: _copiedFilter,
+        rawFilter: _copiedRawFilter,
+        hasRawFilter: _copiedHasRawFilter,
+        filterSelect: _copiedFilterSelect,
+        images: _copiedImages,
+        isCut: _copiedCellsAreCut,
+      );
+    }
+    final shared = _sharedFortuneCellClipboardPayload;
+    return shared != null && matches(shared.text) ? shared : null;
   }
 
   void _pasteTextAtSelection(String text) {
@@ -37742,21 +37822,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       });
       return;
     }
-    final copiedRange = _copiedCellRange;
-    final copiedCells = _copiedCells;
-    final copiedBorders = _copiedBorders;
-    final copiedDataVerification = _copiedDataVerification;
-    final copiedRawDataVerification = _copiedRawDataVerification;
-    final copiedRawHyperlinks = _copiedRawHyperlinks;
-    final copiedFilter = _copiedFilter;
-    final copiedRawFilter = _copiedRawFilter;
-    final copiedHasRawFilter = _copiedHasRawFilter;
-    final copiedFilterSelect = _copiedFilterSelect;
-    final copiedImages = _copiedImages;
-    final textMatchesInternalCopy =
-        copiedRange != null &&
-        copiedCells != null &&
-        _clipboardTextMatchesInternalCopy(text);
+    final copiedPayload = _matchingCellClipboardPayload(text);
+    final copiedRange = copiedPayload?.range;
+    final copiedCells = copiedPayload?.cells;
+    final copiedBorders = copiedPayload?.borders;
+    final copiedDataVerification = copiedPayload?.dataVerification;
+    final copiedRawDataVerification = copiedPayload?.rawDataVerification;
+    final copiedRawHyperlinks = copiedPayload?.rawHyperlinks;
+    final copiedFilter = copiedPayload?.filter;
+    final copiedRawFilter = copiedPayload?.rawFilter;
+    final copiedHasRawFilter = copiedPayload?.hasRawFilter ?? false;
+    final copiedFilterSelect = copiedPayload?.filterSelect;
+    final copiedImages = copiedPayload?.images;
+    final copiedCellsAreCut = copiedPayload?.isCut ?? false;
+    final textMatchesInternalCopy = copiedPayload != null;
     final rows = _normalizedClipboardLineEndings(text).split('\n');
     if (!textMatchesInternalCopy && rows.isNotEmpty && rows.last.isEmpty) {
       rows.removeLast();
@@ -37820,7 +37899,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         sourceRowCount > 0 &&
         sourceColumnCount > 0 &&
         !isExternalPlainFormulaPaste &&
-        !_copiedCellsAreCut &&
+        !copiedCellsAreCut &&
         (!usesInternalCopy || selectionIsPastedMultiple);
     final targetRowCount = repeatsIntoSelection
         ? rangeRowCount
@@ -37982,17 +38061,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
     }
     final conditionFormatUpdates = usesInternalCopy && !pasteBlocked
-        ? _copiedCellsAreCut
+        ? copiedCellsAreCut
               ? _conditionFormatsForInternalCutPaste(
                   sheet: sheet,
-                  copiedRange: copiedRange,
+                  copiedRange: copiedRange!,
                   targetRange: targetPasteRange,
                   copiedVisibleRows: copiedVisibleRows,
                   copiedVisibleColumns: copiedVisibleColumns,
                 )
               : _conditionFormatsForInternalPaste(
                   sheet: sheet,
-                  copiedRange: copiedRange,
+                  copiedRange: copiedRange!,
                   targetRange: targetPasteRange,
                   pastedRowCount: pastedRowCount,
                   pastedColumnCount: pastedColumnCount,
@@ -38002,7 +38081,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : null;
     final filterMetadataUpdate =
         usesInternalCopy &&
-            _copiedCellsAreCut &&
+            copiedCellsAreCut &&
             !pasteBlocked &&
             _filterSourceVisibleCellsWerePasted(
               copiedFilterSelect: copiedFilterSelect,
@@ -38067,7 +38146,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           (entry) => _rawHyperlinkWouldChange(sheet, entry.key, entry.value),
         );
     final completedInternalCutPaste =
-        usesInternalCopy && _copiedCellsAreCut && !pasteBlocked;
+        usesInternalCopy && copiedCellsAreCut && !pasteBlocked;
     if (hasChanges) {
       _recordUndoSnapshot();
     }
@@ -38202,7 +38281,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             );
             nextRawBorderInfo = rawBorderInfo;
           }
-          for (final sourceCoord in copiedCells.keys) {
+          for (final sourceCoord in copiedCells!.keys) {
             if (pastedSourceCoords.contains(sourceCoord) &&
                 !targetCoords.contains(sourceCoord)) {
               if (_cellHasFormulaMetadata(sheet.cells[sourceCoord])) {
@@ -38545,10 +38624,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String _translatedPasteText(String text, FortuneCellCoord target) {
-    final source = _copiedCellCoord;
-    if (source == null ||
-        !_clipboardTextMatchesInternalCopy(text) ||
-        !text.startsWith('=')) {
+    final source = _matchingCellClipboardPayload(text)?.cellCoord;
+    if (source == null || !text.startsWith('=')) {
       return text;
     }
     return FortuneFormulaEngine.translateReferences(
