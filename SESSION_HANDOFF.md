@@ -25,6 +25,7 @@
 - DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
 - 상태: **완료**. stage/commit 대상은 `lib/widgets/modeless_dropdown_form_field.dart`, `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/modeless_dropdown_form_field_test.dart`, `test/admin_copy_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+- 기능 커밋: `04752e35a2ee0212da151637028a736e684bc257` (`관리자 복사 거래처 검색 추가`).
 
 ## 현재 작업: 날짜 타입 저장 후 무한 처리 중
 - **진행 중**: `test / testflutter`의 날짜 타입 설정에서 제조시한을 `12:01`에서 `12시01분`으로 변경해 저장하면 품목관리 하단의 `처리 중`이 계속 표시되고 편집할 수 없는 1.3.120 증상을 수정한다.
