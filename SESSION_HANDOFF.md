@@ -71,6 +71,7 @@
 - VS Code 진단: 변경한 Dart 파일과 `pubspec.yaml` 모두 오류 없음.
 - DTD 연결 확인: 실행 중인 Flutter 앱이 없어 hot reload는 수행하지 못했다.
 - 상태: **완료**. stage/commit 대상은 `label_column_edit_dialog.dart`, `label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 사용자 dirty 파일은 제외한다.
+- 기능 커밋: `551511ec219531e79c8871bd30e875ec81e5df31` (`GS1 바코드 포함 키워드 표시 복원`).
 
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
