@@ -527,19 +527,27 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     ],
   );
 
-  Widget _customerSelector(bool source) => _selector<int>(
-    key: source ? 'adminCopySourceCustomer' : 'adminCopyTargetCustomer',
-    value: source ? _sourceCustomerId : _targetCustomerId,
-    enabled: source || _targetCustomerEnabled,
-    items: [
-      for (final value in _customers)
-        DropdownMenuItem(
-          value: value.customerId,
-          child: Text(value.customerName),
-        ),
-    ],
-    onChanged: source ? _changeSourceCustomer : _changeTargetCustomer,
-  );
+  Widget _customerSelector(bool source) {
+    final customerNames = <int, String>{
+      for (final customer in _customers)
+        customer.customerId: customer.customerName,
+    };
+    return _selector<int>(
+      key: source ? 'adminCopySourceCustomer' : 'adminCopyTargetCustomer',
+      value: source ? _sourceCustomerId : _targetCustomerId,
+      enabled: source || _targetCustomerEnabled,
+      items: [
+        for (final value in _customers)
+          DropdownMenuItem(
+            value: value.customerId,
+            child: Text(value.customerName),
+          ),
+      ],
+      searchTextForValue: (value) => customerNames[value] ?? '',
+      searchHintText: '거래처 검색',
+      onChanged: source ? _changeSourceCustomer : _changeTargetCustomer,
+    );
+  }
 
   Widget _brandSelector(bool source) {
     final values = source ? _sourceBrands : _targetBrands;
@@ -583,10 +591,14 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     required bool enabled,
     required List<DropdownMenuItem<T>> items,
     required ValueChanged<T?> onChanged,
+    String Function(T value)? searchTextForValue,
+    String searchHintText = '검색',
   }) => ModelessDropdownFormField<T>(
     key: ValueKey(key),
     initialValue: items.any((item) => item.value == value) ? value : null,
     items: items,
     onChanged: enabled && !_busy ? onChanged : null,
+    searchTextForValue: searchTextForValue,
+    searchHintText: searchHintText,
   );
 }

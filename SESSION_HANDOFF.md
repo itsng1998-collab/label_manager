@@ -1,5 +1,31 @@
 # SESSION HANDOFF
 
+## 현재 작업: 관리자 복사 거래처 검색
+- **진행 중**: `파일/관리 > 관리자 복사`의 긴 거래처 목록에서 원본·대상 거래처를 이름으로 검색할 수 있도록 개선한다.
+- 권장안: 별도 검색 결과 화면 대신 거래처 드롭다운 메뉴 상단에 검색창을 제공하고, 입력 즉시 공백·대소문자를 무시한 이름 부분 일치로 목록을 필터링한다. 기존 협력업체→거래처→브랜드→라벨 크기 선택 흐름은 유지한다.
+- 구현 방향: 공용 `ModelessDropdownFormField`에 선택적 검색 API를 추가하고 관리자 복사의 원본·대상 거래처 선택기에만 활성화한다.
+- 회귀 테스트 추가: 공용 드롭다운에서 `대상` 검색 시 대상 거래처만 남고 선택되는지, 관리자 복사의 두 거래처 선택기에 검색 설정이 적용되는지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/modeless_dropdown_form_field_test.dart test/admin_copy_dialog_test.dart`.
+- 수정 전 테스트 결과: **실패(예상 일치)**. `ModelessDropdownFormField`에 `searchTextForValue`, `searchHintText` API가 없어 두 테스트 파일이 컴파일 실패했다.
+- `lib/widgets/modeless_dropdown_form_field.dart` 편집 완료: 선택적 검색창, 실시간 부분 일치 필터, 검색 결과 없음 상태를 추가했다. 검색을 사용하지 않는 기존 호출 동작은 유지한다.
+- `lib/features/admin_copy/presentation/admin_copy_dialog.dart` 편집 완료: 원본·대상 거래처 선택기에 거래처명 검색을 활성화했다.
+- 수정 후 focused tests 실행 예정: `C:/Flutter/bin/flutter.bat test test/modeless_dropdown_form_field_test.dart test/admin_copy_dialog_test.dart`.
+- 수정 후 focused tests 결과: **통과(11/11)**.
+- Dart formatter 적용 완료: `modeless_dropdown_form_field.dart`, `admin_copy_dialog.dart`, 두 관련 테스트 파일.
+- `pubspec.yaml` 편집 완료: 앱 버전을 `1.4.12`에서 `1.4.13`으로 갱신했다.
+- 포맷 후 관련 테스트 및 공용 드롭다운 사용처 회귀 테스트 실행 예정.
+- 공용 드롭다운 사용처 회귀 테스트 결과: **통과(50/50)**. 관리자 복사와 기존 7개 사용 화면의 선택 동작에 회귀 없음.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/widgets/modeless_dropdown_form_field.dart lib/features/admin_copy/presentation/admin_copy_dialog.dart test/modeless_dropdown_form_field_test.dart test/admin_copy_dialog_test.dart`.
+- 정적 분석 결과: **통과**, `No issues found` (종료 코드 0). 변경 파일 VS Code 진단 오류 없음.
+- 관리자 복사 통합 테스트 보강: 원본 거래처에서 `대상` 검색→필터된 거래처 선택→해당 거래처의 `브랜드 2` 로드까지 검증한다.
+- 보강 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/admin_copy_dialog_test.dart --plain-name "source and target customer selectors provide name search"`.
+- 보강 후 focused test 결과: **통과(1/1)**.
+- 최종 관련 테스트 결과: `modeless_dropdown_form_field_test.dart`, `admin_copy_dialog_test.dart` **통과(11/11)**.
+- 최종 정적 분석 결과: **통과**, `No issues found` (종료 코드 0).
+- DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
+- 상태: **완료**. stage/commit 대상은 `lib/widgets/modeless_dropdown_form_field.dart`, `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/modeless_dropdown_form_field_test.dart`, `test/admin_copy_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+
 ## 현재 작업: 날짜 타입 저장 후 무한 처리 중
 - **진행 중**: `test / testflutter`의 날짜 타입 설정에서 제조시한을 `12:01`에서 `12시01분`으로 변경해 저장하면 품목관리 하단의 `처리 중`이 계속 표시되고 편집할 수 없는 1.3.120 증상을 수정한다.
 - 로그 확인: `LabelSizeDAO.updateDateSetup`의 조회·UPDATE는 정상 완료됐고 `dateSetup updateCompleted`도 기록됐다. 이후 내부 상태 로그는 `busy=false`인데 화면에는 `처리 중`이 남는다.

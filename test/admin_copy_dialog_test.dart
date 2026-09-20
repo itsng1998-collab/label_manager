@@ -144,6 +144,39 @@ void main() {
     );
   });
 
+  testWidgets('source and target customer selectors provide name search', (
+    tester,
+  ) async {
+    await pumpDialog(tester, copyBrand: (_) async {});
+
+    for (final key in const [
+      'adminCopySourceCustomer',
+      'adminCopyTargetCustomer',
+    ]) {
+      final selector = tester.widget<ModelessDropdownFormField<int>>(
+        find.byKey(ValueKey(key)),
+      );
+      expect(selector.searchTextForValue, isNotNull);
+      expect(selector.searchHintText, '거래처 검색');
+    }
+
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceCustomer')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('modeless-dropdown-search-field')),
+      '대상',
+    );
+    await tester.pump();
+    expect(find.text('원본 거래처'), findsNothing);
+    expect(find.text('대상 거래처'), findsOneWidget);
+    await tester.tap(find.text('대상 거래처'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceBrand')));
+    await tester.pump();
+    expect(find.text('브랜드 2'), findsOneWidget);
+  });
+
   testWidgets('shows legacy hint and closes from the footer', (tester) async {
     var closeCount = 0;
     await pumpDialog(

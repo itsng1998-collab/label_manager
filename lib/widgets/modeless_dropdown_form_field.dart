@@ -15,6 +15,8 @@ class ModelessDropdownFormField<T> extends StatefulWidget {
     this.decoration = const InputDecoration(),
     this.focusNode,
     this.isExpanded = false,
+    this.searchTextForValue,
+    this.searchHintText = '검색',
   });
 
   final T? initialValue;
@@ -23,6 +25,8 @@ class ModelessDropdownFormField<T> extends StatefulWidget {
   final InputDecoration decoration;
   final FocusNode? focusNode;
   final bool isExpanded;
+  final String Function(T value)? searchTextForValue;
+  final String searchHintText;
 
   @override
   State<ModelessDropdownFormField<T>> createState() =>
@@ -33,10 +37,22 @@ class _ModelessDropdownFormFieldState<T>
     extends State<ModelessDropdownFormField<T>> {
   final GlobalKey _fieldKey = GlobalKey();
   final FocusNode _internalFocusNode = FocusNode();
+  final TextEditingController _searchController = TextEditingController();
   OverlayEntry? _menuEntry;
 
   bool get _enabled => widget.onChanged != null && widget.items.isNotEmpty;
   FocusNode get _focusNode => widget.focusNode ?? _internalFocusNode;
+
+  List<DropdownMenuItem<T>> get _visibleItems {
+    final searchTextForValue = widget.searchTextForValue;
+    final query = _searchController.text.trim().toLowerCase();
+    if (searchTextForValue == null || query.isEmpty) return widget.items;
+    return widget.items.where((item) {
+      final value = item.value;
+      return value != null &&
+          searchTextForValue(value).trim().toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
 
   DropdownMenuItem<T>? get _selectedItem {
     for (final item in widget.items) {
@@ -46,17 +62,29 @@ class _ModelessDropdownFormFieldState<T>
   }
 
   @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_refreshMenu);
+  }
+
+  @override
   void didUpdateWidget(covariant ModelessDropdownFormField<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_enabled) _removeMenu();
+    if (_menuEntry != null) _menuEntry!.markNeedsBuild();
   }
 
   @override
   void dispose() {
     _removeMenu(rebuild: false);
+    _searchController
+      ..removeListener(_refreshMenu)
+      ..dispose();
     _internalFocusNode.dispose();
     super.dispose();
   }
+
+  void _refreshMenu() => _menuEntry?.markNeedsBuild();
 
   void _toggleMenu() {
     if (!_enabled) return;
@@ -73,7 +101,8 @@ class _ModelessDropdownFormFieldState<T>
     final fieldRect = renderObject.localToGlobal(Offset.zero) & renderObject.size;
     final screenSize = MediaQuery.sizeOf(context);
     const itemHeight = modelessDropdownMenuItemHeight;
-    final desiredHeight = itemHeight * widget.items.length;
+    final searchHeight = widget.searchTextForValue == null ? 0.0 : 48.0;
+    final desiredHeight = searchHeight + itemHeight * widget.items.length;
     final availableBelow = screenSize.height - fieldRect.bottom - 4;
     final availableAbove = fieldRect.top - 4;
     final useBelow =
@@ -108,33 +137,7 @@ class _ModelessDropdownFormFieldState<T>
               elevation: 8,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: menuHeight),
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  itemCount: widget.items.length,
-                  itemBuilder: (context, index) {
-                    final item = widget.items[index];
-                    return InkWell(
-                      key: ValueKey('modeless-dropdown-menu-item-$index'),
-                      onTap: item.enabled
-                          ? () {
-                              _removeMenu();
-                              widget.onChanged?.call(item.value);
-                            }
-                          : null,
-                      child: SizedBox(
-                        height: itemHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: item.child,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildMenu(itemHeight),
               ),
             ),
           ),
@@ -146,11 +149,71 @@ class _ModelessDropdownFormFieldState<T>
     setState(() {});
   }
 
+  Widget _buildMenu(double itemHeight) {
+    final items = _visibleItems;
+    final list = items.isEmpty
+        ? const Center(child: Text('검색 결과가 없습니다.'))
+        : ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return InkWell(
+                key: ValueKey('modeless-dropdown-menu-item-$index'),
+                onTap: item.enabled
+                    ? () {
+                        _removeMenu();
+                        widget.onChanged?.call(item.value);
+                      }
+                    : null,
+                child: SizedBox(
+                  height: itemHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: item.child,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+    if (widget.searchTextForValue == null) return list;
+    return SizedBox(
+      height: double.infinity,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(6),
+            child: SizedBox(
+              height: 36,
+              child: TextField(
+                key: const ValueKey('modeless-dropdown-search-field'),
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: widget.searchHintText,
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: list),
+        ],
+      ),
+    );
+  }
+
   void _removeMenu({bool rebuild = true}) {
     final entry = _menuEntry;
     if (entry == null) return;
     _menuEntry = null;
     if (entry.mounted) entry.remove();
+    _searchController.clear();
     if (mounted && rebuild) setState(() {});
   }
 

@@ -76,6 +76,40 @@ void main() {
     final decorator = tester.widget<InputDecorator>(find.byType(InputDecorator));
     expect(decorator.decoration.fillColor, const Color(0xFFE9ECEF));
   });
+
+  testWidgets('search filters menu items and selects the matching value', (
+    tester,
+  ) async {
+    String? selected;
+    await _pumpInOverlay(
+      tester,
+      ModelessDropdownFormField<String>(
+        items: const [
+          DropdownMenuItem(value: 'source', child: Text('원본 거래처')),
+          DropdownMenuItem(value: 'target', child: Text('대상 거래처')),
+        ],
+        searchTextForValue: (value) => value == 'source' ? '원본 거래처' : '대상 거래처',
+        searchHintText: '거래처 검색',
+        onChanged: (value) => selected = value,
+      ),
+    );
+
+    await tester.tap(find.byType(ModelessDropdownFormField<String>));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('modeless-dropdown-search-field')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('modeless-dropdown-search-field')),
+      ' 대상 ',
+    );
+    await tester.pump();
+
+    expect(find.text('원본 거래처'), findsNothing);
+    expect(find.text('대상 거래처'), findsOneWidget);
+    await tester.tap(find.text('대상 거래처'));
+    await tester.pump();
+    expect(selected, 'target');
+  });
 }
 
 Future<void> _pumpInOverlay(WidgetTester tester, Widget child) async {
