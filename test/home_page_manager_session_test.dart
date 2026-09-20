@@ -30,6 +30,19 @@ void main() {
     expect(calls, ['progress', 'load']);
   });
 
+  test('date setup completion clears busy before rebuilding cached tabs', () {
+    var commandBusy = true;
+    bool? rebuiltWithBusy;
+
+    completeDateSetupCommand(
+      setCommandBusy: (value) => commandBusy = value,
+      rebuildTabs: () => rebuiltWithBusy = commandBusy,
+    );
+
+    expect(commandBusy, isFalse);
+    expect(rebuiltWithBusy, isFalse);
+  });
+
   test('same label reloads when the item manager session is absent', () {
     expect(
       itemManagerSessionAlreadyLoaded(

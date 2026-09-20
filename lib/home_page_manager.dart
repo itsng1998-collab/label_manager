@@ -212,6 +212,15 @@ void startItemManagerInitialLoad({
 }
 
 @visibleForTesting
+void completeDateSetupCommand({
+  required ValueChanged<bool> setCommandBusy,
+  required VoidCallback rebuildTabs,
+}) {
+  setCommandBusy(false);
+  rebuildTabs();
+}
+
+@visibleForTesting
 Offset itemPreviewBottomRightTarget({
   required Rect tableRect,
   required double scrollbarThickness,
@@ -4284,6 +4293,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       ItemManagerDebugLog.event('dateSetup', 'saveCancelled', trace: trace);
       return;
     }
+    var rebuildTabs = false;
     setState(() => _itemDraftCommandBusy = true);
     try {
       final saved = await LabelSizeDAO.updateDateSetup(
@@ -4301,7 +4311,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _currentLabelSize = saved;
       widget.onLabelSizeChanged(saved);
       _labelSetupRevision++;
-      _resetTabs();
+      rebuildTabs = true;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('날짜 타입 설정을 저장했습니다.')));
@@ -4314,7 +4324,16 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       if (mounted) _showItemDraftError('날짜 타입 설정 저장 실패', error);
     } finally {
-      if (mounted) setState(() => _itemDraftCommandBusy = false);
+      if (mounted) {
+        if (rebuildTabs) {
+          completeDateSetupCommand(
+            setCommandBusy: (value) => _itemDraftCommandBusy = value,
+            rebuildTabs: _resetTabs,
+          );
+        } else {
+          setState(() => _itemDraftCommandBusy = false);
+        }
+      }
     }
   }
 

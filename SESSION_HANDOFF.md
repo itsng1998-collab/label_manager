@@ -1,5 +1,26 @@
 # SESSION HANDOFF
 
+## 현재 작업: 날짜 타입 저장 후 무한 처리 중
+- **진행 중**: `test / testflutter`의 날짜 타입 설정에서 제조시한을 `12:01`에서 `12시01분`으로 변경해 저장하면 품목관리 하단의 `처리 중`이 계속 표시되고 편집할 수 없는 1.3.120 증상을 수정한다.
+- 로그 확인: `LabelSizeDAO.updateDateSetup`의 조회·UPDATE는 정상 완료됐고 `dateSetup updateCompleted`도 기록됐다. 이후 내부 상태 로그는 `busy=false`인데 화면에는 `처리 중`이 남는다.
+- 원인 확인: 저장 성공 경로가 `_itemDraftCommandBusy == true`인 상태에서 `_resetTabs()`를 호출해 `_tabs`에 `ItemManage(commandBusy: true)`를 캐시한다. `finally`의 `setState(...false)`는 `_tabs`를 다시 만들지 않아 화면만 영구 busy 상태로 남는다.
+- 구현 방향: 날짜 설정 저장 완료 시 `_itemDraftCommandBusy`를 먼저 해제한 다음 `_resetTabs()`로 탭 위젯을 재생성한다. 실패 시에는 기존처럼 busy만 해제한다.
+- 회귀 테스트 추가: 날짜 설정 완료 함수가 busy를 먼저 `false`로 바꾼 뒤 탭 재생성 콜백을 호출하는 순서를 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/home_page_manager_session_test.dart --plain-name "date setup completion clears busy before rebuilding cached tabs"`.
+- 수정 전 테스트 결과: **실패(예상 일치)**. `completeDateSetupCommand`가 없어 컴파일 실패했고 기존 저장 경로에는 올바른 완료 순서가 없음을 확인했다.
+- `lib/home_page_manager.dart` 편집 완료: 날짜 설정 저장 성공 시 `completeDateSetupCommand`가 busy를 먼저 해제하고 `_resetTabs()`를 호출한다. 실패 경로는 busy만 해제한다.
+- 수정 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/home_page_manager_session_test.dart --plain-name "date setup completion clears busy before rebuilding cached tabs"`.
+- 수정 중 짧은 패치 문맥이 `_flushItemDraftEdits`에 성공 플래그를 잘못 삽입해 focused test가 컴파일 실패했다. 해당 변경을 즉시 제거하고 `_openDateTypeSetupDialog`에 정확히 배치했다.
+- 수정 후 focused test 결과: **통과(1/1)**.
+- Dart formatter 적용 완료: `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`. 소스 diff는 의도한 `completeDateSetupCommand`와 `_openDateTypeSetupDialog`에만 한정됨을 확인했다.
+- 관련 테스트 결과: `C:/Flutter/bin/flutter.bat test test/home_page_manager_session_test.dart test/date_type_setup_dialog_test.dart` **통과(10/10)**.
+- `pubspec.yaml` 편집 완료: 앱 버전을 `1.4.11`에서 `1.4.12`로 갱신했다.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart test/home_page_manager_session_test.dart test/date_type_setup_dialog_test.dart`.
+- 정적 분석 결과: **통과**, `No issues found` (종료 코드 0).
+- DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
+- 상태: **완료**. stage/commit 대상은 `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+
 ## 현재 작업: 품목별 정보 저장 후 라벨출력 즉시 반영
 - **진행 중**: 발행 체크된 품목의 줄간격·기본 발행 수·개별 크기·여백을 `품목별 정보 편집`에서 저장해도 라벨출력 탭에 즉시 반영되지 않고, 발행 체크를 해제 후 재선택해야 반영되는 1.3.120 증상을 수정한다.
 - 원인 확인: `_handleItemInfoCommitted`는 최신 `ItemOfMarket.datas`를 저장하고 `_syncLabelPrintRows()`를 호출하지만, `LabelPrintSessionController.syncCheckedItems()`는 이미 체크된 품목의 기존 `LabelPrintRowDraft` 전체를 재사용한다.
