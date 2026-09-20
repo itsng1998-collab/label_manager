@@ -20,7 +20,8 @@
 - 정적 분석 결과: **통과**, `No issues found` (9개 대상, 종료 코드 0).
 - 변경 파일 VS Code 진단 오류 없음.
 - DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
-- 상태: **검증 완료, 커밋 진행 중**. stage/commit 대상은 진단 로그 관련 Dart 소스 8개, 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 상태: **완료**. 기존 사용자 dirty `.vscode/settings.json`, `lib/core/app.dart`는 제외했다.
+- 기능 커밋: `ffb38062d6afc6b3906261c610cd5b6050d7b049` (`최근 수정 기능 진단 로그 보강`).
 
 ## 현재 작업: 공용라벨 이름 열 키워드 삽입
 - **진행 중**: 공용라벨관리의 `사용 항목` 표에서 키워드 열은 더블클릭으로 `#키워드`가 삽입되지만 이름 열은 삽입되지 않는 1.3.120 증상을 수정한다.
