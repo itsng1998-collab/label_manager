@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/core/admin_connect_session.dart';
@@ -343,6 +345,77 @@ void main() {
       isNot(contains('3575')),
     );
     expect(find.byType(NoticeDisplayPanel), findsNothing);
+  });
+
+  testWidgets('edited id supersedes saved id lookup in flight', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': '3575',
+      'save_id': true,
+    });
+    final savedNotice = Completer<Notice>();
+    final noticeLookupIds = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            onLogin: () {},
+            loginService: StartupLoginService(
+              loadNotice: (userId) {
+                noticeLookupIds.add(userId);
+                if (userId == '3575') return savedNotice.future;
+                return Future.value(
+                  const Notice(message: '업데이트 공지', state: 1),
+                );
+              },
+              loadUser: (userId) async => User(
+                userId: userId,
+                marketId: 1,
+                name: 'name:$userId',
+                pwd: 'pw',
+                grade: UserGrade.CLIENT_USER,
+                marketName: '지점',
+                customerName: '거래처',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final userIdField = find.byKey(
+      const ValueKey('startup-login-user-id'),
+    );
+    expect(tester.widget<TextField>(userIdField).controller?.text, '3575');
+    await tester.enterText(userIdField, 'TESTER1');
+    await tester.tap(find.byKey(const ValueKey('startup-login-password')));
+    await tester.pump();
+
+    savedNotice.complete(const Notice(message: '업데이트 공지', state: 1));
+    await tester.pumpAndSettle();
+
+    expect(noticeLookupIds, containsAllInOrder(['3575', 'TESTER1']));
+    expect(
+      tester.widget<TextField>(userIdField).controller?.text,
+      'TESTER1',
+    );
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('startup-login-user-name')),
+          )
+          .controller
+          ?.text,
+      'name:TESTER1',
+    );
   });
 
   test('notice confirmation resets only when user id changes', () {

@@ -345,9 +345,6 @@ class _LoginPanel extends StatefulWidget {
   final StartupLoginService? loginService;
   final UserAccessService? userAccessService;
 
-  // 중복 실행 방지 플래그
-  static bool _noticeFetchInFlight = false;
-
   const _LoginPanel({
     super.key,
     required this.userId,
@@ -379,6 +376,8 @@ class _LoginPanelState extends State<_LoginPanel> {
   User? _userInfo;
   bool _dialogClosed = false;
   bool _autoLoginTriggered = false;
+  bool _userIdEdited = false;
+  int _userLookupGeneration = 0;
 
   Future<void> _closeDialog() async {
     if (_dialogClosed) return;
@@ -407,34 +406,40 @@ class _LoginPanelState extends State<_LoginPanel> {
     final saveId = prefs.getBool('save_id') ?? false;
 
     if (mounted) {
+      final restoreUserId =
+          !_userIdEdited && widget.userId.text.trim().isEmpty;
       setState(() {
-        widget.userId.text = userId;
+        if (restoreUserId) widget.userId.text = userId;
         _saveId = saveId;
       });
       // 저장된 ID가 있으면 바로 공지사항을 가져옵니다.
-      if (userId.isNotEmpty) _onUserIdFieldCommit(userId);
+      if (restoreUserId && userId.isNotEmpty) {
+        _onUserIdFieldCommit(userId);
+      }
     }
   }
 
   Future<void> _onUserIdFieldCommit(String userIdText) async {
-    if (_LoginPanel._noticeFetchInFlight) return;
-    _LoginPanel._noticeFetchInFlight = true;
     const notFoundId = '잘못된 ID입니다!';
+    final inputId = userIdText.trim();
+
+    if (inputId.isEmpty) {
+      if (mounted) FocusScope.of(context).requestFocus(_userIdFocus);
+      return;
+    }
+
+    final requestGeneration = ++_userLookupGeneration;
 
     try {
-      final inputId = userIdText.trim();
-
-      if (inputId.isEmpty) {
-        if (mounted) FocusScope.of(context).requestFocus(_userIdFocus);
+      final result = await _loginService.lookupUser(inputId);
+      if (!mounted ||
+          requestGeneration != _userLookupGeneration ||
+          widget.userId.text.trim().toLowerCase() != inputId.toLowerCase()) {
         return;
       }
-
-      final result = await _loginService.lookupUser(inputId);
       widget.onUserIdCommit?.call(result);
 
       _userInfo = result.user;
-
-      if (!mounted) return;
 
       if (_userInfo != null) {
         widget.customerName.text = _userInfo!.customerName;
@@ -446,8 +451,7 @@ class _LoginPanelState extends State<_LoginPanel> {
           FocusScope.of(context).requestFocus(_passwordFocus);
         }
         _maybeAutoLogin();
-      } 
-      else {
+      } else {
         widget.customerName.text = '';
         widget.marketName.text = '';
         widget.userName.text = '';
@@ -457,8 +461,8 @@ class _LoginPanelState extends State<_LoginPanel> {
           FocusScope.of(context).requestFocus(_userIdFocus);
         }
       }
-    }
-    catch (e) {
+    } catch (e) {
+      if (!mounted || requestGeneration != _userLookupGeneration) return;
       var errmsg = e.toString();
       errmsg = stripLeadingBracketTags(errmsg);
       debugLog('Exception: $errmsg');
@@ -471,9 +475,16 @@ class _LoginPanelState extends State<_LoginPanel> {
         FocusScope.of(context).requestFocus(_userIdFocus);
       }
     }
-    finally {
-      _LoginPanel._noticeFetchInFlight = false;
-    }
+  }
+
+  void _onUserIdChanged(String value) {
+    _userIdEdited = true;
+    _userLookupGeneration += 1;
+    _userInfo = null;
+    widget.customerName.clear();
+    widget.marketName.clear();
+    widget.userName.clear();
+    setState(() => _infoText = '');
   }
 
   Future<void> _onPasswordFieldCommit(String passwordText) async {
@@ -699,7 +710,7 @@ class _LoginPanelState extends State<_LoginPanel> {
                             autofocus: true,
                             decoration: _dec('아이디'),
                             textInputAction: TextInputAction.done,
-                            onChanged: (value) => setState(() {}),
+                            onChanged: _onUserIdChanged,
                             onSubmitted: (value) => _onUserIdFieldCommit(value),
                           ),
                         ),
@@ -749,6 +760,7 @@ class _LoginPanelState extends State<_LoginPanel> {
                         child: ExcludeFocus(
                           excluding: true,
                           child: TextField(
+                            key: const ValueKey('startup-login-user-name'),
                             controller: widget.userName,
                             readOnly: true,
                             decoration: _dec('사용자 이름'),

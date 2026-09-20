@@ -17,9 +17,28 @@
 - 정적 분석 통과: `No issues found` (종료 코드 0). 변경 파일 VS Code 진단 오류 없음.
 - DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
 - 상태: **완료**. stage/commit 대상은 `startup_dialog.dart`, `startup_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 최종 보강: 늦게 완료된 `3575` 조회가 사용자 이름 등 조회 결과를 덮지 않고 `name:TESTER1`이 유지되는지 검증한다.
+- 보강 후 최종 검증 통과: `startup_dialog_test.dart` **13/13**, focused analyze 오류·경고 0.
 - 최종 보강: 아이디/비밀번호 필드에 안정적인 테스트 key를 추가하고, `TESTER1` 조회 이후 `3575`가 다시 조회되지 않는 조건을 명시적으로 검증한다.
 - 보강 후 최종 검증 통과: `startup_dialog_test.dart` **12/12**, focused analyze 오류·경고 0.
 - 기능 커밋: `361b4ac8690f94dbfc5871ee49562d958fae901a` (`저장 아이디 입력 덮어쓰기 수정`).
+
+## 현재 작업: 공지 숨김 상태의 저장 아이디 조회 경합
+- **진행 중**: 저장 ID `3575`에서 `다음 업데이트까지 이 창 보지 않음`을 저장한 뒤 재로그인하여 `TESTER1`을 입력하면 `3575`로 돌아가는 추가 재현을 처리한다.
+- 원인 가설: 저장 ID의 공지 조회가 진행 중일 때 `_LoginPanel._noticeFetchInFlight`가 새 `TESTER1` 조회를 즉시 버리고, 늦게 완료된 `3575` 결과가 현재 로그인 정보로 적용된다.
+- 구현 방향: 사용자 ID 입력 변경 시 이전 조회를 무효화하고, 서로 다른 최신 ID 조회는 실행하되 현재 입력과 요청 세대가 일치하는 결과만 적용한다. 비동기 preference 로딩도 사용자가 입력을 시작한 뒤에는 ID를 덮어쓰지 않게 한다.
+- 회귀 테스트 추가: 저장 ID `3575` 공지 조회를 지연시킨 상태에서 `TESTER1`로 이동해도 새 조회가 실행되고 입력 ID가 유지되는지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/startup_dialog_test.dart --plain-name "edited id supersedes saved id lookup in flight"`.
+- 수정 전 회귀 재현 완료: 기대 조회 `3575 → TESTER1` 대신 `3575`만 실행되어 실패했다(종료 코드 1).
+- [`lib/features/login/presentation/startup_dialog.dart`](lib/features/login/presentation/startup_dialog.dart) 편집 완료: 전역 조회 잠금을 제거하고 ID 입력마다 이전 요청을 무효화한다. 현재 입력 및 최신 요청 세대와 일치하는 조회 결과만 적용하며, 사용자가 편집을 시작한 뒤 완료된 preference 로딩은 저장 ID를 주입하지 않는다.
+- 수정 후 focused 회귀 테스트 통과: **1/1**.
+- 버전은 저장 ID 비동기 경합 수정이므로 PATCH 단계로 `1.4.9`에서 `1.4.10`으로 갱신했다.
+- Dart 포맷 완료: `startup_dialog.dart`, `startup_dialog_test.dart`.
+- 전체 관련 검증 통과: `C:/Flutter/bin/flutter.bat test test/startup_dialog_test.dart` (**13/13**, 종료 코드 0).
+- 정적 분석 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/login/presentation/startup_dialog.dart test/startup_dialog_test.dart`.
+- 정적 분석 통과: `No issues found` (종료 코드 0). 변경 파일 VS Code 진단 오류 없음.
+- DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- 상태: **완료**. stage/commit 대상은 `startup_dialog.dart`, `startup_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 
 ## 현재 작업: 관리자 복사 품목 포함 SQL 512 오류
 - **진행 중**: 관리자 복사에서 원본 라벨 `677`을 대상 라벨 `8156`으로 `품목까지 복사`하면 SQL Server 오류 512(스칼라 하위 쿼리 복수행)가 발생하는 1.3.106 로그 증상을 수정한다.
