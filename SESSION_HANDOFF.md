@@ -1,5 +1,30 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목별 정보 저장 후 라벨출력 즉시 반영
+- **진행 중**: 발행 체크된 품목의 줄간격·기본 발행 수·개별 크기·여백을 `품목별 정보 편집`에서 저장해도 라벨출력 탭에 즉시 반영되지 않고, 발행 체크를 해제 후 재선택해야 반영되는 1.3.120 증상을 수정한다.
+- 원인 확인: `_handleItemInfoCommitted`는 최신 `ItemOfMarket.datas`를 저장하고 `_syncLabelPrintRows()`를 호출하지만, `LabelPrintSessionController.syncCheckedItems()`는 이미 체크된 품목의 기존 `LabelPrintRowDraft` 전체를 재사용한다.
+- 구현 방향: 동기화 때 최신 baseline row를 생성하고, `sessionEdited` 출처인 라벨출력 직접 수정값만 기존 값으로 유지한다. 품목 정보 및 fallback 출처 값은 최신 baseline으로 교체한다.
+- 회귀 테스트 추가: 체크 상태를 유지한 품목의 발행 수·크기·여백·줄간격은 갱신되고, 라벨출력에서 직접 수정한 발행 수와 폭은 유지되는지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_print_session_test.dart --plain-name "checked row refreshes item info while preserving session edits"`.
+- 수정 전 테스트 결과: **실패(예상 일치)**. 기존 row가 저장 전 `ItemOfMarket` 인스턴스를 계속 참조해 최신 품목별 설정이 반영되지 않음을 확인했다.
+- `lib/features/label_print/domain/label_print.dart` 편집 완료: `LabelPrintRowDraft.preserveSessionEditsFrom`을 추가하고, `syncCheckedItems`가 최신 baseline row에 `sessionEdited` 필드만 병합하도록 변경했다.
+- 수정 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_print_session_test.dart --plain-name "checked row refreshes item info while preserving session edits"`.
+- 수정 후 focused test 결과: **통과(1/1)**.
+- 후속 정리: `syncCheckedItems`가 품목당 baseline row를 한 번만 생성하도록 지역 함수로 정리했다.
+- 전체 라벨출력 세션 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_print_session_test.dart`.
+- 전체 라벨출력 세션 테스트 결과: **통과(24/24)**.
+- VS Code 진단 결과: 변경한 `label_print.dart`, `label_print_session_test.dart` 오류 없음.
+- `pubspec.yaml` 편집 완료: 앱 버전을 `1.4.10`에서 `1.4.11`로 갱신했다.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/item_info_batch_test.dart test/item_info_dialog_test.dart test/label_print_session_test.dart`.
+- 관련 테스트 결과: **통과(29/29)** (Flutter 명령 직접 실행, 종료 코드 0).
+- Dart formatter 적용 완료: `lib/features/label_print/domain/label_print.dart`, `test/label_print_session_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/label_print/domain/label_print.dart test/label_print_session_test.dart lib/home_page_manager.dart lib/features/item/presentation/item_info_dialog.dart`.
+- 정적 분석 결과: **통과**, `No issues found` (종료 코드 0).
+- DTD 연결 앱 조회 및 hot reload 실행 예정.
+- DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
+- 상태: **완료**. stage/commit 대상은 `lib/features/label_print/domain/label_print.dart`, `test/label_print_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+
 ## 현재 작업: 저장 아이디의 사용자 입력 덮어쓰기
 - **진행 중**: 로그인 창에서 저장 ID `3575` 대신 `TESTER1`을 입력한 뒤 비밀번호를 클릭하면 다시 `3575`로 강제 전환되는 1.3.120 증상을 수정한다.
 - 로그 확인: `TESTER1` 공지/사용자 조회가 성공한 직후 약 0.16초 내 저장 ID `3575` 공지/사용자 조회가 다시 시작된다.

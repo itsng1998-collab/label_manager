@@ -177,6 +177,59 @@ void main() {
     expect(controller.rows.first.copiesSource, LabelPrintValueSource.itemBaseline);
   });
 
+  test('checked row refreshes item info while preserving session edits', () {
+    final initial = _item(10, '품목', copies: 1);
+    final updated = initial.copyWith(
+      useLinefeed: true,
+      linefeed: 110,
+      printCount: 3,
+      useLabelSize: true,
+      labelSizeWidth: 70,
+      labelSizeHeight: 50,
+      useMargin: true,
+      leftMargin: 1,
+      rightMargin: 2,
+      topMargin: 3,
+      leftPush: 4,
+      topPush: 5,
+    );
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    controller.syncCheckedItems(
+      baselineItems: [initial],
+      checkedItemIds: const {10},
+      createRow: createRow,
+    );
+    controller.editCopies(10, 7);
+    controller.updateRow(
+      10,
+      (row) => row.copyWith(
+        widthMm: 99,
+        widthSource: LabelPrintValueSource.sessionEdited,
+      ),
+    );
+
+    controller.syncCheckedItems(
+      baselineItems: [updated],
+      checkedItemIds: const {10},
+      createRow: createRow,
+    );
+
+    final row = controller.rows.single;
+    expect(row.item, same(updated));
+    expect(row.copies, 7);
+    expect(row.copiesSource, LabelPrintValueSource.sessionEdited);
+    expect(row.widthMm, 99);
+    expect(row.widthSource, LabelPrintValueSource.sessionEdited);
+    expect(row.heightMm, 50);
+    expect(row.leftMarginMm, 1);
+    expect(row.rightMarginMm, 2);
+    expect(row.topMarginMm, 3);
+    expect(row.leftPushMm, 4);
+    expect(row.topPushMm, 5);
+    expect(row.lineSpacingPercent, 110);
+  });
+
   test('row baseline tracks item and fallback sources field by field', () {
     final fallback = createRow(_item(10, '기본', copies: 1));
     expect(fallback.widthMm, 60);

@@ -185,6 +185,77 @@ class LabelPrintRowDraft {
   final LabelPrintValueSource topPushSource;
   final LabelPrintValueSource lineSpacingSource;
 
+    LabelPrintRowDraft preserveSessionEditsFrom(LabelPrintRowDraft previous) =>
+      copyWith(
+      copies: previous.copiesSource == LabelPrintValueSource.sessionEdited
+        ? previous.copies
+        : copies,
+      widthMm: previous.widthSource == LabelPrintValueSource.sessionEdited
+        ? previous.widthMm
+        : widthMm,
+      heightMm: previous.heightSource == LabelPrintValueSource.sessionEdited
+        ? previous.heightMm
+        : heightMm,
+      leftMarginMm:
+        previous.leftMarginSource == LabelPrintValueSource.sessionEdited
+        ? previous.leftMarginMm
+        : leftMarginMm,
+      rightMarginMm:
+        previous.rightMarginSource == LabelPrintValueSource.sessionEdited
+        ? previous.rightMarginMm
+        : rightMarginMm,
+      topMarginMm:
+        previous.topMarginSource == LabelPrintValueSource.sessionEdited
+        ? previous.topMarginMm
+        : topMarginMm,
+      leftPushMm:
+        previous.leftPushSource == LabelPrintValueSource.sessionEdited
+        ? previous.leftPushMm
+        : leftPushMm,
+      topPushMm: previous.topPushSource == LabelPrintValueSource.sessionEdited
+        ? previous.topPushMm
+        : topPushMm,
+      lineSpacingPercent:
+        previous.lineSpacingSource == LabelPrintValueSource.sessionEdited
+        ? previous.lineSpacingPercent
+        : lineSpacingPercent,
+      copiesSource:
+        previous.copiesSource == LabelPrintValueSource.sessionEdited
+        ? previous.copiesSource
+        : copiesSource,
+      widthSource: previous.widthSource == LabelPrintValueSource.sessionEdited
+        ? previous.widthSource
+        : widthSource,
+      heightSource:
+        previous.heightSource == LabelPrintValueSource.sessionEdited
+        ? previous.heightSource
+        : heightSource,
+      leftMarginSource:
+        previous.leftMarginSource == LabelPrintValueSource.sessionEdited
+        ? previous.leftMarginSource
+        : leftMarginSource,
+      rightMarginSource:
+        previous.rightMarginSource == LabelPrintValueSource.sessionEdited
+        ? previous.rightMarginSource
+        : rightMarginSource,
+      topMarginSource:
+        previous.topMarginSource == LabelPrintValueSource.sessionEdited
+        ? previous.topMarginSource
+        : topMarginSource,
+      leftPushSource:
+        previous.leftPushSource == LabelPrintValueSource.sessionEdited
+        ? previous.leftPushSource
+        : leftPushSource,
+      topPushSource:
+        previous.topPushSource == LabelPrintValueSource.sessionEdited
+        ? previous.topPushSource
+        : topPushSource,
+      lineSpacingSource:
+        previous.lineSpacingSource == LabelPrintValueSource.sessionEdited
+        ? previous.lineSpacingSource
+        : lineSpacingSource,
+      );
+
   LabelPrintRowDraft copyWith({
     int? copies,
     int? widthMm,
@@ -337,10 +408,18 @@ class LabelPrintSessionController extends ChangeNotifier {
     final previous = <int, LabelPrintRowDraft>{
       for (final row in _rows) row.itemId: row,
     };
+    LabelPrintRowDraft syncRow(ItemOfMarket item) {
+      final baseline = createRow(item);
+      final previousRow = previous[item.item.itemId];
+      return previousRow == null
+          ? baseline
+          : baseline.preserveSessionEditsFrom(previousRow);
+    }
+
     _rows = <LabelPrintRowDraft>[
       for (final item in baselineItems)
         if (checkedItemIds.contains(item.item.itemId))
-          previous[item.item.itemId] ?? createRow(item),
+          syncRow(item),
     ];
     if (!_rows.any((row) => row.itemId == _selectedItemId)) {
       _selectedItemId = _rows.firstOrNull?.itemId;
