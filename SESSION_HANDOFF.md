@@ -1,5 +1,25 @@
 # SESSION HANDOFF
 
+## 현재 작업: 저장 아이디의 사용자 입력 덮어쓰기
+- **진행 중**: 로그인 창에서 저장 ID `3575` 대신 `TESTER1`을 입력한 뒤 비밀번호를 클릭하면 다시 `3575`로 강제 전환되는 1.3.120 증상을 수정한다.
+- 로그 확인: `TESTER1` 공지/사용자 조회가 성공한 직후 약 0.16초 내 저장 ID `3575` 공지/사용자 조회가 다시 시작된다.
+- 원인 확인: 사용자 조회 결과로 공지 패널이 닫힐 때 `_LoginPanel`이 `Row > Expanded` 아래에서 다이얼로그 루트로 이동하며 State가 재생성되고, `initState`의 `_loadPreferences()`가 저장 ID를 다시 주입한다.
+- 구현 방향: `_DialogBodyState`가 소유한 안정적인 `GlobalKey<_LoginPanelState>`를 `_LoginPanel`에 부여해 공지 레이아웃 전환에도 동일 State를 재사용한다.
+- 회귀 테스트 추가: 저장 ID `3575`에서 `TESTER1` 입력 후 비밀번호 포커스로 공지 패널이 닫혀도 입력 ID와 조회 순서가 유지되는지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/startup_dialog_test.dart --plain-name "saved id does not replace edited id when notice closes"`.
+- 수정 전 회귀 재현 완료: 기대 ID `TESTER1` 대신 실제 ID `3575`로 실패했다(종료 코드 1).
+- [`lib/features/login/presentation/startup_dialog.dart`](lib/features/login/presentation/startup_dialog.dart) 편집 완료: `_DialogBodyState`가 소유한 `GlobalKey<_LoginPanelState>`를 `_LoginPanel`에 적용해 공지 표시 전환 시 로그인 State를 보존한다.
+- focused 회귀 테스트 통과: 입력 ID가 `TESTER1`로 유지되고 `TESTER1` 조회 이후 저장 ID `3575` 재조회가 발생하지 않는다.
+- 버전은 로그인 입력 보존 버그 수정이므로 PATCH 단계로 `1.4.8`에서 `1.4.9`로 갱신했다.
+- Dart 포맷 완료: `startup_dialog.dart`, `startup_dialog_test.dart`. 포맷 후 focused 회귀 재검증 **1/1 통과**.
+- 전체 관련 검증 통과: `C:/Flutter/bin/flutter.bat test test/startup_dialog_test.dart` (**12/12**, 종료 코드 0).
+- 정적 분석 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/login/presentation/startup_dialog.dart test/startup_dialog_test.dart`.
+- 정적 분석 통과: `No issues found` (종료 코드 0). 변경 파일 VS Code 진단 오류 없음.
+- DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- 상태: **완료**. stage/commit 대상은 `startup_dialog.dart`, `startup_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 최종 보강: 아이디/비밀번호 필드에 안정적인 테스트 key를 추가하고, `TESTER1` 조회 이후 `3575`가 다시 조회되지 않는 조건을 명시적으로 검증한다.
+- 보강 후 최종 검증 통과: `startup_dialog_test.dart` **12/12**, focused analyze 오류·경고 0.
+
 ## 현재 작업: 관리자 복사 품목 포함 SQL 512 오류
 - **진행 중**: 관리자 복사에서 원본 라벨 `677`을 대상 라벨 `8156`으로 `품목까지 복사`하면 SQL Server 오류 512(스칼라 하위 쿼리 복수행)가 발생하는 1.3.106 로그 증상을 수정한다.
 - 로그 확인: `copyItems=1`, `targetFirstMarketId=1`로 실행된 트랜잭션이 `proc_copy_item`과 `proc_copy_item_content`를 포함한 품목 복사 구간에서 실패하고 전체 롤백됐다. 앱이 직접 작성한 품목-지점 INSERT의 하위 쿼리는 이미 `TOP 1`이라 오류 512 대상이 아니다.

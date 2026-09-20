@@ -203,6 +203,7 @@ class _DialogBody extends StatefulWidget {
 }
 
 class _DialogBodyState extends State<_DialogBody> {
+  final _loginPanelKey = GlobalKey<_LoginPanelState>();
   late final TextEditingController userId;
   late final TextEditingController customerName;
   late final TextEditingController marketName;
@@ -233,6 +234,7 @@ class _DialogBodyState extends State<_DialogBody> {
   @override
   Widget build(BuildContext context) {
     final loginPanel = _LoginPanel(
+      key: _loginPanelKey,
       userId: userId,
       customerName: customerName,
       marketName: marketName,
@@ -347,6 +349,7 @@ class _LoginPanel extends StatefulWidget {
   static bool _noticeFetchInFlight = false;
 
   const _LoginPanel({
+    super.key,
     required this.userId,
     required this.customerName,
     required this.marketName,
@@ -690,6 +693,7 @@ class _LoginPanelState extends State<_LoginPanel> {
                             if (!hasFocus) _onUserIdFieldCommit(widget.userId.text);
                           },
                           child: TextField(
+                            key: const ValueKey('startup-login-user-id'),
                             controller: widget.userId,
                             focusNode: _userIdFocus,
                             autofocus: true,
@@ -760,6 +764,7 @@ class _LoginPanelState extends State<_LoginPanel> {
                       SizedBox(width: lmSize(8)),
                       Expanded(
                         child: TextField(
+                          key: const ValueKey('startup-login-password'),
                           controller: widget.password,
                           focusNode: _passwordFocus,
                           obscureText: true,

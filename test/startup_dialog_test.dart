@@ -282,6 +282,69 @@ void main() {
     expect(find.byType(NoticeDisplayPanel), findsOneWidget);
   });
 
+  testWidgets('saved id does not replace edited id when notice closes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': '3575',
+      'save_id': true,
+    });
+    final lookedUpIds = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StartupDialog(
+            onLogin: () {},
+            loginService: StartupLoginService(
+              loadNotice: (userId) async => Notice(
+                message: '업데이트 공지',
+                state: userId == 'TESTER1' ? 1 : 0,
+              ),
+              loadUser: (userId) async {
+                lookedUpIds.add(userId);
+                return User(
+                  userId: userId,
+                  marketId: 1,
+                  name: '사용자',
+                  pwd: 'pw',
+                  grade: UserGrade.CLIENT_USER,
+                  marketName: '지점',
+                  customerName: '거래처',
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final userIdField = find.byKey(
+      const ValueKey('startup-login-user-id'),
+    );
+    await tester.enterText(userIdField, 'TESTER1');
+    await tester.tap(find.byKey(const ValueKey('startup-login-password')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(userIdField).controller?.text,
+      'TESTER1',
+    );
+    final editedLookupIndex = lookedUpIds.indexOf('TESTER1');
+    expect(editedLookupIndex, greaterThanOrEqualTo(0));
+    expect(lookedUpIds.where((userId) => userId == 'TESTER1'), hasLength(1));
+    expect(
+      lookedUpIds.skip(editedLookupIndex + 1),
+      isNot(contains('3575')),
+    );
+    expect(find.byType(NoticeDisplayPanel), findsNothing);
+  });
+
   test('notice confirmation resets only when user id changes', () {
     expect(didNoticeUserChange('3575', 'TESTER1'), isTrue);
     expect(didNoticeUserChange(' tester1 ', 'TESTER1'), isFalse);
