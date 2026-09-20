@@ -1,5 +1,26 @@
 # SESSION HANDOFF
 
+## 현재 작업: 관리자 복사 품목 포함 SQL 512 오류
+- **진행 중**: 관리자 복사에서 원본 라벨 `677`을 대상 라벨 `8156`으로 `품목까지 복사`하면 SQL Server 오류 512(스칼라 하위 쿼리 복수행)가 발생하는 1.3.106 로그 증상을 수정한다.
+- 로그 확인: `copyItems=1`, `targetFirstMarketId=1`로 실행된 트랜잭션이 `proc_copy_item`과 `proc_copy_item_content`를 포함한 품목 복사 구간에서 실패하고 전체 롤백됐다. 앱이 직접 작성한 품목-지점 INSERT의 하위 쿼리는 이미 `TOP 1`이라 오류 512 대상이 아니다.
+- 원인 가설: 구 DB 저장 프로시저 내부가 품목 순번 또는 컬럼 대응을 스칼라 하위 쿼리로 가정해 복수 매칭 데이터에서 실패한다. 프로시저 정의는 저장소에 없으므로 DB 마이그레이션 없이 앱 SQL에서 의존을 제거한다.
+- 구현 방향: 원본 품목을 한 건씩 삽입하며 원본→대상 품목 ID를 캡처하고, 원본→대상 컬럼도 정렬 순번으로 1:1 매핑한다. 열 내용은 집합 기반 `UPDATE ... JOIN`과 누락 행 INSERT로 복사하고, 품목-지점 정보는 품목 ID 매핑을 사용한다. `STRING_AGG` 등 compatibility 100 비지원 문법은 사용하지 않는다.
+- 수정 예정 파일: `lib/features/admin_copy/data/admin_copy_dao.dart`, `test/admin_copy_dao_test.dart`, `pubspec.yaml`.
+- 회귀 테스트 추가: 두 복사 SQL이 구 품목 복사 프로시저를 호출하지 않고 `@ItemMap`/`@ColumnMap`, `ROW_NUMBER`, 집합 기반 내용 UPDATE를 사용하는 계약을 고정한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/admin_copy_dao_test.dart --plain-name "item copy uses explicit item and column mappings"`.
+- 수정 전 회귀 재현 완료: 프로시저 대신 품목 ID 캡처를 요구하는 첫 기대값이 실패했다(종료 코드 1).
+- [`lib/features/admin_copy/data/admin_copy_dao.dart`](lib/features/admin_copy/data/admin_copy_dao.dart) 편집 완료: `proc_copy_item`/`proc_copy_item_content`를 제거하고, 원본→대상 품목 ID와 컬럼 ID를 명시적으로 매핑한다. 열 내용은 `UPDATE ... JOIN` 후 누락 행만 INSERT하며 품목-지점 연결도 품목 ID 맵을 사용한다.
+- 수정 후 focused 회귀 테스트 통과: **1/1**.
+- 버전은 관리자 복사 DB 오류 수정이므로 PATCH 단계로 `1.4.7`에서 `1.4.8`로 갱신했다.
+- Dart 포맷 완료: `admin_copy_dao.dart`, `admin_copy_dao_test.dart`.
+- 포맷 후 focused 회귀 재검증 통과: **1/1**. 변경 파일 VS Code 진단 오류 없음.
+- 전체 관련 검증 통과: `C:/Flutter/bin/flutter.bat test test/admin_copy_dao_test.dart test/admin_copy_dialog_test.dart` (**12/12**, 종료 코드 0).
+- 정적 분석 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/admin_copy/data/admin_copy_dao.dart test/admin_copy_dao_test.dart`.
+- 긴 열 내용 보존: 복사 임시 테이블의 `RICH_COL_CONTENT_DATA`를 `NVARCHAR(MAX)`로 유지하고 회귀 테스트에 고정했다.
+- 최종 검증 완료: 관련 테스트 **12/12 통과**, focused analyze **No issues found**, 변경 파일 진단 오류 없음.
+- DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다. 운영 DB 데이터 변경 재현은 사용자 승인 없이 수행하지 않아 미검증이다.
+- 상태: **완료**. stage/commit 대상은 `admin_copy_dao.dart`, `admin_copy_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+
 ## 현재 작업: 일반 사용자 라벨 항목 표시 적용
 - **완료**: 항목편집에서 제조일자만 `표시`로 저장했지만 일반 사용자 품목관리에 숨김 바코드까지 나타나는 1.3.120 증상을 수정했다.
 - 원인 확인 1: Windows ODBC SQL BIT `false`를 `RICH_VISIBLE != 0`으로 판정해 숨김값을 true로 복원한다.

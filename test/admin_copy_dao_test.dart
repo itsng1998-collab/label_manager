@@ -24,17 +24,28 @@ void main() {
     expect(sql, isNot(contains('INSERT INTO BM_GS1_COLUMN_INFO')));
   });
 
-  test('item copy keeps verified legacy order without legacy database dependency', () {
+  test('item copy uses explicit item and column mappings', () {
     for (final sql in [AdminCopyDAO.copyLabelSizeSql, AdminCopyDAO.copyBrandSql]) {
-      final item = sql.indexOf('EXEC proc_copy_item ');
-      final content = sql.indexOf('EXEC proc_copy_item_content');
+      final item = sql.indexOf('OUTPUT INSERTED.RICH_ITEM_ID');
+      final content = sql.indexOf('UPDATE TARGET_CONTENT SET');
       final market = sql.indexOf('INSERT INTO BM_ITEM_OF_MARKET');
       expect(item, greaterThanOrEqualTo(0));
       expect(content, greaterThan(item));
       expect(market, greaterThan(content));
+      expect(sql, contains('DECLARE @ItemMap TABLE'));
+      expect(sql, contains('DECLARE @ColumnMap TABLE'));
+      expect(sql, contains('RICH_COL_CONTENT_DATA NVARCHAR(MAX) NOT NULL'));
+      expect(sql, contains('ROW_NUMBER() OVER'));
+      expect(sql, contains('OUTPUT INSERTED.RICH_ITEM_ID INTO @CapturedItem'));
+      expect(sql, contains('PARTITION BY M.RICH_ITEM_ID'));
+      expect(sql, contains('INNER JOIN @ItemMap'));
+      expect(sql, contains('INNER JOIN @ColumnMap'));
+      expect(sql, isNot(contains('S.RICH_ITEM_ORDER=T.RICH_ITEM_ORDER')));
+      expect(sql, isNot(contains('EXEC proc_copy_item ')));
+      expect(sql, isNot(contains('EXEC proc_copy_item_content')));
       expect(sql, isNot(contains('EXEC proc_copy_item_of_market')));
       expect(sql, isNot(contains('[labelmanager_combine]')));
-      expect(sql, contains('INNER JOIN BM_ITEM_OF_MARKET M'));
+      expect(sql, isNot(contains('STRING_AGG')));
     }
   });
 

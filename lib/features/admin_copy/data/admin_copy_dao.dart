@@ -82,32 +82,131 @@ class AdminCopyDAO extends DAO {
     M.RICH_TOP_MARGIN, M.RICH_RIGHT_MARGIN, M.RICH_LEFT_PUSH, M.RICH_TOP_PUSH
   ''';
 
-  static const String _copyLabelSizeItemMarkets = '''
-    INSERT INTO BM_ITEM_OF_MARKET ($_itemOfMarketColumns)
-    SELECT @targetFirstMarketId, T.RICH_ITEM_ID, $_sourceItemOfMarketValues
-      FROM BM_RICH_ITEM T
-      INNER JOIN BM_ITEM_OF_MARKET M
-        ON M.RICH_ITEM_ID=(
-          SELECT TOP 1 S.RICH_ITEM_ID
-            FROM BM_RICH_ITEM S
-           WHERE S.RICH_LABELSIZE_ID=@sourceLabelSizeId
-             AND S.RICH_ITEM_ORDER=T.RICH_ITEM_ORDER
-        )
-     WHERE T.RICH_LABELSIZE_ID=@targetLabelSizeId;
-  ''';
+  static const String _copyItems = '''
+    DECLARE @SourceItems TABLE (
+      ROW_NO INT IDENTITY(1,1) PRIMARY KEY,
+      SOURCE_ITEM_ID INT NOT NULL UNIQUE
+    );
+    DECLARE @ItemMap TABLE (
+      SOURCE_ITEM_ID INT NOT NULL PRIMARY KEY,
+      TARGET_ITEM_ID INT NOT NULL UNIQUE
+    );
+    DECLARE @CapturedItem TABLE (TARGET_ITEM_ID INT NOT NULL);
+    DECLARE @ColumnMap TABLE (
+      SOURCE_COLUMN_ID INT NOT NULL PRIMARY KEY,
+      TARGET_COLUMN_ID INT NOT NULL UNIQUE
+    );
+    DECLARE @CopiedContent TABLE (
+      TARGET_COLUMN_ID INT NOT NULL,
+      TARGET_ITEM_ID INT NOT NULL,
+      RICH_EDITABLE TINYINT NOT NULL,
+      RICH_COL_CONTENT_DATA NVARCHAR(MAX) NOT NULL,
+      PRIMARY KEY (TARGET_COLUMN_ID, TARGET_ITEM_ID)
+    );
 
-  static const String _copyBrandItemMarkets = '''
+    INSERT INTO @SourceItems (SOURCE_ITEM_ID)
+    SELECT RICH_ITEM_ID
+      FROM BM_RICH_ITEM
+     WHERE RICH_LABELSIZE_ID=@FromSizeId
+     ORDER BY RICH_ITEM_ORDER, RICH_ITEM_ID;
+
+    DECLARE @ItemRowNo INT=1;
+    DECLARE @ItemRowCount INT=(SELECT COUNT(*) FROM @SourceItems);
+    WHILE @ItemRowNo<=@ItemRowCount
+    BEGIN
+      DECLARE @SourceItemId INT;
+      SELECT @SourceItemId=SOURCE_ITEM_ID
+        FROM @SourceItems WHERE ROW_NO=@ItemRowNo;
+      DELETE FROM @CapturedItem;
+      INSERT INTO BM_RICH_ITEM (
+        RICH_LABELSIZE_ID, RICH_ITEM_NAME, RICH_ELEMENT,
+        RICH_ELEMENT_SHEET, RICH_ELEMENT_RTF, RICH_PRICE, RICH_ITEM_ORDER
+      )
+      OUTPUT INSERTED.RICH_ITEM_ID INTO @CapturedItem(TARGET_ITEM_ID)
+      SELECT @ToSizeId, RICH_ITEM_NAME, RICH_ELEMENT,
+        RICH_ELEMENT_SHEET, RICH_ELEMENT_RTF, RICH_PRICE, RICH_ITEM_ORDER
+        FROM BM_RICH_ITEM
+       WHERE RICH_ITEM_ID=@SourceItemId;
+      INSERT INTO @ItemMap (SOURCE_ITEM_ID, TARGET_ITEM_ID)
+      SELECT @SourceItemId, TARGET_ITEM_ID FROM @CapturedItem;
+      SET @ItemRowNo+=1;
+    END;
+
+    ;WITH SourceColumns AS (
+      SELECT RICH_COLUMN_ID,
+        ROW_NUMBER() OVER (ORDER BY RICH_COLUMN_ORDER, RICH_COLUMN_ID) AS RN
+        FROM BM_RICH_COLUMN
+       WHERE RICH_LABELSIZE_ID=@FromSizeId
+    ), TargetColumns AS (
+      SELECT RICH_COLUMN_ID,
+        ROW_NUMBER() OVER (ORDER BY RICH_COLUMN_ORDER, RICH_COLUMN_ID) AS RN
+        FROM BM_RICH_COLUMN
+       WHERE RICH_LABELSIZE_ID=@ToSizeId
+    )
+    INSERT INTO @ColumnMap (SOURCE_COLUMN_ID, TARGET_COLUMN_ID)
+    SELECT S.RICH_COLUMN_ID, T.RICH_COLUMN_ID
+      FROM SourceColumns S
+      INNER JOIN TargetColumns T ON T.RN=S.RN;
+
+    IF (SELECT COUNT(*) FROM @ColumnMap) <>
+       (SELECT COUNT(*) FROM BM_RICH_COLUMN WHERE RICH_LABELSIZE_ID=@FromSizeId)
+      THROW 51120, 'Admin copy column mapping failed.', 1;
+
+    ;WITH RankedSourceContent AS (
+      SELECT C.RICH_COLUMN_ID, C.RICH_ITEM_ID, C.RICH_EDITABLE,
+        C.RICH_COL_CONTENT_DATA,
+        ROW_NUMBER() OVER (
+          PARTITION BY C.RICH_COLUMN_ID, C.RICH_ITEM_ID
+          ORDER BY C.RICH_COL_CONTENT_ID DESC
+        ) AS RN
+        FROM BM_RICH_COL_CONTENT C
+        INNER JOIN @ItemMap I ON I.SOURCE_ITEM_ID=C.RICH_ITEM_ID
+        INNER JOIN @ColumnMap M ON M.SOURCE_COLUMN_ID=C.RICH_COLUMN_ID
+    )
+    INSERT INTO @CopiedContent (
+      TARGET_COLUMN_ID, TARGET_ITEM_ID,
+      RICH_EDITABLE, RICH_COL_CONTENT_DATA
+    )
+    SELECT M.TARGET_COLUMN_ID, I.TARGET_ITEM_ID,
+      C.RICH_EDITABLE, C.RICH_COL_CONTENT_DATA
+      FROM RankedSourceContent C
+      INNER JOIN @ItemMap I ON I.SOURCE_ITEM_ID=C.RICH_ITEM_ID
+      INNER JOIN @ColumnMap M ON M.SOURCE_COLUMN_ID=C.RICH_COLUMN_ID
+     WHERE C.RN=1;
+
+    UPDATE TARGET_CONTENT SET
+      TARGET_CONTENT.RICH_EDITABLE=SOURCE_CONTENT.RICH_EDITABLE,
+      TARGET_CONTENT.RICH_COL_CONTENT_DATA=SOURCE_CONTENT.RICH_COL_CONTENT_DATA
+      FROM BM_RICH_COL_CONTENT TARGET_CONTENT
+      INNER JOIN @CopiedContent SOURCE_CONTENT
+        ON SOURCE_CONTENT.TARGET_COLUMN_ID=TARGET_CONTENT.RICH_COLUMN_ID
+       AND SOURCE_CONTENT.TARGET_ITEM_ID=TARGET_CONTENT.RICH_ITEM_ID;
+
+    INSERT INTO BM_RICH_COL_CONTENT (
+      RICH_COLUMN_ID, RICH_ITEM_ID, RICH_EDITABLE, RICH_COL_CONTENT_DATA
+    )
+    SELECT C.TARGET_COLUMN_ID, C.TARGET_ITEM_ID,
+      C.RICH_EDITABLE, C.RICH_COL_CONTENT_DATA
+      FROM @CopiedContent C
+     WHERE NOT EXISTS (
+       SELECT 1 FROM BM_RICH_COL_CONTENT T
+        WHERE T.RICH_COLUMN_ID=C.TARGET_COLUMN_ID
+          AND T.RICH_ITEM_ID=C.TARGET_ITEM_ID
+     );
+
+    ;WITH SourceMarkets AS (
+      SELECT M.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY M.RICH_ITEM_ID ORDER BY M.RICH_MARKET_ID
+        ) AS RN
+        FROM BM_ITEM_OF_MARKET M
+        INNER JOIN @ItemMap I ON I.SOURCE_ITEM_ID=M.RICH_ITEM_ID
+    )
     INSERT INTO BM_ITEM_OF_MARKET ($_itemOfMarketColumns)
-    SELECT @targetFirstMarketId, T.RICH_ITEM_ID, $_sourceItemOfMarketValues
-      FROM BM_RICH_ITEM T
-      INNER JOIN BM_ITEM_OF_MARKET M
-        ON M.RICH_ITEM_ID=(
-          SELECT TOP 1 S.RICH_ITEM_ID
-            FROM BM_RICH_ITEM S
-           WHERE S.RICH_LABELSIZE_ID=@FromSizeId
-             AND S.RICH_ITEM_ORDER=T.RICH_ITEM_ORDER
-        )
-     WHERE T.RICH_LABELSIZE_ID=@ToSizeId;
+    SELECT @targetFirstMarketId, I.TARGET_ITEM_ID, $_sourceItemOfMarketValues
+      FROM SourceMarkets M
+      INNER JOIN @ItemMap I ON I.SOURCE_ITEM_ID=M.RICH_ITEM_ID
+     WHERE M.RN=1;
   ''';
 
   static const String targetHasColumnsSql = '''
@@ -118,6 +217,9 @@ class AdminCopyDAO extends DAO {
 
   static const String copyLabelSizeSql =
       '''
+    DECLARE @FromSizeId INT=@sourceLabelSizeId;
+    DECLARE @ToSizeId INT=@targetLabelSizeId;
+
     IF @overwriteExisting=1
     BEGIN
       DELETE FROM BM_GS1_COLUMN_INFO
@@ -151,10 +253,7 @@ class AdminCopyDAO extends DAO {
 
     IF @copyItems=1
     BEGIN
-      EXEC proc_copy_item @sourceLabelSizeId, @targetLabelSizeId;
-      EXEC proc_copy_item_content
-        @targetFirstMarketId, @sourceLabelSizeId, @targetLabelSizeId;
-      $_copyLabelSizeItemMarkets
+      $_copyItems
     END;
 
     SELECT @targetLabelSizeId AS TARGET_LABELSIZE_ID;
@@ -229,9 +328,7 @@ class AdminCopyDAO extends DAO {
         SELECT @FromSizeId=SOURCE_LABELSIZE_ID,
                @ToSizeId=TARGET_LABELSIZE_ID
           FROM @SizeMap WHERE ROW_NO=@RowNo;
-        EXEC proc_copy_item @FromSizeId, @ToSizeId;
-        EXEC proc_copy_item_content @targetFirstMarketId, @FromSizeId, @ToSizeId;
-        $_copyBrandItemMarkets
+        $_copyItems
         SET @RowNo+=1;
       END;
     END;
