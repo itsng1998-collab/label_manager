@@ -16,6 +16,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_barco
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_page.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 const double commonLabelRightPaneInitialWidth = 350.0;
 const double commonLabelRightPaneMinWidth = 350.0;
@@ -511,6 +512,23 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
   final FortuneTableCheckboxController _missingKeywordCheckController =
       FortuneTableCheckboxController();
 
+  void _insertKeyword(TColumnBase row, int rowIndex, int columnIndex) {
+    final inserted = widget.keywordInsertController.insertAtCurrentContext(
+      '#${row.keyword}',
+    );
+    RegressionDebugLog.event(
+      'commonLabelKeyword',
+      'doubleTapInsert',
+      fields: {
+        'column': _CommonLabelTable._headerTitle(columnIndex),
+        'rowIndex': rowIndex,
+        'keyword': row.keyword,
+        'name': row.columnName,
+        'inserted': inserted,
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -549,8 +567,8 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                 minWidth: _CommonLabelTable._minWidth(index),
                 text: (row) => _CommonLabelTable._cellText(row, index),
                 onDoubleTap: index < 2
-                    ? (row, rowIndex) => widget.keywordInsertController
-                      .insertAtCurrentContext('#${row.keyword}')
+                    ? (row, rowIndex) =>
+                          _insertKeyword(row, rowIndex, index)
                     : null,
                 dragData: index == 0
                     ? (row, rowIndex) =>

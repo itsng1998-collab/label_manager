@@ -19,6 +19,7 @@ import 'package:label_manager/features/login/application/startup_login_service.d
 import 'package:label_manager/features/login/application/user_access_service.dart';
 import 'package:label_manager/features/login/presentation/user_access_serial_dialog.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 
 const int startupNoticeContentFlex = 1;
@@ -408,6 +409,17 @@ class _LoginPanelState extends State<_LoginPanel> {
     if (mounted) {
       final restoreUserId =
           !_userIdEdited && widget.userId.text.trim().isEmpty;
+      RegressionDebugLog.event(
+        'savedUserId',
+        'preferencesResolved',
+        fields: {
+          'savedUserId': userId,
+          'saveId': saveId,
+          'restore': restoreUserId,
+          'edited': _userIdEdited,
+          'currentInput': widget.userId.text.trim(),
+        },
+      );
       setState(() {
         if (restoreUserId) widget.userId.text = userId;
         _saveId = saveId;
@@ -429,17 +441,42 @@ class _LoginPanelState extends State<_LoginPanel> {
     }
 
     final requestGeneration = ++_userLookupGeneration;
+    RegressionDebugLog.event(
+      'savedUserId',
+      'lookupStarted',
+      fields: {'generation': requestGeneration, 'userId': inputId},
+    );
 
     try {
       final result = await _loginService.lookupUser(inputId);
       if (!mounted ||
           requestGeneration != _userLookupGeneration ||
           widget.userId.text.trim().toLowerCase() != inputId.toLowerCase()) {
+        RegressionDebugLog.event(
+          'savedUserId',
+          'lookupDiscarded',
+          fields: {
+            'generation': requestGeneration,
+            'latestGeneration': _userLookupGeneration,
+            'mounted': mounted,
+            'currentInput': widget.userId.text.trim(),
+            'requestedUserId': inputId,
+          },
+        );
         return;
       }
       widget.onUserIdCommit?.call(result);
 
       _userInfo = result.user;
+      RegressionDebugLog.event(
+        'savedUserId',
+        'lookupApplied',
+        fields: {
+          'generation': requestGeneration,
+          'userId': inputId,
+          'found': _userInfo != null,
+        },
+      );
 
       if (_userInfo != null) {
         widget.customerName.text = _userInfo!.customerName;
@@ -462,7 +499,19 @@ class _LoginPanelState extends State<_LoginPanel> {
         }
       }
     } catch (e) {
-      if (!mounted || requestGeneration != _userLookupGeneration) return;
+      if (!mounted || requestGeneration != _userLookupGeneration) {
+        RegressionDebugLog.event(
+          'savedUserId',
+          'lookupErrorDiscarded',
+          fields: {
+            'generation': requestGeneration,
+            'latestGeneration': _userLookupGeneration,
+            'mounted': mounted,
+            'error': e,
+          },
+        );
+        return;
+      }
       var errmsg = e.toString();
       errmsg = stripLeadingBracketTags(errmsg);
       debugLog('Exception: $errmsg');
@@ -480,6 +529,11 @@ class _LoginPanelState extends State<_LoginPanel> {
   void _onUserIdChanged(String value) {
     _userIdEdited = true;
     _userLookupGeneration += 1;
+    RegressionDebugLog.event(
+      'savedUserId',
+      'inputChanged',
+      fields: {'generation': _userLookupGeneration, 'input': value.trim()},
+    );
     _userInfo = null;
     widget.customerName.clear();
     widget.marketName.clear();

@@ -95,6 +95,7 @@ import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_i
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_rtf_preview.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/features/item/item_manager_debug_log.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
@@ -4003,8 +4004,32 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _handleItemInfoCommitted(List<ItemOfMarket> items) {
+    final rowsBefore = _labelPrintSessionController.rows;
+    RegressionDebugLog.event(
+      'itemInfoSync',
+      'started',
+      fields: {
+        'items': items.length,
+        'checkedItemIds': _publishCheckedItemIds.join(','),
+        'printRowsBefore': rowsBefore.length,
+      },
+    );
     ItemOfMarket.setDatas(List.unmodifiable(items));
     _syncLabelPrintRows();
+    RegressionDebugLog.event(
+      'itemInfoSync',
+      'completed',
+      fields: {
+        'printRowsAfter': _labelPrintSessionController.rows.length,
+        'rows': _labelPrintSessionController.rows
+            .map(
+              (row) =>
+                  '${row.itemId}:${row.copies}:${row.widthMm}x${row.heightMm}:'
+                  '${row.lineSpacingPercent}',
+            )
+            .join(','),
+      },
+    );
     _scaleOutputRowsDirty = true;
     if (mounted) setState(() {});
   }
@@ -4295,6 +4320,15 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     var rebuildTabs = false;
     setState(() => _itemDraftCommandBusy = true);
+    RegressionDebugLog.event(
+      'dateSetup',
+      'saveStarted',
+      fields: {
+        'labelSizeId': labelSize.labelSizeId,
+        'commandBusy': _itemDraftCommandBusy,
+        'update': update,
+      },
+    );
     try {
       final saved = await LabelSizeDAO.updateDateSetup(
         labelSize.labelSizeId,
@@ -4325,6 +4359,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (mounted) _showItemDraftError('날짜 타입 설정 저장 실패', error);
     } finally {
       if (mounted) {
+        RegressionDebugLog.event(
+          'dateSetup',
+          'finishing',
+          fields: {
+            'rebuildTabs': rebuildTabs,
+            'commandBusyBefore': _itemDraftCommandBusy,
+          },
+        );
         if (rebuildTabs) {
           completeDateSetupCommand(
             setCommandBusy: (value) => _itemDraftCommandBusy = value,
@@ -4333,6 +4375,15 @@ class _HomePageManagerState extends State<HomePageManager> {
         } else {
           setState(() => _itemDraftCommandBusy = false);
         }
+        RegressionDebugLog.event(
+          'dateSetup',
+          'finished',
+          fields: {
+            'rebuildTabs': rebuildTabs,
+            'commandBusyAfter': _itemDraftCommandBusy,
+            'tabs': _tabs.length,
+          },
+        );
       }
     }
   }

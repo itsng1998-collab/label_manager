@@ -4,6 +4,7 @@ import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 typedef ItemInfoLoader = Future<List<ItemOfMarket>?> Function(
@@ -173,18 +174,52 @@ class _ItemInfoDialogContentState extends State<ItemInfoDialogContent> {
     if (_busy || !widget.controller.dirty || widget.controller.rows.isEmpty) {
       return;
     }
+    RegressionDebugLog.event(
+      'itemInfo',
+      'saveStarted',
+      fields: {
+        'marketId': widget.marketId,
+        'labelSizeId': widget.labelSizeId,
+        'rows': widget.controller.rows.length,
+      },
+    );
     widget.controller.setWriteBusy(true);
     try {
       await widget.save(widget.controller.rows);
+      RegressionDebugLog.event('itemInfo', 'databaseSaveCompleted');
       widget.controller.markCommitted();
       widget.onCommitted(widget.controller.rows);
+      RegressionDebugLog.event(
+        'itemInfo',
+        'memoryCommitCompleted',
+        fields: {'rows': widget.controller.rows.length},
+      );
     } on DbCommitOutcomeUnknown catch (error) {
+      RegressionDebugLog.event(
+        'itemInfo',
+        'commitOutcomeUnknown',
+        fields: {'error': error},
+      );
       if (mounted) await _showMessage(error.toString());
       widget.onCommitOutcomeUnknown();
     } catch (error) {
+      RegressionDebugLog.event(
+        'itemInfo',
+        'saveFailed',
+        fields: {'error': error},
+      );
       if (mounted) await _showMessage(error.toString());
     } finally {
       widget.controller.setWriteBusy(false);
+      RegressionDebugLog.event(
+        'itemInfo',
+        'saveFinished',
+        fields: {
+          'mounted': mounted,
+          'dirty': widget.controller.dirty,
+          'writeBusy': widget.controller.writeBusy,
+        },
+      );
     }
   }
 

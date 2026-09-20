@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 const double modelessDropdownFieldHeight = 40;
 const double modelessDropdownMenuItemHeight = 28;
@@ -17,6 +18,7 @@ class ModelessDropdownFormField<T> extends StatefulWidget {
     this.isExpanded = false,
     this.searchTextForValue,
     this.searchHintText = '검색',
+    this.debugLabel,
   });
 
   final T? initialValue;
@@ -27,6 +29,7 @@ class ModelessDropdownFormField<T> extends StatefulWidget {
   final bool isExpanded;
   final String Function(T value)? searchTextForValue;
   final String searchHintText;
+  final String? debugLabel;
 
   @override
   State<ModelessDropdownFormField<T>> createState() =>
@@ -84,7 +87,22 @@ class _ModelessDropdownFormFieldState<T>
     super.dispose();
   }
 
-  void _refreshMenu() => _menuEntry?.markNeedsBuild();
+  void _refreshMenu() {
+    _menuEntry?.markNeedsBuild();
+    final debugLabel = widget.debugLabel;
+    if (debugLabel != null) {
+      RegressionDebugLog.event(
+        'dropdownSearch',
+        'queryChanged',
+        fields: {
+          'control': debugLabel,
+          'query': _searchController.text,
+          'matches': _visibleItems.length,
+          'total': widget.items.length,
+        },
+      );
+    }
+  }
 
   void _toggleMenu() {
     if (!_enabled) return;
@@ -146,6 +164,14 @@ class _ModelessDropdownFormFieldState<T>
     );
     _menuEntry = entry;
     overlay.insert(entry);
+    final debugLabel = widget.debugLabel;
+    if (debugLabel != null) {
+      RegressionDebugLog.event(
+        'dropdownSearch',
+        'opened',
+        fields: {'control': debugLabel, 'total': widget.items.length},
+      );
+    }
     setState(() {});
   }
 
@@ -162,6 +188,20 @@ class _ModelessDropdownFormFieldState<T>
                 key: ValueKey('modeless-dropdown-menu-item-$index'),
                 onTap: item.enabled
                     ? () {
+                        final debugLabel = widget.debugLabel;
+                        if (debugLabel != null) {
+                          RegressionDebugLog.event(
+                            'dropdownSearch',
+                            'itemSelected',
+                            fields: {
+                              'control': debugLabel,
+                              'query': _searchController.text,
+                              'value': item.value,
+                              'visibleIndex': index,
+                              'matches': items.length,
+                            },
+                          );
+                        }
                         _removeMenu();
                         widget.onChanged?.call(item.value);
                       }

@@ -15,6 +15,7 @@ import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 typedef AdminCopyCooperatorLoader = Future<List<Cooperator>> Function();
 typedef AdminCopyCustomerLoader = Future<List<Customer>> Function(String);
@@ -182,6 +183,11 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
 
   Future<void> _changeSourceCustomer(int? value) async {
     if (value == null || _busy) return;
+    RegressionDebugLog.event(
+      'adminCopy',
+      'sourceCustomerSelected',
+      fields: {'customerId': value},
+    );
     setState(() {
       _loading = true;
       _sourceCustomerId = value;
@@ -237,6 +243,11 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
 
   Future<void> _changeTargetCustomer(int? value) async {
     if (value == null || _busy) return;
+    RegressionDebugLog.event(
+      'adminCopy',
+      'targetCustomerSelected',
+      fields: {'customerId': value},
+    );
     setState(() {
       _loading = true;
       _targetCustomerId = value;
@@ -290,6 +301,20 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
 
   Future<void> _copy() async {
     if (_busy || !_copyEnabled || _targetCustomerId == null) return;
+    RegressionDebugLog.event(
+      'adminCopy',
+      'copyStarted',
+      fields: {
+        'wholeBrand': _copyWholeBrand,
+        'copyItems': _copyItems,
+        'sourceCustomerId': _sourceCustomerId,
+        'sourceBrandId': _sourceBrandId,
+        'sourceLabelSizeId': _sourceLabelSizeId,
+        'targetCustomerId': _targetCustomerId,
+        'targetBrandId': _targetBrandId,
+        'targetLabelSizeId': _targetLabelSizeId,
+      },
+    );
     widget.controller.setWriteBusy(true);
     if (mounted) setState(() {});
     try {
@@ -332,11 +357,22 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
         );
       }
       await widget.onCommitted();
+      RegressionDebugLog.event('adminCopy', 'copyCompleted');
     } on DbCommitOutcomeUnknown catch (error) {
+      RegressionDebugLog.event(
+        'adminCopy',
+        'commitOutcomeUnknown',
+        fields: {'error': error},
+      );
       _finishWriteBusy();
       if (mounted) await _showMessage(error.toString());
       widget.onCommitOutcomeUnknown();
     } catch (error) {
+      RegressionDebugLog.event(
+        'adminCopy',
+        'copyFailed',
+        fields: {'error': error},
+      );
       _finishWriteBusy();
       if (mounted) await _showMessage(error.toString());
     } finally {
@@ -545,6 +581,9 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
       ],
       searchTextForValue: (value) => customerNames[value] ?? '',
       searchHintText: '거래처 검색',
+        debugLabel: source
+          ? 'adminCopySourceCustomer'
+          : 'adminCopyTargetCustomer',
       onChanged: source ? _changeSourceCustomer : _changeTargetCustomer,
     );
   }
@@ -593,6 +632,7 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     required ValueChanged<T?> onChanged,
     String Function(T value)? searchTextForValue,
     String searchHintText = '검색',
+    String? debugLabel,
   }) => ModelessDropdownFormField<T>(
     key: ValueKey(key),
     initialValue: items.any((item) => item.value == value) ? value : null,
@@ -600,5 +640,6 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     onChanged: enabled && !_busy ? onChanged : null,
     searchTextForValue: searchTextForValue,
     searchHintText: searchHintText,
+    debugLabel: debugLabel,
   );
 }

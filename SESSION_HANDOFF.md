@@ -1,5 +1,27 @@
 # SESSION HANDOFF
 
+## 현재 작업: 최근 수정 기능 진단 로그 보강
+- **진행 중**: 최근 확인·수정·추가한 저장 ID 조회, 관리자 복사/거래처 검색, 품목정보 출력 동기화, 날짜 타입 저장 busy, 사용자 Enter 검색, 공용라벨 키워드 삽입의 다음 재현 분석에 필요한 상태 전이 로그를 추가한다.
+- 원칙: 사용자 최신 요청에 따라 진단에 필요한 ID, 입력값, 검색어, 복사 명령 데이터 원문 기록을 허용한다. 로그 함수에는 비즈니스 로직을 포함하지 않는다.
+- `lib/utils/regression_debug_log.dart` 추가: 공통 버전 `regression-debug-v1`과 `feature/event/fields` 형식만 담당하는 로그 전용 유틸리티다.
+- 포맷 단위 테스트 추가: 버전·기능·이벤트·필드가 일관된 한 줄로 생성되는지 검증한다.
+- `lib/features/login/presentation/startup_dialog.dart` 편집 완료: 저장 ID 복원 판단, 사용자 입력 세대, lookup 시작·적용·폐기·오류를 기록한다.
+- `lib/widgets/modeless_dropdown_form_field.dart` 편집 완료: 선택적 `debugLabel`과 검색창 열기·검색 결과 수·선택값 로그를 추가했다.
+- `lib/features/admin_copy/presentation/admin_copy_dialog.dart` 편집 완료: 원본/대상 거래처 선택과 전체 복사 명령, 완료·실패·commit 불명 결과를 기록한다.
+- `lib/features/item/presentation/item_info_dialog.dart` 편집 완료: 품목정보 저장 시작, DB 완료, 메모리 반영, 실패, 최종 busy/dirty 상태를 기록한다.
+- `lib/home_page_manager.dart` 편집 완료: 품목정보의 라벨출력 row 동기화 전후와 날짜 설정 저장의 busy 해제·탭 재생성 결과를 기록한다.
+- `lib/features/managed_user/presentation/user_manager_dialog.dart` 편집 완료: Enter 검색 시작·일치/불일치와 post-frame 포커스 복원 결과를 기록한다.
+- `lib/features/label_sheet/presentation/common_label_manage.dart` 편집 완료: 더블클릭 열·행·키워드·이름과 실제 삽입 성공 여부를 기록한다.
+- focused test 결과: 공통 로그 1/1, 로그인 13/13, 공용 드롭다운 3/3, 관리자 복사 8/8, 품목정보·출력 동기화 24/24, 날짜 설정 10/10, 사용자 검색·공용라벨 26/26 통과.
+- `pubspec.yaml` 편집 완료: 앱 버전을 `1.4.15`에서 `1.4.16`으로 갱신한다.
+- Dart formatter 적용 완료: 변경된 Dart 소스 8개와 테스트 1개를 포맷했다.
+- 관련 전체 테스트 결과: 10개 테스트 파일 **통과(85/85)**.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/utils/regression_debug_log.dart lib/features/login/presentation/startup_dialog.dart lib/widgets/modeless_dropdown_form_field.dart lib/features/admin_copy/presentation/admin_copy_dialog.dart lib/features/item/presentation/item_info_dialog.dart lib/home_page_manager.dart lib/features/managed_user/presentation/user_manager_dialog.dart lib/features/label_sheet/presentation/common_label_manage.dart test/regression_debug_log_test.dart`.
+- 정적 분석 결과: **통과**, `No issues found` (9개 대상, 종료 코드 0).
+- 변경 파일 VS Code 진단 오류 없음.
+- DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
+- 상태: **검증 완료, 커밋 진행 중**. stage/commit 대상은 진단 로그 관련 Dart 소스 8개, 테스트 1개, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ## 현재 작업: 공용라벨 이름 열 키워드 삽입
 - **진행 중**: 공용라벨관리의 `사용 항목` 표에서 키워드 열은 더블클릭으로 `#키워드`가 삽입되지만 이름 열은 삽입되지 않는 1.3.120 증상을 수정한다.
 - 원인 확인: `_CommonLabelTable`의 `FortuneTableColumn.onDoubleTap`이 열 인덱스 `0`(키워드)에만 설정되고 인덱스 `1`(이름)은 null이다.

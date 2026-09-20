@@ -11,6 +11,7 @@ import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/core/user.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
@@ -341,6 +342,16 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
     final query = _searchController.text;
     if (query.isEmpty || _rows.isEmpty) return;
     final start = (_selectedIndex ?? -1) + 1;
+    RegressionDebugLog.event(
+      'userSearch',
+      'started',
+      fields: {
+        'query': query,
+        'start': start,
+        'selectedIndex': _selectedIndex,
+        'rows': _rows.length,
+      },
+    );
     int? found;
     for (var offset = 0; offset < _rows.length; offset += 1) {
       final index = (start + offset) % _rows.length;
@@ -350,8 +361,18 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
       }
     }
     if (found == null) {
+      RegressionDebugLog.event('userSearch', 'notFound');
       _showMessage('검색 결과가 없습니다.');
     } else {
+      RegressionDebugLog.event(
+        'userSearch',
+        'matchFound',
+        fields: {
+          'index': found,
+          'userId': _rows[found].userId,
+          'name': _rows[found].name,
+        },
+      );
       setState(() => _selectedIndex = found);
       _tableScrollController.revealRowCentered(found);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -359,6 +380,15 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
         _searchFocusNode.requestFocus();
         _searchController.selection = TextSelection.collapsed(
           offset: _searchController.text.length,
+        );
+        RegressionDebugLog.event(
+          'userSearch',
+          'focusRestored',
+          fields: {
+            'index': found,
+            'hasFocus': _searchFocusNode.hasFocus,
+            'primaryFocus': FocusManager.instance.primaryFocus?.debugLabel,
+          },
         );
       });
     }
