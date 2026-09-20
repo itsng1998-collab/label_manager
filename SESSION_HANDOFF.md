@@ -20,6 +20,7 @@
 - 최종 검증 완료: 관련 테스트 **12/12 통과**, focused analyze **No issues found**, 변경 파일 진단 오류 없음.
 - DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다. 운영 DB 데이터 변경 재현은 사용자 승인 없이 수행하지 않아 미검증이다.
 - 상태: **완료**. stage/commit 대상은 `admin_copy_dao.dart`, `admin_copy_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 기능 커밋: `9f26f98f3260cf4213c19b93ce60351e541c5fb5` (`관리자 품목 포함 복사 오류 수정`).
 
 ## 현재 작업: 일반 사용자 라벨 항목 표시 적용
 - **완료**: 항목편집에서 제조일자만 `표시`로 저장했지만 일반 사용자 품목관리에 숨김 바코드까지 나타나는 1.3.120 증상을 수정했다.
