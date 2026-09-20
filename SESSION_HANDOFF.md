@@ -19,6 +19,7 @@
 - 상태: **완료**. stage/commit 대상은 `startup_dialog.dart`, `startup_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 최종 보강: 늦게 완료된 `3575` 조회가 사용자 이름 등 조회 결과를 덮지 않고 `name:TESTER1`이 유지되는지 검증한다.
 - 보강 후 최종 검증 통과: `startup_dialog_test.dart` **13/13**, focused analyze 오류·경고 0.
+- 기능 커밋: `9873e6275600136bc1552dd508426bb8e2753fdd` (`저장 아이디 조회 경합 수정`).
 - 최종 보강: 아이디/비밀번호 필드에 안정적인 테스트 key를 추가하고, `TESTER1` 조회 이후 `3575`가 다시 조회되지 않는 조건을 명시적으로 검증한다.
 - 보강 후 최종 검증 통과: `startup_dialog_test.dart` **12/12**, focused analyze 오류·경고 0.
 - 기능 커밋: `361b4ac8690f94dbfc5871ee49562d958fae901a` (`저장 아이디 입력 덮어쓰기 수정`).
