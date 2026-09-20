@@ -89,6 +89,44 @@ void main() {
       expect(resolver.resolveViewerData().single.data, '20260714');
     });
 
+    test('prefixes GS1 AI code when display is enabled', () {
+      final hidden = _column(
+        id: 1,
+        keyword: 'GS1AI',
+        name: 'GS1 AI',
+        type: TColumnType.TYPE_GS1_AI,
+        gs1Ai: '01',
+      );
+      final shown = _column(
+        id: 1,
+        keyword: 'GS1AI',
+        name: 'GS1 AI',
+        type: TColumnType.TYPE_GS1_AI,
+        gs1Ai: '01',
+        showGs1: true,
+      );
+      String value(int _) => '12341234123412';
+
+      expect(
+        itemCodeTokenColumnValue(
+          column: hidden,
+          columns: [hidden],
+          columnValue: value,
+          referenceAt: DateTime(2026),
+        ),
+        '12341234123412',
+      );
+      expect(
+        itemCodeTokenColumnValue(
+          column: shown,
+          columns: [shown],
+          columnValue: value,
+          referenceAt: DateTime(2026),
+        ),
+        '(01)12341234123412',
+      );
+    });
+
     test('normalizes EAN-8 and falls back without lossy padding', () {
       final column = _column(
         id: 1,

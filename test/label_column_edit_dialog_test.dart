@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
+import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/core/barcode.dart';
@@ -41,6 +43,11 @@ const fixedColumnType = TColumnType(
   code: TColumnType.TYPE_FIX,
   name: '고정',
   order: 7,
+);
+const gs1AiColumnType = TColumnType(
+  code: TColumnType.TYPE_GS1_AI,
+  name: 'GS1 AI',
+  order: 8,
 );
 
 Future<TestGesture> _startRowDrag(
@@ -539,6 +546,97 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.widget<TextFormField>(userDefinedText).enabled, isTrue);
+  });
+
+  testWidgets('GS1 AI and format options use definition dropdowns', (
+    tester,
+  ) async {
+    LabelColumnSaveCommand? saved;
+    TColumnType.datas = [baseType, barcodeColumnType, gs1AiColumnType];
+    Gs1AiDefinitions.set(const [
+      Gs1AiDefinition(
+        code: '01',
+        name: 'GTIN',
+        content: '상품 식별 코드',
+        dataFormat: '01+N14',
+        dataFormatType: 0,
+        needsFnc1: false,
+      ),
+      Gs1AiDefinition(
+        code: '310',
+        name: '순중량',
+        content: '킬로그램 단위 순중량',
+        dataFormat: '310n+N6',
+        dataFormatType: 2,
+        needsFnc1: false,
+      ),
+    ]);
+    addTearDown(() => Gs1AiDefinitions.set(const []));
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'GS1AI').copyWith(columnType: gs1AiColumnType),
+      ],
+      onSave: (command) async => saved = command,
+    );
+
+    final aiCode = find.byKey(const Key('label-column-gs1-ai-code'));
+    final formatOption = find.byKey(
+      const Key('label-column-gs1-format-option'),
+    );
+    expect(
+      tester.widget<DropdownMenu<int>>(
+        find.descendant(of: formatOption, matching: find.byType(DropdownMenu<int>)),
+      ).enabled,
+      isFalse,
+    );
+
+    await _tapVisible(tester, aiCode);
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, '310 - 순중량').last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<DropdownMenu<int>>(
+        find.descendant(of: formatOption, matching: find.byType(DropdownMenu<int>)),
+      ).enabled,
+      isTrue,
+    );
+    await _tapVisible(tester, formatOption);
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, '소수점 2 자리').last,
+    );
+    await tester.pumpAndSettle();
+
+    final formatEditor = find.descendant(
+      of: formatOption,
+      matching: find.byType(EditableText),
+    );
+    expect(
+      tester.widget<EditableText>(formatEditor).controller.text,
+      '소수점 2 자리',
+    );
+
+    await _tapVisible(
+      tester,
+      find.byKey(const Key('label-column-property-apply')),
+    );
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+
+    expect(saved?.updatedColumns.single.column.gs1ai, '3102');
+    expect(saved?.updatedColumns.single.column.formatOption, 2);
   });
 
   testWidgets('all QR property dropdown arrows are centered', (tester) async {

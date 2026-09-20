@@ -39,6 +39,21 @@
 - stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
 - 기능 커밋: `2868028` (`고정 항목 사용자 정의 입력 비활성화`).
 
+## 현재 작업: GS1 AI 코드 표시 및 설정 ComboBox
+- **완료**: GS1 AI 항목에서 `GS1 code 표시`를 저장해도 품목 출력 미리보기에 AI 코드가 나타나지 않는 1.3.120 증상을 수정하고, AI code와 Format option을 ComboBox로 제공했다.
+- 원인 확인: 현재 `itemCodeTokenColumnValue`는 GS1 AI의 `showGs1Code`를 적용하지 않고 원본 값만 반환한다. 레거시는 `(<AI code>)<값>` 형식으로 치환한다.
+- 구현 예정: GS1 AI 출력 토큰을 레거시 형식으로 만들고, `Gs1AiDefinitions`의 DB 정의를 AI code ComboBox로 사용한다. `dataFormatType == 2`인 AI만 소수점 `0~9` Format option을 활성화하고 나머지는 `해당 없음(-1)`으로 유지한다.
+- 수정 예정 파일: `lib/features/label_print/domain/item_code_data_resolver.dart`, `lib/features/label_column/presentation/label_column_edit_dialog.dart`, 관련 테스트, `pubspec.yaml`.
+- [`lib/features/label_print/domain/item_code_data_resolver.dart`](lib/features/label_print/domain/item_code_data_resolver.dart) 편집 완료: GS1 AI의 `showGs1Code`가 켜지면 출력 토큰을 레거시와 같은 `(<AI code>)<값>` 형식으로 반환한다.
+- [`lib/features/label_column/presentation/label_column_edit_dialog.dart`](lib/features/label_column/presentation/label_column_edit_dialog.dart) 편집 완료: AI code를 DB 정의 기반 ComboBox로 제공하고, 소수점형 AI는 `0~9`, 일반 AI는 `해당 없음(-1)` Format option ComboBox를 제공한다.
+- [`test/item_code_data_resolver_test.dart`](test/item_code_data_resolver_test.dart) 테스트 추가: 표시 해제 시 원본 값, 표시 설정 시 `(01)12341234123412` 출력을 검증한다.
+- [`test/label_column_edit_dialog_test.dart`](test/label_column_edit_dialog_test.dart) 테스트 추가: 일반 AI의 Format option 비활성화와 소수점형 AI 선택 후 `0~9` 옵션 활성화를 검증한다.
+- 버전은 GS1 AI 출력/UI 버그 수정이므로 PATCH 단계로 `1.4.5`에서 `1.4.6`으로 갱신했다.
+- focused 검증 완료: GS1 AI 표시 형식 **1/1**, AI/Format ComboBox 선택 및 `gs1ai=3102`, `formatOption=2` 저장 명령 전달 **1/1** 통과.
+- 최종 검증 완료: `test/item_code_data_resolver_test.dart`, `test/label_column_edit_dialog_test.dart` **37/37 통과**, focused analyze **No issues found**.
+- formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- stage/commit 대상: `lib/features/label_print/domain/item_code_data_resolver.dart`, `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/item_code_data_resolver_test.dart`, `test/label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
 - 원인 확인: 120×120px QR 객체에도 선형 바코드용 기본 막대 높이 10mm(약 38px)를 본체 높이로 적용하고, module scale은 인코딩 폭에만 적용한다. 배율 1은 120×38, 배율 3은 40×38 소스를 120×38로 리사이즈해 상단 쏠림과 비대칭 왜곡이 발생한다.

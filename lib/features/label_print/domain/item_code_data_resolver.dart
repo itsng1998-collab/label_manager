@@ -92,6 +92,11 @@ String itemCodeTokenColumnValue({
   required DateTime referenceAt,
 }) {
   final raw = columnValue(column.columnId);
+  if (column.typeCode == TColumnType.TYPE_GS1_AI &&
+      column.showGs1Code &&
+      column.gs1Ai.isNotEmpty) {
+    return '(${column.gs1Ai})$raw';
+  }
   if (column.typeCode != TColumnType.TYPE_VALIDDATE) return raw;
   final offset = int.tryParse(raw.trim());
   if (offset == null) return raw;

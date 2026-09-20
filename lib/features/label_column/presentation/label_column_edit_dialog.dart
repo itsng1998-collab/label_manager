@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/label_column/data/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
@@ -1402,8 +1403,8 @@ class _PropertyFields extends StatelessWidget {
         ];
       case TColumnType.TYPE_GS1_AI:
         return [
-          _text('AI code', column.gs1ai, (value) => onChanged(column.copyWith(gs1ai: value))),
-          _integer('Format option', column.formatOption, (value) => onChanged(column.copyWith(formatOption: value))),
+          _gs1AiDropdown(),
+          _gs1FormatOptionDropdown(),
           _check('GS1 code 표시', column.showGS1Code, (value) => onChanged(column.copyWith(showGS1Code: value))),
         ];
       case TColumnType.TYPE_GS1_BARCODE:
@@ -1461,6 +1462,96 @@ class _PropertyFields extends StatelessWidget {
     _check('빈자리 0 제거', column.autoIncZeroDel, (value) => onChanged(column.copyWith(autoIncZeroDel: value)), key: const Key('label-column-auto-inc-zero-del'), fieldEnabled: enabled && column.autoInc),
     _check('증가값 즉시 저장', column.autoIncUpdate, (value) => onChanged(column.copyWith(autoIncUpdate: value)), key: const Key('label-column-auto-inc-update'), fieldEnabled: enabled && column.autoInc),
   ];
+
+  Widget _gs1AiDropdown() {
+    final selectedCode = _selectedGs1DefinitionCode();
+    final definitions = Gs1AiDefinitions.values.values.toList()
+      ..sort((left, right) => left.code.compareTo(right.code));
+    final codes = definitions.map((definition) => definition.code).toList();
+    if (selectedCode.isNotEmpty && !codes.contains(selectedCode)) {
+      codes.add(selectedCode);
+    }
+    return _field(
+      _DialogDropdown<String>(
+        key: const Key('label-column-gs1-ai-code'),
+        label: 'AI code',
+        value: selectedCode.isEmpty ? null : selectedCode,
+        entries: [
+          for (final code in codes)
+            DropdownMenuEntry(
+              value: code,
+              label: _gs1DefinitionLabel(code),
+            ),
+        ],
+        onChanged: enabled
+            ? (code) {
+                if (code == null) return;
+                final definition = Gs1AiDefinitions.values[code];
+                final formatOption = definition?.dataFormatType == 2 ? 0 : -1;
+                onChanged(
+                  column.copyWith(
+                    gs1ai: formatOption < 0 ? code : '$code$formatOption',
+                    formatOption: formatOption,
+                  ),
+                );
+              }
+            : null,
+      ),
+      height: 36,
+    );
+  }
+
+  Widget _gs1FormatOptionDropdown() {
+    final definition = Gs1AiDefinitions.values[_selectedGs1DefinitionCode()];
+    final supportsDecimalOption = definition?.dataFormatType == 2;
+    final selectedOption = supportsDecimalOption
+        ? column.formatOption.clamp(0, 9)
+        : -1;
+    return _field(
+      _DialogDropdown<int>(
+        key: const Key('label-column-gs1-format-option'),
+        label: 'Format option',
+        value: selectedOption,
+        entries: supportsDecimalOption
+            ? [
+                for (var option = 0; option < 10; option += 1)
+                  DropdownMenuEntry(
+                    value: option,
+                    label: '소수점 $option 자리',
+                  ),
+              ]
+            : const [DropdownMenuEntry(value: -1, label: '해당 없음')],
+        onChanged: enabled && supportsDecimalOption
+            ? (option) {
+                if (option == null) return;
+                final code = _selectedGs1DefinitionCode();
+                onChanged(
+                  column.copyWith(
+                    gs1ai: '$code$option',
+                    formatOption: option,
+                  ),
+                );
+              }
+            : null,
+      ),
+      height: 36,
+    );
+  }
+
+  String _selectedGs1DefinitionCode() {
+    if (column.formatOption >= 0 && column.gs1ai.isNotEmpty) {
+      return column.gs1ai.substring(0, column.gs1ai.length - 1);
+    }
+    return column.gs1ai;
+  }
+
+  String _gs1DefinitionLabel(String code) {
+    final definition = Gs1AiDefinitions.values[code];
+    final description = definition?.name.trim().isNotEmpty == true
+        ? definition!.name.trim()
+        : definition?.content.trim() ?? '';
+    return description.isEmpty ? code : '$code - $description';
+  }
 
   Widget _barcodeDropdown() {
     return _field(
