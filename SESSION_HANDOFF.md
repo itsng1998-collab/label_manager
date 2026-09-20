@@ -1,5 +1,24 @@
 # SESSION HANDOFF
 
+## 현재 작업: 사용자 관리 Enter 연속 검색
+- **진행 중**: `파일/관리 > 사용자 관리`에서 이름 검색 후 Enter를 다시 눌러도 다음 사용자를 찾지 못하고 돋보기 버튼을 눌러야 하는 1.3.120 증상을 수정한다.
+- 원인 가설: `_searchNext()`가 결과 행 선택과 시트 스크롤 후 검색 `TextField` 포커스를 복구하지 않아 다음 Enter가 검색 입력으로 전달되지 않는다.
+- 구현 방향: 검색 필드 전용 `FocusNode`를 소유하고, 검색 결과 선택·스크롤이 반영된 다음 프레임에 검색 필드로 포커스를 명시적으로 복원한다. 검색어와 선택 범위는 유지한다.
+- 회귀 테스트 추가: 같은 이름의 두 사용자에서 Enter를 두 번 연속 입력해 검색 필드 포커스 유지와 두 번째 사용자 선택을 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/user_manager_dialog_test.dart --plain-name "enter searches repeatedly and restores search field focus"`.
+- 수정 전 테스트 결과: **실패(예상 일치)**. 첫 Enter 직후 검색 필드의 `focusNode.hasFocus`가 `false`로 바뀌었다.
+- `lib/features/managed_user/presentation/user_manager_dialog.dart` 편집 완료: 검색 전용 `FocusNode`를 추가하고 결과 행 선택·스크롤 다음 프레임에 검색 필드 포커스와 검색어 끝 커서를 복원한다.
+- 수정 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/user_manager_dialog_test.dart --plain-name "enter searches repeatedly and restores search field focus"`.
+- 수정 후 focused test 결과: **통과(1/1)**. Enter 두 번으로 두 번째 일치 사용자까지 선택되고 검색 필드 포커스가 유지된다.
+- Dart formatter 적용 완료: `user_manager_dialog.dart`, `user_manager_dialog_test.dart`.
+- 사용자 관리 전체 테스트 결과: `C:/Flutter/bin/flutter.bat test test/user_manager_dialog_test.dart` **통과(13/13)**.
+- `pubspec.yaml` 편집 완료: 앱 버전을 `1.4.13`에서 `1.4.14`로 갱신했다.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/managed_user/presentation/user_manager_dialog.dart test/user_manager_dialog_test.dart`.
+- 정적 분석 결과: **통과**, `No issues found` (종료 코드 0). 변경 파일 VS Code 진단 오류 없음.
+- DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
+- 상태: **완료**. stage/commit 대상은 `lib/features/managed_user/presentation/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+
 ## 현재 작업: 관리자 복사 거래처 검색
 - **진행 중**: `파일/관리 > 관리자 복사`의 긴 거래처 목록에서 원본·대상 거래처를 이름으로 검색할 수 있도록 개선한다.
 - 권장안: 별도 검색 결과 화면 대신 거래처 드롭다운 메뉴 상단에 검색창을 제공하고, 입력 즉시 공백·대소문자를 무시한 이름 부분 일치로 목록을 필터링한다. 기존 협력업체→거래처→브랜드→라벨 크기 선택 흐름은 유지한다.

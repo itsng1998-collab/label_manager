@@ -114,6 +114,7 @@ class UserManagerDialogContent extends StatefulWidget {
 
 class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode(debugLabel: 'UserManagerSearch');
   final _tableScrollController = FortuneTableScrollController();
   List<Cooperator> _cooperators = const [];
   List<Customer> _customers = const [];
@@ -145,6 +146,7 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -352,6 +354,13 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
     } else {
       setState(() => _selectedIndex = found);
       _tableScrollController.revealRowCentered(found);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _searchFocusNode.requestFocus();
+        _searchController.selection = TextSelection.collapsed(
+          offset: _searchController.text.length,
+        );
+      });
     }
   }
 
@@ -576,6 +585,7 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
                 child: TextField(
                   key: const ValueKey('userSearchField'),
                   controller: _searchController,
+                  focusNode: _searchFocusNode,
                   decoration: const InputDecoration(labelText: '이름 검색'),
                   onSubmitted: (_) => _searchNext(),
                 ),

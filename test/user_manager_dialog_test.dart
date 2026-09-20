@@ -193,6 +193,36 @@ void main() {
     );
   });
 
+  testWidgets('enter searches repeatedly and restores search field focus', (
+    tester,
+  ) async {
+    final deleted = <String>[];
+    await _pumpManager(
+      tester,
+      initialUsers: [_user('one', '같은 이름'), _user('two', '같은 이름')],
+      delete: (id) async => deleted.add(id),
+    );
+    final searchField = find.byKey(const ValueKey('userSearchField'));
+    await tester.enterText(searchField, '같은');
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    final editable = tester.widget<EditableText>(
+      find.descendant(of: searchField, matching: find.byType(EditableText)),
+    );
+    expect(editable.focusNode.hasFocus, isTrue);
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(editable.focusNode.hasFocus, isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('userDeleteButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(deleted, ['two']);
+  });
+
   testWidgets('authorized manager connects as the selected user', (
     tester,
   ) async {
