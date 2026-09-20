@@ -19,6 +19,7 @@
 - 상태: **완료**. stage/commit 대상은 `startup_dialog.dart`, `startup_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 최종 보강: 아이디/비밀번호 필드에 안정적인 테스트 key를 추가하고, `TESTER1` 조회 이후 `3575`가 다시 조회되지 않는 조건을 명시적으로 검증한다.
 - 보강 후 최종 검증 통과: `startup_dialog_test.dart` **12/12**, focused analyze 오류·경고 0.
+- 기능 커밋: `361b4ac8690f94dbfc5871ee49562d958fae901a` (`저장 아이디 입력 덮어쓰기 수정`).
 
 ## 현재 작업: 관리자 복사 품목 포함 SQL 512 오류
 - **진행 중**: 관리자 복사에서 원본 라벨 `677`을 대상 라벨 `8156`으로 `품목까지 복사`하면 SQL Server 오류 512(스칼라 하위 쿼리 복수행)가 발생하는 1.3.106 로그 증상을 수정한다.
