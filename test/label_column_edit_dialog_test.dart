@@ -37,6 +37,11 @@ const validDateColumnType = TColumnType(
   name: '소비기한',
   order: 6,
 );
+const fixedColumnType = TColumnType(
+  code: TColumnType.TYPE_FIX,
+  name: '고정',
+  order: 7,
+);
 
 Future<TestGesture> _startRowDrag(
   WidgetTester tester,
@@ -507,6 +512,33 @@ void main() {
       matching: find.byType(EditableText),
     );
     expect(tester.widget<EditableText>(editor).controller.text, '바코드');
+  });
+
+  testWidgets('fixed column disables user defined text', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'FIX').copyWith(columnType: fixedColumnType),
+      ],
+    );
+
+    final userDefinedText = find.byKey(
+      const Key('label-column-user-define-text'),
+    );
+    await tester.ensureVisible(userDefinedText);
+    expect(tester.widget<TextFormField>(userDefinedText).enabled, isFalse);
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-type')));
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, '기본').last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<TextFormField>(userDefinedText).enabled, isTrue);
   });
 
   testWidgets('all QR property dropdown arrows are centered', (tester) async {

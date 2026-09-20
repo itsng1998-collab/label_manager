@@ -1441,7 +1441,14 @@ class _PropertyFields extends StatelessWidget {
         return [
           ..._autoFields(),
           _check('검색 출력', column.searchPrint, (value) => onChanged(column.copyWith(searchPrint: value))),
-          _text('사용자 정의 text', column.userDefineBarcodeText, (value) => onChanged(column.copyWith(userDefineBarcodeText: value))),
+          _text(
+            '사용자 정의 text',
+            column.userDefineBarcodeText,
+            (value) => onChanged(column.copyWith(userDefineBarcodeText: value)),
+            key: const Key('label-column-user-define-text'),
+            fieldEnabled:
+                enabled && column.columnType.code != TColumnType.TYPE_FIX,
+          ),
         ];
     }
   }

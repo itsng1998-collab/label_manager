@@ -28,6 +28,16 @@
 - stage/commit 대상: `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
 - 기능 커밋: `e661239` (`공용라벨 Ctrl+Z 저장 회귀 검증`).
 
+## 현재 작업: 고정 항목 사용자 정의 text 비활성화
+- **완료**: 라벨 항목 편집에서 항목 종류가 `고정(TYPE_FIX)`이면 사용되지 않는 `사용자 정의 text` 입력을 비활성화했다.
+- [`lib/features/label_column/presentation/label_column_edit_dialog.dart`](lib/features/label_column/presentation/label_column_edit_dialog.dart) 편집 완료: 고정 항목일 때만 사용자 정의 text의 `TextFormField.enabled`를 false로 설정하고 다른 항목 종류는 기존 입력을 유지한다.
+- [`test/label_column_edit_dialog_test.dart`](test/label_column_edit_dialog_test.dart) 테스트 추가: 고정 항목에서 비활성화되고 기본 항목으로 변경하면 다시 활성화되는지 검증한다.
+- 버전은 UI 속성 활성화 조건 수정이므로 PATCH 단계로 `1.4.4`에서 `1.4.5`로 갱신했다.
+- focused 검증 완료: `fixed column disables user defined text` **1/1 통과**.
+- 최종 검증 완료: `test/label_column_edit_dialog_test.dart` 전체 통과, focused analyze **No issues found**.
+- formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
+- stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
 - 원인 확인: 120×120px QR 객체에도 선형 바코드용 기본 막대 높이 10mm(약 38px)를 본체 높이로 적용하고, module scale은 인코딩 폭에만 적용한다. 배율 1은 120×38, 배율 3은 40×38 소스를 120×38로 리사이즈해 상단 쏠림과 비대칭 왜곡이 발생한다.
