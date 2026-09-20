@@ -24,6 +24,7 @@
 - DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
 - 상태: **완료**. stage/commit 대상은 `lib/features/label_print/domain/label_print.dart`, `test/label_print_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+- 기능 커밋: `04c6ffdea668e4f5205037f0a5cf80e28c4e115c` (`품목별 정보 출력 즉시 반영`).
 
 ## 현재 작업: 저장 아이디의 사용자 입력 덮어쓰기
 - **진행 중**: 로그인 창에서 저장 ID `3575` 대신 `TESTER1`을 입력한 뒤 비밀번호를 클릭하면 다시 `3575`로 강제 전환되는 1.3.120 증상을 수정한다.
