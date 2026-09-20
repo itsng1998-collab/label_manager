@@ -18,6 +18,7 @@
 - DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
 - 상태: **완료**. stage/commit 대상은 `lib/features/label_sheet/presentation/common_label_manage.dart`, `test/common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+- 기능 커밋: `cb1ae938dfdb816eb26c60da265e5c6b1cf2632d` (`공용라벨 이름 열 키워드 삽입 추가`).
 
 ## 현재 작업: 사용자 관리 Enter 연속 검색
 - **진행 중**: `파일/관리 > 사용자 관리`에서 이름 검색 후 Enter를 다시 눌러도 다음 사용자를 찾지 못하고 돋보기 버튼을 눌러야 하는 1.3.120 증상을 수정한다.
