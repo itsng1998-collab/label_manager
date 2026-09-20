@@ -353,7 +353,7 @@ void main() {
     ]);
   });
 
-  testWidgets('keyword column exposes double tap and drag token', (
+  testWidgets('keyword and name columns insert keyword on double tap', (
     tester,
   ) async {
     final keywordController = _RecordingKeywordInsertController();
@@ -390,7 +390,11 @@ void main() {
         '#SWEIGHT',
       ),
     );
-    expect(table.columns[1].onDoubleTap, isNull);
+    final nameColumn = table.columns[1];
+    expect(nameColumn.onDoubleTap, isNotNull);
+    keywordController.insertedText = null;
+    nameColumn.onDoubleTap!(columns.single, 0);
+    expect(keywordController.insertedText, '#SWEIGHT');
     expect(table.columns[1].dragData, isNull);
   });
 }

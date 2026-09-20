@@ -1,5 +1,24 @@
 # SESSION HANDOFF
 
+## 현재 작업: 공용라벨 이름 열 키워드 삽입
+- **진행 중**: 공용라벨관리의 `사용 항목` 표에서 키워드 열은 더블클릭으로 `#키워드`가 삽입되지만 이름 열은 삽입되지 않는 1.3.120 증상을 수정한다.
+- 원인 확인: `_CommonLabelTable`의 `FortuneTableColumn.onDoubleTap`이 열 인덱스 `0`(키워드)에만 설정되고 인덱스 `1`(이름)은 null이다.
+- 구현 방향: 키워드와 이름 열(`index < 2`)이 동일한 `LabelSheetKeywordInsertController.insertAtCurrentContext('#${row.keyword}')`를 호출하게 한다. 드래그 삽입은 요청 범위가 아니므로 기존 키워드 열에만 유지한다.
+- 회귀 테스트 변경: 키워드·이름 열 모두 더블클릭 시 `#SWEIGHT`를 삽입하고, 이름 열 dragData는 계속 null인지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/common_label_manage_test.dart --plain-name "keyword and name columns insert keyword on double tap"`.
+- 수정 전 테스트 결과: **실패(예상 일치)**. 이름 열의 `onDoubleTap`이 null이었다.
+- `lib/features/label_sheet/presentation/common_label_manage.dart` 편집 완료: 키워드와 이름 열(`index < 2`)에 동일한 `#키워드` 더블클릭 삽입 콜백을 적용했다. 이름 열 드래그 동작은 추가하지 않았다.
+- 수정 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/common_label_manage_test.dart --plain-name "keyword and name columns insert keyword on double tap"`.
+- 수정 후 focused test 결과: **통과(1/1)**.
+- Dart formatter 적용 완료: `common_label_manage.dart`, `common_label_manage_test.dart`.
+- 공용라벨관리 전체 테스트 결과: `C:/Flutter/bin/flutter.bat test test/common_label_manage_test.dart` **통과(13/13)**.
+- `pubspec.yaml` 편집 완료: 앱 버전을 `1.4.14`에서 `1.4.15`로 갱신했다.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/label_sheet/presentation/common_label_manage.dart test/common_label_manage_test.dart`.
+- 정적 분석 결과: **통과**, `No issues found` (종료 코드 0). 변경 파일 VS Code 진단 오류 없음.
+- DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
+- 상태: **완료**. stage/commit 대상은 `lib/features/label_sheet/presentation/common_label_manage.dart`, `test/common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
+- 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+
 ## 현재 작업: 사용자 관리 Enter 연속 검색
 - **진행 중**: `파일/관리 > 사용자 관리`에서 이름 검색 후 Enter를 다시 눌러도 다음 사용자를 찾지 못하고 돋보기 버튼을 눌러야 하는 1.3.120 증상을 수정한다.
 - 원인 가설: `_searchNext()`가 결과 행 선택과 시트 스크롤 후 검색 `TextField` 포커스를 복구하지 않아 다음 Enter가 검색 입력으로 전달되지 않는다.
