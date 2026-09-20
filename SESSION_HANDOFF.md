@@ -20,6 +20,7 @@
 - DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
 - 상태: **완료**. stage/commit 대상은 `lib/home_page_manager.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+- 기능 커밋: `fc802a1e2dc6c908b6fd2e5ce9761ed9d49a1d40` (`날짜 타입 저장 무한 로딩 수정`).
 
 ## 현재 작업: 품목별 정보 저장 후 라벨출력 즉시 반영
 - **진행 중**: 발행 체크된 품목의 줄간격·기본 발행 수·개별 크기·여백을 `품목별 정보 편집`에서 저장해도 라벨출력 탭에 즉시 반영되지 않고, 발행 체크를 해제 후 재선택해야 반영되는 1.3.120 증상을 수정한다.
