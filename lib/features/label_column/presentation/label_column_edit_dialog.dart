@@ -215,6 +215,14 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     if (!_normalEnabled) return;
     try {
       setState(() {
+        final propertyDraft = _session.propertyDraft;
+        if (propertyDraft != null) {
+          _session = _session.updatePropertyDraft(
+            propertyDraft.copyWith(
+              column: _normalizeGs1ContainColumns(propertyDraft.column),
+            ),
+          );
+        }
         _session = _session.applyProperty();
         if (_session.selectedColumn != null) {
           _session = _session.beginPropertyEdit();
@@ -224,6 +232,67 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     } catch (error) {
       await _showMessage('입력 확인', error.toString());
     }
+  }
+
+  String _gs1ContainKeywords(TColumn column) {
+    if (column.columnType.code != TColumnType.TYPE_GS1_BARCODE) {
+      return column.containColumns;
+    }
+    final keywordById = <int, String>{
+      for (final draft in _session.workingColumns)
+        if (draft.column.columnType.code == TColumnType.TYPE_GS1_AI &&
+            draft.column.columnId > 0)
+          draft.column.columnId: draft.column.keyword,
+    };
+    return column.containColumns
+        .split('|')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .map((value) {
+          final keyword = keywordById[int.tryParse(value)];
+          return keyword == null ? value : '#$keyword';
+        })
+        .join('|');
+  }
+
+  TColumn _normalizeGs1ContainColumns(TColumn column) {
+    if (column.columnType.code != TColumnType.TYPE_GS1_BARCODE) return column;
+    final gs1Columns = _session.workingColumns
+        .where(
+          (draft) =>
+              draft.column.columnType.code == TColumnType.TYPE_GS1_AI,
+        )
+        .toList();
+    final values = <String>[];
+    for (final rawValue in column.containColumns.split('|')) {
+      final value = rawValue.trim();
+      if (value.isEmpty) continue;
+      final numericId = int.tryParse(value);
+      if (numericId != null) {
+        values.add('$numericId');
+        continue;
+      }
+      final keyword = (value.startsWith('#') ? value.substring(1) : value)
+          .trim()
+          .toUpperCase();
+      final match = gs1Columns
+          .where(
+            (draft) => draft.column.keyword.trim().toUpperCase() == keyword,
+          )
+          .firstOrNull;
+      if (match == null) {
+        throw LabelColumnValidationException(
+          'GS1 AI 키워드를 찾을 수 없습니다: $value',
+        );
+      }
+      values.add(
+        match.column.columnId > 0 ? '${match.column.columnId}' : '#$keyword',
+      );
+    }
+    final normalized = values.toSet().join('|');
+    return column.copyWith(
+      containColumns: normalized.isEmpty ? '' : '$normalized|',
+    );
   }
 
   void _cancelProperty() {
@@ -1196,6 +1265,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                     child: _PropertyFields(
                       key: ValueKey('property:${draft.key}:$_propertyRevision'),
                       column: draft.column,
+                      gs1ContainKeywords: _gs1ContainKeywords(draft.column),
                       columnTypes: _columnTypes,
                       enabled: enabled,
                       onChanged: _updateProperty,
@@ -1233,12 +1303,14 @@ class _PropertyFields extends StatelessWidget {
   const _PropertyFields({
     super.key,
     required this.column,
+    required this.gs1ContainKeywords,
     required this.columnTypes,
     required this.enabled,
     required this.onChanged,
   });
 
   final TColumn column;
+  final String gs1ContainKeywords;
   final List<TColumnType> columnTypes;
   final bool enabled;
   final ValueChanged<TColumn> onChanged;
@@ -1412,7 +1484,12 @@ class _PropertyFields extends StatelessWidget {
           _barcodeDropdown(),
           _integer('폭', column.width, (value) => onChanged(column.copyWith(width: value))),
           _integer('높이', column.height, (value) => onChanged(column.copyWith(height: value))),
-          _text('포함 GS1 AI 키워드', column.containColumns, (value) => onChanged(column.copyWith(containColumns: value))),
+          _text(
+            '포함 GS1 AI 키워드',
+            gs1ContainKeywords,
+            (value) => onChanged(column.copyWith(containColumns: value)),
+            key: const Key('label-column-gs1-contain-keywords'),
+          ),
           _check('GS1 code 사용', column.useGS1Code, (value) => onChanged(column.copyWith(useGS1Code: value))),
         ];
       case TColumnType.TYPE_VALIDDATE:

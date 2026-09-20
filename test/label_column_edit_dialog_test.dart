@@ -49,6 +49,11 @@ const gs1AiColumnType = TColumnType(
   name: 'GS1 AI',
   order: 8,
 );
+const gs1BarcodeColumnType = TColumnType(
+  code: TColumnType.TYPE_GS1_BARCODE,
+  name: 'GS1 바코드',
+  order: 9,
+);
 
 Future<TestGesture> _startRowDrag(
   WidgetTester tester,
@@ -637,6 +642,59 @@ void main() {
 
     expect(saved?.updatedColumns.single.column.gs1ai, '3102');
     expect(saved?.updatedColumns.single.column.formatOption, 2);
+  });
+
+  testWidgets('GS1 barcode shows contain column IDs as keywords', (
+    tester,
+  ) async {
+    LabelColumnSaveCommand? saved;
+    TColumnType.datas = [
+      baseType,
+      barcodeColumnType,
+      gs1AiColumnType,
+      gs1BarcodeColumnType,
+    ];
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(140792, 'GS1AI').copyWith(columnType: gs1AiColumnType),
+        _column(140793, 'GS1BAR', order: 2).copyWith(
+          columnType: gs1BarcodeColumnType,
+          containColumns: '140792|',
+        ),
+      ],
+      onSave: (command) async => saved = command,
+    );
+
+    await _tapVisible(tester, find.text('GS1BAR').last);
+    final containKeywords = find.byKey(
+      const Key('label-column-gs1-contain-keywords'),
+    );
+    await tester.ensureVisible(containKeywords);
+    expect(
+      tester.widget<TextFormField>(containKeywords).initialValue,
+      '#GS1AI',
+    );
+
+    await tester.enterText(containKeywords, '#GS1AI');
+    await _tapVisible(
+      tester,
+      find.widgetWithText(CheckboxListTile, 'GS1 code 사용'),
+    );
+    await _tapVisible(
+      tester,
+      find.byKey(const Key('label-column-property-apply')),
+    );
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+
+    expect(saved?.updatedColumns.single.column.containColumns, '140792|');
   });
 
   testWidgets('all QR property dropdown arrows are centered', (tester) async {

@@ -55,6 +55,23 @@
 - stage/commit 대상: `lib/features/label_print/domain/item_code_data_resolver.dart`, `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/item_code_data_resolver_test.dart`, `test/label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
 - 기능 커밋: `7dc391d` (`GS1 AI 코드 표시와 설정 선택 개선`).
 
+## 현재 작업: GS1바코드 포함 키워드 표시 복원
+- **진행 중**: `포함 GS1 AI 키워드`에 `#GS1AI`를 저장한 뒤 재진입하면 관계 테이블의 내부 ID `140792|`가 노출되는 1.3.120 증상을 수정한다.
+- 원인 확인: DB 조회의 `containColumns`는 관계 저장용 column ID 목록이며 라벨 항목 편집 폼이 이를 그대로 표시한다. 저장 SQL은 `#키워드`와 숫자 ID를 모두 관계 ID로 해석한다.
+- 구현 방향: 저장·출력 모델의 ID 목록은 유지하고, GS1바코드 속성 폼의 표시값만 현재 사용 항목을 기준으로 ID→`#키워드`로 변환한다. 단순 조회 시 dirty 상태는 만들지 않는다.
+- 수정 예정 파일: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `pubspec.yaml`.
+- 편집 완료: `_gs1ContainKeywords`가 기존 관계 ID를 `#키워드`로 표시하고 `_normalizeGs1ContainColumns`가 속성 적용 시 키워드를 관계 ID로 복원한다. 알 수 없는 키워드는 `입력 확인`으로 적용을 차단한다.
+- 테스트 추가: column ID `140792`를 포함한 GS1바코드가 `#GS1AI`로 표시되고 저장 명령에서는 `140792|`를 유지하는 위젯 회귀 테스트를 추가했다.
+- 단일 회귀 검증 통과: `C:/Flutter/bin/flutter.bat test test/label_column_edit_dialog_test.dart --plain-name "GS1 barcode shows contain column IDs as keywords"` (종료 코드 0).
+- 버전 갱신: `pubspec.yaml`의 앱 버전을 `1.4.6`에서 `1.4.7`로 올렸다.
+- Dart 포맷 완료: `label_column_edit_dialog.dart`, `label_column_edit_dialog_test.dart`.
+- 포맷 후 단일 회귀 재검증 통과: 1/1.
+- 전체 관련 검증 통과: `C:/Flutter/bin/flutter.bat test test/label_column_edit_dialog_test.dart` (28/28, 종료 코드 0).
+- 정적 분석 통과: `C:/Flutter/bin/flutter.bat analyze lib/features/label_column/presentation/label_column_edit_dialog.dart test/label_column_edit_dialog_test.dart` (`No issues found`, 종료 코드 0).
+- VS Code 진단: 변경한 Dart 파일과 `pubspec.yaml` 모두 오류 없음.
+- DTD 연결 확인: 실행 중인 Flutter 앱이 없어 hot reload는 수행하지 못했다.
+- 상태: **완료**. stage/commit 대상은 `label_column_edit_dialog.dart`, `label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 사용자 dirty 파일은 제외한다.
+
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
 - 원인 확인: 120×120px QR 객체에도 선형 바코드용 기본 막대 높이 10mm(약 38px)를 본체 높이로 적용하고, module scale은 인코딩 폭에만 적용한다. 배율 1은 120×38, 배율 3은 40×38 소스를 120×38로 리사이즈해 상단 쏠림과 비대칭 왜곡이 발생한다.
