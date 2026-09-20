@@ -18,6 +18,7 @@
 - DTD 확인 결과: 연결된 Flutter 앱이 없어 hot reload 대상 없음.
 - 상태: **완료**. stage/commit 대상은 `lib/features/managed_user/presentation/user_manager_dialog.dart`, `test/user_manager_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty 파일은 제외한다.
 - 커밋 전 `git diff --check`, 변경 파일 및 diff 검토 예정.
+- 기능 커밋: `bd90753cc49263c006578fb94934486933eece20` (`사용자 관리 Enter 연속 검색 수정`).
 
 ## 현재 작업: 관리자 복사 거래처 검색
 - **진행 중**: `파일/관리 > 관리자 복사`의 긴 거래처 목록에서 원본·대상 거래처를 이름으로 검색할 수 있도록 개선한다.
