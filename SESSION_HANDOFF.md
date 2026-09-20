@@ -37,6 +37,7 @@
 - 최종 검증 완료: `test/label_column_edit_dialog_test.dart` 전체 통과, focused analyze **No issues found**.
 - formatter, diagnostics, `git diff --check` 통과. DTD에는 실행 중인 Flutter 앱이 없어 hot reload 대상이 없었다.
 - stage/commit 대상: `lib/features/label_column/presentation/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 변경은 제외한다.
+- 기능 커밋: `2868028` (`고정 항목 사용자 정의 입력 비활성화`).
 
 ## 현재 작업: QR 배율 비례 왜곡 수정
 - **완료**: 공용라벨관리에서 QR을 31.75×31.75mm로 삽입할 때 배율 1은 위로 쏠리고 배율 3은 위로 말리는 1.3.120 증상을 수정했다.
