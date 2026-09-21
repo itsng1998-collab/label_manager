@@ -8,10 +8,19 @@ if (-not (Test-Path -LiteralPath $buildToolsScript -PathType Leaf)) {
 . $buildToolsScript
 Ensure-WindowsBuildTools -IssPath (Join-Path $ScriptRoot 'inno_setup_installer.iss') -InstallIfMissing $true | Out-Null
 
-#flutter pub run pub_version_plus:main build
-dart run (Join-Path $ScriptRoot 'lib\utils\generate_version.dart')
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Push-Location -LiteralPath $ScriptRoot
+try {
+	#flutter pub run pub_version_plus:main build
+	dart run (Join-Path $ScriptRoot 'lib\utils\generate_version.dart')
+	if ($LASTEXITCODE -ne 0) {
+		$buildExitCode = $LASTEXITCODE
+	} else {
+		$flutterScript = Join-Path $ScriptRoot 'flutter.ps1'
+		& $flutterScript build windows
+		$buildExitCode = $LASTEXITCODE
+	}
+} finally {
+	Pop-Location
+}
 
-$flutterScript = Join-Path $ScriptRoot 'flutter.ps1'
-& $flutterScript build windows
-exit $LASTEXITCODE
+exit $buildExitCode

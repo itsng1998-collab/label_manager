@@ -12,4 +12,6 @@
   	"editor.wordWrap": "on"
 	},
 	"workbench.commandPalette.showAskInChat": false,
+	"cmake.sourceDirectory": "${workspaceFolder}/windows",
+	"cmake.autoDetectSourceDirectory": false,
 }
