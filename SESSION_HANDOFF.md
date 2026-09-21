@@ -9,7 +9,8 @@
 - 빌드 경로 검증 완료: `$ScriptRoot` 계산, 빌드 전 프로젝트 루트 이동, `finally` 원위치 복원, 루트 기준 `flutter.ps1` 해석, 실패 종료 코드 보존을 확인했다.
 - 고정 실행 경로 잔존 검색 결과: 설정·빌드 스크립트에는 없음. 테스트 fixture의 Windows 경로 정규화 입력 2건은 실제 빌드 경로가 아니므로 유지한다.
 - `git diff --check` 통과. 실제 release 빌드/배포파일 생성은 요청 범위가 아니므로 수행하지 않았다.
-- 상태: **검증 완료, 커밋 진행 중**. stage/commit 대상은 `.vscode/settings.json`, `build_windows.ps1`, `SESSION_HANDOFF.md`이며 기존 사용자 dirty `lib/core/app.dart`는 제외한다.
+- 상태: **완료**. 기존 사용자 dirty `lib/core/app.dart`는 제외했다.
+- 기능 커밋: `980174a65a0b52dd22ad670c080509c20b5d82a6` (`Windows 빌드 경로 자동 인식 적용`).
 
 ## 현재 작업: 최근 수정 기능 진단 로그 보강
 - **진행 중**: 최근 확인·수정·추가한 저장 ID 조회, 관리자 복사/거래처 검색, 품목정보 출력 동기화, 날짜 타입 저장 busy, 사용자 Enter 검색, 공용라벨 키워드 삽입의 다음 재현 분석에 필요한 상태 전이 로그를 추가한다.
