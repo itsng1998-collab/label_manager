@@ -26,6 +26,7 @@
 - 변경 파일 diagnostics와 `git diff --check` 통과. formatter에 의한 요청 범위 밖 변경 없음.
 - 운영 DB 데이터 교정은 앱의 첫 품목 세션 로드에서 실행되며, 이 작업 중 운영 DB UPDATE를 직접 실행하지 않아 실제 교정 건수는 사용자 재현 로그로 확인해야 한다.
 - 상태: **완료**. stage/commit 대상은 `lib/features/item/application/item_editable_default_repair.dart`, `lib/features/item/application/item_manager_session_loader.dart`, `lib/features/item/data/column_content_dao.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/item_editable_default_repair_test.dart`, `test/item_manager_read_snapshot_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다.
+- 기능 커밋: `dc59a24fd4810569ed25b4eade2b757a96525d5b` (`기존 키워드 클라이언트 편집 기본값 복구`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 품목 편집 후 가로 스크롤 표시 유지 (1.4.16 재발)
