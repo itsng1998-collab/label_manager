@@ -6,6 +6,7 @@ import 'package:label_manager/features/label_column/data/label_column_candidates
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/database/dao.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 class LabelColumnSchemaCapabilities {
   const LabelColumnSchemaCapabilities({
@@ -184,7 +185,8 @@ DECLARE @NewColumns TABLE (
   RICH_BARCODE_ROTATE INT NOT NULL, RICH_AUTO_INC_UPDATE BIT NOT NULL,
   RICH_USE_DATERANGE BIT NOT NULL, RICH_DATERANGE NVARCHAR(12) NOT NULL,
   COLUMN_GS1_CODE NVARCHAR(100) NOT NULL, COLUMN_GS1_FORMAT_OPTION INT NOT NULL,
-  CONTAIN_COLUMNS NVARCHAR(MAX) NOT NULL, COLUMN_SHOW_GS1CODE BIT NOT NULL
+  USE_GS1_CODE BIT NOT NULL, CONTAIN_COLUMNS NVARCHAR(MAX) NOT NULL,
+  COLUMN_SHOW_GS1CODE BIT NOT NULL
 );
 
 INSERT @NewColumns (
@@ -199,7 +201,7 @@ INSERT @NewColumns (
   RICH_USER_DEFINE_BARCODE_TEXT, RICH_CHECK_YN, RICH_AUTO_INC_ZERODEL,
   RICH_BARCODE_LINE, RICH_BARCODE_LINE_SIZE, RICH_BARCODE_ROTATE,
   RICH_AUTO_INC_UPDATE, RICH_USE_DATERANGE, RICH_DATERANGE, COLUMN_GS1_CODE,
-  COLUMN_GS1_FORMAT_OPTION, CONTAIN_COLUMNS, COLUMN_SHOW_GS1CODE
+  COLUMN_GS1_FORMAT_OPTION, USE_GS1_CODE, CONTAIN_COLUMNS, COLUMN_SHOW_GS1CODE
 )
 SELECT
   N.value('string((draftKey/text())[1])', 'NVARCHAR(100)'),
@@ -231,6 +233,7 @@ SELECT
   N.value('string((dateRange/text())[1])', 'NVARCHAR(12)'),
   N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)'),
   N.value('(formatOption/text())[1]', 'INT'),
+  N.value('(useGs1/text())[1]', 'BIT'),
   N.value('string((contains/text())[1])', 'NVARCHAR(MAX)'),
   N.value('(showGs1/text())[1]', 'BIT')
 FROM @CommandDocument.nodes('/command/newColumns/column') X(N);
@@ -251,7 +254,8 @@ DECLARE @UpdatedColumns TABLE (
   RICH_AUTO_INC_ZERODEL BIT, RICH_BARCODE_LINE INT, RICH_BARCODE_LINE_SIZE INT,
   RICH_BARCODE_ROTATE INT, RICH_AUTO_INC_UPDATE BIT, RICH_USE_DATERANGE BIT,
   RICH_DATERANGE NVARCHAR(12), COLUMN_GS1_CODE NVARCHAR(100),
-  COLUMN_GS1_FORMAT_OPTION INT, CONTAIN_COLUMNS NVARCHAR(MAX), COLUMN_SHOW_GS1CODE BIT
+  COLUMN_GS1_FORMAT_OPTION INT, USE_GS1_CODE BIT,
+  CONTAIN_COLUMNS NVARCHAR(MAX), COLUMN_SHOW_GS1CODE BIT
 );
 INSERT @UpdatedColumns
 SELECT
@@ -284,6 +288,7 @@ SELECT
   N.value('string((dateRange/text())[1])', 'NVARCHAR(12)'),
   N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)'),
   N.value('(formatOption/text())[1]', 'INT'),
+  N.value('(useGs1/text())[1]', 'BIT'),
   N.value('string((contains/text())[1])', 'NVARCHAR(MAX)'),
   N.value('(showGs1/text())[1]', 'BIT')
 FROM @CommandDocument.nodes('/command/updatedColumns/column') X(N);
@@ -690,16 +695,17 @@ WHERE V.RICH_COLUMN_ID IS NULL;
 
 DECLARE @TouchedColumns TABLE (
   COLUMN_ID INT PRIMARY KEY, RICH_TYPE INT, COLUMN_GS1_CODE NVARCHAR(100),
-  COLUMN_GS1_FORMAT_OPTION INT, CONTAIN_COLUMNS NVARCHAR(MAX), COLUMN_SHOW_GS1CODE BIT
+  COLUMN_GS1_FORMAT_OPTION INT, USE_GS1_CODE BIT,
+  CONTAIN_COLUMNS NVARCHAR(MAX), COLUMN_SHOW_GS1CODE BIT
 );
 INSERT @TouchedColumns
 SELECT I.COLUMN_ID, N.RICH_TYPE, N.COLUMN_GS1_CODE, N.COLUMN_GS1_FORMAT_OPTION,
-  N.CONTAIN_COLUMNS, N.COLUMN_SHOW_GS1CODE
+  N.USE_GS1_CODE, N.CONTAIN_COLUMNS, N.COLUMN_SHOW_GS1CODE
 FROM @NewColumns N JOIN @InsertedRows I ON I.DRAFT_KEY=N.DRAFT_KEY
 UNION ALL
 SELECT RICH_COLUMN_ID, RICH_TYPE, COLUMN_GS1_CODE, COLUMN_GS1_FORMAT_OPTION,
-  CONTAIN_COLUMNS, COLUMN_SHOW_GS1CODE FROM @UpdatedColumns U
-WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="type" or @value="gs1ai" or @value="formatOption" or @value="contains" or @value="showGs1"]')=1;
+  USE_GS1_CODE, CONTAIN_COLUMNS, COLUMN_SHOW_GS1CODE FROM @UpdatedColumns U
+WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="type" or @value="gs1ai" or @value="formatOption" or @value="useGs1" or @value="contains" or @value="showGs1"]')=1;
 
 DELETE G FROM BM_GS1_COLUMN_INFO G JOIN @TouchedColumns T ON T.COLUMN_ID=G.COLUMN_ID
 WHERE T.RICH_TYPE<>${TColumnType.TYPE_GS1_AI};
@@ -732,12 +738,14 @@ LEFT JOIN BM_RICH_COLUMN C ON C.RICH_LABELSIZE_ID=@LabelSizeId
       WHEN S.VALUE NOT LIKE '%[^0-9]%' AND S.VALUE<>'' THEN CONVERT(INT, S.VALUE)
       ELSE NULL END)
   AND C.RICH_TYPE=${TColumnType.TYPE_GS1_AI}
-WHERE T.RICH_TYPE=${TColumnType.TYPE_GS1_BARCODE} AND S.VALUE<>''
+WHERE T.RICH_TYPE=${TColumnType.TYPE_GS1_BARCODE} AND T.USE_GS1_CODE=1
+  AND S.VALUE<>''
   AND COALESCE(NM.COLUMN_ID, C.RICH_COLUMN_ID) IS NOT NULL;
 IF EXISTS (
   SELECT T.COLUMN_ID FROM @TouchedColumns T
   JOIN @ContainValues S ON S.RICH_COLUMN_ID=T.COLUMN_ID
-  WHERE T.RICH_TYPE=${TColumnType.TYPE_GS1_BARCODE} AND S.VALUE<>''
+  WHERE T.RICH_TYPE=${TColumnType.TYPE_GS1_BARCODE} AND T.USE_GS1_CODE=1
+    AND S.VALUE<>''
   GROUP BY T.COLUMN_ID
   HAVING COUNT(*)<>(SELECT COUNT(*) FROM BM_GS1_CONTAIN_COLUMN G
     WHERE G.MAIN_COLUMN_ID=T.COLUMN_ID)
@@ -800,7 +808,9 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     if (!capabilities.hasCoreSchema) {
       throw StateError('Required label column schema is not supported.');
     }
+    _logGs1SaveCommand(command, 'buildRequested');
     _validateCommand(command);
+    _logGs1SaveCommand(command, 'validated');
     final sql = StringBuffer('SET NOCOUNT ON;\n')
       ..write(_xmlProjection)
       ..write(
@@ -1050,10 +1060,27 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
         !updatedIds.containsAll(command.changedKeysByColumnId.keys)) {
       throw StateError('Updated column change keys do not match rows.');
     }
-    const auxiliaryKeys = {'check', 'gs1ai', 'formatOption', 'contains', 'showGs1'};
+    const auxiliaryKeys = {
+      'check',
+      'gs1ai',
+      'formatOption',
+      'useGs1',
+      'contains',
+      'showGs1',
+    };
     final supportedKeys = {..._columnByChangedKey.keys, ...auxiliaryKeys};
     for (final entry in command.changedKeysByColumnId.entries) {
       if (entry.value.isEmpty || !supportedKeys.containsAll(entry.value)) {
+        RegressionDebugLog.event(
+          'labelColumnGs1Save',
+          'validationRejected',
+          fields: {
+            'columnId': entry.key,
+            'changedKeys': (entry.value.toList()..sort()).join(','),
+            'unsupported':
+                (entry.value.difference(supportedKeys).toList()..sort()).join(','),
+          },
+        );
         throw StateError('Unsupported changed property key for column ${entry.key}.');
       }
     }
@@ -1076,6 +1103,39 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
         orderedKeySet.length != expectedOrderKeys.length ||
         !orderedKeySet.containsAll(expectedOrderKeys)) {
       throw StateError('Final column order identities are invalid.');
+    }
+  }
+
+  static void _logGs1SaveCommand(
+    LabelColumnSaveCommand command,
+    String event,
+  ) {
+    final updatedById = {
+      for (final draft in command.updatedColumns)
+        draft.column.columnId: draft.column,
+    };
+    for (final entry in command.changedKeysByColumnId.entries) {
+      if (!entry.value.any(
+        const {'type', 'gs1ai', 'formatOption', 'useGs1', 'contains', 'showGs1'}
+            .contains,
+      )) {
+        continue;
+      }
+      final column = updatedById[entry.key];
+      RegressionDebugLog.event(
+        'labelColumnGs1Save',
+        event,
+        fields: {
+          'columnId': entry.key,
+          'type': column?.columnType.code,
+          'useGs1': column?.useGS1Code,
+          'changedKeys': (entry.value.toList()..sort()).join(','),
+          'containCount': column?.containColumns
+              .split('|')
+              .where((value) => value.isNotEmpty)
+              .length,
+        },
+      );
     }
   }
 }

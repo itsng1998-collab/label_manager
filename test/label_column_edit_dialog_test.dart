@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
+import 'package:label_manager/features/label_column/data/label_column_save.dart';
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/core/barcode.dart';
@@ -788,6 +789,20 @@ void main() {
     await tester.pump();
 
     expect(saved?.updatedColumns.single.column.containColumns, '140792|');
+    expect(saved?.changedKeysByColumnId[140793], {'useGs1'});
+    expect(
+      () => LabelColumnSaveDao.buildSaveStatement(
+        saved!,
+        const LabelColumnSchemaCapabilities(
+          hasCoreSchema: true,
+          hasMainMissingKeywordCheck: false,
+          hasContentEditable: false,
+          hasUpdateContent: false,
+          hasStatusData: false,
+        ),
+      ),
+      returnsNormally,
+    );
   });
 
   testWidgets('all QR property dropdown arrows are centered', (tester) async {

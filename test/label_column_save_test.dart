@@ -13,6 +13,11 @@ const _baseType = TColumnType(
   name: '기본',
   order: 1,
 );
+const _gs1BarcodeType = TColumnType(
+  code: TColumnType.TYPE_GS1_BARCODE,
+  name: 'GS1 바코드',
+  order: 2,
+);
 
 TColumn _column(int id, String keyword, {int order = 1}) => TColumn(
   columnType: _baseType,
@@ -235,6 +240,43 @@ void main() {
       expect(
         statement.sql,
         contains("COALESCE(CONVERT(NVARCHAR(MAX), RICH_DATERANGE), N'')"),
+      );
+    });
+
+    test('GS1 barcode use and contain changes build save statement', () {
+      final original = LabelColumnDraft.fromColumn(
+        _column(140793, 'GS1BARCODE').copyWith(
+          columnType: _gs1BarcodeType,
+        ),
+      );
+      final updated = original.copyWith(
+        column: original.column.copyWith(
+          useGS1Code: true,
+          containColumns: '140792|',
+        ),
+      );
+      final command = LabelColumnSaveCommand(
+        labelSizeId: 10,
+        originalColumnsById: {140793: original},
+        newColumns: const [],
+        updatedColumns: [updated],
+        changedKeysByColumnId: const {
+          140793: {'useGs1', 'contains'},
+        },
+        deletedColumnIds: const {},
+        orderedKeys: const ['column:140793'],
+      );
+
+      final statement = LabelColumnSaveDao.buildSaveStatement(command, _none);
+      final xml = statement.params['commandXml'] as String;
+
+      expect(xml, contains('<useGs1>1</useGs1>'));
+      expect(xml, contains('<containValues><value>140792</value></containValues>'));
+      expect(statement.sql, contains('USE_GS1_CODE'));
+      expect(statement.sql, contains('@value="useGs1"'));
+      expect(
+        'T.USE_GS1_CODE=1'.allMatches(statement.sql),
+        hasLength(2),
       );
     });
 

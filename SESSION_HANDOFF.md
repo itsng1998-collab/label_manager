@@ -1,5 +1,33 @@
 # SESSION HANDOFF
 
+## 완료 작업: GS1 AI 포함 항목 저장 실패
+- **완료**: 1.4.16에서 GS1AL의 AI code를 저장한 뒤 GS1BARCODE에 `#GS1AL`을 포함하고 저장하면 `Unsupported changed property key for column 140793`로 실패하는 증상을 수정했다.
+- 제출 로그/코드 확인: `LabelColumnDraft.persistedValues`는 `useGs1` 변경을 생성하지만 `LabelColumnSaveDao._validateCommand` auxiliary allow-list와 GS1 SQL projection에는 `useGs1`이 빠져 있다.
+- 레거시 확인: GS1 AI 포함 추가 시 `SetGS1CodeSetting(TRUE, 포함ID, CODE128)`로 사용 여부와 포함 관계를 함께 설정한다. 현재 DB 조회의 `USE_GS1_CODE`는 `BM_GS1_CONTAIN_COLUMN` 관계 존재 여부로 파생된다.
+- 구현 방향: `useGs1`을 저장 command의 지원 key로 포함하고 XML projection 및 touched GS1 row에 전달한다. false이면 포함 관계를 삭제만 하고, true이면 유효한 포함 ID를 다시 삽입한다.
+- 재현 로그: 저장 command 검증과 GS1 관계 적용 시 columnId/type/useGs1/changedKeys/contain count를 기록하되 로그에는 업무 판단을 넣지 않는다.
+- 수정 전 focused test 추가 및 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_column_save_test.dart --plain-name "GS1 barcode use and contain changes build save statement"`.
+- 수정 전 focused test 결과: **실패(예상 일치)**. `Bad state: Unsupported changed property key for column 140793`를 재현했다.
+- `lib/features/label_column/data/label_column_save.dart` 편집 완료: `useGs1`을 새/수정 GS1 projection과 touched row에 포함하고, false일 때 포함 관계를 재삽입하지 않도록 제한했다.
+- 재현 로그 추가 완료: `labelColumnGs1Save`의 `buildRequested`, `validated`, `validationRejected` 이벤트에 columnId/type/useGs1/changedKeys/containCount/unsupported를 기록한다.
+- 수정 후 DAO focused test 결과: **통과(1/1)**.
+- `test/label_column_edit_dialog_test.dart` 강화: 실제 GS1 barcode 편집 command의 `useGs1` changed key와 DAO statement 생성 성공을 검증한다.
+- `test/label_column_save_test.dart` 강화: GS1 사용=false일 때 관계를 재삽입하지 않는 SQL gate가 INSERT/검증 양쪽에 있는지 확인한다.
+- 다이얼로그 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_column_edit_dialog_test.dart --plain-name "GS1 barcode shows contain column IDs as keywords"`.
+- 다이얼로그 focused test 결과: **통과(1/1)**.
+- `pubspec.yaml` 편집 완료: 호환 가능한 국소 저장 버그 수정이므로 PATCH 단계로 `1.4.21`에서 `1.4.22`로 갱신했다.
+- Dart formatter 적용 후 라벨 항목 편집·저장 전체 테스트 및 analyzer 실행 예정.
+- Dart formatter 적용 완료: `label_column_save.dart`, `label_column_save_test.dart`, `label_column_edit_dialog_test.dart`.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- 관련 전체 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_column_edit_test.dart test/label_column_edit_dialog_test.dart test/label_column_save_test.dart`.
+- 관련 전체 테스트 결과: **통과(53/53)**.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/label_column/data/label_column_save.dart test/label_column_save_test.dart test/label_column_edit_dialog_test.dart`.
+- analyzer 결과: **No issues found**(종료 코드 0).
+- DTD 확인 결과: 연결된 실행 앱이 없어 hot reload 대상 없음.
+- 최종 diff 검토 완료: `git diff --check` 통과, SQL projection 필드/SELECT 순서와 GS1 relation gate 정합성 확인, 무관한 포맷 churn 없음.
+- stage/commit 대상: `label_column_save.dart`, `label_column_save_test.dart`, `label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 완료 작업: 공용라벨 Ctrl+Z 후 저장 아이콘 무반응
 - **완료**: 1.4.16에서 12행 복사본을 14·15행에 붙여넣고 15행을 Ctrl+Z로 취소한 뒤 저장 아이콘이 반응하지 않으며, `SPRICE` 필수등록 체크 해제 후에야 저장되는 증상을 수정했다.
 - 제출 로그 확인: 첫 시트 변경 직후 dirty=true였지만 저장 callback은 약 47초 동안 시작되지 않았고, `SPRICE` 체크 해제로 부모가 재빌드된 직후 시작됐다. 이후 필수 누락 경고와 DB 저장은 정상 완료됐다.
