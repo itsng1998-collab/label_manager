@@ -222,6 +222,15 @@ void completeDateSetupCommand({
 }
 
 @visibleForTesting
+void completeItemRefreshCommand({
+  required ValueChanged<bool> setCommandBusy,
+  required VoidCallback rebuildTabs,
+}) {
+  setCommandBusy(false);
+  rebuildTabs();
+}
+
+@visibleForTesting
 Offset itemPreviewBottomRightTarget({
   required Rect tableRect,
   required double scrollbarThickness,
@@ -2792,25 +2801,88 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _refreshItemManager() async {
+    final trace = ItemManagerDebugLog.nextTrace('refresh');
     final controller = _itemDraftController;
     if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
+      ItemManagerDebugLog.event(
+        'refresh',
+        'blocked',
+        trace: trace,
+        fields: {
+          'controller': controller != null,
+          'dirty': controller?.isDirty,
+          'busy': _itemDraftCommandBusy,
+        },
+      );
       return;
     }
     final selectedItemId = _selectedItemOfMarket?.item.itemId;
     final selectedItemIndex = _selectedItemIndex;
     setState(() => _itemDraftCommandBusy = true);
+    ItemManagerDebugLog.event(
+      'refresh',
+      'started',
+      trace: trace,
+      fields: {
+        'labelSizeId': _currentLabelSize?.labelSizeId,
+        'selectedItemId': selectedItemId,
+        'selectedIndex': selectedItemIndex,
+        'busy': _itemDraftCommandBusy,
+      },
+    );
     try {
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
         fallbackIndex: selectedItemIndex,
       );
+      ItemManagerDebugLog.event(
+        'refresh',
+        'reloadCompleted',
+        trace: trace,
+        fields: {
+          'reloaded': reloaded,
+          'mounted': mounted,
+          'busy': _itemDraftCommandBusy,
+          'controller': identityHashCode(_itemDraftController),
+        },
+      );
       if (!reloaded) {
         throw StateError('품목 목록을 다시 불러오지 못했습니다.');
       }
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'refresh',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType, 'mounted': mounted},
+      );
       if (mounted) _showItemDraftError('품목 새로 고침 실패', error);
     } finally {
-      if (mounted) setState(() => _itemDraftCommandBusy = false);
+      if (mounted) {
+        ItemManagerDebugLog.event(
+          'refresh',
+          'finishing',
+          trace: trace,
+          fields: {
+            'busyBefore': _itemDraftCommandBusy,
+            'tabsBefore': _tabs.length,
+          },
+        );
+        completeItemRefreshCommand(
+          setCommandBusy: (value) => _itemDraftCommandBusy = value,
+          rebuildTabs: _resetTabs,
+        );
+      }
+      ItemManagerDebugLog.event(
+        'refresh',
+        'finished',
+        trace: trace,
+        fields: {
+          'mounted': mounted,
+          'busyAfter': _itemDraftCommandBusy,
+          'tabsAfter': _tabs.length,
+        },
+      );
     }
   }
 

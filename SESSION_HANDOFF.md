@@ -1,5 +1,26 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목관리 새로고침 후 무한 처리 중
+- **진행 중**: 1.4.16에서 품목관리 우클릭 `새로 고침` 후 `처리 중`이 계속 표시되고 편집할 수 없는 제출 화면과 `.tmp/1.4.16로그/품목관리_새로고침_무한로딩.log`를 처리한다.
+- 로그 버전은 **1.4.16**이다. `contextMenu refresh` → `reload-5 started` → `sessionLoad-6 completed` → `reload-5 completed`까지 정상 완료됐지만, 새 탭은 `busy=true` 상태로 생성됐고 이후 busy=false/탭 재생성 로그가 없다.
+- 원인 확인: `_refreshItemManager()`가 reload 전에 `_itemDraftCommandBusy=true`로 설정하고 reload 내부 `_resetTabs()`가 `ItemManage(commandBusy: true)`를 캐시한다. `finally`는 부모 필드만 false로 바꾸고 `_resetTabs()`를 다시 호출하지 않아 화면만 영구 busy 상태로 남는다.
+- 구현 방향: reload 성공 여부와 무관하게 mounted 상태에서는 busy를 먼저 false로 해제한 뒤 탭을 재생성한다. 새로고침 시작·reload 결과·실패·finishing/finished와 busy 전후, 탭 수를 디버그 로그에 기록한다.
+- `lib/home_page_manager.dart` 편집 완료: `completeItemRefreshCommand`가 busy를 먼저 false로 바꾼 뒤 `_resetTabs()`를 실행한다. `_refreshItemManager()`는 성공·실패 모두 이 완료 경로를 사용하고 시작·reload 완료·실패·finishing·finished 상태를 기록한다.
+- `test/home_page_manager_session_test.dart` 회귀 테스트 추가: 새로고침 완료 시 탭이 `busy=false` 상태로 재생성되는 순서를 검증한다.
+- `lib/features/item/item_manager_debug_log.dart` 편집 완료: 로그 버전을 `item-manager-debug-v25`로 갱신했다.
+- focused 테스트 결과: `item refresh completion clears busy before rebuilding cached tabs` **통과(1/1)**.
+- `pubspec.yaml` 편집 완료: 새로고침 UI busy 캐시 버그 수정이므로 PATCH 단계로 `1.4.18`에서 `1.4.19`로 갱신했다.
+- Dart formatter 적용 완료: `home_page_manager.dart`, `item_manager_debug_log.dart`, `home_page_manager_session_test.dart`.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/home_page_manager_session_test.dart test/fortune_table_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart lib/features/item/item_manager_debug_log.dart test/home_page_manager_session_test.dart`.
+- 관련 테스트 결과: **통과(84/84)**. 새로고침 메뉴 dispatch, busy footer, 완료 순서에 회귀 없음.
+- 정적 분석 결과: **통과**, `No issues found` (3개 대상, 종료 코드 0).
+- DTD 연결 결과: 실행 중인 Flutter 앱이 없어 hot reload 대상 없음.
+- 변경 파일 diagnostics와 `git diff --check` 통과. `home_page_manager.dart` diff는 완료 helper와 `_refreshItemManager` 상태 전이 로그/완료 순서에만 한정된다.
+- `_resetTabs()`가 내부에서 `setState`와 탭 컨트롤러 재생성을 수행하므로 busy=false 상태가 새 cached tab과 화면에 반영됨을 확인했다.
+- 상태: **완료**. stage/commit 대상은 `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 기존 등록 키워드 클라이언트 편집 기본값 복구
 - **진행 중**: 1.4.16에서 품명·주원료 외 기존 키워드가 별도 설정 없이 `클라이언트 편집 불가`로 표시되는 제출 화면과 `.tmp/1.4.16로그/품목관리_등록키워드_클라이언트 편집 불가.log`를 처리한다.
 - 로그 버전은 **1.4.16**이나 조회 SQL만 있고 반환된 열·품목별 `RICH_EDITABLE` 값과 판정 결과는 기록되지 않았다.
