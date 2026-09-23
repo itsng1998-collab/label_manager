@@ -26,6 +26,7 @@
 - analyzer 재검증 결과: 전체 지정 분석에는 `fortune_sheet_canvas.dart`의 기존 unused warning 10건만 남았고, codec 및 두 테스트 파일 분석은 **No issues found**(종료 코드 0).
 - 최종 diff 검토 완료: `git diff --check` 통과, 요청 관련 6개 파일 외 무관한 포맷 churn 없음.
 - stage/commit 대상: `fortune_sheet_canvas.dart`, `fortune_sheet_codec.dart`, `fortune_sheet_codec_test.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `0886ac9c75215733d853d907ae8c825254cb9a88` (`공용라벨 실행 취소 후 저장 복구`).
 - 재현 로그 추가: `fortune-history-toolbar-debug-v1`으로 Undo 복원 전 current/snapshot callback 상태와 custom toolbar 클릭의 command/disabled/callback/undo/redo 상태를 기록한다.
 - 수정 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "label sheet save remains available after undoing latest paste"`.
 - 수정 후 focused test 결과: **통과(1/1)**. 로그에서 `undoRestore`의 save/print callback과 `customToolbarClick` callback이 모두 true로 확인됐다.
