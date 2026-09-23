@@ -7,6 +7,27 @@ import 'package:flutter/services.dart';
 
 const double fortuneTableHorizontalScrollbarThickness = 12;
 
+@visibleForTesting
+bool fortuneTableShouldHandleHorizontalScrollMetrics({
+  required Axis axis,
+  required double minScrollExtent,
+  required double maxScrollExtent,
+  required bool layoutHasHorizontalOverflow,
+}) =>
+    axis == Axis.horizontal &&
+    (!layoutHasHorizontalOverflow || maxScrollExtent > minScrollExtent);
+
+typedef FortuneTableHorizontalMetricsObserver =
+    void Function({
+      required bool accepted,
+      required String notificationType,
+      required double minScrollExtent,
+      required double maxScrollExtent,
+      required double pixels,
+      required double viewportDimension,
+      required bool layoutHasHorizontalOverflow,
+    });
+
 class FortuneTableCheckboxController extends ChangeNotifier {
   final Map<String, Set<int>> _checkedRowsByColumn = <String, Set<int>>{};
 
@@ -371,6 +392,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.multiSelectionEnabled = false,
     this.keyboardSelectionShortcutsEnabled = true,
     this.tabSeparatedPasteEnabled = false,
+    this.onHorizontalMetricsObserved,
   }) : assert(autoFitSampleSize == null || autoFitSampleSize >= 0);
 
   final List<T> rows;
@@ -412,6 +434,7 @@ class FortuneTable<T> extends StatefulWidget {
   final bool multiSelectionEnabled;
   final bool keyboardSelectionShortcutsEnabled;
   final bool tabSeparatedPasteEnabled;
+  final FortuneTableHorizontalMetricsObserver? onHorizontalMetricsObserved;
 
   @override
   State<FortuneTable<T>> createState() => _FortuneTableState<T>();
@@ -726,8 +749,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                                     fortuneTableHorizontalScrollbarThickness,
                                 radius: Radius.zero,
                                 notificationPredicate: (notification) =>
-                                    notification.metrics.axis ==
-                                    Axis.horizontal,
+                                  _handleHorizontalMetricsNotification(
+                                    notification,
+                                    hasHorizontalOverflow,
+                                  ),
                                 child: SingleChildScrollView(
                                   controller: _hScrollBody,
                                   scrollDirection: Axis.horizontal,
@@ -912,6 +937,29 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         position.maxScrollExtent,
       ),
     );
+  }
+
+  bool _handleHorizontalMetricsNotification(
+    ScrollNotification notification,
+    bool layoutHasHorizontalOverflow,
+  ) {
+    final metrics = notification.metrics;
+    final accepted = fortuneTableShouldHandleHorizontalScrollMetrics(
+      axis: metrics.axis,
+      minScrollExtent: metrics.minScrollExtent,
+      maxScrollExtent: metrics.maxScrollExtent,
+      layoutHasHorizontalOverflow: layoutHasHorizontalOverflow,
+    );
+    widget.onHorizontalMetricsObserved?.call(
+      accepted: accepted,
+      notificationType: notification.runtimeType.toString(),
+      minScrollExtent: metrics.minScrollExtent,
+      maxScrollExtent: metrics.maxScrollExtent,
+      pixels: metrics.pixels,
+      viewportDimension: metrics.viewportDimension,
+      layoutHasHorizontalOverflow: layoutHasHorizontalOverflow,
+    );
+    return accepted;
   }
 
   List<double> _initialWidths() {

@@ -14,6 +14,36 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 void main() {
+  test('가로 overflow 중 일시적인 zero extent 알림을 무시한다', () {
+    expect(
+      fortuneTableShouldHandleHorizontalScrollMetrics(
+        axis: Axis.horizontal,
+        minScrollExtent: 0,
+        maxScrollExtent: 0,
+        layoutHasHorizontalOverflow: true,
+      ),
+      isFalse,
+    );
+    expect(
+      fortuneTableShouldHandleHorizontalScrollMetrics(
+        axis: Axis.horizontal,
+        minScrollExtent: 0,
+        maxScrollExtent: 100,
+        layoutHasHorizontalOverflow: true,
+      ),
+      isTrue,
+    );
+    expect(
+      fortuneTableShouldHandleHorizontalScrollMetrics(
+        axis: Axis.vertical,
+        minScrollExtent: 0,
+        maxScrollExtent: 100,
+        layoutHasHorizontalOverflow: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('일반 사용자는 표시 항목만 품목관리 열로 사용한다', () {
     final visible = _column(id: 1, name: '제조일자');
     final hidden = _column(id: 2, name: '바코드', visible: false);
@@ -138,6 +168,23 @@ void main() {
     );
     expect(scrollController.horizontalMaxScrollExtent, greaterThan(0));
     expect(horizontalScrollbar().trackVisibility, isTrue);
+    expect(
+      horizontalScrollbar().notificationPredicate(
+        ScrollUpdateNotification(
+          metrics: FixedScrollMetrics(
+            minScrollExtent: 0,
+            maxScrollExtent: 0,
+            pixels: 0,
+            viewportDimension: 100,
+            axisDirection: AxisDirection.right,
+            devicePixelRatio: 1,
+          ),
+          context: tester.element(find.byType(ItemManage)),
+          scrollDelta: 0,
+        ),
+      ),
+      isFalse,
+    );
     await tester.pump(const Duration(seconds: 5));
     expect(horizontalScrollbar().thumbVisibility, isTrue);
     expect(horizontalScrollbar().trackVisibility, isTrue);

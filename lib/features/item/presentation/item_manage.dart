@@ -212,6 +212,7 @@ class _ItemManageState extends State<ItemManage> {
   String _activeSearchColumnId = 'itemName';
   int _searchStartIndex = 0;
   String? _lastHorizontalMetricsLog;
+  String? _lastHorizontalNotificationLog;
   bool _readyScheduled = false;
   bool _headerMinCheckBusy = false;
 
@@ -286,6 +287,43 @@ class _ItemManageState extends State<ItemManage> {
       );
     }
     if (mounted) setState(() {});
+  }
+
+  void _handleHorizontalMetricsObserved({
+    required bool accepted,
+    required String notificationType,
+    required double minScrollExtent,
+    required double maxScrollExtent,
+    required double pixels,
+    required double viewportDimension,
+    required bool layoutHasHorizontalOverflow,
+  }) {
+    final signature = [
+      accepted,
+      notificationType,
+      minScrollExtent.toStringAsFixed(1),
+      maxScrollExtent.toStringAsFixed(1),
+      pixels.toStringAsFixed(1),
+      viewportDimension.toStringAsFixed(1),
+      layoutHasHorizontalOverflow,
+    ].join(':');
+    if (_lastHorizontalNotificationLog == signature) return;
+    _lastHorizontalNotificationLog = signature;
+    ItemManagerDebugLog.event(
+      'horizontalMetrics',
+      accepted ? 'accepted' : 'ignored',
+      fields: {
+        'state': identityHashCode(this),
+        'revision': widget.draftController?.contentRevision,
+        'editing': _editingController.hasActiveEditing,
+        'notification': notificationType,
+        'layoutOverflow': layoutHasHorizontalOverflow,
+        'minExtent': minScrollExtent.toStringAsFixed(1),
+        'maxExtent': maxScrollExtent.toStringAsFixed(1),
+        'pixels': pixels.toStringAsFixed(1),
+        'viewport': viewportDimension.toStringAsFixed(1),
+      },
+    );
   }
 
   void _handleDraftChanged() {
@@ -468,6 +506,7 @@ class _ItemManageState extends State<ItemManage> {
               editingController: _editingController,
               scrollController: _tableScrollController,
               tabSeparatedPasteEnabled: true,
+              onHorizontalMetricsObserved: _handleHorizontalMetricsObserved,
               multiSelectionEnabled: true,
               onRowSelected: _handleRowSelected,
               onCellActivated: (_, _, columnId) {

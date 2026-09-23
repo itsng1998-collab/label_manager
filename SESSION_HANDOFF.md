@@ -1,5 +1,28 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목 편집 후 가로 스크롤 표시 유지 (1.4.16 재발)
+- **진행 중**: 품목관리에서 소비기한을 `365`에서 `360`으로 Enter 확정한 뒤 필요한 가로 스크롤이 사라지는 제출 화면과 `.tmp/1.4.16로그/품목관리_수정진행시_가로스크롤오류.log`를 조사한다.
+- 로그 버전은 **1.4.16**이다. 편집 전후 테이블은 `columns=18`, `contentWidth=2023.6`, `viewportWidth=1849.7`, `overflow=true`, `maxExtent=173.9`를 유지해 열 폭이나 overflow 계산 소실은 아니다.
+- 편집 완료는 `17:34:48.049`의 `operation=editColumn event=completed`이며 직후 같은 18열로 다시 빌드됐다. State 교체나 overflow=false 전환은 기록되지 않았다.
+- 원인 확인: Flutter `RawScrollbar`는 자식 rebuild 중 들어오는 `maxScrollExtent=0` 알림을 받으면 `thumbVisibility=true`여도 fade animation을 reverse한다. 레이아웃 overflow가 계속 true인데 정상 metrics 알림이 다시 오지 않으면 설정값은 true인 채 실제 painter만 사라질 수 있어 기존 테스트가 놓쳤다.
+- `third_party/fortune_sheet/lib/src/fortune_table.dart` 편집 완료: 현재 레이아웃이 가로 overflow인 동안 일시적인 horizontal zero-extent 알림을 scrollbar painter에 전달하지 않는다. 정상 가로 metrics와 실제 overflow 해제 알림은 계속 처리한다.
+- `lib/features/item/presentation/item_manage.dart` 편집 완료: `FortuneTable` 관측 콜백으로 가로 metrics의 accepted/ignored, notification 종류, 레이아웃 overflow, extent, pixels, viewport, 편집 상태를 중복 억제 후 기록한다.
+- `lib/features/item/item_manager_debug_log.dart` 편집 완료: 제출 로그 판별을 위해 버전을 `item-manager-debug-v23`으로 갱신했다. 로그 함수에는 비즈니스 로직을 넣지 않았다.
+- 회귀 테스트 추가: overflow 중 zero-extent 알림 차단 계약과 실제 품목관리 `RawScrollbar.notificationPredicate` 연결을 검증한다.
+- focused 계약 테스트 결과: `가로 overflow 중 일시적인 zero extent 알림을 무시한다` **통과(1/1)**.
+- `pubspec.yaml` 편집 완료: 호환 가능한 스크롤 표시 버그 수정이므로 PATCH 단계로 `1.4.16`에서 `1.4.17`로 갱신했다.
+- Dart formatter 적용 완료: `fortune_table.dart`, `item_manage.dart`, `item_manager_debug_log.dart`, `item_manage_horizontal_scroll_test.dart`.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/item_manage_horizontal_scroll_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_table.dart lib/features/item/presentation/item_manage.dart lib/features/item/item_manager_debug_log.dart test/item_manage_horizontal_scroll_test.dart`.
+- 관련 테스트 결과: `item_manage_horizontal_scroll_test.dart` **통과(3/3)**. Enter 편집 후 5초 지속 표시, 좌우 스크롤, zero-extent 차단 계약 및 실제 predicate 연결을 확인했다.
+- 정적 분석 결과: **통과**, `No issues found` (4개 대상, 종료 코드 0).
+- DTD 연결 결과: 실행 중인 Flutter 앱이 없어 hot reload 대상 없음.
+- 공용 테이블 회귀 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/fortune_table_test.dart test/item_manage_horizontal_scroll_test.dart`.
+- 공용 테이블 회귀 테스트 결과: **통과(79/79)**, 종료 코드 0.
+- 변경 파일 diagnostics 및 `git diff --check` 통과. formatter에 의한 요청 범위 밖 변경 없음.
+- 상태: **완료**. stage/commit 대상은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다.
+- 기존 사용자 dirty 파일은 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: Windows CMake 경로 자동 인식
 - **진행 중**: 다른 PC에서도 CMake Tools가 현재 프로젝트의 Windows 소스를 찾도록 `.vscode/settings.json`의 고정 로컬 경로를 워크스페이스 기준 경로로 변경한다.
 - 원인 확인: `cmake.sourceDirectory`가 `C:/Workspace/ITSnG/label_manager/windows`로 고정되어 있었다. `build_windows.ps1`은 파일 경로에는 `$PSScriptRoot`를 사용했지만 버전 생성 명령의 작업 디렉터리는 호출 위치를 따랐다.
