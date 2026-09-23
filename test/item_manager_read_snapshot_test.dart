@@ -66,6 +66,33 @@ void main() {
       );
     });
 
+    test('legacy client-editable repair updates every existing zero once', () {
+      expect(
+        TColumnContentDAO.normalizeLegacyEditableDefaultsSql,
+        contains('SET NOCOUNT ON'),
+      );
+      expect(
+        TColumnContentDAO.normalizeLegacyEditableDefaultsSql,
+        contains('SET RICH_EDITABLE=1'),
+      );
+      expect(
+        TColumnContentDAO.normalizeLegacyEditableDefaultsSql,
+        contains('WHERE RICH_EDITABLE=0'),
+      );
+      expect(
+        TColumnContentDAO.normalizeLegacyEditableDefaultsSql,
+        contains('SELECT @NormalizedCount AS NORMALIZED_COUNT'),
+      );
+      expect(
+        TColumnContentDAO.normalizedLegacyEditableDefaultCount({
+          'rows': [
+            {'NORMALIZED_COUNT': '12'},
+          ],
+        }),
+        12,
+      );
+    });
+
     test('scoped column view resolves only supplied values', () {
       final content = TColumnContent(
         colContentId: 1,

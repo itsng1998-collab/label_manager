@@ -1,5 +1,33 @@
 # SESSION HANDOFF
 
+## 현재 작업: 기존 등록 키워드 클라이언트 편집 기본값 복구
+- **진행 중**: 1.4.16에서 품명·주원료 외 기존 키워드가 별도 설정 없이 `클라이언트 편집 불가`로 표시되는 제출 화면과 `.tmp/1.4.16로그/품목관리_등록키워드_클라이언트 편집 불가.log`를 처리한다.
+- 로그 버전은 **1.4.16**이나 조회 SQL만 있고 반환된 열·품목별 `RICH_EDITABLE` 값과 판정 결과는 기록되지 않았다.
+- 원인 확인: 1.3.132 이전 라벨 항목 추가 SQL이 기존 품목 콘텐츠를 `RICH_EDITABLE=0`으로 일괄 생성했다. 1.3.132부터 신규 행은 `1`로 생성하지만 기존 `0`은 그대로 남아 있다.
+- 데이터 제약: 과거 자동 생성 `0`과 사용자가 명시한 불가 `0`은 동일한 필드이며 생성일·변경주체·명시 여부 메타데이터가 없다.
+- 사용자 선택: 현재 DB에 명시적 불가 설정이 없다는 전제로 **전체 기존 `0`을 `1`로 한 번 교정**한다.
+- 구현 방향: 품목 세션 첫 로드 전에 전체 `RICH_EDITABLE=0`을 `1`로 교정하고 성공한 경우에만 로컬 완료 마커를 저장한다. 이후 호출은 건너뛰어 새 명시적 불가 설정을 보존한다.
+- 디버그 로그: 교정 시작·완료·건너뜀·실패, 앱/로그 버전, 교정 건수를 기록하고 열·품목별 editable 분포를 세션 조회 로그에 추가한다. 로그 함수에는 비즈니스 로직을 넣지 않는다.
+- `lib/features/item/application/item_editable_default_repair.dart` 추가: 일회성 완료 마커를 확인하고 교정 성공 후에만 마커를 저장한다. 동시 호출은 같은 Future를 공유하고 실패 시 다음 세션에서 재시도한다.
+- `lib/features/item/data/column_content_dao.dart` 편집 완료: `SET NOCOUNT ON`으로 전체 `RICH_EDITABLE=0`을 `1`로 교정하고 명시적 `NORMALIZED_COUNT` 결과를 반환한다. 조회 후 editable/불가 건수와 불가 column별 분포를 로그로 기록한다.
+- `lib/features/item/application/item_manager_session_loader.dart` 편집 완료: 유효한 로그인/거래처 확인 후 일반 품목 데이터 조회 전에 일회성 교정을 실행한다.
+- `lib/features/item/item_manager_debug_log.dart` 편집 완료: 로그 버전을 `item-manager-debug-v24`로 갱신했다.
+- 테스트 추가: 교정 성공 후 1회만 실행, 실패 시 완료 마커 미저장, UPDATE 범위·NOCOUNT·명시적 교정 건수 반환 계약을 고정했다.
+- focused 테스트 결과: `item_editable_default_repair_test.dart`, `item_manager_read_snapshot_test.dart` **통과(8/8)**.
+- `pubspec.yaml` 편집 완료: 기존 데이터 기본값 복구 버그 수정이므로 PATCH 단계로 `1.4.17`에서 `1.4.18`로 갱신했다.
+- Dart formatter 적용 완료: 변경된 production 4개와 테스트 2개 파일.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/item_editable_default_repair_test.dart test/item_manager_read_snapshot_test.dart test/item_manager_session_loader_test.dart test/item_manager_draft_test.dart test/item_manager_save_dao_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/item/application/item_editable_default_repair.dart lib/features/item/application/item_manager_session_loader.dart lib/features/item/data/column_content_dao.dart lib/features/item/item_manager_debug_log.dart test/item_editable_default_repair_test.dart test/item_manager_read_snapshot_test.dart`.
+- 관련 테스트 결과: **통과(51/51)**. 기존값 일회성 복구와 이후 명시적 허용/불가 draft·save 계약을 확인했다.
+- 정적 분석 결과: **통과**, `No issues found` (6개 대상, 종료 코드 0).
+- DTD 연결 결과: 실행 중인 Flutter 앱이 없어 hot reload 대상 없음.
+- 신규 키워드 기본 허용 회귀 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_column_save_test.dart`.
+- 신규 키워드 기본 허용 회귀 테스트 결과: **통과(16/16)**. 관련 최종 테스트는 합계 **67/67 통과**다.
+- 변경 파일 diagnostics와 `git diff --check` 통과. formatter에 의한 요청 범위 밖 변경 없음.
+- 운영 DB 데이터 교정은 앱의 첫 품목 세션 로드에서 실행되며, 이 작업 중 운영 DB UPDATE를 직접 실행하지 않아 실제 교정 건수는 사용자 재현 로그로 확인해야 한다.
+- 상태: **완료**. stage/commit 대상은 `lib/features/item/application/item_editable_default_repair.dart`, `lib/features/item/application/item_manager_session_loader.dart`, `lib/features/item/data/column_content_dao.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/item_editable_default_repair_test.dart`, `test/item_manager_read_snapshot_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 품목 편집 후 가로 스크롤 표시 유지 (1.4.16 재발)
 - **진행 중**: 품목관리에서 소비기한을 `365`에서 `360`으로 Enter 확정한 뒤 필요한 가로 스크롤이 사라지는 제출 화면과 `.tmp/1.4.16로그/품목관리_수정진행시_가로스크롤오류.log`를 조사한다.
 - 로그 버전은 **1.4.16**이다. 편집 전후 테이블은 `columns=18`, `contentWidth=2023.6`, `viewportWidth=1849.7`, `overflow=true`, `maxExtent=173.9`를 유지해 열 폭이나 overflow 계산 소실은 아니다.

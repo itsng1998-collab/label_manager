@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
+import 'package:label_manager/features/item/application/item_editable_default_repair.dart';
 import 'package:label_manager/features/item/data/column_content_dao.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
@@ -48,6 +49,8 @@ Future<ItemManagerSessionData> loadItemManagerSession({
   if (market.customerId != customer.customerId) {
     throw StateError('현재 거래처와 로그인 고객 정보가 일치하지 않습니다.');
   }
+
+  await ensureLegacyItemEditableDefaultsRepaired();
 
   final targetMarkets =
       await MarketDAO.selectByCustomerId(customer.customerId) ??

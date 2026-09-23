@@ -1,6 +1,7 @@
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/item/domain/column_content.dart';
+import 'package:label_manager/features/item/item_manager_debug_log.dart';
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
 
@@ -15,6 +16,17 @@ TColumnContent columnContentFromRow(Map<String, dynamic> row) {
 }
 
 class TColumnContentDAO extends DAO {
+  static const normalizeLegacyEditableDefaultsSql = '''
+    SET NOCOUNT ON;
+
+    UPDATE BM_RICH_COL_CONTENT
+       SET RICH_EDITABLE=1
+     WHERE RICH_EDITABLE=0;
+
+    DECLARE @NormalizedCount INT=@@ROWCOUNT;
+    SELECT @NormalizedCount AS NORMALIZED_COUNT;
+  ''';
+
   static const selectByItemIdsSql =
       '''
     DECLARE @ItemIdsXmlValue XML = @itemIdsXml;
@@ -60,12 +72,54 @@ class TColumnContentDAO extends DAO {
         columnContentFromRow,
         (item) => ColumnItemKey(columnId: item.columnId, itemId: item.itemId),
       );
+      final nonEditableByColumn = <int, int>{};
+      var editableCount = 0;
+      for (final value in values.values) {
+        if (value.editable) {
+          editableCount += 1;
+        } else {
+          nonEditableByColumn.update(
+            value.columnId,
+            (count) => count + 1,
+            ifAbsent: () => 1,
+          );
+        }
+      }
+      ItemManagerDebugLog.event(
+        'columnContentLoad',
+        'completed',
+        fields: {
+          'itemCount': normalizedIds.length,
+          'contentCount': values.length,
+          'editableCount': editableCount,
+          'notEditableCount': values.length - editableCount,
+          'notEditableByColumn': nonEditableByColumn,
+        },
+      );
       debugLog(END);
       return TColumnContentScopedView(values);
     } catch (error) {
       debugLog('$END, $error');
       throw Exception(error);
     }
+  }
+
+  static Future<int> normalizeLegacyEditableDefaults() async {
+    final result = await DbClient.instance.writeData(
+      normalizeLegacyEditableDefaultsSql,
+    );
+    return normalizedLegacyEditableDefaultCount(result);
+  }
+
+  static int normalizedLegacyEditableDefaultCount(Object result) {
+    final row = DAO.getRowMapFromResult(result);
+    final value = row?['NORMALIZED_COUNT'];
+    return switch (value) {
+      final int count => count,
+      final num count => count.toInt(),
+      final String count => int.parse(count),
+      _ => throw StateError('Missing NORMALIZED_COUNT result.'),
+    };
   }
 
   static String itemIdsXml(Iterable<int> itemIds) {
