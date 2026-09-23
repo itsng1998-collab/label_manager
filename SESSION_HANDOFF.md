@@ -1,5 +1,38 @@
 # SESSION HANDOFF
 
+## 완료 작업: 공용라벨 Ctrl+Z 후 저장 아이콘 무반응
+- **완료**: 1.4.16에서 12행 복사본을 14·15행에 붙여넣고 15행을 Ctrl+Z로 취소한 뒤 저장 아이콘이 반응하지 않으며, `SPRICE` 필수등록 체크 해제 후에야 저장되는 증상을 수정했다.
+- 제출 로그 확인: 첫 시트 변경 직후 dirty=true였지만 저장 callback은 약 47초 동안 시작되지 않았고, `SPRICE` 체크 해제로 부모가 재빌드된 직후 시작됐다. 이후 필수 누락 경고와 DB 저장은 정상 완료됐다.
+- 원인 가설: FortuneSheet 히스토리 snapshot의 JSON 복제에서 `customToolbarItems.onClick`이 제외되고, Undo가 callback 없는 저장 항목을 복원한다. 부모 재빌드가 live settings를 다시 주입하면 저장이 복구된다.
+- 판별 테스트 수정 완료: 기존 Ctrl+Z 회귀 테스트의 settings callback 직접 호출을 실제 화면 저장 아이콘 탭으로 교체했다. 수정 전 `savedPayload`가 null로 **실패(예상 일치)**해 내부 toolbar callback 소실을 확인했다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_codec.dart` 편집 완료: custom toolbar 항목 역직렬화 시 동일 key의 fallback 항목에서 직렬화 불가능한 `onClick`만 복원한다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 편집 완료: workbook 복제는 기존 설정 복원 의미를 유지하며, Undo/toolbar 상태 로그만 추가한다.
+- `third_party/fortune_sheet/test/fortune_sheet_codec_test.dart` 테스트 추가: JSON tooltip/disabled를 유지하면서 동일 key fallback의 runtime callback만 복원하는 계약을 검증한다.
+- codec focused test 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_sheet_codec_test.dart --plain-name "workbookFromJson restores custom toolbar runtime callback"`.
+- codec focused test 결과: **통과(1/1)**.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: 연결된 실행 앱이 없어 hot reload 대상 없음.
+- Dart formatter 적용 완료: `fortune_sheet_codec.dart`, `fortune_sheet_codec_test.dart`, `label_sheet_toolbar_test.dart`. 대형 `fortune_sheet_canvas.dart`는 변경 구간만 수동 정리해 불필요한 전면 포맷을 피했다.
+- codec 전체 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_sheet_codec_test.dart`.
+- 라벨시트 툴바 전체 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart`.
+- codec 전체 테스트 결과: **통과(135/135)**.
+- 라벨시트 툴바 전체 테스트 결과: **203/204 통과**, 수정과 무관한 `Gemini HTTP errors include response diagnostics`가 외부 Gemini API HTTP 429 `RESOURCE_EXHAUSTED`로 실패했다.
+- 저장 관련 테스트 재검증 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "label sheet save"`.
+- FortuneSheet custom toolbar 입력 검증 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart --plain-name "canvas custom toolbar item invokes callback"`.
+- 저장 관련 테스트 재검증 결과: **통과(3/3)**.
+- FortuneSheet custom toolbar 입력 검증 결과: **통과(1/1)**.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_codec.dart third_party/fortune_sheet/test/fortune_sheet_codec_test.dart test/label_sheet_toolbar_test.dart`.
+- analyzer 1차 결과: 이번 변경의 불필요한 `foundation.dart` import 1건과 `fortune_sheet_canvas.dart`의 기존 미사용 항목 10건으로 종료 코드 1. 신규 import는 제거하고 기존 범위 밖 경고는 수정하지 않는다.
+- analyzer 재검증 결과: 전체 지정 분석에는 `fortune_sheet_canvas.dart`의 기존 unused warning 10건만 남았고, codec 및 두 테스트 파일 분석은 **No issues found**(종료 코드 0).
+- 최종 diff 검토 완료: `git diff --check` 통과, 요청 관련 6개 파일 외 무관한 포맷 churn 없음.
+- stage/commit 대상: `fortune_sheet_canvas.dart`, `fortune_sheet_codec.dart`, `fortune_sheet_codec_test.dart`, `label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 재현 로그 추가: `fortune-history-toolbar-debug-v1`으로 Undo 복원 전 current/snapshot callback 상태와 custom toolbar 클릭의 command/disabled/callback/undo/redo 상태를 기록한다.
+- 수정 후 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "label sheet save remains available after undoing latest paste"`.
+- 수정 후 focused test 결과: **통과(1/1)**. 로그에서 `undoRestore`의 save/print callback과 `customToolbarClick` callback이 모두 true로 확인됐다.
+- `pubspec.yaml` 편집 완료: 호환 가능한 국소 저장 버그 수정이므로 PATCH 단계로 `1.4.20`에서 `1.4.21`로 갱신했다.
+- Dart formatter 적용 및 관련 전체 테스트/analyzer 실행 예정.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 완료 작업: 타임바코드 종류 ComboBox 및 제한
 - **완료**: 라벨 항목 편집의 정수 `타임바코드` 입력을 레거시와 같은 ComboBox로 변경하고 EAN13·UPC-A·EAN8에서는 비활성화한다.
 - 레거시 확인: 옵션은 `사용안함(0)`, `DDMM(1)`, `HHDD(2)`, `DDHH(4)`, `YYMMDD(9)`이며 EAN13·UPC-A에서는 비활성화와 함께 `사용안함`으로 초기화한다. EAN8도 타임바코드 지원 대상이 아니다.

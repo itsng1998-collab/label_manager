@@ -24,6 +24,9 @@ import 'fortune_sheet_painter.dart';
 import 'fortune_formula.dart';
 import 'fortune_system_fonts.dart';
 
+const String _fortuneHistoryToolbarDebugVersion =
+  'fortune-history-toolbar-debug-v1';
+
 Widget _fortuneEditableTextContextMenuBuilder(
   BuildContext context,
   EditableTextState editableTextState,
@@ -4961,6 +4964,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
   }
 
+  String _customToolbarCallbackState(FortuneSettings settings) {
+    final callbacks = settings.customToolbarItems.map(
+      (item) => '${item.key}:${item.onClick != null}',
+    );
+    return '{${callbacks.join(',')}}';
+  }
+
   FortuneWorkbook _effectiveWorkbook(FortuneWorkbook workbook) {
     final settings = _effectiveSettings(workbook);
     return settings == workbook.settings
@@ -5853,6 +5863,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final snapshot = _undoStack.removeLast();
+    debugPrint(
+      '[$_fortuneHistoryToolbarDebugVersion] event=undoRestore '
+      'undoRemaining=${_undoStack.length} redoBefore=${_redoStack.length} '
+      'currentCallbacks=${_customToolbarCallbackState(_workbook.settings)} '
+      'snapshotCallbacks=${_customToolbarCallbackState(snapshot.workbook.settings)}',
+    );
     _historyLineageGeneration += 1;
     setState(() {
       _redoStack.add(
@@ -30728,6 +30744,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (item.key != command) {
         continue;
       }
+      debugPrint(
+        '[$_fortuneHistoryToolbarDebugVersion] event=customToolbarClick '
+        'command=$command disabled=${item.disabled} '
+        'callback=${item.onClick != null} undo=${_undoStack.length} '
+        'redo=${_redoStack.length}',
+      );
       if (item.disabled) {
         return true;
       }

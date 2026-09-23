@@ -97,7 +97,10 @@ class FortuneSheetCodec {
       fontProvider: fallback.fontProvider,
       toolbarItems: _stringList(json['toolbarItems']) ?? fallback.toolbarItems,
       customToolbarItems:
-          _customToolbarItems(json['customToolbarItems']) ??
+          _customToolbarItems(
+            json['customToolbarItems'],
+            fallback.customToolbarItems,
+          ) ??
           fallback.customToolbarItems,
       cellContextMenu:
           _stringList(json['cellContextMenu']) ?? fallback.cellContextMenu,
@@ -3180,10 +3183,16 @@ class FortuneSheetCodec {
     return [for (final item in value) '$item'];
   }
 
-  static List<FortuneCustomToolbarItem>? _customToolbarItems(Object? value) {
+  static List<FortuneCustomToolbarItem>? _customToolbarItems(
+    Object? value,
+    List<FortuneCustomToolbarItem> fallback,
+  ) {
     if (value is! List) {
       return null;
     }
+    final fallbackByKey = {
+      for (final item in fallback) item.key: item,
+    };
     final items = <FortuneCustomToolbarItem>[];
     for (final item in value.whereType<Map>()) {
       final map = Map<String, Object?>.from(item);
@@ -3199,6 +3208,7 @@ class FortuneSheetCodec {
           iconName: _string(map['iconName']),
           icon: cloneFortuneMetadata(map['icon']),
           disabled: _bool(map['disabled']) ?? false,
+          onClick: fallbackByKey[key]?.onClick,
         ),
       );
     }

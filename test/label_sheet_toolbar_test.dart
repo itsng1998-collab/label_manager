@@ -4702,7 +4702,15 @@ void main() {
       (item) => item.key == labelSheetSaveToolbarCommand,
     );
     expect(saveItem.disabled, isFalse);
-    saveItem.onClick!(saveItem);
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      canvasTopLeft +
+          _toolbarItemCenter(
+            labelSheetSaveToolbarCommand,
+            width: 400,
+            items: labelSheetToolbarItems,
+          ),
+    );
     await tester.pump();
     await tester.pump();
 

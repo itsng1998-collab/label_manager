@@ -7838,6 +7838,36 @@ void main() {
     expect((reexportedData.single as Map)['name'], 'A');
   });
 
+  test('workbookFromJson restores custom toolbar runtime callback', () {
+    var clicks = 0;
+    final workbook = FortuneSheetCodec.workbookFromJson(
+      {
+        'customToolbarItems': [
+          {'key': 'save', 'tooltip': 'Saved tooltip', 'disabled': true},
+        ],
+        'data': [
+          {'id': 's1', 'name': 'A'},
+        ],
+      },
+      settings: FortuneSettings(
+        customToolbarItems: [
+          FortuneCustomToolbarItem(
+            key: 'save',
+            tooltip: 'Fallback tooltip',
+            onClick: (_) => clicks += 1,
+          ),
+        ],
+      ),
+    );
+
+    final item = workbook.settings.customToolbarItems.single;
+    expect(item.tooltip, 'Saved tooltip');
+    expect(item.disabled, isTrue);
+    expect(item.onClick, isNotNull);
+    item.onClick!(item);
+    expect(clicks, 1);
+  });
+
   test('workbookToJson writes changed upstream top-level settings', () {
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
