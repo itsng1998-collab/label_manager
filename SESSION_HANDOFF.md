@@ -1,5 +1,26 @@
 # SESSION HANDOFF
 
+## 완료 작업: 타임바코드 종류 ComboBox 및 제한
+- **완료**: 라벨 항목 편집의 정수 `타임바코드` 입력을 레거시와 같은 ComboBox로 변경하고 EAN13·UPC-A·EAN8에서는 비활성화한다.
+- 레거시 확인: 옵션은 `사용안함(0)`, `DDMM(1)`, `HHDD(2)`, `DDHH(4)`, `YYMMDD(9)`이며 EAN13·UPC-A에서는 비활성화와 함께 `사용안함`으로 초기화한다. EAN8도 타임바코드 지원 대상이 아니다.
+- 현재 원인: `label_column_edit_dialog.dart`가 `timeBarcodeType`을 자유 정수 `TextFormField`로 노출해 허용 종류를 선택할 수 없고 바코드 종류별 제한도 없다.
+- 구현 방향: 기존 정수 저장 포맷은 유지하고 위 5개 값만 제공하는 ComboBox를 사용한다. EAN13·UPC-A·EAN8 선택 시 비활성화하고 stale 값을 `0`으로 정규화한다.
+- 디버그 로그: 바코드 종류 변경과 타임바코드 선택 시 columnId/keyword/barcodeType/previous/next/enabled를 기록한다. 로그 함수에는 비즈니스 로직을 넣지 않는다.
+- `lib/features/label_column/presentation/label_column_edit_dialog.dart` 편집 완료: 레거시 5개 옵션의 `DropdownMenu<int>`를 추가하고 EAN13·UPC-A·EAN8에서 비활성화 및 `0` 초기화한다. 바코드 종류/타임바코드 변경을 `regression-debug-v1` 로그로 기록한다.
+- `test/label_column_edit_dialog_test.dart` 편집 완료: 옵션 값, 세 제한 바코드 정책, 실제 DDHH 선택 후 EAN13 전환 시 `사용안함` 초기화·비활성화를 검증한다.
+- focused 테스트 결과: 정책 **2/2**, 위젯 상호작용 **1/1** 통과.
+- `pubspec.yaml` 편집 완료: 기존 타임바코드 속성의 UI/활성화 조건 개선이므로 PATCH 단계로 `1.4.19`에서 `1.4.20`으로 갱신했다.
+- Dart formatter 적용 완료: `label_column_edit_dialog.dart`, `label_column_edit_dialog_test.dart`.
+- 관련 테스트 명령: `C:/Flutter/bin/flutter.bat test test/label_column_edit_dialog_test.dart test/label_column_edit_test.dart test/label_column_save_test.dart`.
+- analyzer 명령: `C:/Flutter/bin/flutter.bat analyze lib/features/label_column/presentation/label_column_edit_dialog.dart test/label_column_edit_dialog_test.dart`.
+- 관련 테스트 결과: `label_column_edit_dialog_test.dart`, `label_column_edit_test.dart`, `label_column_save_test.dart` 합계 **52/52 통과**.
+- analyzer 결과: 변경 production/test 파일 **No issues found**, 종료 코드 0.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: 연결된 실행 앱이 없어 hot reload 대상 없음.
+- diff 검토 완료: `git diff --check` 통과, 무관한 formatter 변경 없음.
+- stage/commit 대상: `label_column_edit_dialog.dart`, `label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 품목관리 새로고침 후 무한 처리 중
 - **진행 중**: 1.4.16에서 품목관리 우클릭 `새로 고침` 후 `처리 중`이 계속 표시되고 편집할 수 없는 제출 화면과 `.tmp/1.4.16로그/품목관리_새로고침_무한로딩.log`를 처리한다.
 - 로그 버전은 **1.4.16**이다. `contextMenu refresh` → `reload-5 started` → `sessionLoad-6 completed` → `reload-5 completed`까지 정상 완료됐지만, 새 탭은 `busy=true` 상태로 생성됐고 이후 busy=false/탭 재생성 로그가 없다.

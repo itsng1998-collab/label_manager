@@ -240,6 +240,29 @@ class _OverlayHostState extends State<_OverlayHost> {
 }
 
 void main() {
+  test('time barcode options match legacy values', () {
+    expect(labelColumnTimeBarcodeOptions, const {
+      0: '사용안함',
+      1: 'DDMM(1)',
+      2: 'HHDD(2)',
+      4: 'DDHH(4)',
+      9: 'YYMMDD(9)',
+    });
+  });
+
+  test('EAN and UPC barcodes disable and clear time barcode', () {
+    for (final type in const [
+      BarcodeType.CodeEAN13,
+      BarcodeType.UpcA,
+      BarcodeType.CodeEAN8,
+    ]) {
+      expect(labelColumnTimeBarcodeEnabled(type), isFalse);
+      expect(labelColumnNormalizedTimeBarcodeType(type, 9), 0);
+    }
+    expect(labelColumnTimeBarcodeEnabled(BarcodeType.Code128), isTrue);
+    expect(labelColumnNormalizedTimeBarcodeType(BarcodeType.Code128, 9), 9);
+  });
+
   setUp(() {
     TColumnType.datas = [baseType, barcodeColumnType];
   });
@@ -551,6 +574,76 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.widget<TextFormField>(userDefinedText).enabled, isTrue);
+  });
+
+  testWidgets('time barcode uses legacy options and disables for EAN13', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'BARCODE').copyWith(columnType: barcodeColumnType),
+      ],
+    );
+
+    final timeBarcode = find.byKey(const Key('label-column-time-barcode'));
+    final timeBarcodeMenu = find.descendant(
+      of: timeBarcode,
+      matching: find.byType(DropdownMenu<int>),
+    );
+    expect(tester.widget<DropdownMenu<int>>(timeBarcodeMenu).enabled, isTrue);
+    expect(
+      tester
+          .widget<DropdownMenu<int>>(timeBarcodeMenu)
+          .dropdownMenuEntries
+          .map((entry) => entry.label),
+      ['사용안함', 'DDMM(1)', 'HHDD(2)', 'DDHH(4)', 'YYMMDD(9)'],
+    );
+
+    await _tapVisible(tester, timeBarcode);
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, 'DDHH(4)').last,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: timeBarcode,
+              matching: find.byType(EditableText),
+            ),
+          )
+          .controller
+          .text,
+      'DDHH(4)',
+    );
+
+    final barcodeType = find.byKey(const Key('label-column-barcode-type'));
+    await _tapVisible(tester, barcodeType);
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, 'EAN13').last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<DropdownMenu<int>>(timeBarcodeMenu).enabled, isFalse);
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: timeBarcode,
+              matching: find.byType(EditableText),
+            ),
+          )
+          .controller
+          .text,
+      '사용안함',
+    );
   });
 
   testWidgets('GS1 AI and format options use definition dropdowns', (

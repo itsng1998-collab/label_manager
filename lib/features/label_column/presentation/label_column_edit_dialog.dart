@@ -8,7 +8,31 @@ import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
+
+const Map<int, String> labelColumnTimeBarcodeOptions = {
+  0: '사용안함',
+  1: 'DDMM(1)',
+  2: 'HHDD(2)',
+  4: 'DDHH(4)',
+  9: 'YYMMDD(9)',
+};
+
+bool labelColumnTimeBarcodeEnabled(BarcodeType barcodeType) =>
+    barcodeType != BarcodeType.CodeEAN13 &&
+    barcodeType != BarcodeType.UpcA &&
+    barcodeType != BarcodeType.CodeEAN8;
+
+int labelColumnNormalizedTimeBarcodeType(
+  BarcodeType barcodeType,
+  int timeBarcodeType,
+) {
+  if (!labelColumnTimeBarcodeEnabled(barcodeType)) return 0;
+  return labelColumnTimeBarcodeOptions.containsKey(timeBarcodeType)
+      ? timeBarcodeType
+      : 0;
+}
 
 const double _labelColumnDialogMaxWidth = 1264;
 const double _labelColumnDialogMinContentWidth = 1144;
@@ -1423,7 +1447,7 @@ class _PropertyFields extends StatelessWidget {
           _check('번호 표시', column.showBarcodeNum, (value) => onChanged(column.copyWith(showBarcodeNum: value))),
           _check('비율 조절', column.showQRCodeText, (value) => onChanged(column.copyWith(showQRCodeText: value))),
           _integer('비율', column.qrTextFontSize, (value) => onChanged(column.copyWith(qrTextFontSize: value))),
-          _integer('타임바코드', column.timeBarcodeType, (value) => onChanged(column.copyWith(timeBarcodeType: value))),
+          _timeBarcodeDropdown(),
           ..._autoFields(),
           _text('사용자 정의 text', column.userDefineBarcodeText, (value) => onChanged(column.copyWith(userDefineBarcodeText: value))),
           _integer('Line check', column.lineCheck, (value) => onChanged(column.copyWith(lineCheck: value))),
@@ -1633,13 +1657,79 @@ class _PropertyFields extends StatelessWidget {
   Widget _barcodeDropdown() {
     return _field(
       _DialogDropdown<BarcodeType>(
+        key: const Key('label-column-barcode-type'),
         label: '바코드 종류',
         value: column.barcodeType,
         entries: [
           for (final type in BarcodeType.values)
             DropdownMenuEntry(value: type, label: type.dbName),
         ],
-        onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(barcodeType: value)); } : null,
+        onChanged: enabled
+            ? (value) {
+                if (value == null) return;
+                final timeBarcodeType = labelColumnNormalizedTimeBarcodeType(
+                  value,
+                  column.timeBarcodeType,
+                );
+                RegressionDebugLog.event(
+                  'labelColumnTimeBarcode',
+                  'barcodeTypeChanged',
+                  fields: {
+                    'columnId': column.columnId,
+                    'keyword': column.keyword,
+                    'previousBarcodeType': column.barcodeType.dbName,
+                    'barcodeType': value.dbName,
+                    'previousTimeBarcodeType': column.timeBarcodeType,
+                    'timeBarcodeType': timeBarcodeType,
+                    'enabled': labelColumnTimeBarcodeEnabled(value),
+                  },
+                );
+                onChanged(
+                  column.copyWith(
+                    barcodeType: value,
+                    timeBarcodeType: timeBarcodeType,
+                  ),
+                );
+              }
+            : null,
+      ),
+      height: 36,
+    );
+  }
+
+  Widget _timeBarcodeDropdown() {
+    final active = labelColumnTimeBarcodeEnabled(column.barcodeType);
+    final selected = labelColumnNormalizedTimeBarcodeType(
+      column.barcodeType,
+      column.timeBarcodeType,
+    );
+    return _field(
+      _DialogDropdown<int>(
+        key: const Key('label-column-time-barcode'),
+        label: '타임바코드',
+        value: selected,
+        entries: [
+          for (final option in labelColumnTimeBarcodeOptions.entries)
+            DropdownMenuEntry(value: option.key, label: option.value),
+        ],
+        onChanged: enabled && active
+            ? (value) {
+                if (value == null) return;
+                RegressionDebugLog.event(
+                  'labelColumnTimeBarcode',
+                  'typeChanged',
+                  fields: {
+                    'columnId': column.columnId,
+                    'keyword': column.keyword,
+                    'barcodeType': column.barcodeType.dbName,
+                    'previous': column.timeBarcodeType,
+                    'next': value,
+                    'enabled': active,
+                  },
+                );
+                onChanged(column.copyWith(timeBarcodeType: value));
+              }
+            : null,
       ),
       height: 36,
     );
