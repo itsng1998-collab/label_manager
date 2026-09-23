@@ -23,6 +23,7 @@
 - production 결론: 이름 열 삽입 콜백과 재현 로그가 이미 구현돼 있어 동작 코드 추가 변경은 필요하지 않았다.
 - 최종 diff 검토 완료: `git diff --check` 통과, 테스트·버전·handoff 외 무관한 포맷 churn 없음.
 - stage/commit 대상: `test/common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `25d24132dc342f0bc24d07c718086ce079ed89d9` (`공용라벨 이름 더블클릭 삽입 검증 강화`).
 - `pubspec.yaml` 편집 완료: 기존 기능의 실제 UI 제스처와 로그 회귀 검증 보강이므로 PATCH 단계로 `1.4.22`에서 `1.4.23`으로 갱신했다.
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
