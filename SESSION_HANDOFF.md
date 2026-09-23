@@ -21,6 +21,7 @@
 - 공용 테이블 회귀 테스트 결과: **통과(79/79)**, 종료 코드 0.
 - 변경 파일 diagnostics 및 `git diff --check` 통과. formatter에 의한 요청 범위 밖 변경 없음.
 - 상태: **완료**. stage/commit 대상은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/item/presentation/item_manage.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/item_manage_horizontal_scroll_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다.
+- 기능 커밋: `cc4ac5f7de106294b7980677fbe5a446d1624463` (`품목 편집 후 가로 스크롤 표시 유지`).
 - 기존 사용자 dirty 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: Windows CMake 경로 자동 인식
