@@ -1,5 +1,31 @@
 # SESSION HANDOFF
 
+## 완료 작업: 공용라벨 이름 열 더블클릭 삽입 재검증
+- **완료**: 우측 `사용 항목`의 이름 셀을 더블클릭하면 키워드 셀과 동일하게 현재 편집 위치에 `#키워드`를 삽입하는 요청을 현재 코드 기준으로 재검증했다.
+- 구현 확인: `common_label_manage.dart`는 키워드·이름 열(`index < 2`) 모두 `_insertKeyword`를 호출하며, `LabelSheetKeywordInsertController.insertAtCurrentContext('#${row.keyword}')`를 사용한다.
+- 재현 로그 확인: `regression-debug-v1 feature=commonLabelKeyword event=doubleTapInsert`에 column/rowIndex/keyword/name/inserted를 기록한다.
+- 기존 테스트 한계: FortuneTable column callback을 직접 호출해 실제 이름 셀의 double-tap gesture 연결은 검증하지 않았다.
+- 테스트 강화: 이름 열 검증을 실제 `저울중량` 셀 두 번 탭으로 교체해 `#SWEIGHT` 삽입을 확인한다.
+- focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/common_label_manage_test.dart --plain-name "keyword and name columns insert keyword on double tap"`.
+- focused test 1차 결과: 실제 삽입 assertion은 통과했으나 테스트 종료 시 `DoubleTapGestureRecognizer` Timer가 남아 실패했다. 제스처 후 `pumpAndSettle`로 Timer를 정리하도록 테스트를 보정했다.
+- focused test 재실행 결과: **통과(1/1)**.
+- 재현 로그 검증 강화: 실제 이름 셀 더블클릭 시 `commonLabelKeyword/doubleTapInsert` 로그의 `column=이름`, `keyword=SWEIGHT`, `name=저울중량`, `inserted=true`를 확인한다.
+- 로그 검증 focused test 1차는 nullable `debugPrint` message 타입으로 로드 실패해 null 메시지를 제외하도록 캡처를 보정했다.
+- 로그 검증 focused test 2차는 Flutter 전역 debug 변수 복원 시점 assertion으로 실패해, 캡처 범위를 실제 더블클릭 구간으로 좁히고 `try/finally`에서 즉시 복원하도록 보정했다.
+- 로그 검증 focused test 최종 결과: **통과(1/1)**.
+- Dart formatter 적용 완료: `test/common_label_manage_test.dart`.
+- IDE diagnostics 결과: production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: 연결된 실행 앱이 없어 hot reload 대상 없음.
+- 공용라벨 관리 전체 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/label_sheet/presentation/common_label_manage.dart test/common_label_manage_test.dart`.
+- 공용라벨 관리 전체 테스트 결과: **통과(13/13)**.
+- analyzer 결과: **No issues found**(종료 코드 0).
+- production 결론: 이름 열 삽입 콜백과 재현 로그가 이미 구현돼 있어 동작 코드 추가 변경은 필요하지 않았다.
+- 최종 diff 검토 완료: `git diff --check` 통과, 테스트·버전·handoff 외 무관한 포맷 churn 없음.
+- stage/commit 대상: `test/common_label_manage_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- `pubspec.yaml` 편집 완료: 기존 기능의 실제 UI 제스처와 로그 회귀 검증 보강이므로 PATCH 단계로 `1.4.22`에서 `1.4.23`으로 갱신했다.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 완료 작업: GS1 AI 포함 항목 저장 실패
 - **완료**: 1.4.16에서 GS1AL의 AI code를 저장한 뒤 GS1BARCODE에 `#GS1AL`을 포함하고 저장하면 `Unsupported changed property key for column 140793`로 실패하는 증상을 수정했다.
 - 제출 로그/코드 확인: `LabelColumnDraft.persistedValues`는 `useGs1` 변경을 생성하지만 `LabelColumnSaveDao._validateCommand` auxiliary allow-list와 GS1 SQL projection에는 `useGs1`이 빠져 있다.

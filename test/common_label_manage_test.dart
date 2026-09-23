@@ -356,6 +356,7 @@ void main() {
   testWidgets('keyword and name columns insert keyword on double tap', (
     tester,
   ) async {
+    final logLines = <String>[];
     final keywordController = _RecordingKeywordInsertController();
     final columns = [_column('SWEIGHT', columnName: '저울중량')];
     await tester.pumpWidget(
@@ -393,8 +394,29 @@ void main() {
     final nameColumn = table.columns[1];
     expect(nameColumn.onDoubleTap, isNotNull);
     keywordController.insertedText = null;
-    nameColumn.onDoubleTap!(columns.single, 0);
+    final nameCell = find.text('저울중량');
+    final previousDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) {
+      if (message != null) logLines.add(message);
+    };
+    try {
+      await tester.tap(nameCell);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(nameCell);
+      await tester.pumpAndSettle();
+    } finally {
+      debugPrint = previousDebugPrint;
+    }
     expect(keywordController.insertedText, '#SWEIGHT');
+    expect(
+      logLines,
+      contains(
+        contains(
+          'feature=commonLabelKeyword event=doubleTapInsert '
+          'column=이름 rowIndex=0 keyword=SWEIGHT name=저울중량 inserted=true',
+        ),
+      ),
+    );
     expect(table.columns[1].dragData, isNull);
   });
 }
