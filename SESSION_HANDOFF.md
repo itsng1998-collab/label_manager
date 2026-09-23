@@ -19,6 +19,7 @@
 - DTD 확인 결과: 연결된 실행 앱이 없어 hot reload 대상 없음.
 - diff 검토 완료: `git diff --check` 통과, 무관한 formatter 변경 없음.
 - stage/commit 대상: `label_column_edit_dialog.dart`, `label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `3322f7e7b570fff6631a9791187afdb0f4723405` (`타임바코드 종류 선택과 바코드 제한 적용`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 품목관리 새로고침 후 무한 처리 중
