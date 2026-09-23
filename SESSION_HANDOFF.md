@@ -26,6 +26,7 @@
 - DTD 확인 결과: 연결된 실행 앱이 없어 hot reload 대상 없음.
 - 최종 diff 검토 완료: `git diff --check` 통과, SQL projection 필드/SELECT 순서와 GS1 relation gate 정합성 확인, 무관한 포맷 churn 없음.
 - stage/commit 대상: `label_column_save.dart`, `label_column_save_test.dart`, `label_column_edit_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `cb749aff0c5bd9c0ccc48eda3d416d9eb7cf804e` (`GS1 AI 포함 항목 저장 오류 수정`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 완료 작업: 공용라벨 Ctrl+Z 후 저장 아이콘 무반응
