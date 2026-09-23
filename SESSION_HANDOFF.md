@@ -19,6 +19,7 @@
 - 변경 파일 diagnostics와 `git diff --check` 통과. `home_page_manager.dart` diff는 완료 helper와 `_refreshItemManager` 상태 전이 로그/완료 순서에만 한정된다.
 - `_resetTabs()`가 내부에서 `setState`와 탭 컨트롤러 재생성을 수행하므로 busy=false 상태가 새 cached tab과 화면에 반영됨을 확인했다.
 - 상태: **완료**. stage/commit 대상은 `lib/home_page_manager.dart`, `lib/features/item/item_manager_debug_log.dart`, `test/home_page_manager_session_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`다.
+- 기능 커밋: `d3ed0206074b2ab9f783385d348866cc3faa85ec` (`품목관리 새로고침 무한 로딩 수정`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 기존 등록 키워드 클라이언트 편집 기본값 복구
