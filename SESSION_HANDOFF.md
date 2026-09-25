@@ -21,6 +21,7 @@
 - DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
 - 최종 `git diff --check` 통과, 관련 파일 외 포맷 churn 없음.
 - stage/commit 대상: `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/admin_copy_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기능 구현 커밋: `89b311a` (`브랜드 복사 후선택 비활성화 수정`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 관리자 브랜드 품목 복사 PK 오류
