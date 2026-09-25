@@ -119,6 +119,70 @@ void main() {
     expect(targetAfter.onChanged, isNotNull);
   });
 
+  testWidgets('brand checkbox disables completed label size selection', (
+    tester,
+  ) async {
+    await pumpDialog(tester, copyBrand: (_) async {});
+
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceCustomer')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('원본 거래처').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceBrand')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('브랜드 1').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('adminCopySourceLabelSize')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('크기 10').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('adminCopyTargetCustomer')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('대상 거래처').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('adminCopyTargetBrand')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('브랜드 2').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('adminCopyTargetLabelSize')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('크기 20').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('adminCopyWholeBrand')));
+    await tester.pump();
+
+    for (final key in const [
+      'adminCopySourceLabelSize',
+      'adminCopyTargetBrand',
+      'adminCopyTargetLabelSize',
+    ]) {
+      expect(
+        tester
+            .widget<ModelessDropdownFormField<int>>(find.byKey(ValueKey(key)))
+            .onChanged,
+        isNull,
+      );
+    }
+
+    await tester.tap(find.byKey(const ValueKey('adminCopyWholeBrand')));
+    await tester.pump();
+
+    for (final key in const [
+      'adminCopySourceLabelSize',
+      'adminCopyTargetBrand',
+      'adminCopyTargetLabelSize',
+    ]) {
+      expect(
+        tester
+            .widget<ModelessDropdownFormField<int>>(find.byKey(ValueKey(key)))
+            .onChanged,
+        isNotNull,
+      );
+    }
+  });
+
   testWidgets('uses compact comparison layout with leading checkboxes', (
     tester,
   ) async {

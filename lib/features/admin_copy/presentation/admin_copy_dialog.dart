@@ -299,6 +299,38 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
     });
   }
 
+  void _changeCopyWholeBrand(bool value) {
+    setState(() {
+      _copyWholeBrand = value;
+      _sourceLabelSizeEnabled = !value && _sourceBrandId != null;
+      _targetCustomerEnabled = value
+          ? _sourceBrandId != null
+          : _sourceLabelSizeId != null;
+      _targetBrandEnabled = !value && _targetCustomerId != null;
+      _targetLabelSizeEnabled = !value && _targetBrandId != null;
+      _copyEnabled = value
+          ? _sourceBrandId != null && _targetCustomerId != null
+          : _sourceLabelSizeId != null && _targetLabelSizeId != null;
+    });
+    RegressionDebugLog.event(
+      'adminCopy',
+      'copyWholeBrandChanged',
+      fields: {
+        'enabled': value,
+        'sourceBrandId': _sourceBrandId,
+        'sourceLabelSizeId': _sourceLabelSizeId,
+        'targetCustomerId': _targetCustomerId,
+        'targetBrandId': _targetBrandId,
+        'targetLabelSizeId': _targetLabelSizeId,
+        'sourceLabelSizeEnabled': _sourceLabelSizeEnabled,
+        'targetCustomerEnabled': _targetCustomerEnabled,
+        'targetBrandEnabled': _targetBrandEnabled,
+        'targetLabelSizeEnabled': _targetLabelSizeEnabled,
+        'copyEnabled': _copyEnabled,
+      },
+    );
+  }
+
   Future<void> _copy() async {
     if (_busy || !_copyEnabled || _targetCustomerId == null) return;
     RegressionDebugLog.event(
@@ -463,9 +495,7 @@ class _AdminCopyDialogContentState extends State<AdminCopyDialogContent> {
               key: 'adminCopyWholeBrand',
               label: '브랜드 복사',
               value: _copyWholeBrand,
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() => _copyWholeBrand = value),
+              onChanged: _busy ? null : _changeCopyWholeBrand,
             ),
             const SizedBox(width: 32),
             _copyOption(

@@ -1,5 +1,28 @@
 # SESSION HANDOFF
 
+## 현재 작업: 브랜드 복사 후선택 비활성화 누락
+- **완료**: 관리자 복사에서 원본·대상 라벨크기까지 선택한 뒤 `브랜드 복사`를 체크하면 원본 라벨크기와 대상 브랜드·라벨크기가 비활성화되지 않는 1.4.16 회귀를 수정했다.
+- 제출 로그 확인: source/target customer 선택 로그만 있고 브랜드 복사 토글 시 선택값과 selector 활성 상태 로그가 없어 당시 상태 전이를 판별할 수 없다.
+- 원인 가설: checkbox handler가 `_copyWholeBrand`만 변경하고 `_sourceLabelSizeEnabled`, `_targetBrandEnabled`, `_targetLabelSizeEnabled`, `_copyEnabled`를 현재 선택값에 맞춰 재계산하지 않는다.
+- 레거시 확인: 브랜드 복사 여부에 따라 이후 선택 이벤트에서 각 ComboBox 활성 상태를 전환하며 기존 선택값을 명시적으로 지우지는 않는다.
+- 수정 전 회귀 테스트 추가: 원본·대상 라벨크기까지 모두 선택한 뒤 브랜드 복사를 체크하고 세 selector의 `onChanged`가 null인지 검증한다.
+- 수정 전 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/admin_copy_dialog_test.dart --plain-name "brand checkbox disables completed label size selection"`.
+- 수정 전 focused test 결과: **실패(예상 일치)**. 브랜드 복사 체크 후 원본 라벨크기의 `onChanged`가 계속 non-null이었다.
+- `lib/features/admin_copy/presentation/admin_copy_dialog.dart` 편집 완료: `_changeCopyWholeBrand`가 현재 선택값과 mode를 기준으로 원본 라벨크기, 대상 거래처·브랜드·라벨크기 및 복사 버튼 활성 상태를 즉시 재계산한다.
+- 재현 로그 추가: `adminCopy/copyWholeBrandChanged`에 mode, source/target 선택 ID, 네 selector와 복사 버튼 활성 상태를 기록한다.
+- 수정 후 focused test 결과: **통과(1/1)**. 모두 선택한 뒤 체크하면 세 selector가 비활성화되고, 체크 해제 시 보존된 선택에 맞춰 다시 활성화된다.
+- `pubspec.yaml` 버전: `1.4.28` → `1.4.29`.
+- Dart formatter 적용 완료: `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/admin_copy_dialog_test.dart`.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/admin_copy_dialog_test.dart test/admin_copy_dao_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/admin_copy/presentation/admin_copy_dialog.dart test/admin_copy_dialog_test.dart`.
+- 관련 테스트 결과: **통과(15/15)**.
+- analyzer 결과: **No issues found**.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
+- 최종 `git diff --check` 통과, 관련 파일 외 포맷 churn 없음.
+- stage/commit 대상: `lib/features/admin_copy/presentation/admin_copy_dialog.dart`, `test/admin_copy_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 관리자 브랜드 품목 복사 PK 오류
 - **완료**: 관리자 복사에서 동일 거래처의 브랜드를 `품목까지 복사`하면 `@ItemMap`의 `SOURCE_ITEM_ID=722764` PK 중복으로 실패하는 1.4.16 회귀를 수정했다.
 - 제출 로그 확인: source/target customerId=2, sourceBrandId=1288, copyItems=true이며 SQL Server native 2627 오류가 두 번째 라벨크기 처리 중 `@ItemMap`에 발생했다.
