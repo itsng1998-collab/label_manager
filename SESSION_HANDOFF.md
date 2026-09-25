@@ -1,5 +1,43 @@
 # SESSION HANDOFF
 
+## 현재 작업: 발행내역 조회 지연
+- **완료**: 발행내역 조회가 1.4.16 제출 로그에서 15~21초 걸리는 문제를 빈 검색 조건 제거, 합계 스캔 통합, 상세 payload 지연 조회로 수정했다.
+- 제출 로그 확인: 상세 조회는 17,482ms / 12,292ms / 11,064ms, 뒤이은 전체·기간 합계 조회는 합계 3,733ms / 4,671ms / 3,801ms가 소요됐다.
+- 원인 가설: 빈 품목 검색에도 `RICH_ITEM_NAME LIKE N'%%'`를 붙이고, 전체·기간·라벨규격별 합계를 순차 쿼리해 같은 대형 로그 테이블을 반복 스캔한다.
+- 수정 예정: `PrintLogDAO`에서 빈 품목 검색 조건을 생략하고 전체·기간·라벨규격별 합계를 조건부 집계 1회로 통합한다. `PrintHistoryDialogContent`는 통합 집계 결과를 사용하고 단계별 소요시간 재현 로그를 남긴다.
+- 수정 전 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/print_log_test.dart --plain-name "empty item search omits no-op LIKE predicate"`.
+- 수정 전 focused test 결과: **실패(예상 일치)**. 빈 품목 검색 SQL에 `RICH_ITEM_NAME LIKE N'%%'`와 `searchText` 파라미터가 남아 있었다.
+- `lib/features/print_history/data/print_log_dao.dart` 1차 편집 완료: 빈 품목 검색일 때만 `LIKE` 조건과 `searchText` 파라미터를 생략한다.
+- 빈 검색 SQL focused test 수정 후 결과: **통과(1/1)**.
+- 통합 합계 SQL focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/print_log_test.dart --plain-name "print log summary query aggregates all scopes in one scan"`.
+- 통합 합계 SQL focused test 수정 전 결과: **실패(예상 일치)**. `PrintLogDAO.buildSummaryQuery`가 없어 컴파일되지 않았다.
+- `lib/features/print_history/domain/print_log.dart` 편집 완료: 라벨규격별 전체·기간 합계를 담는 `PrintLogSummary`를 추가했다.
+- `lib/features/print_history/data/print_log_dao.dart` 2차 편집 완료: 고객 범위를 한 번 스캔해 라벨규격별 전체 누계와 날짜 조건 기간 합계를 반환하는 `buildSummaryQuery`/`selectSummary`를 추가했다.
+- 통합 합계 SQL focused test 수정 후 결과: **통과(1/1)**.
+- `lib/features/print_history/presentation/print_history_dialog.dart` 편집 완료: 전체·기간·라벨규격별 순차 합계를 통합 집계 1회로 교체하고 상세/집계/전체 완료 소요시간과 행 수를 `printHistoryQuery` 로그로 기록한다.
+- `test/print_history_dialog_test.dart` 편집 완료: 선택 고객 조회가 통합 집계를 정확히 1회 호출하고 기존 합계 행과 상세 행을 유지하는지 검증한다.
+- 화면 통합 집계 테스트 결과: **통과(3/3)**.
+- 목록 payload 지연 조회 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/print_log_test.dart --plain-name "print log query contract keeps legacy scope and ordering|print log detail query loads payload by primary key"`.
+- 목록 payload 지연 조회 테스트 수정 전 결과: **실패(예상 일치)**. `PrintLogDAO.buildDetailQuery`가 없어 컴파일되지 않았다.
+- `lib/features/print_history/domain/print_log.dart` 2차 편집 완료: 상세 payload 전용 `PrintLogDetail` 모델을 추가했다.
+- `lib/features/print_history/data/print_log_dao.dart` 3차 편집 완료: 목록 SELECT에서 `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`를 제외하고 기본키 기반 `buildDetailQuery`/`selectDetail`을 추가했다.
+- `lib/features/print_history/presentation/print_history_dialog.dart` 2차 편집 완료: 행 더블클릭 시 상세 payload를 지연 조회하며 조회 시작·완료·누락·실패 시간을 기록한다.
+- `test/print_history_dialog_test.dart` 2차 편집 완료: 상세 payload 주입 API를 연결해 기존 상세 표시 동작을 검증한다.
+- 목록/상세 SQL 테스트 결과: **통과(5/5)**. 화면 통합 집계·상세 지연 조회 테스트 결과: **통과(3/3)**.
+- 재현 로그 검증 추가: 조회 4단계와 상세 지연 조회 2단계의 `printHistoryQuery` 이벤트가 실제 출력되는지 검증한다.
+- 재현 로그 focused test 결과: **통과(1/1)**.
+- `pubspec.yaml` 버전: `1.4.29` → `1.4.30`.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/print_log_test.dart test/print_history_dialog_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/print_history/data/print_log_dao.dart lib/features/print_history/domain/print_log.dart lib/features/print_history/presentation/print_history_dialog.dart test/print_log_test.dart test/print_history_dialog_test.dart`.
+- 관련 테스트 결과: **통과(8/8)**.
+- analyzer 1차 결과: 불필요한 `flutter/foundation.dart` import info 1건. 해당 import를 제거했다.
+- analyzer 최종 결과: **No issues found**.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
+- 최종 관련 테스트 재실행 결과: **통과(8/8)**. 최종 `git diff --check` 통과.
+- stage/commit 대상: `lib/features/print_history/data/print_log_dao.dart`, `lib/features/print_history/domain/print_log.dart`, `lib/features/print_history/presentation/print_history_dialog.dart`, `test/print_log_test.dart`, `test/print_history_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 브랜드 복사 후선택 비활성화 누락
 - **완료**: 관리자 복사에서 원본·대상 라벨크기까지 선택한 뒤 `브랜드 복사`를 체크하면 원본 라벨크기와 대상 브랜드·라벨크기가 비활성화되지 않는 1.4.16 회귀를 수정했다.
 - 제출 로그 확인: source/target customer 선택 로그만 있고 브랜드 복사 토글 시 선택값과 selector 활성 상태 로그가 없어 당시 상태 전이를 판별할 수 없다.

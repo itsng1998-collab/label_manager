@@ -1,5 +1,49 @@
 enum PrintLogSearchType { itemName, userId, customerName }
 
+class PrintLogSummary {
+  const PrintLogSummary({
+    required this.labelSizeName,
+    required this.totalPrintCount,
+    required this.periodPrintCount,
+  });
+
+  final String labelSizeName;
+  final int totalPrintCount;
+  final int periodPrintCount;
+
+  factory PrintLogSummary.fromMap(Map<String, dynamic> map) {
+    int intValue(String key) => int.tryParse((map[key] ?? '').toString()) ?? 0;
+
+    return PrintLogSummary(
+      labelSizeName: (map['LABELSIZE_NAME'] ?? '').toString(),
+      totalPrintCount: intValue('TOTAL_PRINT_COUNT'),
+      periodPrintCount: intValue('PERIOD_PRINT_COUNT'),
+    );
+  }
+}
+
+class PrintLogDetail {
+  const PrintLogDetail({
+    required this.columnsWire,
+    required this.printCellsWire,
+    required this.savedCellsWire,
+  });
+
+  final String columnsWire;
+  final String printCellsWire;
+  final String savedCellsWire;
+
+  factory PrintLogDetail.fromMap(Map<String, dynamic> map) => PrintLogDetail(
+    columnsWire: (map['COLUMNS'] ?? '').toString(),
+    printCellsWire: (map['PRINT_CELLS'] ?? '').toString(),
+    savedCellsWire: (map['SAVE_IN_DB_CELLS'] ?? '').toString(),
+  );
+
+  List<String> get columnNames => _splitWire(columnsWire);
+  List<String> get printCells => _splitWire(printCellsWire);
+  List<String> get savedCells => _splitWire(savedCellsWire);
+}
+
 class PrintLog {
   const PrintLog({
     required this.logId,
@@ -98,10 +142,10 @@ class PrintLog {
   List<String> get columnNames => _splitWire(columnsWire);
   List<String> get printCells => _splitWire(printCellsWire);
   List<String> get savedCells => _splitWire(savedCellsWire);
+}
 
-  static List<String> _splitWire(String value) {
-    final parts = value.split('|');
-    if (parts.isNotEmpty && parts.last.isEmpty) parts.removeLast();
-    return parts;
-  }
+List<String> _splitWire(String value) {
+  final parts = value.split('|');
+  if (parts.isNotEmpty && parts.last.isEmpty) parts.removeLast();
+  return parts;
 }

@@ -29,9 +29,6 @@ class PrintLogDAO extends DAO {
       COALESCE(CONVERT(NVARCHAR(30), RICH_DATETIME, 120), N'') AS DATETIME,
       COALESCE(CONVERT(NVARCHAR(8), RICH_DATE_YYYYMMDD COLLATE ${DAO.CP949}), N'') AS DATE_YYYYMMDD,
       COALESCE(CONVERT(NVARCHAR(100), RICH_PRINTER COLLATE ${DAO.CP949}), N'') AS PRINTER,
-      COALESCE(CONVERT(NVARCHAR(MAX), RICH_COLUMNS COLLATE ${DAO.CP949}), N'') AS COLUMNS,
-      COALESCE(CONVERT(NVARCHAR(MAX), RICH_PRINT_CELLS COLLATE ${DAO.CP949}), N'') AS PRINT_CELLS,
-      COALESCE(CONVERT(NVARCHAR(MAX), RICH_SAVE_IN_DB_CELLS COLLATE ${DAO.CP949}), N'') AS SAVE_IN_DB_CELLS,
       COALESCE(CONVERT(NVARCHAR(20), RICH_FORM_WIDTH), N'') AS FORM_WIDTH,
       COALESCE(CONVERT(NVARCHAR(20), RICH_FORM_HEIGHT), N'') AS FORM_HEIGHT,
       COALESCE(CONVERT(NVARCHAR(30), RICH_PRINT_LEFT_MARGIN), N'') AS LEFT_MARGIN,
@@ -50,6 +47,25 @@ class PrintLogDAO extends DAO {
     SELECT COALESCE(SUM(RICH_PRINT_COUNT), 0) AS PRINT_COUNT
     FROM BM_RICH_PRINT_LOG
     WHERE 1=1
+  ''';
+
+  static const String summarySql = '''
+    SELECT
+      COALESCE(CONVERT(NVARCHAR(50), RICH_LABELSIZE_NAME COLLATE ${DAO.CP949}), N'') AS LABELSIZE_NAME,
+      SUM(RICH_PRINT_COUNT) AS TOTAL_PRINT_COUNT,
+      SUM(CASE WHEN RICH_DATE_YYYYMMDD BETWEEN CONVERT(VARCHAR(8), @startDate)
+        AND CONVERT(VARCHAR(8), @endDate) THEN RICH_PRINT_COUNT ELSE 0 END) AS PERIOD_PRINT_COUNT
+    FROM BM_RICH_PRINT_LOG
+    WHERE 1=1
+  ''';
+
+  static const String detailSql = '''
+    SELECT
+      COALESCE(CONVERT(NVARCHAR(MAX), RICH_COLUMNS COLLATE ${DAO.CP949}), N'') AS COLUMNS,
+      COALESCE(CONVERT(NVARCHAR(MAX), RICH_PRINT_CELLS COLLATE ${DAO.CP949}), N'') AS PRINT_CELLS,
+      COALESCE(CONVERT(NVARCHAR(MAX), RICH_SAVE_IN_DB_CELLS COLLATE ${DAO.CP949}), N'') AS SAVE_IN_DB_CELLS
+    FROM BM_RICH_PRINT_LOG
+    WHERE RICH_PRINT_LOG_ID=@logId
   ''';
 
   static Future<List<PrintLog>> select({
@@ -91,14 +107,15 @@ class PrintLogDAO extends DAO {
     final params = <String, dynamic>{
       'startDate': startDate,
       'endDate': endDate,
-      'searchText': searchText,
     };
     final condition = switch (searchType) {
+      PrintLogSearchType.itemName when searchText.isEmpty => '',
       PrintLogSearchType.itemName =>
         "AND RICH_ITEM_NAME LIKE N'%' + @searchText + N'%'",
       PrintLogSearchType.userId => 'AND RICH_USER_ID=@searchText',
       PrintLogSearchType.customerName => 'AND RICH_CUSTOMER_NAME=@searchText',
     };
+    if (condition.isNotEmpty) params['searchText'] = searchText;
     final customerCondition =
         customerId == null || searchType == PrintLogSearchType.customerName
         ? ''
@@ -134,6 +151,73 @@ class PrintLogDAO extends DAO {
     } catch (error) {
       throw Exception('${runtimeLogTag()} $error');
     }
+  }
+
+  static Future<List<PrintLogSummary>> selectSummary({
+    required String startDate,
+    required String endDate,
+    String? customerName,
+  }) async {
+    final spec = buildSummaryQuery(
+      startDate: startDate,
+      endDate: endDate,
+      customerName: customerName,
+    );
+    try {
+      final result = await DbClient.instance.getDataWithParams(
+        spec.sql,
+        spec.params,
+      );
+      return DAO
+          .getRowsFromResult(result)
+          .whereType<Map>()
+          .map(
+            (row) => PrintLogSummary.fromMap(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false);
+    } catch (error) {
+      throw Exception('${runtimeLogTag()} $error');
+    }
+  }
+
+  static Future<PrintLogDetail?> selectDetail(int logId) async {
+    final spec = buildDetailQuery(logId);
+    try {
+      final result = await DbClient.instance.getDataWithParams(
+        spec.sql,
+        spec.params,
+      );
+      final row = DAO.getRowMapFromResult(result);
+      return row == null ? null : PrintLogDetail.fromMap(row);
+    } catch (error) {
+      throw Exception('${runtimeLogTag()} $error');
+    }
+  }
+
+  static PrintLogQuerySpec buildDetailQuery(int logId) => PrintLogQuerySpec(
+    sql: detailSql,
+    params: {'logId': logId},
+  );
+
+  static PrintLogQuerySpec buildSummaryQuery({
+    required String startDate,
+    required String endDate,
+    String? customerName,
+  }) {
+    final params = <String, dynamic>{
+      'startDate': startDate,
+      'endDate': endDate,
+    };
+    final customerCondition = customerName == null
+        ? ''
+        : 'AND RICH_CUSTOMER_NAME=@customerName';
+    if (customerName != null) params['customerName'] = customerName;
+    return PrintLogQuerySpec(
+      sql:
+          '$summarySql $customerCondition '
+          'GROUP BY RICH_LABELSIZE_NAME ORDER BY RICH_LABELSIZE_NAME',
+      params: params,
+    );
   }
 
   static PrintLogQuerySpec buildSumQuery({

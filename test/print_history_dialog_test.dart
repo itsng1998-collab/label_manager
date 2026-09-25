@@ -50,7 +50,8 @@ void main() {
     WidgetTester tester, {
     required UserGrade grade,
     required PrintHistoryQuery query,
-    required PrintHistorySumQuery querySum,
+    required PrintHistorySummaryQuery querySummary,
+    PrintHistoryDetailQuery? queryDetail,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -63,7 +64,14 @@ void main() {
               initialCooperator: initialCooperator,
               initialCustomer: initialCustomer,
               query: query,
-              querySum: querySum,
+              querySummary: querySummary,
+              queryDetail:
+                  queryDetail ??
+                  (_) async => const PrintLogDetail(
+                    columnsWire: '품명|가격|',
+                    printCellsWire: '상품 1|1000|',
+                    savedCellsWire: '상품 1|900|',
+                  ),
               loadCooperators: () async => const [initialCooperator],
               loadCustomers: (_) async => const [initialCustomer],
             ),
@@ -78,7 +86,8 @@ void main() {
     tester,
   ) async {
     var queryCount = 0;
-    final sumCalls = <({String? customer, String? labelSize})>[];
+    final summaryCustomers = <String?>[];
+    final debugMessages = <String>[];
     await pumpContent(
       tester,
       grade: UserGrade.SYSTEM_ADMIN_USER,
@@ -96,10 +105,15 @@ void main() {
             expect(customerId, 10);
             return [printLog()];
           },
-      querySum: ({startDate, endDate, customerName, labelSizeName}) async {
-        sumCalls.add((customer: customerName, labelSize: labelSizeName));
-        if (labelSizeName != null) return 4;
-        return startDate == null ? 100 : 10;
+      querySummary: ({required startDate, required endDate, customerName}) async {
+        summaryCustomers.add(customerName);
+        return const [
+          PrintLogSummary(
+            labelSizeName: '라벨 1',
+            totalPrintCount: 100,
+            periodPrintCount: 10,
+          ),
+        ];
       },
     );
 
@@ -108,30 +122,47 @@ void main() {
     expect(find.text('품명'), findsWidgets);
     expect(queryCount, 0);
 
-    await tester.tap(find.text('조회'));
-    await tester.pumpAndSettle();
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) {
+      if (message != null) debugMessages.add(message);
+    };
+    try {
+      await tester.tap(find.text('조회'));
+      await tester.pumpAndSettle();
 
-    expect(queryCount, 1);
-    expect(sumCalls, [
-      (customer: '거래처 1', labelSize: null),
-      (customer: '거래처 1', labelSize: null),
-      (customer: '거래처 1', labelSize: '라벨 1'),
-    ]);
-    expect(find.text('[총 누계]'), findsOneWidget);
-    expect(find.text('[기간별 합계]'), findsOneWidget);
-    expect(find.text('[라벨사이즈별 합계] 라벨 1'), findsOneWidget);
-    expect(find.text('상품 1'), findsOneWidget);
+      expect(queryCount, 1);
+      expect(summaryCustomers, ['거래처 1']);
+      expect(find.text('[총 누계]'), findsOneWidget);
+      expect(find.text('[기간별 합계]'), findsOneWidget);
+      expect(find.text('[라벨사이즈별 합계] 라벨 1'), findsOneWidget);
+      expect(find.text('상품 1'), findsOneWidget);
 
-    await tester.tap(find.text('상품 1'));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.text('상품 1'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('상품 1'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('상품 1'));
+      await tester.pumpAndSettle();
+    } finally {
+      debugPrint = originalDebugPrint;
+    }
 
     expect(find.text('발행내역 상세'), findsOneWidget);
     expect(find.text('저장값'), findsOneWidget);
     expect(find.text('출력값'), findsOneWidget);
     expect(find.text('900'), findsOneWidget);
     expect(find.text('1000'), findsOneWidget);
+    for (final event in [
+      'queryStarted',
+      'detailCompleted',
+      'summaryCompleted',
+      'queryCompleted',
+      'detailLoadStarted',
+      'detailLoadCompleted',
+    ]) {
+      expect(
+        debugMessages,
+        contains(contains('feature=printHistoryQuery event=$event')),
+      );
+    }
   });
 
   testWidgets('client hides selectors and Enter queries current customer', (
@@ -153,7 +184,8 @@ void main() {
             expect(customerId, 10);
             return const <PrintLog>[];
           },
-      querySum: ({startDate, endDate, customerName, labelSizeName}) async => 0,
+        querySummary: ({required startDate, required endDate, customerName}) async =>
+          const <PrintLogSummary>[],
     );
 
     expect(find.byType(ModelessDropdownFormField<Cooperator>), findsNothing);
@@ -193,9 +225,9 @@ void main() {
             queriedCustomerId = customerId;
             return const <PrintLog>[];
           },
-      querySum: ({startDate, endDate, customerName, labelSizeName}) async {
+      querySummary: ({required startDate, required endDate, customerName}) async {
         summaryCustomers.add(customerName);
-        return 0;
+        return const <PrintLogSummary>[];
       },
     );
 
@@ -207,7 +239,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(queriedCustomerId, isNull);
-    expect(summaryCustomers, [null, null]);
+    expect(summaryCustomers, [null]);
     expect(find.text('[총 누계]'), findsOneWidget);
     expect(find.text('[기간별 합계]'), findsOneWidget);
   });

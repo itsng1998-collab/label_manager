@@ -41,6 +41,9 @@ void main() {
       isNot(contains('CONVERT(VARCHAR(8), RICH_DATE_YYYYMMDD)')),
     );
     expect(PrintLogDAO.selectSql, isNot(contains('COOP')));
+    expect(PrintLogDAO.selectSql, isNot(contains('RICH_COLUMNS')));
+    expect(PrintLogDAO.selectSql, isNot(contains('RICH_PRINT_CELLS')));
+    expect(PrintLogDAO.selectSql, isNot(contains('RICH_SAVE_IN_DB_CELLS')));
     expect(PrintLogDAO.sumSql, isNot(contains('ORDER BY')));
 
     final item = PrintLogDAO.buildSelectQuery(
@@ -50,10 +53,10 @@ void main() {
       searchText: '',
       customerId: 10,
     );
-    expect(item.sql, contains("RICH_ITEM_NAME LIKE N'%' + @searchText + N'%'"));
+    expect(item.sql, isNot(contains('RICH_ITEM_NAME LIKE')));
     expect(item.sql, contains('RICH_CUSTOMER_ID=@customerId'));
     expect(item.sql, endsWith('ORDER BY RICH_DATETIME ASC'));
-    expect(item.params['searchText'], isEmpty);
+    expect(item.params, isNot(contains('searchText')));
 
     final user = PrintLogDAO.buildSelectQuery(
       startDate: '20250101',
@@ -107,5 +110,35 @@ void main() {
     expect(labelSize.sql, contains('RICH_CUSTOMER_NAME=@customerName'));
     expect(labelSize.sql, contains('RICH_LABELSIZE_NAME=@labelSizeName'));
     expect(labelSize.sql, isNot(contains('@searchText')));
+  });
+
+  test('print log summary query aggregates all scopes in one scan', () {
+    final summary = PrintLogDAO.buildSummaryQuery(
+      startDate: '20250101',
+      endDate: '20250131',
+      customerName: '거래처 1',
+    );
+
+    expect(RegExp('FROM BM_RICH_PRINT_LOG').allMatches(summary.sql), hasLength(1));
+    expect(summary.sql, contains('SUM(RICH_PRINT_COUNT) AS TOTAL_PRINT_COUNT'));
+    expect(summary.sql, contains('SUM(CASE WHEN RICH_DATE_YYYYMMDD BETWEEN'));
+    expect(summary.sql, contains('GROUP BY RICH_LABELSIZE_NAME'));
+    expect(summary.sql, contains('RICH_CUSTOMER_NAME=@customerName'));
+    expect(summary.sql, isNot(contains('@searchText')));
+    expect(summary.params, {
+      'startDate': '20250101',
+      'endDate': '20250131',
+      'customerName': '거래처 1',
+    });
+  });
+
+  test('print log detail query loads payload by primary key', () {
+    final detail = PrintLogDAO.buildDetailQuery(7);
+
+    expect(detail.sql, contains('RICH_COLUMNS'));
+    expect(detail.sql, contains('RICH_PRINT_CELLS'));
+    expect(detail.sql, contains('RICH_SAVE_IN_DB_CELLS'));
+    expect(detail.sql, contains('RICH_PRINT_LOG_ID=@logId'));
+    expect(detail.params, {'logId': 7});
   });
 }

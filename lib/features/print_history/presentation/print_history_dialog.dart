@@ -11,6 +11,7 @@ import 'package:label_manager/features/customer/data/customer_dao.dart';
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/core/user.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/blocking_date_picker.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
@@ -24,13 +25,14 @@ typedef PrintHistoryQuery =
       int? customerId,
     });
 
-typedef PrintHistorySumQuery =
-    Future<int> Function({
-      String? startDate,
-      String? endDate,
+typedef PrintHistorySummaryQuery =
+    Future<List<PrintLogSummary>> Function({
+      required String startDate,
+      required String endDate,
       String? customerName,
-      String? labelSizeName,
     });
+
+typedef PrintHistoryDetailQuery = Future<PrintLogDetail?> Function(int logId);
 
 typedef PrintHistoryCooperatorLoader = Future<List<Cooperator>> Function();
 typedef PrintHistoryCustomerLoader =
@@ -81,7 +83,8 @@ class PrintHistoryDialogContent extends StatefulWidget {
     required this.initialCooperator,
     required this.initialCustomer,
     this.query = PrintLogDAO.select,
-    this.querySum = PrintLogDAO.selectPrintCountSum,
+    this.querySummary = PrintLogDAO.selectSummary,
+    this.queryDetail = PrintLogDAO.selectDetail,
     this.loadCooperators = CooperatorDAO.selectAll,
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
   });
@@ -90,7 +93,8 @@ class PrintHistoryDialogContent extends StatefulWidget {
   final Cooperator initialCooperator;
   final Customer initialCustomer;
   final PrintHistoryQuery query;
-  final PrintHistorySumQuery querySum;
+  final PrintHistorySummaryQuery querySummary;
+  final PrintHistoryDetailQuery queryDetail;
   final PrintHistoryCooperatorLoader loadCooperators;
   final PrintHistoryCustomerLoader loadCustomers;
 
@@ -234,6 +238,7 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
     final customer = _selectedCustomer;
     if (customer == null || _querying || _initializing) return;
     setState(() => _querying = true);
+    final queryWatch = Stopwatch()..start();
     try {
       final startDate = DateFormat('yyyyMMdd').format(_startDate);
       final endDate = DateFormat('yyyyMMdd').format(_endDate);
@@ -245,6 +250,20 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
       final customerId = customer.customerId == _allCustomer.customerId
           ? null
           : customer.customerId;
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'queryStarted',
+        fields: {
+          'startDate': startDate,
+          'endDate': endDate,
+          'searchType': _searchType.name,
+          'searchTextLength': searchText.length,
+          'customerId': customerId,
+          'emptyItemFilterOmitted':
+              _searchType == PrintLogSearchType.itemName && searchText.isEmpty,
+        },
+      );
+      final detailWatch = Stopwatch()..start();
       final logs = await widget.query(
         startDate: startDate,
         endDate: endDate,
@@ -252,14 +271,31 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
         searchText: searchText,
         customerId: customerId,
       );
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'detailCompleted',
+        fields: {
+          'elapsedMs': detailWatch.elapsedMilliseconds,
+          'rowCount': logs.length,
+        },
+      );
       final summaryCustomerName = customerId == null
           ? null
           : customer.customerName;
-      final total = await widget.querySum(customerName: summaryCustomerName);
-      final period = await widget.querySum(
+      final summaryWatch = Stopwatch()..start();
+      final summaries = await widget.querySummary(
         startDate: startDate,
         endDate: endDate,
         customerName: summaryCustomerName,
+      );
+      var summaryQueryCount = 1;
+      final total = summaries.fold<int>(
+        0,
+        (sum, summary) => sum + summary.totalPrintCount,
+      );
+      final period = summaries.fold<int>(
+        0,
+        (sum, summary) => sum + summary.periodPrintCount,
       );
       final nextRows = <PrintHistoryTableRow>[
         PrintHistoryTableRow.summary(
@@ -278,14 +314,21 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
       final customerIds = logs.map((log) => log.customerId).toSet();
       if (logs.isNotEmpty && customerIds.length == 1) {
         final customerName = logs.first.customerName;
+        final labelSummaries = summaryCustomerName == null
+            ? await widget.querySummary(
+                startDate: startDate,
+                endDate: endDate,
+                customerName: customerName,
+              )
+            : summaries;
+        if (summaryCustomerName == null) summaryQueryCount += 1;
+        final periodByLabelSize = {
+          for (final summary in labelSummaries)
+            summary.labelSizeName: summary.periodPrintCount,
+        };
         final labelSizes = <String>{for (final log in logs) log.labelSizeName};
         for (final labelSizeName in labelSizes) {
-          final count = await widget.querySum(
-            startDate: startDate,
-            endDate: endDate,
-            customerName: customerName,
-            labelSizeName: labelSizeName,
-          );
+          final count = periodByLabelSize[labelSizeName] ?? 0;
           if (count != 0) {
             nextRows.add(
               PrintHistoryTableRow.summary(
@@ -298,9 +341,34 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
           }
         }
       }
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'summaryCompleted',
+        fields: {
+          'elapsedMs': summaryWatch.elapsedMilliseconds,
+          'queryCount': summaryQueryCount,
+          'groupCount': summaries.length,
+          'total': total,
+          'period': period,
+        },
+      );
       nextRows.addAll(logs.map(PrintHistoryTableRow.log));
       if (mounted) setState(() => _rows = nextRows);
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'queryCompleted',
+        fields: {
+          'elapsedMs': queryWatch.elapsedMilliseconds,
+          'detailRowCount': logs.length,
+          'tableRowCount': nextRows.length,
+        },
+      );
     } catch (error) {
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'queryFailed',
+        fields: {'elapsedMs': queryWatch.elapsedMilliseconds, 'error': error},
+      );
       if (mounted) await _showMessage(error.toString());
     } finally {
       if (mounted) setState(() => _querying = false);
@@ -337,12 +405,50 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
     );
   }
 
-  Future<void> _showDetail(PrintHistoryTableRow row) {
+  Future<void> _showDetail(PrintHistoryTableRow row) async {
     final log = row.log;
-    if (log == null) return Future.value();
-    final columnNames = log.columnNames;
-    final savedCells = log.savedCells;
-    final printCells = log.printCells;
+    if (log == null) return;
+    final watch = Stopwatch()..start();
+    RegressionDebugLog.event(
+      'printHistoryQuery',
+      'detailLoadStarted',
+      fields: {'logId': log.logId},
+    );
+    late final PrintLogDetail detail;
+    try {
+      final loaded = await widget.queryDetail(log.logId);
+      if (loaded == null) {
+        RegressionDebugLog.event(
+          'printHistoryQuery',
+          'detailLoadMissing',
+          fields: {'logId': log.logId, 'elapsedMs': watch.elapsedMilliseconds},
+        );
+        if (mounted) await _showMessage('발행내역 상세 정보를 찾을 수 없습니다.');
+        return;
+      }
+      detail = loaded;
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'detailLoadCompleted',
+        fields: {'logId': log.logId, 'elapsedMs': watch.elapsedMilliseconds},
+      );
+    } catch (error) {
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'detailLoadFailed',
+        fields: {
+          'logId': log.logId,
+          'elapsedMs': watch.elapsedMilliseconds,
+          'error': error,
+        },
+      );
+      if (mounted) await _showMessage(error.toString());
+      return;
+    }
+    if (!mounted) return;
+    final columnNames = detail.columnNames;
+    final savedCells = detail.savedCells;
+    final printCells = detail.printCells;
     final rowCount = math.min(
       columnNames.length,
       math.min(savedCells.length, printCells.length),
@@ -355,7 +461,7 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
           printValue: printCells[index],
         ),
     ];
-    return showBlockingModelessOverlayDialog<void>(
+    await showBlockingModelessOverlayDialog<void>(
       context: context,
       builder: (overlayContext, close) => BlockingModelessDialogFrame(
         title: '발행내역 상세',
