@@ -36,6 +36,7 @@
 - DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
 - 최종 관련 테스트 재실행 결과: **통과(8/8)**. 최종 `git diff --check` 통과.
 - stage/commit 대상: `lib/features/print_history/data/print_log_dao.dart`, `lib/features/print_history/domain/print_log.dart`, `lib/features/print_history/presentation/print_history_dialog.dart`, `test/print_log_test.dart`, `test/print_history_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`.
+- 기능 구현 커밋: `5063439` (`발행내역 조회 성능 개선`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 브랜드 복사 후선택 비활성화 누락
