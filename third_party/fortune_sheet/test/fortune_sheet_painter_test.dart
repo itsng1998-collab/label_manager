@@ -2217,6 +2217,115 @@ void main() {
     );
   });
 
+  test('mixed merged cells paint selected range border edges', () async {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          showGridLines: false,
+          cells: {
+            const FortuneCellCoord(1, 1): const FortuneCell(
+              merge: FortuneCellMerge(row: 1, column: 1, columnSpan: 2),
+            ),
+            const FortuneCellCoord(1, 2): const FortuneCell(
+              merge: FortuneCellMerge(row: 1, column: 1),
+            ),
+            const FortuneCellCoord(2, 3): const FortuneCell(
+              merge: FortuneCellMerge(row: 2, column: 3, rowSpan: 2),
+            ),
+            const FortuneCellCoord(3, 3): const FortuneCell(
+              merge: FortuneCellMerge(row: 2, column: 3),
+            ),
+          },
+          borderInfo: const [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: 'border-all',
+              color: Color(0xffff0000),
+              style: 13,
+              ranges: [
+                FortuneRange(
+                  rowStart: 1,
+                  rowEnd: 3,
+                  columnStart: 1,
+                  columnEnd: 3,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 10, column: 10),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+    ).paint(canvas, const Size(360, 280));
+    final image = await recorder.endRecording().toImage(360, 280);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+
+    expect(bytes, isNotNull);
+    final bounds = _pixelBounds(
+      bytes!,
+      image.width,
+      const Rect.fromLTWH(0, 0, 360, 280),
+      _isRedPixel,
+    );
+    expect(bounds, isNotNull);
+    final selectedBounds = bounds!;
+    final dColumnLeft = selectedBounds.left + selectedBounds.width * 2 / 3;
+    final rowTwoBottom = selectedBounds.top + selectedBounds.height / 3;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTRB(
+          dColumnLeft + 3,
+          rowTwoBottom - 2,
+          selectedBounds.right - 3,
+          rowTwoBottom + 2,
+        ),
+        _isRedPixel,
+      ),
+      greaterThan(30),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTRB(
+          selectedBounds.right - 3,
+          rowTwoBottom + 3,
+          selectedBounds.right,
+          selectedBounds.bottom - 3,
+        ),
+        _isRedPixel,
+      ),
+      greaterThan(30),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTRB(
+          selectedBounds.left + 3,
+          selectedBounds.bottom - 3,
+          selectedBounds.right - 3,
+          selectedBounds.bottom,
+        ),
+        _isRedPixel,
+      ),
+      greaterThan(100),
+    );
+  });
+
   test('merged border outside viewport is not painted on clip edge', () async {
     final workbook = FortuneWorkbook(
       sheets: [

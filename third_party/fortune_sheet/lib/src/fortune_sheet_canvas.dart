@@ -11876,14 +11876,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         columnEnd: math.max(anchor.column, coord.column),
       ),
     );
+    final expandedRowEnd = coord.row < anchor.row
+        ? range.rowStart
+        : range.rowEnd;
+    final expandedColumnEnd = coord.column < anchor.column
+        ? range.columnStart
+        : range.columnEnd;
+    fortuneSheetDebugLog(
+      'fortune-merged-border-debug-v1 event=selectionDrag '
+      'anchor=${anchor.row},${anchor.column} hit=${coord.row},${coord.column} '
+      'expanded=${range.rowStart}:${range.rowEnd},${range.columnStart}:${range.columnEnd} '
+      'selectionEnd=$expandedRowEnd,$expandedColumnEnd',
+    );
     setState(() {
       scrollOffset = nextScrollOffset;
       _selectionDragging = true;
       selection = FortuneSelection(
         row: anchor.row,
         column: anchor.column,
-        rowEnd: coord.row,
-        columnEnd: coord.column,
+        rowEnd: expandedRowEnd,
+        columnEnd: expandedColumnEnd,
       );
       _writeSelectionRange(range, anchor);
       _closeTransientMenus();
@@ -32688,7 +32700,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _applyToolbarBorderCommand(String command) {
     final sheet = _workbook.activeSheet;
     final range = _borderCommandRange(sheet);
+    final before = FortuneBorderCompute.compute(sheet);
+    fortuneSheetDebugLog(
+      'fortune-merged-border-debug-v1 event=commandRequested '
+      'command=$command range=${range.rowStart}:${range.rowEnd},${range.columnStart}:${range.columnEnd} '
+      'merges=${_debugMergedRangesInRange(sheet, range)} borderCells=${before.length}',
+    );
     if (!_canEditRange(sheet, range)) {
+      fortuneSheetDebugLog(
+        'fortune-merged-border-debug-v1 event=commandRejected reason=readOnly command=$command',
+      );
       setState(_closeTransientMenus);
       return;
     }
@@ -32714,12 +32735,42 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final borderInfo = [...sheet.borderInfo, nextBorderInfo];
     final sheets = [..._workbook.sheets];
-    sheets[_workbook.activeSheetIndex] = sheet.copyWith(borderInfo: borderInfo);
+    final nextSheet = sheet.copyWith(borderInfo: borderInfo);
+    sheets[_workbook.activeSheetIndex] = nextSheet;
+    final after = FortuneBorderCompute.compute(nextSheet);
+    fortuneSheetDebugLog(
+      'fortune-merged-border-debug-v1 event=commandApplied '
+      'command=$command borderCellsBefore=${before.length} borderCellsAfter=${after.length}',
+    );
     _recordUndoSnapshot();
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
+  }
+
+  String _debugMergedRangesInRange(FortuneSheet sheet, FortuneRange range) {
+    final mergedRanges = <String>{};
+    for (final cell in sheet.cells.values) {
+      final merge = cell.merge;
+      if (merge == null || (merge.rowSpan <= 1 && merge.columnSpan <= 1)) {
+        continue;
+      }
+      final mergeRange = FortuneRange(
+        rowStart: merge.row,
+        rowEnd: merge.row + (merge.rowSpan < 1 ? 1 : merge.rowSpan) - 1,
+        columnStart: merge.column,
+        columnEnd:
+            merge.column + (merge.columnSpan < 1 ? 1 : merge.columnSpan) - 1,
+      );
+      if (_rangesIntersect(range, mergeRange)) {
+        mergedRanges.add(
+          '${mergeRange.rowStart}:${mergeRange.rowEnd},'
+          '${mergeRange.columnStart}:${mergeRange.columnEnd}',
+        );
+      }
+    }
+    return mergedRanges.join(';');
   }
 
   bool _rangeHasComputedBorders(FortuneSheet sheet, FortuneRange range) {

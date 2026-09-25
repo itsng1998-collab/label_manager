@@ -1,5 +1,34 @@
 # SESSION HANDOFF
 
+## 현재 작업: 병합 셀 포함 범위 테두리 누락
+- **완료**: 공용라벨관리에서 `B2:C2`, `D3:D4`를 병합한 뒤 `B2:D4` 범위에 전체 테두리를 적용하면 일부 우측·하단 테두리가 표시되지 않는 1.4.16 회귀를 수정했다.
+- 제출 로그: `.tmp/1.4.16로그/공용라벨관리_병합셀 테두리 미적용.log`의 초기 구간에는 로그인·DB 초기화만 있고 테두리 command/선택/병합/계산 결과 로그가 없다.
+- 원인 확정: D4 병합 follower hit-test가 D3 anchor로 정규화된 뒤 저장 range만 `B2:D4`로 확장되고 runtime `FortuneSelection.rowEnd`는 D3에 남았다. toolbar가 runtime selection을 사용해 실제 command range를 `B2:D3`으로 축약했다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 편집 완료: `_updateSelectionDrag`가 drag 방향에 맞는 병합 확장 range 경계를 runtime selection end에도 기록하도록 수정했다.
+- 재현 로그 추가 완료: `fortune-merged-border-debug-v1`에 drag anchor/hit/expanded/selectionEnd와 toolbar command range/merge/border cell 수를 기록한다.
+- 수정 전 계산 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_border_compute_test.dart --plain-name "mixed merged cells preserve selected range border edges"`.
+- 수정 전 계산 focused test 결과: **통과(1/1)**. `D2` 우측·하단, `D3:D4` 병합영역 상단·우측·하단 edge가 모두 계산돼 `_removeMergeInnerBorders` 원인 가설은 기각됐다.
+- 제출 로그 키워드 재검색 결과: `border|merge|toolbar|selection|테두리|병합` 기록이 없어 당시 command/선택/병합/계산 상태를 확인할 수 없다.
+- 수정 전 painter focused test 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_sheet_painter_test.dart --plain-name "mixed merged cells paint selected range border edges"`.
+- 수정 전 painter focused test 결과: **통과(1/1)**. 동일 병합 배치의 `D2/D3` 공유선, `D3:D4` 우측선, `B4:D4` 하단선이 모두 실제 픽셀로 렌더돼 painter 원인 가설도 기각됐다.
+- `third_party/fortune_sheet/test/fortune_merged_border_selection_test.dart` 추가 완료: 실제 `B2 → D4` drag와 toolbar 전체 테두리 적용 후 command range `B2:D4`, B4/C4 하단 edge를 검증한다.
+- toolbar focused test 결과: **통과(1/1)**. `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_merged_border_selection_test.dart --plain-name "toolbar border preserves mixed merged selection edges"`.
+- 기존 toolbar drag focused test 결과: **통과(1/1)**. `toolbar border popup uses dragged selection range`의 비병합 선택 동작을 유지한다.
+- IDE diagnostics 결과: production 및 관련 테스트 파일 오류 0건.
+- `pubspec.yaml` 버전: `1.4.25` → `1.4.26`.
+- Dart formatter 적용 완료: production 파일과 계산/painter/widget 회귀 테스트 파일.
+- 관련 테스트 파일 전체 결과: 이번 병합 테두리 3개 테스트는 통과했으나 painter의 기존 별도 테스트 `typed object culling includes exact clip boundary contact`가 예상 픽셀 `>20`, 실제 `0`으로 1건 실패했다(791개 실행 시점). 이번 선택/border 변경과 직접 관련 없음.
+- 병합 테두리 focused 테스트 재실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_border_compute_test.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart third_party/fortune_sheet/test/fortune_merged_border_selection_test.dart --name "mixed merged cells|toolbar border preserves"`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_border_compute_test.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart third_party/fortune_sheet/test/fortune_merged_border_selection_test.dart`.
+- 병합 테두리 focused 테스트 최종 결과: **통과(3/3)**.
+- 기존 비병합 toolbar drag focused 테스트 최종 결과: **통과(1/1)**.
+- analyzer 결과: 새 오류 없음. 기존 `fortune_sheet_canvas.dart`의 미사용 필드/메서드 경고 10건으로 종료 코드 1이며 이번 변경 구간의 새 경고는 없다.
+- IDE diagnostics 최종 결과: production 및 관련 테스트 파일 오류 0건.
+- DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
+- 최종 `git diff --check` 통과, 관련 파일 외 포맷 churn 없음.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, 계산/painter/widget 회귀 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 완료 작업: 품목 출력 미리보기 연결 바코드 렌더링
 - **완료**: 공용라벨의 바코드 개체를 `바코드 (#BARCODE)`에 연결한 뒤 품목 값 `88123456789012`를 입력해도 출력 내용 미리보기에 저장 당시 표시용 바코드가 남는 1.4.16 회귀를 수정했다.
 - 재현 로그 확인: `.tmp/1.4.16로그/공용라벨관리_바코드 미표시.log`에는 저장 workbook과 미리보기 생성 흔적은 있으나 연결 바코드의 resolve/render 단계 로그가 없다.

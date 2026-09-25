@@ -795,6 +795,48 @@ void main() {
     expect(borders[const FortuneCellCoord(1, 1)]?.bottom?.style, 13);
   });
 
+  test('mixed merged cells preserve selected range border edges', () {
+    final cells = {
+      const FortuneCellCoord(1, 1): const FortuneCell(
+        merge: FortuneCellMerge(row: 1, column: 1, columnSpan: 2),
+      ),
+      const FortuneCellCoord(1, 2): const FortuneCell(
+        merge: FortuneCellMerge(row: 1, column: 1),
+      ),
+      const FortuneCellCoord(2, 3): const FortuneCell(
+        merge: FortuneCellMerge(row: 2, column: 3, rowSpan: 2),
+      ),
+      const FortuneCellCoord(3, 3): const FortuneCell(
+        merge: FortuneCellMerge(row: 2, column: 3),
+      ),
+    };
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Sheet1',
+      cells: cells,
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-all',
+          color: Color(0xff123456),
+          style: 13,
+          ranges: [
+            FortuneRange(rowStart: 1, rowEnd: 3, columnStart: 1, columnEnd: 3),
+          ],
+        ),
+      ],
+    );
+
+    final borders = FortuneBorderCompute.compute(sheet);
+
+    expect(borders[const FortuneCellCoord(1, 3)]?.right?.style, 13);
+    expect(borders[const FortuneCellCoord(1, 3)]?.bottom?.style, 13);
+    expect(borders[const FortuneCellCoord(2, 3)]?.top?.style, 13);
+    expect(borders[const FortuneCellCoord(2, 3)]?.right?.style, 13);
+    expect(borders[const FortuneCellCoord(3, 3)]?.right?.style, 13);
+    expect(borders[const FortuneCellCoord(3, 3)]?.bottom?.style, 13);
+  });
+
   test('raw range borders suppress merged cell internals', () {
     final cells = {
       const FortuneCellCoord(0, 0): const FortuneCell(
