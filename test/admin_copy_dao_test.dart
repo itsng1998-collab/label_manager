@@ -61,6 +61,35 @@ void main() {
     expect(sql, isNot(contains('COMMIT TRANSACTION')));
   });
 
+  test('brand item copy resets mappings for every label size', () {
+    final sql = AdminCopyDAO.copyBrandSql;
+    final labelSizeLoop = sql.indexOf('WHILE @RowNo<=@RowCount');
+    final clearSourceItems = sql.indexOf('DELETE FROM @SourceItems;');
+    final loadSourceItems = sql.indexOf(
+      'INSERT INTO @SourceItems (SOURCE_ITEM_ID)',
+    );
+
+    expect(clearSourceItems, greaterThan(labelSizeLoop));
+    expect(clearSourceItems, greaterThanOrEqualTo(0));
+    expect(clearSourceItems, lessThan(loadSourceItems));
+    expect(sql, contains('DELETE FROM @ItemMap;'));
+    expect(sql, contains('DELETE FROM @CapturedItem;'));
+    expect(sql, contains('DELETE FROM @ColumnMap;'));
+    expect(sql, contains('DELETE FROM @CopiedContent;'));
+    expect(
+      sql,
+      contains(
+        'DECLARE @ItemRowNo INT=(SELECT MIN(ROW_NO) FROM @SourceItems);',
+      ),
+    );
+    expect(
+      sql,
+      contains(
+        'DECLARE @ItemRowCount INT=(SELECT MAX(ROW_NO) FROM @SourceItems);',
+      ),
+    );
+  });
+
   test('item copy requires preflight target market', () async {
     await expectLater(
       AdminCopyDAO.copyLabelSize(

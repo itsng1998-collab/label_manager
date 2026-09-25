@@ -1,5 +1,28 @@
 # SESSION HANDOFF
 
+## 현재 작업: 관리자 브랜드 품목 복사 PK 오류
+- **완료**: 관리자 복사에서 동일 거래처의 브랜드를 `품목까지 복사`하면 `@ItemMap`의 `SOURCE_ITEM_ID=722764` PK 중복으로 실패하는 1.4.16 회귀를 수정했다.
+- 제출 로그 확인: source/target customerId=2, sourceBrandId=1288, copyItems=true이며 SQL Server native 2627 오류가 두 번째 라벨크기 처리 중 `@ItemMap`에 발생했다.
+- 원인 가설: 브랜드의 라벨크기 반복문 안에서 선언된 `_copyItems` 테이블 변수가 반복 간 유지된다. `@SourceItems` IDENTITY는 계속 증가하지만 `@ItemRowNo=1`로 재시작해 이전 source item ID를 재사용하고, 비워지지 않은 `@ItemMap` PK에 중복 삽입한다.
+- 수정 전 회귀 테스트 추가: 각 라벨크기 처리 전에 품목/매핑 작업 테이블을 비우고 현재 `@SourceItems`의 `MIN/MAX(ROW_NO)`를 순회하는 SQL 계약을 검증한다.
+- 수정 전 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/admin_copy_dao_test.dart --plain-name "brand item copy resets mappings for every label size"`.
+- 수정 전 focused test 결과: **실패(예상 일치)**. `DELETE FROM @SourceItems`가 없어 첫 assertion에서 실패했다.
+- `lib/features/admin_copy/data/admin_copy_dao.dart` 편집 완료: `_copyItems` 시작 시 5개 작업 테이블을 초기화하고, 누적 IDENTITY에 맞춰 현재 행의 `MIN/MAX(ROW_NO)`를 순회한다.
+- 재현 로그 추가: `adminCopyBrandSql`의 `transactionRequested`, `transactionCompleted`, `transactionFailed`에 sourceBrandId/targetCustomerId/copyItems/targetFirstMarketId와 `itemWorkspaceReset=v1`을 기록하고 오류는 그대로 재전파한다.
+- 수정 후 focused test 결과: **통과(1/1)**. 초기화가 브랜드 라벨크기 반복문 내부이며 현재 source item identity 구간만 순회하는지 확인했다.
+- `pubspec.yaml` 버전: `1.4.27` → `1.4.28`.
+- Dart formatter 적용 완료: `lib/features/admin_copy/data/admin_copy_dao.dart`, `test/admin_copy_dao_test.dart`.
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/admin_copy_dao_test.dart test/admin_copy_dialog_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/features/admin_copy/data/admin_copy_dao.dart test/admin_copy_dao_test.dart lib/features/admin_copy/presentation/admin_copy_dialog.dart test/admin_copy_dialog_test.dart`.
+- 관련 테스트 결과: **통과(14/14)**.
+- analyzer 결과: **No issues found**.
+- 운영 DB에 데이터를 생성하는 관리자 복사 실행은 자동 수행하지 않았으며, SQL Server 반복 상태는 DAO SQL 계약 테스트로 검증했다.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
+- 최종 `git diff --check` 통과, 관련 파일 외 포맷 churn 없음.
+- stage/commit 대상: `lib/features/admin_copy/data/admin_copy_dao.dart`, `test/admin_copy_dao_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 관리자 복사 거래처 검색 중 멈춤
 - **완료**: 파일/관리 → 관리자 복사에서 거래처 검색 메뉴를 연 뒤 프로그램이 멈추고 디버그 재진입 시 화면 분할 및 반복 예외가 발생하는 1.4.16 회귀를 수정했다.
 - 제출 로그 확인: `dropdownSearch/opened` 직후 조상 `Expanded` build 중 `ModelessDropdownFormField.didUpdateWidget`가 `_menuEntry.markNeedsBuild()`를 호출해 `setState() or markNeedsBuild() called during build`가 발생한다. 이후 layout overflow와 deactivated context gesture 예외는 손상된 widget tree의 후속 증상이다.

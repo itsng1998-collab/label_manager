@@ -2,6 +2,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/admin_copy/domain/admin_copy.dart';
 import 'package:label_manager/database/dao.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 class AdminCopyDAO extends DAO {
   static const String _columnNames = '''
@@ -104,15 +105,21 @@ class AdminCopyDAO extends DAO {
       PRIMARY KEY (TARGET_COLUMN_ID, TARGET_ITEM_ID)
     );
 
+    DELETE FROM @SourceItems;
+    DELETE FROM @ItemMap;
+    DELETE FROM @CapturedItem;
+    DELETE FROM @ColumnMap;
+    DELETE FROM @CopiedContent;
+
     INSERT INTO @SourceItems (SOURCE_ITEM_ID)
     SELECT RICH_ITEM_ID
       FROM BM_RICH_ITEM
      WHERE RICH_LABELSIZE_ID=@FromSizeId
      ORDER BY RICH_ITEM_ORDER, RICH_ITEM_ID;
 
-    DECLARE @ItemRowNo INT=1;
-    DECLARE @ItemRowCount INT=(SELECT COUNT(*) FROM @SourceItems);
-    WHILE @ItemRowNo<=@ItemRowCount
+    DECLARE @ItemRowNo INT=(SELECT MIN(ROW_NO) FROM @SourceItems);
+    DECLARE @ItemRowCount INT=(SELECT MAX(ROW_NO) FROM @SourceItems);
+    WHILE @ItemRowNo IS NOT NULL AND @ItemRowNo<=@ItemRowCount
     BEGIN
       DECLARE @SourceItemId INT;
       SELECT @SourceItemId=SOURCE_ITEM_ID
@@ -364,19 +371,55 @@ class AdminCopyDAO extends DAO {
 
   static Future<void> copyBrand(AdminBrandCopyCommand command) async {
     _validateItemTarget(command.copyItems, command.targetFirstMarketId);
-    await DbClient.instance.transaction([
-      DbTransactionStatement(
-        sql: copyBrandSql,
-        params: {
+    RegressionDebugLog.event(
+      'adminCopyBrandSql',
+      'transactionRequested',
+      fields: {
+        'sourceBrandId': command.sourceBrandId,
+        'targetCustomerId': command.targetCustomerId,
+        'copyItems': command.copyItems,
+        'targetFirstMarketId': command.targetFirstMarketId,
+        'itemWorkspaceReset': 'v1',
+      },
+    );
+    try {
+      await DbClient.instance.transaction([
+        DbTransactionStatement(
+          sql: copyBrandSql,
+          params: {
+            'sourceBrandId': command.sourceBrandId,
+            'targetCustomerId': command.targetCustomerId,
+            'sourceBrandName': command.sourceBrandName,
+            'copyItems': command.copyItems ? 1 : 0,
+            'targetFirstMarketId': command.targetFirstMarketId,
+          },
+          returnsRows: true,
+        ),
+      ]);
+      RegressionDebugLog.event(
+        'adminCopyBrandSql',
+        'transactionCompleted',
+        fields: {
           'sourceBrandId': command.sourceBrandId,
           'targetCustomerId': command.targetCustomerId,
-          'sourceBrandName': command.sourceBrandName,
-          'copyItems': command.copyItems ? 1 : 0,
-          'targetFirstMarketId': command.targetFirstMarketId,
+          'copyItems': command.copyItems,
+          'itemWorkspaceReset': 'v1',
         },
-        returnsRows: true,
-      ),
-    ]);
+      );
+    } catch (error) {
+      RegressionDebugLog.event(
+        'adminCopyBrandSql',
+        'transactionFailed',
+        fields: {
+          'sourceBrandId': command.sourceBrandId,
+          'targetCustomerId': command.targetCustomerId,
+          'copyItems': command.copyItems,
+          'itemWorkspaceReset': 'v1',
+          'error': error,
+        },
+      );
+      rethrow;
+    }
   }
 
   static void _validateItemTarget(bool copyItems, int? targetFirstMarketId) {
