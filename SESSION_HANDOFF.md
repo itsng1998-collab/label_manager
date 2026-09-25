@@ -36,6 +36,8 @@
 - 최종 IDE diagnostics 결과: production/test 파일과 `pubspec.yaml` 오류 0건.
 - 최종 diff 검토 예정: `git diff --check`, `git status --short`, 관련 파일 diff 확인.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 최종 diff 검토 완료: `git diff --check` 통과, 관련 파일 외 무관한 포맷 변경 없음.
+- 기능 구현 커밋: `75f5593` (`품목 미리보기 연결 바코드 렌더링`).
 - DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
 - 최종 diff 검토 예정: `git diff --check`, `git status --short`, 관련 파일 diff 확인.
 - stage/commit 예정: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
