@@ -86,6 +86,7 @@ import 'package:label_manager/core/app_menu_command.dart';
 import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/core/user.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_workbook_builder.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
@@ -9371,7 +9372,7 @@ List<String> _itemPreviewBarcodeObjectIdsFor(Iterable<TColumnBase> columns) {
   return commonLabelBarcodeObjectIdsFromColumns(columns);
 }
 
-class _ItemOutputPreviewTab extends StatelessWidget {
+class _ItemOutputPreviewTab extends StatefulWidget {
   const _ItemOutputPreviewTab({
     super.key,
     required this.item,
@@ -9401,33 +9402,246 @@ class _ItemOutputPreviewTab extends StatelessWidget {
   final LabelSheetZoomController? zoomController;
 
   @override
+  State<_ItemOutputPreviewTab> createState() =>
+      _ItemOutputPreviewTabState();
+}
+
+class _ItemOutputPreviewTabState extends State<_ItemOutputPreviewTab> {
+  late DateTime _fallbackReferenceAt;
+  String? _renderIdentity;
+  Future<({fs.FortuneWorkbook? workbook, String? hintText})>? _renderFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _fallbackReferenceAt = widget.referenceAt ?? DateTime.now();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ItemOutputPreviewTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.referenceAt == null && oldWidget.item != widget.item) {
+      _fallbackReferenceAt = DateTime.now();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final previewAt = referenceAt ?? DateTime.now();
+    final previewAt = widget.referenceAt ?? _fallbackReferenceAt;
     final preview = _itemOutputPreview(
-      labelSize: labelSize,
-      item: item,
-      elementText: elementText,
-      elementWorkbook: elementWorkbook,
+      labelSize: widget.labelSize,
+      item: widget.item,
+      elementText: widget.elementText,
+      elementWorkbook: widget.elementWorkbook,
       referenceAt: previewAt,
-      projectedColumnValues: projectedColumnValues,
+      projectedColumnValues: widget.projectedColumnValues,
     );
-    return LabelOutputPreview(
+    final identity = _itemOutputPreviewIdentityKey(
+      labelSizeId: widget.labelSize?.labelSizeId,
+      itemId: widget.item.item.itemId,
       workbook: preview.workbook,
-      hintText: preview.hintText,
-      identityKey: _itemOutputPreviewIdentityKey(
-        labelSizeId: labelSize?.labelSizeId,
-        itemId: item.item.itemId,
-        workbook: preview.workbook,
-      ),
-      labelSize: labelSize,
-      imageObjectIds: imageObjectIds,
-      barcodeObjectIds: barcodeObjectIds,
-      outputCaptureController: outputCaptureController,
-      zoomToolbarPlacement: zoomToolbarPlacement,
-      zoomController: zoomController,
-      autoFitWidth: true,
+    );
+    if (!_itemOutputPreviewHasResolvedBarcodes(preview.workbook)) {
+      _renderIdentity = null;
+      _renderFuture = null;
+      return _buildPreview(preview, identity);
+    }
+    if (_renderIdentity != identity) {
+      _renderIdentity = identity;
+      _renderFuture = _renderItemOutputPreview(preview);
+    }
+    return FutureBuilder<({fs.FortuneWorkbook? workbook, String? hintText})>(
+      future: _renderFuture,
+      builder: (context, snapshot) {
+        final rendered = snapshot.data;
+        return _buildPreview(
+          (
+            workbook: rendered?.workbook,
+            hintText: snapshot.hasError
+                ? '바코드 미리보기를 생성하지 못했습니다.'
+                : rendered?.hintText ?? '미리보기를 불러오는 중입니다.',
+          ),
+          identity,
+        );
+      },
     );
   }
+
+  Widget _buildPreview(
+    ({fs.FortuneWorkbook? workbook, String? hintText}) preview,
+    String identity,
+  ) => LabelOutputPreview(
+    workbook: preview.workbook,
+    hintText: preview.hintText,
+    identityKey: identity,
+    labelSize: widget.labelSize,
+    imageObjectIds: widget.imageObjectIds,
+    barcodeObjectIds: widget.barcodeObjectIds,
+    outputCaptureController: widget.outputCaptureController,
+    zoomToolbarPlacement: widget.zoomToolbarPlacement,
+    zoomController: widget.zoomController,
+    autoFitWidth: true,
+  );
+}
+
+bool _itemOutputPreviewHasResolvedBarcodes(fs.FortuneWorkbook? workbook) =>
+    workbook?.sheets.any(
+      (sheet) => sheet.images.any(
+        (image) =>
+            image.extraFields['fortuneBarcode'] == true &&
+            image.extraFields['itemCodePreviewResolved'] == true,
+      ),
+    ) ==
+    true;
+
+Future<({fs.FortuneWorkbook? workbook, String? hintText})>
+_renderItemOutputPreview(
+  ({fs.FortuneWorkbook? workbook, String? hintText}) preview,
+) async {
+  final workbook = preview.workbook;
+  if (workbook == null) return preview;
+  return (
+    workbook: await _renderItemOutputPreviewBarcodes(workbook),
+    hintText: preview.hintText,
+  );
+}
+
+@visibleForTesting
+Future<fs.FortuneWorkbook> debugRenderItemOutputPreviewBarcodesForTesting(
+  fs.FortuneWorkbook workbook, {
+  required fs.FortuneBarcodeRenderer renderer,
+}) => _renderItemOutputPreviewBarcodes(workbook, renderer: renderer);
+
+Future<fs.FortuneWorkbook> _renderItemOutputPreviewBarcodes(
+  fs.FortuneWorkbook workbook, {
+  fs.FortuneBarcodeRenderer renderer = labelSheetBarcodeRenderer,
+}) async {
+  final sheets = <fs.FortuneSheet>[];
+  for (final sheet in workbook.sheets) {
+    final images = <fs.FortuneImage>[];
+    for (final image in sheet.images) {
+      final extra = image.extraFields;
+      if (extra['fortuneBarcode'] != true ||
+          extra['itemCodePreviewResolved'] != true ||
+          extra['itemCodeError'] != null) {
+        images.add(image);
+        continue;
+      }
+      final objectId = '${extra[fs.fortuneBarcodeObjectIdExtraKey] ?? ''}'
+          .trim();
+      final text = '${extra['barcodeText'] ?? ''}'.trim();
+      final formatId = '${extra['barcodeFormatId'] ?? ''}'.trim();
+      RegressionDebugLog.event(
+        'itemOutputBarcode',
+        'renderStarted',
+        fields: {
+          'objectId': objectId,
+          'text': text,
+          'format': formatId,
+          'width': image.width,
+          'height': image.height,
+        },
+      );
+      fs.FortuneBarcodeRenderResult? result;
+      try {
+        result = await renderer(
+          fs.FortuneBarcodeRequest(
+            text: text,
+            formatId: formatId,
+            width: image.width,
+            height: image.height,
+            rotation: _itemPreviewExtraDouble(extra, 'rotation'),
+            moduleScale: _itemPreviewExtraDouble(
+              extra,
+              'barcodeModuleScale',
+              fallback: 3,
+            ),
+            barHeight: _itemPreviewExtraDouble(
+              extra,
+              'barcodeBarHeight',
+              fallback: 10,
+            ),
+            leadingText: '${extra['barcodeLeadingText'] ?? ''}',
+            trailingText: '${extra['barcodeTrailingText'] ?? ''}',
+            showHumanReadableText: extra['barcodeShowText'] == true,
+            humanReadableFontFamily:
+                extra['barcodeHumanReadableFontFamily']?.toString(),
+            humanReadableFontSize: _itemPreviewExtraDouble(
+              extra,
+              'barcodeHumanReadableFontSize',
+              fallback: 14,
+            ),
+          ),
+        );
+      } on Object catch (error) {
+        RegressionDebugLog.event(
+          'itemOutputBarcode',
+          'renderException',
+          fields: {'objectId': objectId, 'error': error.runtimeType},
+        );
+      }
+      if (result == null) {
+        RegressionDebugLog.event(
+          'itemOutputBarcode',
+          'renderFailed',
+          fields: {'objectId': objectId, 'text': text, 'format': formatId},
+        );
+        images.add(
+          image.copyWith(
+            src: _itemCodeErrorPlaceholderDataUri(),
+            extraFields: {
+              ...extra,
+              'itemCodeError': '바코드를 표시할 수 없습니다.',
+            },
+          ),
+        );
+        continue;
+      }
+      final pixelHeight = (result.pixelHeight ?? image.height).toDouble();
+      final bodyHeight = (result.bodyHeight ?? pixelHeight).toDouble();
+      final nextExtra = <String, Object?>{
+        ...extra,
+        'originWidth': result.pixelWidth ?? image.width,
+        'originHeight': result.pixelHeight ?? image.height,
+        fs.fortuneBarcodeBodyTopExtraKey: (result.bodyTop ?? 0).toDouble(),
+        fs.fortuneBarcodeBodyHeightExtraKey: bodyHeight,
+        fs.fortuneBarcodeBodyRatioExtraKey: pixelHeight <= 0
+            ? 1.0
+            : (bodyHeight / pixelHeight).clamp(0.0, 1.0),
+          }..remove(fs.fortuneBarcodeObjectIdExtraKey);
+      images.add(
+        image.copyWith(
+          src:
+              'data:${result.mimeType};base64,${base64Encode(result.bytes)}',
+          extraFields: nextExtra,
+        ),
+      );
+      RegressionDebugLog.event(
+        'itemOutputBarcode',
+        'renderCompleted',
+        fields: {
+          'objectId': objectId,
+          'text': text,
+          'format': formatId,
+          'bytes': result.bytes.length,
+          'pixelWidth': result.pixelWidth,
+          'pixelHeight': result.pixelHeight,
+        },
+      );
+    }
+    sheets.add(sheet.copyWith(images: images));
+  }
+  return workbook.copyWith(sheets: sheets);
+}
+
+double _itemPreviewExtraDouble(
+  Map<String, Object?> extra,
+  String key, {
+  double fallback = 0,
+}) {
+  final value = extra[key];
+  if (value is num) return value.toDouble();
+  return double.tryParse('$value') ?? fallback;
 }
 
 String _itemOutputPreviewIdentityKey({
@@ -11281,7 +11495,7 @@ fs.FortuneImage? _replaceImageKeywords(
         extraFields,
         resolved,
         preserveTemplateBarcodeFormat: preserveTemplateFormat,
-      );
+      )..['itemCodePreviewResolved'] = true;
       return image.copyWith(
         src: resolved.error == null
             ? image.src

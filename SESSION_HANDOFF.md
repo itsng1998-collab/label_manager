@@ -1,5 +1,46 @@
 # SESSION HANDOFF
 
+## 완료 작업: 품목 출력 미리보기 연결 바코드 렌더링
+- **완료**: 공용라벨의 바코드 개체를 `바코드 (#BARCODE)`에 연결한 뒤 품목 값 `88123456789012`를 입력해도 출력 내용 미리보기에 저장 당시 표시용 바코드가 남는 1.4.16 회귀를 수정했다.
+- 재현 로그 확인: `.tmp/1.4.16로그/공용라벨관리_바코드 미표시.log`에는 저장 workbook과 미리보기 생성 흔적은 있으나 연결 바코드의 resolve/render 단계 로그가 없다.
+- 원인 확인: `_replaceImageKeywords`는 `barcodeObjectId`를 `ItemCodeDataResolver`로 해석해 `barcodeText` metadata만 교체하고 실제 표시되는 `FortuneImage.src`는 저장 당시 PNG로 유지한다.
+- 구현 방향: 품목 출력 미리보기에서 치환된 barcode metadata로 `labelSheetBarcodeRenderer`를 실행하고, 완료된 PNG `src`가 준비된 뒤 `LabelOutputPreview`를 표시/캡처한다.
+- 재현 로그 계획: `itemOutputBarcode` feature에 objectId/text/format/geometry 및 render 성공·실패를 기록한다.
+- 수정 전 focused test 추가: `barcodeText=88123456789012` metadata를 renderer 요청에 전달하고 기존 `src`를 반환 PNG data URI로 교체하는지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "item output preview renders resolved barcode image source"`.
+- 수정 전 테스트 결과: **실패(예상)**. 재렌더 helper가 없었고, 테스트 fixture의 잘못된 `const Uint8List.fromList`도 확인해 함께 수정했다.
+- `lib/home_page_manager.dart` 편집 완료: 연결값 해석 성공 metadata를 표시하고, 품목 미리보기에서 해당 바코드를 `labelSheetBarcodeRenderer`로 비동기 렌더한 뒤 PNG `src`와 body geometry를 갱신한다. 미리보기/출력 캡처는 렌더 완료 workbook을 사용한다.
+- 재현 로그 추가: `regression-debug-v1 feature=itemOutputBarcode`의 `renderStarted`, `renderCompleted`, `renderFailed`, `renderException` 이벤트에 objectId/text/format/geometry/결과를 기록한다.
+- `test/label_sheet_toolbar_test.dart` 편집 완료: `88123456789012`가 renderer 요청에 전달되고 반환 PNG data URI와 body ratio가 적용되는지 검증한다.
+- focused test 재실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "item output preview renders resolved barcode image source"`.
+- focused test 결과: **통과(1/1)**. `itemOutputBarcode/renderStarted` 및 `renderCompleted` 로그에서 `objectId=#BARCODE text=88123456789012 format=code128`을 확인했다.
+- Dart formatter 적용 완료: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`.
+- IDE diagnostics 결과: production/test 파일 오류 0건.
+- 앱 바코드 관련 테스트 결과: **통과(7/7)**.
+- `pubspec.yaml` 버전: `1.4.24` → `1.4.25`.
+- 품목 출력 미리보기 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "item output preview"`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/home_page_manager.dart test/label_sheet_toolbar_test.dart`.
+- analyzer 1차 결과: **No issues found**.
+- 품목 출력 미리보기 관련 테스트 1차 결과: 8개 중 1개 실패. 바코드가 없는 일반 미리보기까지 Future 경로를 거치며 `item output preview keeps zoom after panel recreation`의 폭맞춤 적용 시점이 바뀌었다.
+- 회귀 보정: `itemCodePreviewResolved=true`인 연결 바코드가 있는 workbook만 비동기 재렌더하고, 일반 미리보기는 기존 동기 `LabelOutputPreview` 경로를 유지한다.
+- zoom focused test 재실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "item output preview keeps zoom after panel recreation"`.
+- zoom focused test 결과: **통과(1/1)**.
+- 품목 출력 미리보기 관련 테스트 최종 결과: **통과(9/9)**.
+- analyzer 최종 결과: **No issues found**(종료 코드 0).
+- IDE diagnostics 최종 결과: production/test 파일과 `pubspec.yaml` 오류 0건.
+- 첨부 화면 추가 확인: 흰색 `#BARCODE` 박스는 저장 PNG가 아니라 painter의 편집용 연결 ID 오버레이다. 재렌더 완료된 미리보기 사본에서 `barcodeObjectId` metadata를 제거해 숫자 바코드를 가리지 않도록 보정하고, 원본 공용라벨 데이터는 유지한다.
+- 오버레이 제거 focused test 재실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "item output preview renders resolved barcode image source"`.
+- 오버레이 제거 focused test 결과: **통과(1/1)**.
+- 최종 품목 출력 미리보기 관련 테스트 결과: **통과(9/9)**.
+- 최종 analyzer 결과: **No issues found**(종료 코드 0).
+- 최종 IDE diagnostics 결과: production/test 파일과 `pubspec.yaml` 오류 0건.
+- 최종 diff 검토 예정: `git diff --check`, `git status --short`, 관련 파일 diff 확인.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
+- 최종 diff 검토 예정: `git diff --check`, `git status --short`, 관련 파일 diff 확인.
+- stage/commit 예정: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 완료 작업: 바코드 개체 속성 형식 ComboBox
 - **완료**: 시트의 바코드 개체를 선택했을 때 `바코드 속성`의 형식을 자유 입력 TextField가 아닌 삽입 다이얼로그와 동일한 형식 목록 ComboBox로 변경했다.
 - 현재 원인: `FortuneObjectLayerPanel`은 barcode format 목록을 받지 않으며 `_ObjectPropertyEditor`가 `barcodeFormatId`를 일반 `_field` TextField로 렌더링한다.

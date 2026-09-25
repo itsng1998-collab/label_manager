@@ -697,6 +697,69 @@ void main() {
     },
   );
 
+  test('item output preview renders resolved barcode image source', () async {
+    FortuneBarcodeRequest? request;
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Label',
+          images: const [
+            FortuneImage(
+              id: 'barcode',
+              src: 'data:image/png;base64,OLD=',
+              left: 10,
+              top: 20,
+              width: 120,
+              height: 60,
+              extraFields: {
+                'fortuneBarcode': true,
+                'itemCodePreviewResolved': true,
+                fortuneBarcodeObjectIdExtraKey: '#BARCODE',
+                'barcodeText': '88123456789012',
+                'barcodeFormatId': 'code128',
+                'barcodeModuleScale': 3,
+                'barcodeBarHeight': 10,
+                'barcodeShowText': true,
+                'barcodeHumanReadableFontFamily': 'Arial',
+                'barcodeHumanReadableFontSize': 14,
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final rendered = await debugRenderItemOutputPreviewBarcodesForTesting(
+      workbook,
+      renderer: (value) async {
+        request = value;
+        return FortuneBarcodeRenderResult(
+          bytes: Uint8List.fromList([1, 2, 3]),
+          mimeType: 'image/png',
+          pixelWidth: 120,
+          pixelHeight: 60,
+          bodyTop: 2,
+          bodyHeight: 44,
+        );
+      },
+    );
+
+    expect(request?.text, '88123456789012');
+    expect(request?.formatId, 'code128');
+    expect(rendered.activeSheet.images.single.src, 'data:image/png;base64,AQID');
+    expect(
+      rendered.activeSheet.images.single.extraFields[
+          fortuneBarcodeObjectIdExtraKey],
+      isNull,
+    );
+    expect(
+      rendered.activeSheet.images.single.extraFields[
+          fortuneBarcodeBodyRatioExtraKey],
+      closeTo(44 / 60, 0.0001),
+    );
+  });
+
   test(
     'item output preview creates fallback sheet for empty saved workbook',
     () {
