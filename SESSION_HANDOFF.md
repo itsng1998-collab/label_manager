@@ -30,6 +30,7 @@
 - DTD 확인 결과: VS Code DTD 연결 성공, 연결된 실행 앱이 없어 hot reload 대상 없음.
 - 최종 diff 검토 완료: `git diff --check` 통과, 관련 파일 외 무관한 포맷 변경 없음.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기능 구현 커밋: `f1225f7` (`바코드 속성 형식 선택 목록 적용`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 완료 작업: 공용라벨 이름 열 더블클릭 삽입 재검증
