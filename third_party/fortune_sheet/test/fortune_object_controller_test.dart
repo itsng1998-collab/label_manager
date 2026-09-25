@@ -2527,6 +2527,97 @@ void main() {
   });
 
   testWidgets(
+    'barcode property format uses insert formats and initial selection',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final controller = FortuneSheetController();
+      final workbook = FortuneWorkbook(
+        settings: const FortuneSettings(
+          showToolbar: false,
+          showFormulaBar: false,
+        ),
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            images: const [
+              FortuneImage(
+                id: 'barcode_1',
+                src: 'old-src',
+                left: 20,
+                top: 30,
+                width: 80,
+                height: 40,
+                extraFields: {
+                  'fortuneBarcode': true,
+                  'barcodeText': '123456789012',
+                  'barcodeFormatId': 'code128',
+                  'barcodeFormatLabel': 'Code128',
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+      const formats = [
+        FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+        FortuneBarcodeFormatOption(id: 'ean13', label: 'EAN13'),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Row(
+            children: [
+              SizedBox(
+                width: 600,
+                height: 1200,
+                child: FortuneSheetCanvas(
+                  workbook: workbook,
+                  controller: controller,
+                  barcodeFormats: formats,
+                ),
+              ),
+              SizedBox(
+                width: 300,
+                height: 1200,
+                child: FortuneObjectLayerPanel(
+                  controller: controller,
+                  barcodeFormats: formats,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      controller.selectObject(
+        const FortuneSheetObjectKey(
+          FortuneSheetObjectKind.barcode,
+          'barcode_1',
+        ),
+      );
+      await tester.pump();
+
+      final formatField = find.byKey(
+        const ValueKey('fortune-object-property-barcodeFormatId'),
+      );
+      final dropdown = tester.widget<DropdownButtonFormField<String>>(
+        formatField,
+      );
+      expect(dropdown.initialValue, 'code128');
+      expect(find.text('Code128'), findsOneWidget);
+      await tester.tap(formatField);
+      await tester.pumpAndSettle();
+      expect(find.text('Code128'), findsNWidgets(2));
+      expect(find.text('EAN13'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'barcode property draft and error survive selection changes by object key',
     (tester) async {
       tester.view.physicalSize = const Size(1000, 1200);
@@ -2592,6 +2683,10 @@ void main() {
                       id: 'CODE128',
                       label: 'Code 128',
                     ),
+                    FortuneBarcodeFormatOption(
+                      id: 'ean13',
+                      label: 'EAN13',
+                    ),
                   ],
                   barcodeRenderer: (_) => render.future,
                 ),
@@ -2599,7 +2694,19 @@ void main() {
               SizedBox(
                 width: 300,
                 height: 1200,
-                child: FortuneObjectLayerPanel(controller: controller),
+                child: FortuneObjectLayerPanel(
+                  controller: controller,
+                  barcodeFormats: const [
+                    FortuneBarcodeFormatOption(
+                      id: 'CODE128',
+                      label: 'Code 128',
+                    ),
+                    FortuneBarcodeFormatOption(
+                      id: 'ean13',
+                      label: 'EAN13',
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -2615,18 +2722,21 @@ void main() {
       final barcodeTextField = find.byKey(
         const ValueKey('fortune-object-property-barcodeText'),
       );
-      await tester.enterText(
-        find.byKey(const ValueKey('fortune-object-property-barcodeFormatId')),
-        'ean13',
+      final formatField = find.byKey(
+        const ValueKey('fortune-object-property-barcodeFormatId'),
       );
+      await tester.tap(formatField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('EAN13').last);
+      await tester.pumpAndSettle();
       expect(
         tester.widget<TextField>(barcodeTextField).controller?.text,
         isEmpty,
       );
-      await tester.enterText(
-        find.byKey(const ValueKey('fortune-object-property-barcodeFormatId')),
-        'CODE128',
-      );
+      await tester.tap(formatField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Code 128').last);
+      await tester.pumpAndSettle();
       await tester.enterText(
         barcodeTextField,
         'DRAFT-A한',

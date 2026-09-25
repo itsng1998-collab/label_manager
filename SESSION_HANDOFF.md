@@ -1,5 +1,37 @@
 # SESSION HANDOFF
 
+## 완료 작업: 바코드 개체 속성 형식 ComboBox
+- **완료**: 시트의 바코드 개체를 선택했을 때 `바코드 속성`의 형식을 자유 입력 TextField가 아닌 삽입 다이얼로그와 동일한 형식 목록 ComboBox로 변경했다.
+- 현재 원인: `FortuneObjectLayerPanel`은 barcode format 목록을 받지 않으며 `_ObjectPropertyEditor`가 `barcodeFormatId`를 일반 `_field` TextField로 렌더링한다.
+- 구현 방향: `LabelSheetWorkbench`의 `labelSheetBarcodeFormats`를 개체 패널까지 전달하고, metadata `barcodeFormatId`를 초기 선택값으로 사용하는 DropdownButtonFormField로 교체한다.
+- 재현 로그 계획: 패널 초기화와 형식 선택 변경 시 objectId/previous/next/options/matched 및 데이터 필터 전후 길이를 기록한다.
+- 수정 전 focused test 추가: 삽입 metadata가 `code128`인 바코드의 형식 컨트롤이 ComboBox이고 초기 표시가 `Code128`, 옵션이 `Code128`/`EAN13`인지 검증한다.
+- 수정 전 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_object_controller_test.dart --plain-name "barcode property format uses insert formats and initial selection"`.
+- 수정 전 테스트 결과: **실패(예상)**. `FortuneObjectLayerPanel`에 `barcodeFormats` named parameter가 없어 컴파일 실패했다. 테스트의 Flutter API 비호환 `DropdownButtonFormField.items` 직접 접근은 실제 메뉴 표시 검증으로 교체했다.
+- `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart` 편집 완료: panel/editor에 `barcodeFormats` 전달, metadata format ID 정규 매칭, 형식 DropdownButtonFormField, 변경 시 데이터 formatter/draft 갱신, `fortune-object-barcode-format-debug-v1` 초기화/변경 로그를 추가했다.
+- `third_party/fortune_sheet/test/fortune_object_controller_test.dart` 편집 완료: ComboBox 초기값/실제 메뉴 옵션 회귀 테스트를 추가하고 기존 draft 테스트의 형식 변경을 실제 dropdown 선택으로 전환했다.
+- focused test 1차는 높이 700인 속성 lazy list가 형식 필드를 아직 build하지 않아 finder가 비어 실패했다. 기존 패널 테스트와 동일한 높이 1200으로 조정했다.
+- focused test 재실행 결과: **통과(1/1)**. 로그에서 `metadataFormat=code128 selectedFormat=code128 matched=true options=2`를 확인했다.
+- `lib/features/label_sheet/label_sheet_workbench.dart` 편집 완료: 실제 개체 패널에도 canvas와 동일한 `labelSheetBarcodeFormats`를 전달한다.
+- 로그 보정 완료: object 식별자를 `kind/id`로 기록한다.
+- `pubspec.yaml` 버전: `1.4.23` → `1.4.24`.
+- 기존 draft 회귀 + 새 ComboBox 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_object_controller_test.dart --plain-name "barcode property"`.
+- 기존 draft 회귀 + 새 ComboBox 테스트 결과: **통과(4/4)**. `CODE128 → ean13 → CODE128` 선택 로그와 데이터 필터 길이 변화를 확인했다.
+- Dart formatter 적용 완료: `fortune_object_layer_panel.dart`, `fortune_object_controller_test.dart`, `label_sheet_workbench.dart`.
+- 전체 개체 컨트롤 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_object_controller_test.dart`.
+- 앱 바코드/툴바 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart lib/features/label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/test/fortune_object_controller_test.dart test/label_sheet_toolbar_test.dart`.
+- 전체 개체 컨트롤 테스트 결과: **통과(50/50)**.
+- `label_sheet_toolbar_test.dart` 전체 결과: **실패(203 통과/1 실패)**. 실패는 이번 변경과 무관한 기존 RTF 문자셋 테스트 `item element RTF conversion decodes Korean ANSI hex`이며 예상 문자열과 실제 mojibake가 달랐다(`?쒗뭹紐? ?멸린` 예상, `?쒗뭹紐? ?り린` 실제).
+- 앱 바코드 관련 테스트 재실행 예정: `C:/Flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --plain-name "barcode"`.
+- 앱 바코드 관련 테스트 결과: **통과(6/6)**. 실제 workbench 패널 초기화 로그에서 `selectedFormat=code128 matched=true options=13`을 확인했다.
+- IDE diagnostics 결과: production/test 파일과 `pubspec.yaml` 오류 0건.
+- analyzer 결과: **No issues found**(종료 코드 0).
+- DTD 확인 결과: VS Code DTD 연결 성공, 연결된 실행 앱이 없어 hot reload 대상 없음.
+- 최종 diff 검토 완료: `git diff --check` 통과, 관련 파일 외 무관한 포맷 변경 없음.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart`, `lib/features/label_sheet/label_sheet_workbench.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 완료 작업: 공용라벨 이름 열 더블클릭 삽입 재검증
 - **완료**: 우측 `사용 항목`의 이름 셀을 더블클릭하면 키워드 셀과 동일하게 현재 편집 위치에 `#키워드`를 삽입하는 요청을 현재 코드 기준으로 재검증했다.
 - 구현 확인: `common_label_manage.dart`는 키워드·이름 열(`index < 2`) 모두 `_insertKeyword`를 호출하며, `LabelSheetKeywordInsertController.insertAtCurrentContext('#${row.keyword}')`를 사용한다.

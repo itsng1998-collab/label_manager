@@ -54,6 +54,7 @@ class FortuneObjectLayerPanel extends StatefulWidget {
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.barcodeFormats = const <FortuneBarcodeFormatOption>[],
     this.headerHeight = 41,
     this.actionToolbarHeight = 40,
     this.onClose,
@@ -70,6 +71,7 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<FortuneBarcodeFormatOption> barcodeFormats;
   final double headerHeight;
   final double actionToolbarHeight;
   final VoidCallback? onClose;
@@ -453,6 +455,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                                           widget.barcodeObjectOptions,
                                       imageObjectIds: widget.imageObjectIds,
                                       barcodeObjectIds: widget.barcodeObjectIds,
+                                        barcodeFormats: widget.barcodeFormats,
                                       presentation: widget.presentation,
                                       propertyFocusField:
                                           widget.propertyFocusField,
@@ -837,6 +840,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
     required this.barcodeObjectOptions,
     required this.imageObjectIds,
     required this.barcodeObjectIds,
+    required this.barcodeFormats,
     required this.presentation,
     required this.propertyFocusField,
     required this.propertyFocusSheetId,
@@ -855,6 +859,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<FortuneBarcodeFormatOption> barcodeFormats;
   final FortuneObjectPanelPresentation presentation;
   final String? propertyFocusField;
   final String? propertyFocusSheetId;
@@ -1152,7 +1157,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
         final extra = image.extraFields;
         _setField('barcodeText', extra['barcodeText'] ?? '');
-        _setField('barcodeFormatId', extra['barcodeFormatId'] ?? '');
+        final metadataFormatId = '${extra['barcodeFormatId'] ?? ''}';
+        final matchedFormatId = _matchingBarcodeFormatId(metadataFormatId);
+        _setField('barcodeFormatId', matchedFormatId ?? metadataFormatId);
         _setField('moduleScale', extra['barcodeModuleScale'] ?? 3.0);
         _setField('barHeight', extra['barcodeBarHeight'] ?? 10.0);
         _setField('leadingText', extra['barcodeLeadingText'] ?? '');
@@ -1175,6 +1182,15 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           _barcodeRenderPending = draft.pending;
           _error = draft.error;
         }
+        debugPrint(
+          '[fortune-object-barcode-format-debug-v1] event=initialized '
+          'object=${widget.snapshot.activeKey!.kind.name}/'
+          '${widget.snapshot.activeKey!.id} '
+          'metadataFormat=$metadataFormatId '
+          'selectedFormat=${_fields['barcodeFormatId']?.text ?? ''} '
+          'matched=${matchedFormatId != null} '
+          'options=${widget.barcodeFormats.length}',
+        );
       }
     } else if (line != null) {
       _strokeStyle = line.strokeStyle;
@@ -1578,11 +1594,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           ),
         if (widget.snapshot.activeKey!.kind ==
             FortuneSheetObjectKind.barcode) ...[
-          _field(
-            '형식',
-            'barcodeFormatId',
-            onChanged: _handleBarcodeFormatChanged,
-          ),
+          _barcodeFormatField(),
           _field(
             '데이터',
             'barcodeText',
@@ -1758,15 +1770,85 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     );
   }
 
-  void _handleBarcodeFormatChanged(String formatId) {
-    final controller = _fields['barcodeText'];
-    if (controller != null) {
-      final formatter = FortuneBarcodeInputFormatter(formatId);
-      controller.value = formatter.formatEditUpdate(
-        controller.value,
-        controller.value,
+  Widget _barcodeFormatField() {
+    final currentFormatId = _fields['barcodeFormatId']?.text ?? '';
+    final formats = [...widget.barcodeFormats];
+    if (currentFormatId.isNotEmpty &&
+        !formats.any((format) => format.id == currentFormatId)) {
+      final metadataLabel = widget.snapshot.activeImage
+          ?.extraFields['barcodeFormatLabel']
+          ?.toString()
+          .trim();
+      formats.add(
+        FortuneBarcodeFormatOption(
+          id: currentFormatId,
+          label: metadataLabel?.isNotEmpty == true
+              ? metadataLabel!
+              : currentFormatId,
+        ),
       );
     }
+    return DropdownButtonFormField<String>(
+      key: const ValueKey('fortune-object-property-barcodeFormatId'),
+      initialValue: currentFormatId.isEmpty ? null : currentFormatId,
+      isExpanded: true,
+      focusNode: _fieldFocusNodes.putIfAbsent(
+        'barcodeFormatId',
+        () => FocusNode(
+          debugLabel: 'Fortune object property barcodeFormatId',
+        ),
+      ),
+      decoration: const InputDecoration(labelText: '형식'),
+      style: const TextStyle(fontSize: 13, color: Colors.black87),
+      items: formats
+          .map(
+            (format) => DropdownMenuItem<String>(
+              value: format.id,
+              child: Text(format.label),
+            ),
+          )
+          .toList(growable: false),
+      onChanged: widget.controller.objectMutationEnabled
+          ? _handleBarcodeFormatChanged
+          : null,
+    );
+  }
+
+  String? _matchingBarcodeFormatId(String formatId) {
+    final normalized = formatId.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final format in widget.barcodeFormats) {
+      if (format.id.trim().toLowerCase() == normalized) {
+        return format.id;
+      }
+    }
+    return null;
+  }
+
+  void _handleBarcodeFormatChanged(String? formatId) {
+    if (formatId == null) return;
+    final formatController = _fields['barcodeFormatId'];
+    final previousFormatId = formatController?.text ?? '';
+    final dataController = _fields['barcodeText'];
+    final previousDataLength = dataController?.text.length ?? 0;
+    if (formatController != null) {
+      formatController.text = formatId;
+    }
+    if (dataController != null) {
+      final formatter = FortuneBarcodeInputFormatter(formatId);
+      dataController.value = formatter.formatEditUpdate(
+        dataController.value,
+        dataController.value,
+      );
+    }
+    debugPrint(
+      '[fortune-object-barcode-format-debug-v1] event=changed '
+      'object=${widget.snapshot.activeKey!.kind.name}/'
+      '${widget.snapshot.activeKey!.id} '
+      'previous=$previousFormatId next=$formatId '
+      'options=${widget.barcodeFormats.length} '
+      'dataLength=$previousDataLength->${dataController?.text.length ?? 0}',
+    );
     setState(() {});
   }
 

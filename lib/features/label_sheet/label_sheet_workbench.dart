@@ -3149,6 +3149,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 barcodeObjectOptions: widget.barcodeObjectOptions,
                 imageObjectIds: widget.imageObjectIds,
                 barcodeObjectIds: widget.barcodeObjectIds,
+                barcodeFormats: labelSheetBarcodeFormats,
                 headerHeight: sheetSettings.toolbarHeight,
                 actionToolbarHeight: sheetSettings.columnHeaderHeight * 2,
                 onClose: _closeObjectPanel,
