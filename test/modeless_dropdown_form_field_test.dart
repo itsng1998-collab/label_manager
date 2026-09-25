@@ -110,6 +110,76 @@ void main() {
     await tester.pump();
     expect(selected, 'target');
   });
+
+  testWidgets('parent rebuild while search menu is open keeps overlay stable', (
+    tester,
+  ) async {
+    late StateSetter rebuildHost;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              rebuildHost = setState;
+              return ModelessDropdownFormField<String>(
+                items: const [
+                  DropdownMenuItem(value: 'source', child: Text('원본 거래처')),
+                  DropdownMenuItem(value: 'target', child: Text('대상 거래처')),
+                ],
+                searchTextForValue: (value) => value,
+                searchHintText: '거래처 검색',
+                debugLabel: 'adminCopySourceCustomer',
+                onChanged: (_) {},
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(ModelessDropdownFormField<String>));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('modeless-dropdown-search-field')),
+      findsOneWidget,
+    );
+
+    final messages = <String>[];
+    final previousDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) {
+      if (message != null) messages.add(message);
+    };
+    try {
+      rebuildHost(() {});
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const ValueKey('modeless-dropdown-search-field')),
+        findsOneWidget,
+      );
+      expect(
+        messages,
+        contains(
+          contains(
+            'feature=dropdownSearch event=refreshScheduled '
+            'control=adminCopySourceCustomer phase=persistentCallbacks',
+          ),
+        ),
+      );
+      expect(
+        messages,
+        contains(
+          contains(
+            'feature=dropdownSearch event=refreshApplied '
+            'control=adminCopySourceCustomer',
+          ),
+        ),
+      );
+    } finally {
+      debugPrint = previousDebugPrint;
+    }
+  });
 }
 
 Future<void> _pumpInOverlay(WidgetTester tester, Widget child) async {

@@ -1,5 +1,30 @@
 # SESSION HANDOFF
 
+## 현재 작업: 관리자 복사 거래처 검색 중 멈춤
+- **완료**: 파일/관리 → 관리자 복사에서 거래처 검색 메뉴를 연 뒤 프로그램이 멈추고 디버그 재진입 시 화면 분할 및 반복 예외가 발생하는 1.4.16 회귀를 수정했다.
+- 제출 로그 확인: `dropdownSearch/opened` 직후 조상 `Expanded` build 중 `ModelessDropdownFormField.didUpdateWidget`가 `_menuEntry.markNeedsBuild()`를 호출해 `setState() or markNeedsBuild() called during build`가 발생한다. 이후 layout overflow와 deactivated context gesture 예외는 손상된 widget tree의 후속 증상이다.
+- 원인 가설: 열린 dropdown의 부모 rebuild에서 overlay를 동기 갱신하는 것이 직접 원인이다. overlay 갱신을 다음 frame으로 예약하고 동일 entry/mounted 여부를 재확인해야 한다.
+- 수정 전 회귀 테스트 추가: 검색 메뉴가 열린 상태에서 부모를 rebuild하고 Flutter 예외 없이 메뉴가 유지되는지 검증한다.
+- 수정 전 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/modeless_dropdown_form_field_test.dart --plain-name "parent rebuild while search menu is open keeps overlay stable"`.
+- 수정 전 focused test 결과: **실패(예상 일치)**. `StatefulBuilder` build 중 `didUpdateWidget:77 → OverlayEntry.markNeedsBuild` 호출로 제출 로그와 동일한 framework assertion 및 후속 layout/semantics 오류를 재현했다.
+- `lib/widgets/modeless_dropdown_form_field.dart` 편집 완료: 열린 overlay 갱신을 coalesced post-frame callback으로 예약하고, callback 시 동일 entry 및 mounted 상태를 재검증한다. disabled 전환은 이어지는 build를 사용해 별도 `setState` 없이 메뉴를 닫는다.
+- 재현 로그 추가: `dropdownSearch`의 `refreshScheduled`, `refreshApplied`, `refreshSkipped` 이벤트에 control/scheduler phase/entry 상태를 기록한다.
+- 수정 후 focused test 결과: **통과(1/1)**. 부모 rebuild 중 예외 없이 검색 overlay가 유지된다.
+- 공용 dropdown + 관리자 복사 다이얼로그 테스트 결과: **통과(12/12)**.
+- `test/modeless_dropdown_form_field_test.dart` 보강: 로그에 `refreshScheduled phase=persistentCallbacks`와 `refreshApplied`가 기록되는지 검증한다.
+- `pubspec.yaml` 버전: `1.4.26` → `1.4.27`.
+- 로그 검증 focused test 결과: **통과(1/1)**. `debugPrint`는 foundation invariant 검사 전에 `try/finally`로 즉시 복원한다.
+- Dart formatter 적용 완료: `lib/widgets/modeless_dropdown_form_field.dart`, `test/modeless_dropdown_form_field_test.dart`.
+- 최종 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/modeless_dropdown_form_field_test.dart test/admin_copy_dialog_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/widgets/modeless_dropdown_form_field.dart test/modeless_dropdown_form_field_test.dart lib/features/admin_copy/presentation/admin_copy_dialog.dart test/admin_copy_dialog_test.dart`.
+- 최종 관련 테스트 결과: **통과(12/12)**.
+- analyzer 결과: **No issues found**.
+- IDE diagnostics 결과: 변경 production/test 파일과 `pubspec.yaml` 오류 0건.
+- DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
+- 최종 `git diff --check` 통과, 관련 파일 외 포맷 churn 없음.
+- stage/commit 대상: `lib/widgets/modeless_dropdown_form_field.dart`, `test/modeless_dropdown_form_field_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 병합 셀 포함 범위 테두리 누락
 - **완료**: 공용라벨관리에서 `B2:C2`, `D3:D4`를 병합한 뒤 `B2:D4` 범위에 전체 테두리를 적용하면 일부 우측·하단 테두리가 표시되지 않는 1.4.16 회귀를 수정했다.
 - 제출 로그: `.tmp/1.4.16로그/공용라벨관리_병합셀 테두리 미적용.log`의 초기 구간에는 로그인·DB 초기화만 있고 테두리 command/선택/병합/계산 결과 로그가 없다.

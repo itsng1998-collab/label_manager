@@ -42,6 +42,7 @@ class _ModelessDropdownFormFieldState<T>
   final FocusNode _internalFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
   OverlayEntry? _menuEntry;
+  bool _menuRefreshScheduled = false;
 
   bool get _enabled => widget.onChanged != null && widget.items.isNotEmpty;
   FocusNode get _focusNode => widget.focusNode ?? _internalFocusNode;
@@ -73,8 +74,11 @@ class _ModelessDropdownFormFieldState<T>
   @override
   void didUpdateWidget(covariant ModelessDropdownFormField<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_enabled) _removeMenu();
-    if (_menuEntry != null) _menuEntry!.markNeedsBuild();
+    if (!_enabled) {
+      _removeMenu(rebuild: false);
+      return;
+    }
+    _scheduleMenuRefresh();
   }
 
   @override
@@ -102,6 +106,50 @@ class _ModelessDropdownFormFieldState<T>
         },
       );
     }
+  }
+
+  void _scheduleMenuRefresh() {
+    final entry = _menuEntry;
+    if (entry == null || _menuRefreshScheduled) return;
+    _menuRefreshScheduled = true;
+    final debugLabel = widget.debugLabel;
+    if (debugLabel != null) {
+      RegressionDebugLog.event(
+        'dropdownSearch',
+        'refreshScheduled',
+        fields: {
+          'control': debugLabel,
+          'phase': WidgetsBinding.instance.schedulerPhase.name,
+          'total': widget.items.length,
+        },
+      );
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _menuRefreshScheduled = false;
+      if (!mounted || _menuEntry != entry || !entry.mounted) {
+        if (debugLabel != null) {
+          RegressionDebugLog.event(
+            'dropdownSearch',
+            'refreshSkipped',
+            fields: {
+              'control': debugLabel,
+              'mounted': mounted,
+              'sameEntry': _menuEntry == entry,
+              'entryMounted': entry.mounted,
+            },
+          );
+        }
+        return;
+      }
+      entry.markNeedsBuild();
+      if (debugLabel != null) {
+        RegressionDebugLog.event(
+          'dropdownSearch',
+          'refreshApplied',
+          fields: {'control': debugLabel, 'total': widget.items.length},
+        );
+      }
+    });
   }
 
   void _toggleMenu() {
