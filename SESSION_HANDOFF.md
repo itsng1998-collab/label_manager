@@ -27,6 +27,7 @@
 - DTD 확인 결과: VS Code DTD는 연결돼 있으나 실행 중인 앱이 없어 hot reload 대상 없음.
 - 최종 `git diff --check` 통과, 관련 파일 외 포맷 churn 없음.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, 계산/painter/widget 회귀 테스트 3개, `pubspec.yaml`, `SESSION_HANDOFF.md`. 기존 사용자 dirty `lib/core/app.dart` 제외.
+- 기능 구현 커밋: `492c8d6` (`병합 셀 범위 테두리 누락 수정`).
 - 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ## 완료 작업: 품목 출력 미리보기 연결 바코드 렌더링
