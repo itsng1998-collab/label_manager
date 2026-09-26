@@ -80,4 +80,26 @@ try {
         throw 'Multi-pattern preview pixel contract failed'
     }
 } finally { $decoded.Dispose() }
-Write-Output 'inverseDriverFileParser=PASS cases=9'
+$nativeInverse = [System.Text.Encoding]::GetEncoding(949).GetBytes(
+    "`r`nAZ1,15,83,1,1,0,0I,역상`r`n"
+)
+[System.IO.File]::WriteAllBytes(
+    $path,
+    [byte[]]($header + [byte[]]@(127, 254) + $nativeInverse + $tail)
+)
+$preview = & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path
+if (!($preview | Where-Object { $_ -eq 'nativeInverse=15,83 scale=1x1 rotation=0' })) {
+    throw 'Valid AZ1 inverse command was not accepted'
+}
+$darknessPrefix = [System.Text.Encoding]::ASCII.GetBytes("^H04`r`n")
+$darknessRestore = [System.Text.Encoding]::ASCII.GetBytes("^H08`r`n")
+[System.IO.File]::WriteAllBytes(
+    $path,
+    [byte[]]($darknessPrefix + $header + [byte[]]@(127, 254) + $tail + $darknessRestore)
+)
+$preview = & "$PSScriptRoot/inspect_inverse_driver_file.ps1" -Path $path
+if (($preview | Where-Object { $_ -eq 'darkness=4' }).Count -ne 1 -or
+    ($preview | Where-Object { $_ -eq 'darkness=8' }).Count -ne 1) {
+    throw 'Temporary darkness and restore commands were not accepted'
+}
+Write-Output 'inverseDriverFileParser=PASS cases=11'

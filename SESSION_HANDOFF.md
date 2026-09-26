@@ -1,5 +1,81 @@
 # SESSION HANDOFF
 
+## 현재 작업: GoDEX G500 역상 흰 획 소실
+- **진행 중**: `1.4.30` PRN→RAW 실물 결과 `.tmp/IMG_20260926_0001.png`에서 두 검정 띠의 흰 한글 획 소실이 계속된 것을 확인했다.
+- 대응 로그 `.tmp/log/app_2026-09-26_11-37-49.log`: `driverPrnGenerated=true`, `driverTransport=generatedPrnRaw`, 요청/쓰기 `35933/35933`, `physicalPrintSubmitted=true`로 PRN 생성과 RAW 전체 제출은 정상이다.
+- 보존 PRN `.tmp/log/bitmap_print_requests/v1.3.127_1790390845521249_0.bin.prn` 해석 결과 두 역상 clip의 흰 픽셀은 각각 `1266/1427`, 손실·증가·차이 모두 `0`이다. 앱 합성/드라이버 PRN까지는 온전하고 종이 열전사 단계에서 소실된다.
+- 과거 firmware `AZ1` inverse 실험 재검토: 공식 `At` 명령의 `x_mul/y_mul`은 최대 8인데 `v1.3.67/68` 구현은 `fontDots=17`을 두 배율 자리에 넣었다. 당시 전체 검정 결과는 잘못된 명령 인자로 format이 깨진 결과일 가능성이 있어 firmware inverse 자체를 유효하게 기각하지 못했다.
+- 다음 액션: 이번 실제 PRN의 일반 출력은 유지하고 두 역상 영역만 검정으로 복원한 뒤, 설치된 16x16 Korean `Z1` 폰트에 올바른 `AZ1 ... 1,1,0,0I`를 추가하는 **무출력 진단 PRN**을 준비·검증한다. 실제 제출은 사용자 승인 전 실행하지 않는다.
+- `tools/prepare_inverse_firmware_probe.ps1` 추가: 보존 PRN의 단일 Q payload를 검증하고 지정 역상 clip만 solid black으로 복원한 뒤, 배율 `1..8`을 강제한 CP949 `AZ1 ... I` 명령을 `E` 앞에 삽입한다. 기존 파일 덮어쓰기는 거부한다.
+- `tools/inspect_inverse_driver_file.ps1`/`tools/test_inverse_driver_file.ps1` 보강: 올바른 `AZ1` inverse 명령을 파싱하며 해석기 회귀 **10/10 통과**.
+- 무출력 진단 PRN 준비 완료: `.tmp/log/godex_inverse/inverse_firmware_fixed_20260926.prn`, 36,102 bytes, SHA256 `7360C9170A9EFBB41B...`. Q `10,11,76,472`, 역상 clip 2개, native inverse 4개 모두 구조 검증 통과했다.
+- PC 캐시와 설치 표식 확인: `AZ_KO16x16.DAT` 282,127 bytes, SHA256 `90644349AE81C901...`; shared preferences에 `az1-korean-gulimche-16-v1` 설치 표식이 남아 있다. 프린터 메모리의 현재 존재 여부는 실물 진단 결과로 판별한다.
+- 최초 진단 전 상태: 사용자 승인 전에는 진단 PRN을 제출하지 않았으며, 승인 후 아래 1매만 RAW 제출했다.
+- 사용자 승인 후 진단 PRN 1매를 `Godex G500`/`USB001`에 RAW 제출 완료: `jobId=4`, 요청/쓰기 `36102/36102` bytes. 첫 제출 시 임시 C# helper의 미사용 지역변수 경고가 오류로 처리되어 컴파일만 실패했고 프린터 제출은 발생하지 않았다. 해당 변수를 제거한 재실행에서 위 job 1건만 제출됐다.
+- 최초 진단 판정 항목은 전체 레이아웃 유지 여부와 두 역상 띠의 `AZ1 1x1` 한글 출력·획 연속성이었다.
+- 실물 결과 `.tmp/IMG_20260926_0002.png`: 일반 레이아웃은 유지됐고 네 `AZ1 ... 1,1,0,0I` 위치에 예상 폭의 흰 역상 박스가 생성됐지만 박스 안 한글/영문 glyph는 전부 비었다. 올바른 배율과 inverse 명령 자체는 G500이 정상 해석했으며, 현재 프린터 메모리에서 `Z1` 한글 폰트를 찾지 못한 상태로 판정한다.
+- PC shared preferences의 설치 표식은 프린터 전원 초기화·메모리 소실을 검증하지 않아 stale 상태가 될 수 있다.
+- 사용자 승인 후 보존된 `AZ_KO16x16.DAT` 패키지를 `Godex G500`에 RAW 재설치 완료: `jobId=5`, 요청/쓰기 `282127/282127` bytes. 이어서 동일 진단 PRN 1매를 RAW 제출 완료: `jobId=6`, 요청/쓰기 `36102/36102` bytes.
+- 실물 결과 `.tmp/IMG_20260926_0003.png`: 폰트 상태 출력에 `1: Korean 16x16 Korean`, `001 ASIAN FONT(S) IN MEMORY`가 확인되어 Z1 설치는 성공했다. 진단 라벨에서는 네 명령 위치가 글자 폭만큼 흰 박스로 반전됐지만 glyph는 보이지 않았다.
+- 판정: 폰트 부재나 잘못된 배율이 아니라, 이미 검정으로 채운 Q 영역 위에 `AZ1 ... 0I`를 겹쳐 inverse 영역 전체가 다시 흰색으로 반전된 합성 문제일 가능성이 높다. 현재 조합을 production에 반영하지 않는다.
+- `tools/prepare_inverse_firmware_probe.ps1`에 `-ClipFill Black|White`를 추가했다. 기본값은 기존 진단과 같은 `Black`이며, 다음 진단은 `White`로 역상 영역 내부를 비운 뒤 native inverse가 검정 바탕·흰 glyph를 자체 생성하는지 분리한다.
+- 다음 무출력 진단 PRN 준비 완료: `.tmp/log/godex_inverse/inverse_firmware_white_base_20260926.prn`, 36,102 bytes, SHA256 `FD40ACA02BF8428BBE734C9980299AFB88551AC66F8B80C13A02FAFCE1DBC19A`. Q `10,11,76,472`, white clip 2개, native inverse 4개이며 해석기 회귀 10/10 통과했다.
+- 사용자 승인 후 white-base 진단 PRN 1매를 `Godex G500`/`USB001`에 RAW 제출 완료: `jobId=7`, 요청/쓰기 `36102/36102` bytes, 제출 전 SHA256 일치와 프린터 `Normal` 상태를 확인했다.
+- 실물 결과 `.tmp/IMG_20260926_0004.png`: white-base에서는 `AZ1 0I`가 네 위치에 검정 바탕을 정상 생성했고 glyph 위치에 흰 픽셀도 나타났다. 다만 16x16 glyph의 1dot 흰 획 대부분이 검정 열 번짐에 메워져 점선 수준으로 남아 가독성은 실패했다. native inverse의 좌표·인코딩·합성 순서는 확인됐고 남은 문제는 열량이다.
+- `AT` inverse는 공식 문법상 지원되지 않고 과거 v1.3.81에서 format을 오염시켰으므로 재사용하지 않는다. `AZ_KO16x16.DAT`도 단순 raw glyph 배열이 아닌 GoDEX 전용 인코딩 stream이어서 임의 bitmap 팽창은 하지 않는다.
+- 현재 Windows 큐 표시값은 속도 127mm/s, 농도 level 8(42%)이다. 속도 저하는 과거 76.2/50.8mm/s 실물 A/B에서 효과가 없었고, job-local 농도 저하는 아직 분리 검증되지 않았다.
+- `tools/prepare_inverse_firmware_probe.ps1`에 선택적 `-Darkness`/`-RestoreDarkness` 쌍을 추가했다. 진단 시작 전에 농도를 설정하고 `E` 직후 원래 값으로 복원하며, 해석기도 `^H00..19`를 검증한다. 회귀 11/11 통과.
+- 다음 무출력 진단 PRN 준비 완료: `.tmp/log/godex_inverse/inverse_firmware_white_base_h04_20260926.prn`, 36,114 bytes, SHA256 `007E14DACFDFE6988640B3ACCFE49A56755CC43C89DA38B36962165814D5B6E7`. 순서는 `^H04` → white-base Q/native inverse 4개 → `E` → `^H08` 복원이다.
+- 사용자 승인 후 저농도 진단 PRN 1매를 `Godex G500`/`USB001`에 RAW 제출 완료: `jobId=8`, 요청/쓰기 `36114/36114` bytes. 제출 전 SHA256, 프린터 `Normal`, `^H04 → ^L` 및 `E → ^H08` 복원 순서를 재확인했다.
+- 실물 결과 `.tmp/IMG_20260926_0005.png`: 농도 4에서 네 역상 문자열의 한글/영문 형태가 모두 식별 가능하게 이어졌고 일반 검정 문자와 테두리도 유지됐다. `white-base + AZ1 1x1 inverse + ^H04` 조합을 해결 경로로 채택한다.
+- 실제 요청 디코딩: 흰색 descriptor는 두 개이며 각 문자열의 긴 공백이 좌·우 문구 위치를 표현한다. 진단의 고정 문구/좌표를 제품 코드에 넣지 않고 `TextPainter.getBoxesForSelection`으로 공백 분리 run의 실제 시작 좌표를 보존한다.
+- `lib/printing/godex_inverse_prn_transformer.dart` 추가: GoDEX 드라이버 PRN의 단일 Q payload를 검증하고 역상 descriptor 영역을 흰색으로 비운 뒤 CP949 `AZ1 ... 1,1,0,0I` run을 동적 삽입한다. `^L` 앞에 `^H04`, 최종 `E` 뒤에 `^H08` 복원을 추가하며 범위·payload 오류는 출력 전에 거부한다.
+- `label_sheet_print_job.dart`: Windows 흰색 descriptor에 동적 firmware inverse run 텍스트/좌표를 보존한다. `windows_bitmap_printer.dart`: GoDEX 생성 PRN만 변환하고 font provision 성공 후 전체 RAW 제출한다. 일반/타사 경로는 그대로 유지한다.
+- `godex_korean_font_provisioner.dart`: 캐시된 `AZ_KO16x16.DAT`가 있으면 GoLabel 설치가 제거된 뒤에도 읽도록 순서를 수정했다. 기존 printer+port 설치 표식은 계속 사용한다.
+- Windows native 결과에 실제 driver target width/height를 반환해 640x480 source descriptor를 G500의 620x480 printable 좌표로 동일하게 변환한다. driver transport 진단 버전은 `1.3.130`이다.
+- 버전 `1.4.31`. 관련 Flutter 테스트 40건 통과, PRN 해석기 11/11 통과, focused analyzer 새 오류 0건(기존 retired helper 미사용 경고 2건), `git diff --check` 통과, Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.31`.
+- 새 Debug 앱 PID 20156 실행, `.tmp/log/app_2026-09-26_12-31-05.log`에서 `DebugLogger version: 1.4.31` 확인. 앱 실행 자체로 인쇄는 발생하지 않았다.
+- `1.4.31` 실제 앱 경로 1매 승인 후 2026-09-26 13:07에 발행을 시작했으나, 임시 드라이버 PRN 생성 작업 9번(35,933 bytes, 0/1 page)이 완료되지 않고 네이티브 호출에서 정지했다. 약 2분간 앱 `Responding=False`, Dart로 PRN이 반환되지 않았고 RAW 제출 전 상태였다.
+- 예기치 않은 지연 출력을 막기 위해 정지된 작업 9번만 취소했다. 취소 직후 앱은 정상 응답으로 복귀했고 로그에 `dispatchFailed ... Could not read generated driver PRN`이 기록됐다. 실제 라벨은 출력되지 않았고 업무 발행/이력도 성공 처리되지 않았다.
+- 동일 드라이버의 파일 전용 회귀 도구는 작업공간과 `%TEMP%` 출력 모두 정상 완료했고 각 34,861-byte PRN을 만들었다. `%TEMP%` 검사 중 큐를 일시정지했으며 누출 작업 0건, 이후 정상 재개했다. 따라서 출력 경로 무시 가설은 폐기했고, 저장된 실제 전체 요청의 렌더/종료 단계를 파일 전용 재생해 정체를 좁힌다.
+- 저장된 13:07 전체 요청을 `replayBitmapToFile`로 재생한 결과 드라이버 PRN 생성 924~957ms, 역상 변환 20~22ms, 전체 후처리 약 1초로 정상이다. 원본 PRN 35,933 bytes, 변환본 36,114 bytes, `firmwareInverse=2 nativeRuns=4 clearedPixels=19537 darkness=4 restoreDarkness=8`을 확인했다.
+- 큐 일시정지/활성 상태 모두 전체 요청 재생이 성공했다. 활성 검사에서는 파일 출력용 작업 14번이 잠시 `Spooling`으로 나타난 뒤 자동 소멸했고 대기열 0건, 물리 출력 0건이다. 13:07 정체는 현재 재현되지 않는 Windows 스풀러 일시 상태로 판정하며 코드 경로 자체의 정체는 아니다.
+- 폰트 표식 키도 실제 Windows Dart 계산 결과 `godex_korean_font_-33cdbcb9ab74d6f9`로 저장값과 정확히 일치해 재설치를 시도하지 않는다.
+- 현재 blocker: 정상 `1.4.31` 앱을 복원한 뒤 별도 사용자 승인으로 실제 1매를 재시도해 `driverTransportVersion=1.3.130`, 변환 진단, RAW 전체 쓰기와 종이 품질을 확인한다.
+- 정상 앱 복원 완료: `/WX` Windows Debug 빌드 성공, PID 19664로 실행 중이며 `.tmp/log/app_2026-09-26_13-23-40.log`에서 버전 `1.4.31`, 응답 정상, 대기열 0건을 확인했다.
+- 최종 focused Flutter 테스트 40/40 통과. focused analyzer는 새 오류 0건이며 기존 retired helper 미사용 경고 2건만 남았다.
+- 사용자 승인 후 정상 앱에서 동일 1매 재시도를 준비했으나 저장된 system 비밀번호가 거부되어 앱 화면 발행은 진행하지 않았다. 계정 비밀번호를 추측하거나 변경하지 않았다.
+- 대신 13:07 실제 앱 요청에서 무출력 생성·변환한 동일 라벨 PRN `.tmp/log/godex_inverse/full_request_unpaused_20260926.prn.transformed`를 재검증했다. 36,114 bytes, SHA256 `64333A24BD4DACF2B1FB582F4959570E689237A806F1DEE0E9E64ADDC58E4734`, `^H04 -> Q -> AZ1 4개 -> E -> ^H08` 구조와 좌표가 정상이다.
+- 승인 범위 내 위 PRN 1매를 `Godex G500`/`USB001`에 RAW 제출 완료: `jobId=15`, 요청/쓰기 `36114/36114` bytes. 작업은 대기열에서 소멸했고 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않는다.
+- 현재 blocker: 작업 15번의 종이 결과 사진을 받아 네 역상 문자열의 가독성과 일반 검정 문자/테두리를 판정한다. 성공 확인 전에는 관련 변경을 커밋하지 않는다.
+- 작업 15번 결과 `.tmp/IMG_20260926_0006.png`: 네 역상 문자열은 모두 식별 가능하고 상단 우측 문자열도 계산상 x=411..611로 Q 우측 618 안에 들어온다. 일반 검정 문자와 테두리도 유지됐다.
+- 남은 실패는 두 역상 행에서 좌·우 문구 사이가 큰 흰 사각형으로 비어 검정 띠가 끊긴 점이다. 원인은 transformer가 inverse descriptor 전체를 흰색으로 지운 뒤 각 AZ1 문자열 상자만 검정으로 생성한 것이다.
+- `godex_inverse_prn_transformer.dart`를 수정해 descriptor 전체가 아니라 각 CP949 run의 실제 펌웨어 폭(`encodedBytes * 8`) x 16dot만 흰 바탕으로 지우고, 문구 사이 원래 Q 검정 픽셀은 보존한다. run은 실제 Q 범위를 벗어나면 거부한다.
+- transformer focused test를 32x16 Q에서 두 8x16 run 사이 16dot gap이 원래 값으로 보존되는 계약으로 보강했고 3/3 통과했다. 새 PRN 무출력 실제 요청 검증 후 별도 승인으로 1매만 재검증한다.
+- 저장된 실제 요청으로 새 PRN 무출력 생성 완료: `.tmp/log/godex_inverse/full_request_run_clear_20260926.prn.transformed`, 36,114 bytes, SHA256 `2806409E46CC7F5AEED7C57AFDA1EA932F7A4848371B0CD78B0998201C6F9330`. `firmwareInverse=2 nativeRuns=4 clearedPixels=8437 darkness=4 restoreDarkness=8`; 구 버전의 19,537픽셀 전체 제거보다 run 상자만 제거한다.
+- 해석 미리보기 `.tmp/log/godex_inverse/full_request_run_clear_20260926.prn.png`에서 두 행의 run 상자만 흰색이고 문구 사이/주변 검정 띠가 연속됨을 확인했다. 파일 전용 생성 중 물리 출력 0건, 큐 0건이다.
+- 버전 `1.4.31 -> 1.4.32` PATCH 증가. 관련 Flutter 테스트 40/40 통과, focused analyzer 새 오류 0건(기존 retired helper 미사용 경고 2건), `git diff --check` 통과, Windows `/WX` Debug 빌드 성공. EXE FileVersion/ProductVersion 및 새 앱 로그가 `1.4.32`, PID 9752 응답 정상이다.
+- 현재 blocker: 위 1.4.32 run-clear PRN 1매 실물 제출은 새 사용자 승인 전 실행하지 않는다. 결과에서 두 검정 띠의 연속성과 네 흰 문자열 가독성을 확인한 뒤 관련 변경만 커밋한다.
+- 사용자 승인 후 1.4.32 run-clear PRN 1매를 `Godex G500`/`USB001`에 RAW 제출 완료: `jobId=18`, 요청/쓰기 `36114/36114` bytes, SHA256 `2806409E46CC7F5AEED7C57AFDA1EA932F7A4848371B0CD78B0998201C6F9330`. 작업은 대기열에서 소멸했고 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않는다.
+- 현재 blocker: 작업 18번의 종이 결과 사진에서 두 역상 행의 검정 띠 연속성, 네 흰 문자열 가독성, 일반 문자/테두리를 판정한다. 성공 확인 후 관련 변경만 stage/commit한다.
+- 작업 18번 결과 `.tmp/IMG_20260926_0007.png`: IMG_0006의 큰 흰 사각형이 사라져 상·하단 검정 띠가 연속된다. `알레르기유발물질`, `우유, 밀, 계란, 호두 함유`, `영양정보`, `총내용량...` 네 역상 문구가 모두 식별 가능하고 일반 검정 문자와 표선도 유지되어 실물 합격으로 판정한다.
+- 역상 문제 해결 완료. 최종 관련 검증 후 범위 밖 사용자 변경을 제외하고 1.4.32 관련 파일만 커밋한다.
+- 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
+
+## 현재 작업: 영양성분표 RTF 선택 중 오류
+- **진행 중**: 설정 → 영양성분표 추가에서 2번 `총 내용량 80mm` 선택 시 RTF 미리보기 전환 중 발생하는 1.4.16 오류를 수정한다.
+- 제출 로그 확인: 영양성분표 목록 조회 후 RTF async 변환이 시작되고 CP949 hex decode 단계까지 진행된다. 첨부 디버거는 `FortuneTable._buildTextCell`의 `onPointerUp`에서 dispose된 State의 `context`를 조회해 `This widget has been unmounted`가 발생한 것을 보여준다.
+- 원인 가설: 행 pointer-down에서 RTF floating portal이 생성되며 표 subtree가 교체되지만, 같은 포인터의 up 이벤트가 교체 전 Listener에 도착해 dispose된 표 State의 `context`와 focus node를 사용한다.
+- 수정 전 focused test 실행 예정: `C:/Flutter/bin/flutter.bat test test/fortune_table_test.dart --plain-name "FortuneTable ignores pointer up after row selection unmounts table"`.
+- 수정 전 focused test 결과: **실패(예상 일치)**. pointer-down 직후 표를 제거하고 pointer-up하면 첨부와 동일한 `This widget has been unmounted` FlutterError가 발생했다.
+- `third_party/fortune_sheet/lib/src/fortune_table.dart` 편집 완료: pointer-up에서 `mounted`를 검사하고, 해제된 표는 focus를 건너뛰며 `[fortune-table-pointer-debug-v1] event=focusSkipped reason=unmounted`를 기록한다. 활성 표는 context 조회 없이 자체 focus node에 직접 focus를 요청한다.
+- 수정 후 FortuneTable focused test 결과: **통과(1/1)**.
+- CP949 로그 판별: `charset decode failed charset=CP949`는 변환을 중단하는 throw가 아니라 다른 charset과 latin1 fallback으로 이어지는 기존 진단이다. 첨부의 실제 중단 원인은 해제된 FortuneTable State의 context 접근이다.
+- `lib/features/nutrition/presentation/nutrition_box_dialog.dart` 편집 완료: 선택 행 ID/RTF 여부와 preview portal 생성·갱신·표시·skip 단계를 `nutritionBoxRtfSelection` 이벤트로 기록한다.
+- `test/nutrition_box_dialog_test.dart` 편집 완료: 첫 행의 non-RTF 상태에서 `총 내용량 80mm` RTF 행을 실제 pointer로 선택해 portal 생성 중 예외가 없고 양쪽 재현 로그가 남는지 검증한다.
+- 수정 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/features/nutrition/presentation/nutrition_box_dialog.dart`, `test/fortune_table_test.dart`, `test/nutrition_box_dialog_test.dart`, `pubspec.yaml`.
+- 기존 사용자 dirty `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ## 현재 작업: 발행내역 조회 지연
 - **완료**: 발행내역 조회가 1.4.16 제출 로그에서 15~21초 걸리는 문제를 빈 검색 조건 제거, 합계 스캔 통합, 상세 payload 지연 조회로 수정했다.
 - 제출 로그 확인: 상세 조회는 17,482ms / 12,292ms / 11,064ms, 뒤이은 전체·기간 합계 조회는 합계 3,733ms / 4,671ms / 3,801ms가 소요됐다.

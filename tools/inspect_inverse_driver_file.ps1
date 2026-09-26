@@ -48,6 +48,10 @@ try {
             $offset += $length
             $patterns++
             Write-Output "pattern=$originX,$originY,$stride,$height whitePaddingPixels=$paddingPixels"
+        } elseif ($command -match '^AZ1,(-?\d+),(-?\d+),([1-8]),([1-8]),(-?\d+),([0-7])I,') {
+            Write-Output "nativeInverse=$($Matches[1]),$($Matches[2]) scale=$($Matches[3])x$($Matches[4]) rotation=$($Matches[6])"
+        } elseif ($command -match '^\^H(0\d|1\d)$') {
+            Write-Output "darkness=$([int]$Matches[1])"
         } elseif ($command -notmatch '^(\^[ODCPQWL][0-9.,-]*|E)$') {
             throw "Unsupported command at byte $start"
         }

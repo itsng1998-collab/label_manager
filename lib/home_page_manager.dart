@@ -6795,6 +6795,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 final page = driverPages[unit]!;
                 final result = await WindowsBitmapPrinter.print(
                   printer: printer,
+                  portName: portName,
                   documentName:
                       'ITSnG_Label_${requestedAt.millisecondsSinceEpoch}',
                   bgraBytes: page.bgraBytes,
@@ -7355,6 +7356,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 final page = driverPages[unit]!;
                 final result = await WindowsBitmapPrinter.print(
                   printer: printer,
+                  portName: portName,
                   documentName:
                       'ITSnG_Scale_${requestedAt.millisecondsSinceEpoch}',
                   bgraBytes: page.bgraBytes,

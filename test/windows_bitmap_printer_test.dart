@@ -38,6 +38,7 @@ void main() {
     LegacyPrinterType type = LegacyPrinterType.godex,
   }) => WindowsBitmapPrinter.print(
     printer: const Printer(url: 'test', name: 'Godex G500'),
+    portName: 'USB001',
     documentName: 'file-capture-contract',
     bgraBytes: Uint8List.fromList([255, 255, 255, 255]),
     sourceWidth: 1,

@@ -2459,8 +2459,12 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
     auto result = PrintResult(false, diagnostics.str(),
         "Debug print file captured; no physical print was submitted. "
         "Print history and auto-increment must not be committed.");
-    std::get<EncodableMap>(result)[EncodableValue("fileCaptured")] =
-        EncodableValue(true);
+    auto& result_values = std::get<EncodableMap>(result);
+    result_values[EncodableValue("fileCaptured")] = EncodableValue(true);
+    result_values[EncodableValue("driverTargetWidth")] =
+        EncodableValue(target_width);
+    result_values[EncodableValue("driverTargetHeight")] =
+        EncodableValue(target_height);
     return result;
   }
   return PrintResult(ok, diagnostics.str(), error);

@@ -2345,6 +2345,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
       final result = await WindowsBitmapPrinter.print(
         printer: printer,
+        portName: rawPortName,
         documentName: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
         bgraBytes: driverPage.bgraBytes,
         sourceWidth: driverPage.width,
@@ -3516,4 +3517,3 @@ class _LabelSheetZoomButtonState extends State<_LabelSheetZoomButton> {
     );
   }
 }
-

@@ -394,6 +394,57 @@ void main() {
     }
   });
 
+  test('Windows hybrid preserves positioned runs for firmware inverse', () {
+    final preparation = prepareLabelSheetWindowsHybridPrint(
+      sheet: fs.FortuneSheet(
+        id: 'inverse-runs',
+        name: 'Inverse runs',
+        defaultColWidth: 300,
+        defaultRowHeight: 40,
+        cells: {
+          const fs.FortuneCellCoord(0, 0): const fs.FortuneCell(
+            value: '왼쪽          오른쪽 문구',
+            fontSize: 10,
+            foreground: ui.Color(0xffffffff),
+            background: ui.Color(0xff000000),
+          ),
+        },
+      ),
+      settings: const fs.FortuneSettings(),
+      physicalSize: const fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 80,
+        heightMm: 20,
+      ),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 80,
+        labelHeightMm: 20,
+        dpi: 203.2,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+      lineSpacingPercent: null,
+    );
+
+    final descriptor = preparation.descriptors.single;
+    expect(
+      descriptor.firmwareInverseRuns.map((run) => run.text),
+      <String>['왼쪽', '오른쪽 문구'],
+    );
+    expect(
+      descriptor.firmwareInverseRuns[1].left,
+      greaterThan(descriptor.firmwareInverseRuns[0].left),
+    );
+    final channelRuns =
+        descriptor.toChannelMap()['firmwareInverseRuns']! as List<Object?>;
+    expect(channelRuns, hasLength(2));
+  });
+
   test('Windows hybrid applies forced line spacing to native text layout', () {
     final preparation = prepareLabelSheetWindowsHybridPrint(
       sheet: fs.FortuneSheet(
@@ -1359,4 +1410,3 @@ int _indexOfBytes(List<int> source, List<int> pattern) {
   }
   return -1;
 }
-

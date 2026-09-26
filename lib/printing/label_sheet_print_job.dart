@@ -593,6 +593,7 @@ class LabelSheetWindowsTextDescriptor {
     required this.verticalAlign,
     required this.wrap,
     required this.predictedPaintedFootprint,
+    this.firmwareInverseRuns = const <LabelSheetWindowsFirmwareTextRun>[],
   });
 
   final String candidateToken;
@@ -612,6 +613,7 @@ class LabelSheetWindowsTextDescriptor {
   final String verticalAlign;
   final bool wrap;
   final ui.Rect predictedPaintedFootprint;
+  final List<LabelSheetWindowsFirmwareTextRun> firmwareInverseRuns;
 
   FortuneNativeCandidateApproval get approval => FortuneNativeCandidateApproval(
     candidateToken: candidateToken,
@@ -634,6 +636,27 @@ class LabelSheetWindowsTextDescriptor {
     'horizontalAlign': horizontalAlign,
     'verticalAlign': verticalAlign,
     'wrap': wrap,
+    'firmwareInverseRuns': [
+      for (final run in firmwareInverseRuns) run.toChannelMap(),
+    ],
+  };
+}
+
+class LabelSheetWindowsFirmwareTextRun {
+  const LabelSheetWindowsFirmwareTextRun({
+    required this.text,
+    required this.left,
+    required this.top,
+  });
+
+  final String text;
+  final int left;
+  final int top;
+
+  Map<String, Object?> toChannelMap() => <String, Object?>{
+    'text': text,
+    'left': left,
+    'top': top,
   };
 }
 
@@ -802,6 +825,38 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
         final right = target.right.round();
         final bottom = target.bottom.round();
         if (right <= left || bottom <= top) continue;
+        final firmwareInverseRuns = <LabelSheetWindowsFirmwareTextRun>[];
+        if (fragment.colorArgb == 0xffffffff) {
+          final runPattern = RegExp(r'\S(?:.*?\S)?(?=\s{2,}|$)');
+          for (final match in runPattern.allMatches(fragment.text)) {
+            final boxes = layout.painter.getBoxesForSelection(
+              TextSelection(
+                baseOffset: fragment.textStart + match.start,
+                extentOffset: fragment.textStart + match.end,
+              ),
+              boxHeightStyle: ui.BoxHeightStyle.strut,
+              boxWidthStyle: ui.BoxWidthStyle.tight,
+            );
+            if (boxes.isEmpty) continue;
+            final runLeft = boxes.map((box) => box.left).reduce(math.min);
+            final runTop = boxes.map((box) => box.top).reduce(math.min);
+            final runTarget = geometry.transform.logicalRectToPrinterDots(
+              ui.Rect.fromLTWH(
+                layout.paintOffset.dx + runLeft,
+                layout.paintOffset.dy + runTop,
+                1,
+                1,
+              ),
+            );
+            firmwareInverseRuns.add(
+              LabelSheetWindowsFirmwareTextRun(
+                text: match.group(0)!,
+                left: runTarget.left.round(),
+                top: runTarget.top.round(),
+              ),
+            );
+          }
+        }
         descriptors.add(
           LabelSheetWindowsTextDescriptor(
             candidateToken: candidate.token,
@@ -826,6 +881,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
             verticalAlign: '1',
             wrap: false,
             predictedPaintedFootprint: candidate.printerPaintedFootprint,
+            firmwareInverseRuns: firmwareInverseRuns,
           ),
         );
       }
@@ -959,6 +1015,8 @@ class _LabelSheetTextFragment {
     required this.strikeThrough,
     required this.fontFamily,
     required this.colorArgb,
+    required this.textStart,
+    required this.textEnd,
   });
 
   final String text;
@@ -973,6 +1031,8 @@ class _LabelSheetTextFragment {
   final bool strikeThrough;
   final String fontFamily;
   final int colorArgb;
+  final int textStart;
+  final int textEnd;
 }
 
 List<_LabelSheetTextFragment> _labelSheetTextFragments(
@@ -1000,6 +1060,8 @@ List<_LabelSheetTextFragment> _labelSheetTextFragments(
             settings.fontFamilies,
           ),
           colorArgb: cell.foreground.toARGB32(),
+          textStart: line.textStart,
+          textEnd: line.textEnd,
         ),
     ];
   }
@@ -1043,6 +1105,8 @@ List<_LabelSheetTextFragment> _labelSheetTextFragments(
             settings.fontFamilies,
           ),
           colorArgb: (run.foreground ?? cell.foreground).toARGB32(),
+          textStart: start,
+          textEnd: end,
         ),
       );
     }

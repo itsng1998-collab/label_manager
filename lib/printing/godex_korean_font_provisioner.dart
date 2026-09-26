@@ -141,11 +141,6 @@ String godexKoreanFontMarkerKey({
 
 Future<GodexKoreanFontPackage?> _loadOrCreatePackage() async {
   if (!Platform.isWindows) return null;
-  final executableDirectory = p.dirname(Platform.resolvedExecutable);
-  final helperPath = p.join(executableDirectory, 'godex_font_helper.exe');
-  final goLabelDirectory = _resolveGoLabelDirectory();
-  if (!File(helperPath).existsSync() || goLabelDirectory == null) return null;
-
   final supportDirectory = await getApplicationSupportDirectory();
   final packageDirectory = Directory(
     p.join(
@@ -157,6 +152,10 @@ Future<GodexKoreanFontPackage?> _loadOrCreatePackage() async {
   await packageDirectory.create(recursive: true);
   final packageFile = File(p.join(packageDirectory.path, 'AZ_KO16x16.DAT'));
   if (!await packageFile.exists()) {
+    final executableDirectory = p.dirname(Platform.resolvedExecutable);
+    final helperPath = p.join(executableDirectory, 'godex_font_helper.exe');
+    final goLabelDirectory = _resolveGoLabelDirectory();
+    if (!File(helperPath).existsSync() || goLabelDirectory == null) return null;
     final process = await Process.run(
       helperPath,
       <String>[goLabelDirectory, packageDirectory.path],
