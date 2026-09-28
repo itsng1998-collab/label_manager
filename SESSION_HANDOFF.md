@@ -140,6 +140,8 @@
 - 수정: 각 역상 descriptor 행의 기존 흰 glyph를 먼저 검정으로 복원하고, 그 다음 새 PCL glyph 실제 영역만 흰색 clear한다. 실제 요청에서는 기존 흰 픽셀 3,225개를 복원하고 새 glyph 영역 11,509픽셀을 clear했다. 반올림 우측 1dot padding까지 보정한 파일 전용 후보 `.tmp/log/godex_inverse/production_v1435_ghostclear2_20260928.prn.transformed`는 37,698 bytes, SHA256 `D56D17ED538BA9D7D844ACD24D78917454B535C4F3F619F6DD425F1474FFA40C`, 두 행의 새 glyph 밖 잔여 흰 픽셀 0이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건이다.
 - 원래 glyph 밖 흰 픽셀이 검정으로 복원되는 transformer 회귀 테스트를 추가했다. 호환 가능한 잔상 버그 수정이므로 `1.4.35 -> 1.4.36` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.36`. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기능 커밋 `0601d84` (`GoDEX 역상 잔상 제거`).
+- 사용자 최종 기준: 시트 라벨의 배치·검정 띠 크기·문구·좌표·글꼴 크기를 바꾸지 않고 그대로 고품질 출력한다. 짧은 검정 블록으로 바꾸거나 레거시 RTF 레이아웃으로 되돌리는 방식은 사용하지 않는다.
+- 1.4.36 잔상 제거 후보를 직전 H08 production PRN과 Q bitmap pixel 단위 비교했다. 변경은 두 역상 행 내부의 기존 GDI 잔상 1,160픽셀을 흰색→검정으로 복원한 것뿐이며 역상 행 밖 변경 픽셀은 0, 검정→흰색 변경도 0이다. 파일 길이와 전체 시트 레이아웃은 37,698 bytes로 유지된다. 즉 시트 디자인은 그대로 보존하고 중복 잔상만 제거한다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
