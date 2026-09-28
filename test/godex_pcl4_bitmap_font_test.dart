@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -150,4 +151,25 @@ void main() {
       expect(font, isNotEmpty);
     });
   });
+
+  testWidgets(
+    'loads the Windows Gulim TTC instead of a Flutter fallback font',
+    (tester) async {
+      await tester.runAsync(() async {
+        final glyph = await rasterizeGodexTextGlyph(
+          text: '알레르기유발물질',
+          characterCode: 65,
+          fontFamily: '굴림',
+          fontPixelHeight: 17,
+          bold: true,
+          italic: false,
+        );
+
+        expect(glyph.width, 136);
+        expect(glyph.height, 17);
+        expect(glyph.raster, contains(isNot(0)));
+      });
+    },
+    skip: !Platform.isWindows,
+  );
 }

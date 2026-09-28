@@ -1,8 +1,36 @@
-import 'dart:typed_data';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:label_manager/printing/godex_pcl4_bitmap_font.dart';
+
+const String _godexGulimFontFamily = 'LabelManagerGodexGulim';
+Future<void>? _godexGulimFontLoad;
+
+Future<String> _resolveGodexRasterFontFamily(String fontFamily) async {
+  final normalized = fontFamily.trim().toLowerCase();
+  if (normalized != '굴림' && normalized != 'gulim') return fontFamily;
+  _godexGulimFontLoad ??= _loadGodexGulimFont();
+  await _godexGulimFontLoad;
+  return _godexGulimFontFamily;
+}
+
+Future<void> _loadGodexGulimFont() async {
+  if (!Platform.isWindows) {
+    throw UnsupportedError('The GoDEX Gulim raster font requires Windows.');
+  }
+  final windowsDirectory = Platform.environment['WINDIR'];
+  if (windowsDirectory == null || windowsDirectory.trim().isEmpty) {
+    throw StateError('The Windows directory is not available.');
+  }
+  final fontFile = File('$windowsDirectory\\Fonts\\gulim.ttc');
+  final bytes = await fontFile.readAsBytes();
+  if (bytes.isEmpty) throw StateError('The Gulim font file is empty.');
+  await (FontLoader(
+    _godexGulimFontFamily,
+  )..addFont(Future<ByteData>.value(ByteData.sublistView(bytes)))).load();
+}
 
 Future<Pcl4BitmapGlyph> rasterizeGodexTextGlyph({
   required String text,
@@ -26,12 +54,13 @@ Future<Pcl4BitmapGlyph> rasterizeGodexTextGlyph({
   if (maximumWidth != null && maximumWidth < 1) {
     throw RangeError.range(maximumWidth, 1, 0xffff, 'maximumWidth');
   }
+  final rasterFontFamily = await _resolveGodexRasterFontFamily(fontFamily);
   final painter = TextPainter(
     text: TextSpan(
       text: text,
       style: TextStyle(
         color: const ui.Color(0xffffffff),
-        fontFamily: fontFamily,
+        fontFamily: rasterFontFamily,
         fontSize: fontPixelHeight,
         fontWeight: bold ? FontWeight.bold : FontWeight.normal,
         fontStyle: italic ? FontStyle.italic : FontStyle.normal,

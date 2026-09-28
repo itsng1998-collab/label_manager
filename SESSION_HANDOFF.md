@@ -119,6 +119,10 @@
 - production 결과 `.tmp/IMG_20260928_0002.png`: 실제 출력됐음이 확인됐다. 네 문자열 모두 표시되고 하단 우측은 `171.9kcal` 끝까지 출력돼 full-clear 합성 결함은 해결됐다. 그러나 레거시보다 전폭 검정 띠의 핀홀과 흰 획 거칠기가 여전히 커 전체 역상 품질 완료로 판정하지 않는다.
 - 다음 최소 후보는 기존 18dot 실험의 끝 손상 원인이었던 불완전 clear를 제거한 **18dot full-clear**다. 파일 전용 production 경로 후보 `.tmp/log/godex_inverse/production_v1433_18dot_fullclear_20260928.prn.transformed`, 37,892 bytes, SHA256 `B3953967B85E579B9A28D2B33BBA65DDB717FCB6C29077F3B37F7050CE99B826`; glyph 147/207/74/296×18, Vt 4개, AZ1 0개, 네 glyph clear 영역 잔여 검정 0픽셀이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건이다. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 사용자 승인 후 위 18dot full-clear 후보를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=7`, 요청/쓰기 `37892/37892`, SHA256 일치, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않는다. 종이 결과에서 17dot production 대비 흰 획 연속성, 글자 뭉침, 우측 끝 손상을 비교한다.
+- 18dot 결과 `.tmp/IMG_20260928_0003.png`: 17dot보다 흰 획은 조금 더 이어지지만 우측 두 문자열이 가로 폭 한계까지 압축돼 더 빽빽하고, 전폭 검정 띠의 핀홀도 그대로다. 18dot를 production에 채택하지 않는다.
+- production 17dot와 성공한 `0001` 후보의 차이를 확인했다. descriptor의 `굴림`/`Gulim`을 Flutter 시스템 family로 요청하면 fallback glyph가 생성돼 폭이 139/197/70/289였지만, Windows `gulim.ttc` face를 `FontLoader`로 직접 등록하면 `0001`과 정확히 같은 136/193/68/280으로 생성된다. 명칭 변경만으로는 해결되지 않는다.
+- `godex_text_glyph_rasterizer.dart`를 수정해 `굴림`/`Gulim` 역상 run은 `%WINDIR%\\Fonts\\gulim.ttc`를 작업 프로세스에 한 번 명시 등록한 뒤 래스터화한다. Windows Gulim 폭 136×17 회귀 테스트를 추가했다. 파일 전용 후보 `.tmp/log/godex_inverse/production_explicit_gulim_17dot_fullclear_20260928.prn.transformed`는 37,698 bytes, SHA256 `B9B92B23151BA4501908BE100CB72814657697167EF1A9D8B52DA39930F8C41C`, 네 glyph 폭 136/193/68/280, `firmwareInverse=2 nativeRuns=4 clearedPixels=9444`로 `0001` 성공 후보와 일치하며 물리 출력은 하지 않았다.
+- 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.34`. 호환 가능한 글꼴 선택 버그 수정이므로 `1.4.33 -> 1.4.34` PATCH 증가했다. 새 후보 실물 출력은 별도 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
