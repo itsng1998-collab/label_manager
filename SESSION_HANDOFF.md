@@ -116,6 +116,8 @@
 - 기능 커밋 `7889fff` (`GoDEX 역상 soft-font 출력 적용`). 새 production 앱 경로의 최종 실물 1매 검증은 별도 사용자 승인 전 실행하지 않는다.
 - 사용자 승인 후 1.4.33 production 변환 후보를 파일 전용으로 두 번 생성해 동일 SHA256을 확인했다. `.tmp/log/godex_inverse/production_v1433_widthcheck_20260928.prn.transformed`, 37,749 bytes, SHA256 `716184FC6A87FDF949F40572CDD463F16DE855ED8A5CF53C98E34FFFACC8A40C`; PCL glyph 139/197/70/289×17, `VA ... I` 4개, `AZ1` 0개이며 네 실제 glyph full-clear 영역의 잔여 검정 픽셀은 모두 0이다.
 - 위 후보를 `Godex G500`/`USB001`에 정확히 한 번 실행 요청했다. 실행 전 프린터 `Normal`, 대기열 0건과 SHA256을 재확인했다. Windows GUI 실행 파일이 호출 셸과 분리되어 `jobId/writtenBytes` 표준출력은 회수하지 못했지만 프로세스는 종료됐고 이후 프린터 `Normal`, 대기열 0건이다. 중복 위험 때문에 재전송하지 않는다. 종이 결과 사진으로 최종 production 품질을 판정한다.
+- production 결과 `.tmp/IMG_20260928_0002.png`: 실제 출력됐음이 확인됐다. 네 문자열 모두 표시되고 하단 우측은 `171.9kcal` 끝까지 출력돼 full-clear 합성 결함은 해결됐다. 그러나 레거시보다 전폭 검정 띠의 핀홀과 흰 획 거칠기가 여전히 커 전체 역상 품질 완료로 판정하지 않는다.
+- 다음 최소 후보는 기존 18dot 실험의 끝 손상 원인이었던 불완전 clear를 제거한 **18dot full-clear**다. 파일 전용 production 경로 후보 `.tmp/log/godex_inverse/production_v1433_18dot_fullclear_20260928.prn.transformed`, 37,892 bytes, SHA256 `B3953967B85E579B9A28D2B33BBA65DDB717FCB6C29077F3B37F7050CE99B826`; glyph 147/207/74/296×18, Vt 4개, AZ1 0개, 네 glyph clear 영역 잔여 검정 0픽셀이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건이다. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
