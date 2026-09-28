@@ -113,7 +113,7 @@
 - production 반영 완료: 역상 run을 descriptor의 font family/높이/bold/italic으로 동적 래스터화하고, 실제 glyph 폭×높이만 Q에서 full-clear한 뒤 PCL4 Format 0 soft-font를 작업마다 `~MDELE,A -> ~JA`로 내려받아 `VA ... I`로 출력한다. 기존 CP949 `AZ1`과 프린터 상주 Korean Z1 font 설치 의존성은 제거했다.
 - production PCL builder/rasterizer 테스트와 transformer actual-bounds 회귀 테스트를 추가했다. 관련 출력 경로 테스트 **22/22 통과**, production 및 probe focused analyzer **No issues found**, `git diff --check` 통과. 추가 실물 출력은 수행하지 않았다.
 - Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.33`; 레거시 RTF 비교 probe도 `/WX` 설정으로 재빌드 성공했다. 버전은 호환 가능한 역상 출력 버그 수정이므로 `1.4.32 -> 1.4.33` PATCH 증가했다.
-- 다음 액션: 관련 파일만 분리 커밋한다. 새 production 앱 경로의 최종 실물 1매 검증은 별도 사용자 승인 전 실행하지 않는다.
+- 기능 커밋 `7889fff` (`GoDEX 역상 soft-font 출력 적용`). 새 production 앱 경로의 최종 실물 1매 검증은 별도 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
