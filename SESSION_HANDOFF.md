@@ -158,6 +158,7 @@
 - 일반화 수정: descriptor별로 동적 rasterized run을 연결하고, `scaled descriptor ∪ actual glyph bounds`에 1dot 반올림 여유를 준 영역만 원본 Q에서 검출한 검정 배경 경계로 clip해 기존 GDI glyph를 복원한다. 이후 동일 glyph의 실제 1-bit mask 픽셀만 clear한다. 특정 문구, 시트 좌표, 띠 폭·높이, 글자 수를 사용하지 않으며 같은 검정 배경 안에서 복원 영역 밖의 흰 요소는 보존한다.
 - 회귀 샘플에 descriptor 밖이지만 같은 검정 띠 안인 별도 흰 픽셀을 추가해 보존을 검증했다. 저장된 실제 요청의 파일 전용 후보 `.tmp/log/godex_inverse/production_v1439_generalized_mask_clear_20260928.prn.transformed`는 37,698 bytes, SHA256 `9936BA891BA7E838C20704D421E06455F0845501C300E63E8DE5F0E372C4D9D6`, `restoredWhitePixels=2693`, `clearedPixels=4412`, `physicalPrintSubmitted=false`다. 복원 수가 native 원본 inverse 흰 픽셀 2,693개와 일치하고, 1.4.38이 추가로 덮었던 띠 경계 2픽셀은 원형 보존된다.
 - 호환 가능한 일반화 버그 수정이므로 `1.4.38 -> 1.4.39` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.39`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
+- 기능 커밋 `7cd6a2b` (`GoDEX 역상 합성을 시트 독립적으로 일반화`). 다음 액션은 일반화된 1.4.39 후보를 사용자 별도 승인 후 정확히 1매 출력해 외곽 박스와 경계 번짐 제거를 확인하는 것이다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
