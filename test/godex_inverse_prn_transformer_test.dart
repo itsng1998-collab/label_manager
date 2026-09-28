@@ -70,16 +70,19 @@ void main() {
     expect(italic, isFalse);
     final width = text == 'A' ? 8 : 4;
     expect(maximumWidth, greaterThanOrEqualTo(width));
+    final raster = text == 'A'
+        ? Uint8List.fromList(<int>[0x81, 0x42, 0x24])
+        : Uint8List.fromList(<int>[0x90, 0x90, 0x90]);
     return Pcl4BitmapGlyph(
       characterCode: characterCode,
       width: width,
       height: 3,
       advance: width,
-      raster: Uint8List.fromList(List<int>.filled(3, 0xff)),
+      raster: raster,
     );
   }
 
-  test('clears actual glyph bounds and emits inverse soft-font runs', () async {
+  test('clears only glyph pixels and emits inverse soft-font runs', () async {
     final result = await transformGodexInverseDriverPrn(
       prnBytes: samplePrn(),
       sourceWidth: 32,
@@ -93,13 +96,15 @@ void main() {
     expect(result.inverseDescriptors, 1);
     expect(result.nativeRuns, 2);
     expect(result.restoredWhitePixels, 2);
-    expect(result.clearedPixels, 24);
+    expect(result.clearedPixels, 12);
     final qHeader = ascii.encode('Q0,0,4,20\r');
     final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
     for (var row = 0; row < 20; row += 1) {
       final expected = switch (row) {
         0 || 1 || 19 => <int>[0, 0, 0, 0],
-        4 || 5 => <int>[0x30, 0x0f, 0xff, 0x0c],
+        4 => <int>[0x37, 0xef, 0xff, 0x6c],
+        5 => <int>[0x3b, 0xdf, 0xff, 0x6c],
+        6 => <int>[0x3d, 0xbf, 0xff, 0x6c],
         _ => <int>[0x3f, 0xff, 0xff, 0xfc],
       };
       expect(

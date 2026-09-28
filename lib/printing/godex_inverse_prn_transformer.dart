@@ -10,7 +10,6 @@ const int godexInversePrintDarkness = 8;
 const int godexRestoredPrintDarkness = 8;
 const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';
-const int _godexInverseClearBottomGuardDots = 1;
 
 typedef GodexInverseGlyphRasterizer =
     Future<Pcl4BitmapGlyph> Function({
@@ -353,13 +352,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     final left = rasterizedRun.x;
     final top = rasterizedRun.y;
     final right = left + rasterizedRun.glyph.width;
-    // G500 inverse V text leaves the final bitmap-cell row unpainted. Keep
-    // that row from the restored black band instead of exposing a white line.
-    final clearHeight = math.max(
-      1,
-      rasterizedRun.glyph.height - _godexInverseClearBottomGuardDots,
-    );
-    final bottom = top + clearHeight;
+    final bottom = top + rasterizedRun.glyph.height;
     if (left < pattern.originX ||
         top < pattern.originY ||
         right > pattern.originX + pattern.stride * 8 ||
@@ -371,8 +364,17 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
         '$left,$top,$right,$bottom',
       );
     }
-    for (var y = top; y < bottom; y += 1) {
-      for (var x = left; x < right; x += 1) {
+    final glyphStride = (rasterizedRun.glyph.width + 7) ~/ 8;
+    for (var glyphY = 0; glyphY < rasterizedRun.glyph.height; glyphY += 1) {
+      for (var glyphX = 0; glyphX < rasterizedRun.glyph.width; glyphX += 1) {
+        final glyphMask = 0x80 >> (glyphX % 8);
+        if ((rasterizedRun.glyph.raster[glyphY * glyphStride + glyphX ~/ 8] &
+                glyphMask) ==
+            0) {
+          continue;
+        }
+        final x = left + glyphX;
+        final y = top + glyphY;
         final localX = x - pattern.originX;
         final localY = y - pattern.originY;
         final byteIndex =

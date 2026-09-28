@@ -149,6 +149,10 @@
 - 호환 가능한 역상 합성 경계 버그 수정이므로 `1.4.36 -> 1.4.37` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.37`. 관련 파일만 분리 커밋한다.
 - 기능 커밋 `d5fe3cd` (`GoDEX 역상 경계 번짐과 밑줄 제거`). 다음 액션은 위 1.4.37 후보를 사용자 별도 승인 후 정확히 1매 출력하고 사진에서 우측 돌출과 네 문구 아래 흰 선 제거를 확인하는 것이다.
 - 사용자 승인 후 1.4.37 후보를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. 최초 helper 실행은 프린터명 공백이 분리되어 인자 개수 검사에서 `exitCode=2`로 종료돼 전송이 없었고, 올바르게 인용한 실행에서만 `jobId=21`, 요청/쓰기 `37698/37698`, SHA256 `BA6B811C9B4053D2D180A5A6D90D72929C4F3FDA22B0D7098D63FACD4CE42B6F`, `physicalPrintSubmitted=true`를 확인했다. 작업 소멸 후 프린터 `Normal`, 대기열 0건이며 추가 출력은 없었다. Windows Debug 산출물은 1.4.37 기본 앱으로 복원했다. 다음 액션은 작업 21번 사진에서 우측 돌출과 네 문구 아래 흰 선 제거를 확인하는 것이다.
+- 작업 21번 결과 `.tmp/IMG_20260928_0009.png`: 큰 우측 돌출은 제거됐지만 네 PCL 문자열의 좌·우·하단에 1dot U자형 흰 외곽선이 남고, 사용자는 표 우측의 1px 번짐도 지적했다. 원인은 Q에서 glyph 사각형 전체를 흰색 clear한 뒤 G500 inverse V가 실제 glyph/background 픽셀보다 작은 영역만 덮어 사각형 여백이 노출된 것이다.
+- 수정: 검정 띠는 원본 Q에서 검출한 경계로만 복원하고, 사각형이 아니라 다운로드하는 PCL glyph의 실제 1-bit raster mask가 켜진 픽셀만 동일 좌표에서 clear한다. 따라서 PCL이 흰색으로 출력할 글자 획만 미리 비우고 외곽과 표 경계는 원본 검정 띠를 유지한다. sparse raster 회귀 테스트로 비-glyph 픽셀과 띠 밖 흰 영역이 보존되는 계약을 고정했다.
+- 파일 전용 후보 `.tmp/log/godex_inverse/production_v1438_glyphmask_clear_20260928.prn.transformed`: 37,698 bytes, SHA256 `55BABC88B9DBAC778A35BC2A4201722EE9E987B3A5337E47D584C93735FCF194`, `restoredWhitePixels=2695`, `clearedPixels=4412`, `physicalPrintSubmitted=false`. 원본 대비 변경 5,443픽셀은 모두 실제 두 검정 띠 안이고 띠 밖 변경은 0이다. 1.4.37 사각형 clear의 불필요한 흰 여백 6,430픽셀을 검정으로 복원했다. Q 미리보기에서 네 문자열 외곽 박스 없이 glyph mask만 흰색이며 프린터 `Normal`, 대기열 0건이다.
+- 호환 가능한 역상 합성 잔상 수정이므로 `1.4.37 -> 1.4.38` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.38`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
