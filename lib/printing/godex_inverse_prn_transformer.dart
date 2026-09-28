@@ -6,7 +6,7 @@ import 'package:label_manager/printing/godex_pcl4_bitmap_font.dart';
 import 'package:label_manager/printing/godex_text_glyph_rasterizer.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
-const int godexInversePrintDarkness = 4;
+const int godexInversePrintDarkness = 8;
 const int godexRestoredPrintDarkness = 8;
 const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';

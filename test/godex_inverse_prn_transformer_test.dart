@@ -98,7 +98,7 @@ void main() {
     }
     final payload = latin1.decode(result.bytes);
     expect(payload, startsWith('~MDELE,A\r\n~JA\r\n'));
-    expect(payload, contains('^H04\r\n^L\r\n'));
+    expect(payload, contains('^H08\r\n^L\r\n'));
     expect(payload, contains('VA,0,0,1,1,0,0I,!\r\n'));
     expect(payload, contains('VA,24,0,1,1,0,0I,"\r\n'));
     expect(payload, isNot(contains('AZ1,')));
