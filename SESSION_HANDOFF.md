@@ -124,6 +124,7 @@
 - `godex_text_glyph_rasterizer.dart`를 수정해 `굴림`/`Gulim` 역상 run은 `%WINDIR%\\Fonts\\gulim.ttc`를 작업 프로세스에 한 번 명시 등록한 뒤 래스터화한다. Windows Gulim 폭 136×17 회귀 테스트를 추가했다. 파일 전용 후보 `.tmp/log/godex_inverse/production_explicit_gulim_17dot_fullclear_20260928.prn.transformed`는 37,698 bytes, SHA256 `B9B92B23151BA4501908BE100CB72814657697167EF1A9D8B52DA39930F8C41C`, 네 glyph 폭 136/193/68/280, `firmwareInverse=2 nativeRuns=4 clearedPixels=9444`로 `0001` 성공 후보와 일치하며 물리 출력은 하지 않았다.
 - 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.34`. 호환 가능한 글꼴 선택 버그 수정이므로 `1.4.33 -> 1.4.34` PATCH 증가했다. 새 후보 실물 출력은 별도 사용자 승인 전 실행하지 않는다.
 - 기능 커밋 `e94b686` (`GoDEX 역상 굴림 글꼴 고정`).
+- 사용자 승인 후 1.4.34 명시적 Gulim 17dot full-clear 후보 `.tmp/log/godex_inverse/production_explicit_gulim_17dot_fullclear_20260928.prn.transformed`를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=10`, 요청/쓰기 `37698/37698`, SHA256 `B9B92B23151BA4501908BE100CB72814657697167EF1A9D8B52DA39930F8C41C` 일치, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않는다. 종이 결과를 `0001` 및 fallback production `0002`와 비교한다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
