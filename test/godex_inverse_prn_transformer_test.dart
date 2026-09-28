@@ -13,7 +13,7 @@ void main() {
   LabelSheetWindowsTextDescriptor descriptor({
     int left = 4,
     int right = 28,
-    int secondRunLeft = 24,
+    int secondRunLeft = 27,
   }) => LabelSheetWindowsTextDescriptor(
     candidateToken: 'text:0:0',
     text: 'A  B',
@@ -83,45 +83,80 @@ void main() {
     );
   }
 
-  test('clears glyph pixels and preserves unrelated inverse content', () async {
-    final result = await transformGodexInverseDriverPrn(
-      prnBytes: samplePrn(),
-      sourceWidth: 32,
-      sourceHeight: 20,
-      targetWidth: 32,
-      targetHeight: 20,
-      textDescriptors: <LabelSheetWindowsTextDescriptor>[descriptor()],
-      glyphRasterizer: rasterize,
-    );
-
-    expect(result.inverseDescriptors, 1);
-    expect(result.nativeRuns, 2);
-    expect(result.restoredWhitePixels, 2);
-    expect(result.clearedPixels, 12);
-    final qHeader = ascii.encode('Q0,0,4,20\r');
-    final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
-    for (var row = 0; row < 20; row += 1) {
-      final expected = switch (row) {
-        0 || 1 || 19 => <int>[0, 0, 0, 0],
-        4 => <int>[0x37, 0xef, 0xff, 0x6c],
-        5 => <int>[0x3b, 0xdf, 0xff, 0x6c],
-        6 => <int>[0x3d, 0xbf, 0xff, 0x6c],
-        10 => <int>[0x1f, 0xff, 0xff, 0xfc],
-        _ => <int>[0x3f, 0xff, 0xff, 0xfc],
-      };
-      expect(
-        result.bytes.sublist(qOffset + row * 4, qOffset + row * 4 + 4),
-        expected,
+  test(
+    'precomposes inverse XOR cells without changing nearby content',
+    () async {
+      final result = await transformGodexInverseDriverPrn(
+        prnBytes: samplePrn(),
+        sourceWidth: 32,
+        sourceHeight: 20,
+        targetWidth: 32,
+        targetHeight: 20,
+        textDescriptors: <LabelSheetWindowsTextDescriptor>[descriptor()],
+        glyphRasterizer: rasterize,
       );
-    }
-    final payload = latin1.decode(result.bytes);
-    expect(payload, startsWith('~MDELE,A\r\n~JA\r\n'));
-    expect(payload, contains('^H08\r\n^L\r\n'));
-    expect(payload, contains('VA,4,4,1,1,0,0I,!\r\n'));
-    expect(payload, contains('VA,24,4,1,1,0,0I,"\r\n'));
-    expect(payload, isNot(contains('AZ1,')));
-    expect(payload, endsWith('E\r\n^H08\r\n'));
-  });
+
+      expect(result.inverseDescriptors, 1);
+      expect(result.nativeRuns, 2);
+      expect(result.restoredWhitePixels, 2);
+      expect(result.clearedPixels, 56);
+      expect(result.compensatedPixels, 5);
+      final qHeader = ascii.encode('Q0,0,4,20\r');
+      final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
+      for (var row = 0; row < 20; row += 1) {
+        final expected = switch (row) {
+          0 || 1 || 19 => <int>[0, 0, 0, 0],
+          4 || 5 || 6 => <int>[0x20, 0x07, 0xff, 0xc1],
+          7 => <int>[0x20, 0x07, 0xff, 0xc3],
+          10 => <int>[0x1f, 0xff, 0xff, 0xfc],
+          _ => <int>[0x3f, 0xff, 0xff, 0xfc],
+        };
+        expect(
+          result.bytes.sublist(qOffset + row * 4, qOffset + row * 4 + 4),
+          expected,
+        );
+      }
+      final composed = Uint8List.fromList(
+        result.bytes.sublist(qOffset, qOffset + 4 * 20),
+      );
+      _xorInverseCell(
+        composed,
+        stride: 4,
+        x: 4,
+        y: 4,
+        width: 8,
+        height: 3,
+        raster: Uint8List.fromList(<int>[0x81, 0x42, 0x24]),
+      );
+      _xorInverseCell(
+        composed,
+        stride: 4,
+        x: 27,
+        y: 4,
+        width: 4,
+        height: 3,
+        raster: Uint8List.fromList(<int>[0x90, 0x90, 0x90]),
+      );
+      for (var row = 0; row < 20; row += 1) {
+        final expected = switch (row) {
+          0 || 1 || 19 => <int>[0, 0, 0, 0],
+          4 => <int>[0x37, 0xef, 0xff, 0xec],
+          5 => <int>[0x3b, 0xdf, 0xff, 0xec],
+          6 => <int>[0x3d, 0xbf, 0xff, 0xec],
+          10 => <int>[0x1f, 0xff, 0xff, 0xfc],
+          _ => <int>[0x3f, 0xff, 0xff, 0xfc],
+        };
+        expect(composed.sublist(row * 4, row * 4 + 4), expected);
+      }
+      final payload = latin1.decode(result.bytes);
+      expect(payload, startsWith('~MDELE,A\r\n~JA\r\n'));
+      expect(payload, contains('^H08\r\n^L\r\n'));
+      expect(payload, contains('VA,4,4,1,1,0,0I,!\r\n'));
+      expect(payload, contains('VA,27,4,1,1,0,0I,"\r\n'));
+      expect(payload, isNot(contains('AZ1,')));
+      expect(payload, endsWith('E\r\n^H08\r\n'));
+    },
+  );
 
   test('returns driver bytes unchanged without inverse descriptors', () async {
     final bytes = samplePrn();
@@ -153,6 +188,34 @@ void main() {
       throwsFormatException,
     );
   });
+}
+
+void _xorInverseCell(
+  Uint8List payload, {
+  required int stride,
+  required int x,
+  required int y,
+  required int width,
+  required int height,
+  required Uint8List raster,
+}) {
+  final glyphStride = (width + 7) ~/ 8;
+  for (var targetY = y; targetY < y + height + 1; targetY += 1) {
+    for (var targetX = x - 1; targetX < x + width + 1; targetX += 1) {
+      final glyphX = targetX - x;
+      final glyphY = targetY - y;
+      final glyphPixel =
+          glyphX >= 0 &&
+          glyphX < width &&
+          glyphY >= 0 &&
+          glyphY < height &&
+          (raster[glyphY * glyphStride + glyphX ~/ 8] &
+                  (0x80 >> (glyphX % 8))) !=
+              0;
+      if (glyphPixel) continue;
+      payload[targetY * stride + targetX ~/ 8] ^= 0x80 >> (targetX % 8);
+    }
+  }
 }
 
 int _indexOf(Uint8List bytes, List<int> pattern) {

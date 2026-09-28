@@ -10,6 +10,8 @@ const int godexInversePrintDarkness = 8;
 const int godexRestoredPrintDarkness = 8;
 const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';
+const int _godexInverseCellHorizontalOverhang = 1;
+const int _godexInverseCellBottomOverhang = 1;
 
 typedef GodexInverseGlyphRasterizer =
     Future<Pcl4BitmapGlyph> Function({
@@ -41,6 +43,7 @@ class GodexInversePrnTransformResult {
     required this.nativeRuns,
     required this.restoredWhitePixels,
     required this.clearedPixels,
+    required this.compensatedPixels,
   });
 
   final Uint8List bytes;
@@ -48,13 +51,15 @@ class GodexInversePrnTransformResult {
   final int nativeRuns;
   final int restoredWhitePixels;
   final int clearedPixels;
+  final int compensatedPixels;
 
   bool get transformed => inverseDescriptors > 0;
 
   String get diagnostics =>
       'firmwareInverse=$inverseDescriptors nativeRuns=$nativeRuns '
       'restoredWhitePixels=$restoredWhitePixels '
-      'clearedPixels=$clearedPixels darkness=$godexInversePrintDarkness '
+      'clearedPixels=$clearedPixels compensatedPixels=$compensatedPixels '
+      'darkness=$godexInversePrintDarkness '
       'restoreDarkness=$godexRestoredPrintDarkness';
 }
 
@@ -192,6 +197,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       nativeRuns: 0,
       restoredWhitePixels: 0,
       clearedPixels: 0,
+      compensatedPixels: 0,
     );
   }
   if (sourceWidth <= 0 ||
@@ -318,6 +324,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   }
 
   final modified = Uint8List.fromList(prnBytes);
+  final bandsByRun = Map<_GodexRasterizedRun, _GodexPixelRect>.identity();
   var restoredWhitePixels = 0;
   for (final descriptor in inverseDescriptors) {
     final horizontalPadding = scaleFontHeight(descriptor.fontPixelHeight) + 1;
@@ -345,6 +352,9 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       horizontalSearchPadding: horizontalPadding,
     );
     final descriptorRuns = rasterizedRunsByDescriptor[descriptor]!;
+    for (final run in descriptorRuns) {
+      bandsByRun[run] = band;
+    }
     final contentLeft = descriptorRuns.fold<int>(
       descriptorLeft,
       (value, run) => math.min(value, run.x),
@@ -378,11 +388,19 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     }
   }
   var clearedPixels = 0;
+  var compensatedPixels = 0;
   for (final rasterizedRun in rasterizedRuns) {
-    final left = rasterizedRun.x;
+    // G500 applies downloaded-font inverse text as XOR over a cell that is
+    // one dot wider on both sides and one dot taller at the bottom than the
+    // PCL bitmap. Precompose that exact cell so nearby sheet pixels survive.
+    final left = rasterizedRun.x - _godexInverseCellHorizontalOverhang;
     final top = rasterizedRun.y;
-    final right = left + rasterizedRun.glyph.width;
-    final bottom = top + rasterizedRun.glyph.height;
+    final right =
+        rasterizedRun.x +
+        rasterizedRun.glyph.width +
+        _godexInverseCellHorizontalOverhang;
+    final bottom =
+        top + rasterizedRun.glyph.height + _godexInverseCellBottomOverhang;
     if (left < pattern.originX ||
         top < pattern.originY ||
         right > pattern.originX + pattern.stride * 8 ||
@@ -394,24 +412,39 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
         '$left,$top,$right,$bottom',
       );
     }
+    final band = bandsByRun[rasterizedRun]!;
     final glyphStride = (rasterizedRun.glyph.width + 7) ~/ 8;
-    for (var glyphY = 0; glyphY < rasterizedRun.glyph.height; glyphY += 1) {
-      for (var glyphX = 0; glyphX < rasterizedRun.glyph.width; glyphX += 1) {
-        final glyphMask = 0x80 >> (glyphX % 8);
-        if ((rasterizedRun.glyph.raster[glyphY * glyphStride + glyphX ~/ 8] &
-                glyphMask) ==
-            0) {
-          continue;
-        }
-        final x = left + glyphX;
-        final y = top + glyphY;
+    for (var y = top; y < bottom; y += 1) {
+      for (var x = left; x < right; x += 1) {
         final localX = x - pattern.originX;
         final localY = y - pattern.originY;
         final byteIndex =
             pattern.payloadOffset + localY * pattern.stride + localX ~/ 8;
         final mask = 0x80 >> (localX % 8);
-        if ((modified[byteIndex] & mask) != 0) clearedPixels += 1;
-        modified[byteIndex] &= 0xff ^ mask;
+        final insideBand =
+            x >= band.left &&
+            x < band.right &&
+            y >= band.top &&
+            y < band.bottom;
+        if (insideBand) {
+          if ((modified[byteIndex] & mask) != 0) clearedPixels += 1;
+          modified[byteIndex] &= 0xff ^ mask;
+          continue;
+        }
+        final glyphX = x - rasterizedRun.x;
+        final glyphY = y - rasterizedRun.y;
+        final isGlyphPixel =
+            glyphX >= 0 &&
+            glyphX < rasterizedRun.glyph.width &&
+            glyphY >= 0 &&
+            glyphY < rasterizedRun.glyph.height &&
+            (rasterizedRun.glyph.raster[glyphY * glyphStride + glyphX ~/ 8] &
+                    (0x80 >> (glyphX % 8))) !=
+                0;
+        if (!isGlyphPixel) {
+          modified[byteIndex] ^= mask;
+          compensatedPixels += 1;
+        }
       }
     }
   }
@@ -466,5 +499,6 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     nativeRuns: rasterizedRuns.length,
     restoredWhitePixels: restoredWhitePixels,
     clearedPixels: clearedPixels,
+    compensatedPixels: compensatedPixels,
   );
 }

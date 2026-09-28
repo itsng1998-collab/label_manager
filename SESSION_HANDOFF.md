@@ -160,6 +160,10 @@
 - 호환 가능한 일반화 버그 수정이므로 `1.4.38 -> 1.4.39` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.39`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기능 커밋 `7cd6a2b` (`GoDEX 역상 합성을 시트 독립적으로 일반화`). 다음 액션은 일반화된 1.4.39 후보를 사용자 별도 승인 후 정확히 1매 출력해 외곽 박스와 경계 번짐 제거를 확인하는 것이다.
 - 사용자 승인 후 일반화된 1.4.39 후보를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=24`, 요청/쓰기 `37698/37698`, SHA256 `9936BA891BA7E838C20704D421E06455F0845501C300E63E8DE5F0E372C4D9D6`, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이며 추가 출력은 없었다. Windows Debug 산출물은 1.4.39 기본 앱으로 복원했다. 다음 액션은 작업 24번 사진에서 외곽 박스와 경계 번짐 제거를 확인하는 것이다.
+- 작업 24번 결과 `.tmp/IMG_20260928_0010.png`: 네 역상 문자열 영역이 통째로 흰 박스가 되고 상단 우측에서 표 밖 1px 번짐이 남았다. 1.4.37의 `전체 흰 셀 -> 정상 역상+외곽 1dot`, 1.4.39의 `glyph mask만 흰색 -> 전체 흰 박스`를 함께 대조해 G500의 downloaded-font `V...I`가 덮어쓰기가 아니라 기존 Q와 inverse cell mask를 XOR 합성한다고 판정했다.
+- 일반화 수정: G500의 실제 inverse XOR cell은 glyph bitmap보다 좌·우 각 1dot, 하단 1dot 크다. 각 동적 run의 이 셀을 계산해 검정 배경 안에서는 셀 전체를 흰색 preimage로 만들고, 검정 배경 밖에서는 glyph가 아닌 셀 픽셀을 미리 XOR 보상해 명령 적용 후 원본 시트 픽셀로 돌아오게 한다. 특정 시트 좌표·문구·폭을 사용하지 않는다.
+- 회귀 테스트는 sparse glyph 두 개, 같은 검정 배경의 별도 흰 요소, 배경 밖으로 걸친 inverse cell을 구성하고 firmware XOR를 모사한 최종 bitmap이 글자와 주변 원본을 모두 보존하는지 검증한다. 파일 전용 후보 `.tmp/log/godex_inverse/production_v1440_xor_precompose_20260928.prn.transformed`는 37,698 bytes, SHA256 `3E4E58BF93CAFBC24AB2F4F43D8C1544692962501B563D232B76199AD5F141A5`, `restoredWhitePixels=2693`, `clearedPixels=12312`, `compensatedPixels=18`, `physicalPrintSubmitted=false`다. 보상 18픽셀은 상단 우측 run의 XOR cell이 실제 검정 띠 우측 `x=603`보다 1dot 밖인 `x=604`, `y=90..107`에 걸친 부분과 정확히 일치한다.
+- 호환 가능한 역상 XOR 합성 버그 수정이므로 `1.4.39 -> 1.4.40` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.40`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
