@@ -147,6 +147,7 @@
 - 수정: 원본 Q에서 descriptor 전체를 포함하는 실제 검정 띠의 수평 경계와 50% 이상 검정인 연속 세로 범위를 검출해 그 안에서만 기존 흰 glyph를 복원한다. 이후 PCL glyph clear는 마지막 1dot을 검정 guard로 남긴다. 회귀 테스트는 검정 띠 밖 흰 영역 보존, descriptor 아래쪽 잔상 복원, 마지막 clear 행의 검정 guard를 함께 고정한다.
 - 파일 전용 후보 `.tmp/log/godex_inverse/production_v1437_bandclip_bottomguard_20260928.prn.transformed`: 37,698 bytes, SHA256 `BA6B811C9B4053D2D180A5A6D90D72929C4F3FDA22B0D7098D63FACD4CE42B6F`, `restoredWhitePixels=2695`, `clearedPixels=10832`, `physicalPrintSubmitted=false`. 1.4.36 대비 표 밖 검정 532픽셀을 흰색으로 복구하고 네 run 폭 합계 677픽셀의 마지막 행을 검정으로 유지하며, 원본 대비 변경은 실제 두 검정 띠 안에만 존재한다. 프린터 `Normal`, 대기열 0건이며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 호환 가능한 역상 합성 경계 버그 수정이므로 `1.4.36 -> 1.4.37` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.37`. 관련 파일만 분리 커밋한다.
+- 기능 커밋 `d5fe3cd` (`GoDEX 역상 경계 번짐과 밑줄 제거`). 다음 액션은 위 1.4.37 후보를 사용자 별도 승인 후 정확히 1매 출력하고 사진에서 우측 돌출과 네 문구 아래 흰 선 제거를 확인하는 것이다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
