@@ -134,6 +134,7 @@
 - H08 결과 `.tmp/IMG_20260928_0006.png`: H06보다 전폭 검정 띠가 확실히 균일하고 핀홀이 크게 줄었으며 네 17dot Gulim glyph와 `171.9kcal` 끝도 유지됐다. 과거 H08의 흰 획 소실은 GDI/AZ1의 얇은 획에서 발생했지만 현재 PCL soft-font에서는 재현되지 않았다. H08을 최종 production 농도로 채택한다.
 - `godexInversePrintDarkness`를 4→8로 변경하고 transformer 회귀 기대값을 갱신했다. 호환 가능한 출력 품질 버그 수정이므로 `1.4.34 -> 1.4.35` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.35`. 관련 파일만 분리 커밋한다.
 - 기능 커밋 `7212688` (`GoDEX 역상 출력 농도 확정`). 현재 production 기준은 explicit Gulim 17dot + actual glyph full-clear + PCL4 soft-font inverse + H08이다.
+- 최종 1.4.35 기본 transformer를 별도 override 없이 저장된 실제 요청에 파일 전용 재생했다. `.tmp/log/godex_inverse/production_v1435_final_replay_20260928.prn.transformed`는 37,698 bytes, SHA256 `7665E7CA4735DDC6DC6DD6D2E3980D450A96CD67C5179036D28E07599FC94726`이며 실물 합격 H08 후보와 byte 차이 0이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건. 진단 entrypoint 뒤 Windows Debug 산출물도 1.4.35 기본 앱으로 복원 빌드했다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
