@@ -10,7 +10,7 @@ const int godexInversePrintDarkness = 8;
 const int godexRestoredPrintDarkness = 8;
 const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';
-const int _godexInverseCellHorizontalOverhang = 1;
+const int _godexInverseCellRightOverhang = 1;
 const int _godexInverseCellBottomOverhang = 1;
 
 typedef GodexInverseGlyphRasterizer =
@@ -391,14 +391,14 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   var compensatedPixels = 0;
   for (final rasterizedRun in rasterizedRuns) {
     // G500 applies downloaded-font inverse text as XOR over a cell that is
-    // one dot wider on both sides and one dot taller at the bottom than the
+    // one dot wider on the right and one dot taller at the bottom than the
     // PCL bitmap. Precompose that exact cell so nearby sheet pixels survive.
-    final left = rasterizedRun.x - _godexInverseCellHorizontalOverhang;
+    final left = rasterizedRun.x;
     final top = rasterizedRun.y;
     final right =
         rasterizedRun.x +
         rasterizedRun.glyph.width +
-        _godexInverseCellHorizontalOverhang;
+        _godexInverseCellRightOverhang;
     final bottom =
         top + rasterizedRun.glyph.height + _godexInverseCellBottomOverhang;
     if (left < pattern.originX ||

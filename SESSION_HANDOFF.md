@@ -166,6 +166,9 @@
 - 호환 가능한 역상 XOR 합성 버그 수정이므로 `1.4.39 -> 1.4.40` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.40`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기능 커밋 `f0c4eec` (`GoDEX 역상 XOR 합성 보정`). 다음 액션은 일반화된 XOR precompose 후보를 사용자 별도 승인 후 정확히 1매 출력해 정상 역상 문자, 외곽 박스 제거, 표 밖 1px 보상 결과를 확인하는 것이다.
 - 사용자 승인 후 일반화된 1.4.40 XOR precompose 후보를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=26`, 요청/쓰기 `37698/37698`, SHA256 `3E4E58BF93CAFBC24AB2F4F43D8C1544692962501B563D232B76199AD5F141A5`, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이며 추가 출력은 없었다. Windows Debug 산출물은 1.4.40 기본 앱으로 복원했다. 다음 액션은 작업 26번 사진에서 정상 역상 문자, 외곽 박스 제거, 표 밖 1px 보상 결과를 확인하는 것이다.
+- 작업 26번 결과 `.tmp/IMG_20260928_0011.png`: 역상 글자와 오른쪽·하단 경계는 정상화됐지만 네 run 모두 문자열 시작점 바로 왼쪽에 1dot 흰 세로선이 남았다. 반복 위치를 대조해 G500의 실제 inverse XOR cell은 왼쪽으로 확장되지 않고 명령 `x`에서 시작하며, 오른쪽 +1dot·하단 +1dot만 확장된다고 판정했다.
+- 일반화 수정: XOR precompose 범위를 `[x, x + glyphWidth + 1) × [y, y + glyphHeight + 1)`로 바로잡았다. 문구·시트 좌표에 의존하지 않으며 기존 오른쪽 경계 보상은 유지한다. 파일 전용 후보 `.tmp/log/godex_inverse/production_v1441_xor_cell_20260928.prn.transformed`는 37,698 bytes, SHA256 `79E26BBAEFC8B192D3FA736697B98128894B6B301FB0B5B00301EF03898BCFCC`, `restoredWhitePixels=2693`, `clearedPixels=12240`, `compensatedPixels=18`, `physicalPrintSubmitted=false`다. 1.4.40 대비 차이는 네 run 시작점 왼쪽 열의 72픽셀뿐이며 모두 흰색에서 원래 검정으로 복원됐다(`x=14`: 36픽셀, `x=410`: 18픽셀, `x=321`: 18픽셀). 오른쪽 표 경계 보상 18픽셀은 그대로다.
+- 호환 가능한 XOR 셀 경계 버그 수정이므로 `1.4.40 -> 1.4.41` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.41`. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류

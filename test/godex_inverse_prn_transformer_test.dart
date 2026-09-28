@@ -99,15 +99,15 @@ void main() {
       expect(result.inverseDescriptors, 1);
       expect(result.nativeRuns, 2);
       expect(result.restoredWhitePixels, 2);
-      expect(result.clearedPixels, 56);
+      expect(result.clearedPixels, 48);
       expect(result.compensatedPixels, 5);
       final qHeader = ascii.encode('Q0,0,4,20\r');
       final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
       for (var row = 0; row < 20; row += 1) {
         final expected = switch (row) {
           0 || 1 || 19 => <int>[0, 0, 0, 0],
-          4 || 5 || 6 => <int>[0x20, 0x07, 0xff, 0xc1],
-          7 => <int>[0x20, 0x07, 0xff, 0xc3],
+          4 || 5 || 6 => <int>[0x30, 0x07, 0xff, 0xe1],
+          7 => <int>[0x30, 0x07, 0xff, 0xe3],
           10 => <int>[0x1f, 0xff, 0xff, 0xfc],
           _ => <int>[0x3f, 0xff, 0xff, 0xfc],
         };
@@ -201,7 +201,7 @@ void _xorInverseCell(
 }) {
   final glyphStride = (width + 7) ~/ 8;
   for (var targetY = y; targetY < y + height + 1; targetY += 1) {
-    for (var targetX = x - 1; targetX < x + width + 1; targetX += 1) {
+    for (var targetX = x; targetX < x + width + 1; targetX += 1) {
       final glyphX = targetX - x;
       final glyphY = targetY - y;
       final glyphPixel =
