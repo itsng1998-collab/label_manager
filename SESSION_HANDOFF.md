@@ -135,6 +135,7 @@
 - `godexInversePrintDarkness`를 4→8로 변경하고 transformer 회귀 기대값을 갱신했다. 호환 가능한 출력 품질 버그 수정이므로 `1.4.34 -> 1.4.35` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.35`. 관련 파일만 분리 커밋한다.
 - 기능 커밋 `7212688` (`GoDEX 역상 출력 농도 확정`). 현재 production 기준은 explicit Gulim 17dot + actual glyph full-clear + PCL4 soft-font inverse + H08이다.
 - 최종 1.4.35 기본 transformer를 별도 override 없이 저장된 실제 요청에 파일 전용 재생했다. `.tmp/log/godex_inverse/production_v1435_final_replay_20260928.prn.transformed`는 37,698 bytes, SHA256 `7665E7CA4735DDC6DC6DD6D2E3980D450A96CD67C5179036D28E07599FC94726`이며 실물 합격 H08 후보와 byte 차이 0이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건. 진단 entrypoint 뒤 Windows Debug 산출물도 1.4.35 기본 앱으로 복원 빌드했다.
+- 사용자 승인 후 스캔 제출용으로 위 최종 production PRN을 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=14`, 요청/쓰기 `37698/37698`, SHA256 일치, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않았고 Windows Debug 산출물은 다시 1.4.35 기본 앱으로 복원했다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
