@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:label_manager/printing/godex_inverse_prn_transformer.dart';
-import 'package:label_manager/printing/godex_korean_font_provisioner.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
@@ -149,17 +148,6 @@ class WindowsBitmapPrinter {
         textDescriptors: textDescriptors,
       );
       final bytes = transformed.bytes;
-      if (transformed.transformed) {
-        final fontProvision = await GodexKoreanFontProvisioner.production()
-            .ensureInstalled(printer: printer, portName: portName);
-        if (!fontProvision.canUseKoreanAsianFont) {
-          throw StateError(
-            'GoDEX Korean inverse font is unavailable: '
-            '${fontProvision.diagnostics}',
-          );
-        }
-        diagnostics = '$diagnostics koreanFont=${fontProvision.diagnostics}';
-      }
       if (requestCapture != null) {
         try {
           final file = File('${requestCapture.path}.prn');

@@ -1,29 +1,14 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/printing/godex_inverse_prn_transformer.dart';
+import 'package:label_manager/printing/godex_pcl4_bitmap_font.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const charsetChannel = MethodChannel('charset_converter');
-
-  setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(charsetChannel, (call) async {
-          expect(call.method, 'encode');
-          final arguments = call.arguments as Map<Object?, Object?>;
-          expect(arguments['charset'], '949');
-          return ascii.encode(arguments['data']! as String);
-        });
-  });
-
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(charsetChannel, null);
-  });
 
   LabelSheetWindowsTextDescriptor descriptor({
     int left = 0,
@@ -59,7 +44,31 @@ void main() {
     ...ascii.encode('\r\nE\r\n'),
   ]);
 
-  test('clears inverse clip and emits low-darkness AZ1 runs', () async {
+  Future<Pcl4BitmapGlyph> rasterize({
+    required String text,
+    required int characterCode,
+    required String fontFamily,
+    required double fontPixelHeight,
+    required bool bold,
+    required bool italic,
+    int? maximumWidth,
+  }) async {
+    expect(fontFamily, 'Gulim');
+    expect(fontPixelHeight, 16);
+    expect(bold, isTrue);
+    expect(italic, isFalse);
+    final width = text == 'A' ? 8 : 4;
+    expect(maximumWidth, greaterThanOrEqualTo(width));
+    return Pcl4BitmapGlyph(
+      characterCode: characterCode,
+      width: width,
+      height: 3,
+      advance: width,
+      raster: Uint8List.fromList(List<int>.filled(3, 0xff)),
+    );
+  }
+
+  test('clears actual glyph bounds and emits inverse soft-font runs', () async {
     final result = await transformGodexInverseDriverPrn(
       prnBytes: samplePrn(),
       sourceWidth: 32,
@@ -67,23 +76,32 @@ void main() {
       targetWidth: 32,
       targetHeight: 16,
       textDescriptors: <LabelSheetWindowsTextDescriptor>[descriptor()],
+      glyphRasterizer: rasterize,
     );
 
     expect(result.inverseDescriptors, 1);
     expect(result.nativeRuns, 2);
-    expect(result.clearedPixels, 16 * 16);
+    expect(result.clearedPixels, 36);
     final qHeader = ascii.encode('Q0,0,4,16\r');
     final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
-    for (var row = 0; row < 16; row += 1) {
+    for (var row = 0; row < 3; row += 1) {
       expect(
         result.bytes.sublist(qOffset + row * 4, qOffset + row * 4 + 4),
-        <int>[0, 0xff, 0xff, 0],
+        <int>[0, 0xff, 0xff, 0x0f],
+      );
+    }
+    for (var row = 3; row < 16; row += 1) {
+      expect(
+        result.bytes.sublist(qOffset + row * 4, qOffset + row * 4 + 4),
+        <int>[0xff, 0xff, 0xff, 0xff],
       );
     }
     final payload = latin1.decode(result.bytes);
+    expect(payload, startsWith('~MDELE,A\r\n~JA\r\n'));
     expect(payload, contains('^H04\r\n^L\r\n'));
-    expect(payload, contains('AZ1,0,0,1,1,0,0I,A\r\n'));
-    expect(payload, contains('AZ1,24,0,1,1,0,0I,B\r\n'));
+    expect(payload, contains('VA,0,0,1,1,0,0I,!\r\n'));
+    expect(payload, contains('VA,24,0,1,1,0,0I,"\r\n'));
+    expect(payload, isNot(contains('AZ1,')));
     expect(payload, endsWith('E\r\n^H08\r\n'));
   });
 
@@ -112,6 +130,7 @@ void main() {
         textDescriptors: <LabelSheetWindowsTextDescriptor>[
           descriptor(right: 40, secondRunLeft: 32),
         ],
+        glyphRasterizer: rasterize,
       ),
       throwsFormatException,
     );

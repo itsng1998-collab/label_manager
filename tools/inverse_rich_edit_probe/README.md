@@ -5,6 +5,21 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 계열과 `--comparison-label` 계열은 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## 정확한 레거시 RTF 캡처 (실물 출력 없음)
+
+레거시 공용 RTF와 UTF-8 TSV(`plain|rtf`, 토큰, 값/경로)를 받아 실제
+`RICHEDIT50W -> EM_FORMATRANGE -> GoDEX 드라이버` 경로를 파일로 캡처한다.
+출력 prefix에 `.rtf`, `.emf`, `.bmp`, `.prn`을 만들며 드라이버 작업에는 명시적인
+파일 대상을 사용하므로 프린터로 전송하지 않는다.
+
+```powershell
+.tmp/inverse_probe_build/Debug/inverse_rich_edit_probe.exe `
+  --legacy-rtf-emf `
+  .tmp/log/godex_inverse/legacy_noted_4955_form.rtf `
+  .tmp/log/godex_inverse/legacy_noted_472139_replacements.tsv `
+  .tmp/log/godex_inverse/legacy_noted_472139_capture
+```
+
 ## GoDEX 드라이버 PRN 제출 (v1.3.129)
 
 IMG0006은 동일한 앱 입력과 중간 렌더에서도 종이에 제조원 반복/하단 분할이 발생했다.

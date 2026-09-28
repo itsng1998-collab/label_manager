@@ -1,10 +1,13 @@
 #include <windows.h>
 #include <richedit.h>
+#include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include "../../windows/runner/inverse_text_layout.h"
 #include "../../windows/runner/inverse_text_bitmap.h"
 #include "../../windows/runner/inverse_text_geometry.h"
@@ -13,6 +16,275 @@
 #include "driver_file_probe.h"
 #include "../../windows/runner/debug_print_file_target.h"
 #include "font_reference_probe.h"
+
+struct RtfStreamBuffer {
+  std::vector<char> bytes;
+  size_t offset = 0;
+};
+
+DWORD CALLBACK ReadRtfStream(DWORD_PTR cookie, LPBYTE output, LONG requested,
+                             LONG* written) {
+  auto* source = reinterpret_cast<RtfStreamBuffer*>(cookie);
+  const size_t remaining = source->bytes.size() - source->offset;
+  const size_t count = std::min(remaining, static_cast<size_t>(requested));
+  if (count != 0) {
+    std::memcpy(output, source->bytes.data() + source->offset, count);
+    source->offset += count;
+  }
+  *written = static_cast<LONG>(count);
+  return 0;
+}
+
+DWORD CALLBACK WriteRtfStream(DWORD_PTR cookie, LPBYTE input, LONG count,
+                              LONG* written) {
+  auto* destination = reinterpret_cast<std::vector<char>*>(cookie);
+  destination->insert(destination->end(), input, input + count);
+  *written = count;
+  return 0;
+}
+
+std::vector<char> ReadBinaryFile(const std::filesystem::path& path) {
+  std::ifstream input(path, std::ios::binary);
+  return {std::istreambuf_iterator<char>(input),
+          std::istreambuf_iterator<char>()};
+}
+
+std::wstring DecodeUtf8(std::vector<char> bytes) {
+  size_t offset = bytes.size() >= 3 &&
+          static_cast<unsigned char>(bytes[0]) == 0xef &&
+          static_cast<unsigned char>(bytes[1]) == 0xbb &&
+          static_cast<unsigned char>(bytes[2]) == 0xbf
+      ? 3
+      : 0;
+  if (bytes.size() == offset) return L"";
+  const int length = MultiByteToWideChar(
+      CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data() + offset,
+      static_cast<int>(bytes.size() - offset), nullptr, 0);
+  if (length <= 0) return L"";
+  std::wstring result(length, L'\0');
+  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data() + offset,
+                      static_cast<int>(bytes.size() - offset), result.data(),
+                      length);
+  return result;
+}
+
+bool StreamRtf(HWND edit, const std::filesystem::path& path,
+               bool selection) {
+  RtfStreamBuffer source{ReadBinaryFile(path), 0};
+  if (source.bytes.empty()) return false;
+  EDITSTREAM stream{};
+  stream.dwCookie = reinterpret_cast<DWORD_PTR>(&source);
+  stream.pfnCallback = ReadRtfStream;
+  SendMessageW(edit, EM_STREAMIN, SF_RTF | (selection ? SFF_SELECTION : 0),
+               reinterpret_cast<LPARAM>(&stream));
+  return stream.dwError == 0 && source.offset == source.bytes.size();
+}
+
+bool ReplacePlainText(HWND edit, const std::wstring& token,
+                      const std::wstring& value) {
+  LONG search_from = 0;
+  bool replaced = false;
+  for (;;) {
+    FINDTEXTEXW find{};
+    find.chrg = {search_from, -1};
+    find.lpstrText = const_cast<wchar_t*>(token.c_str());
+    const LRESULT found = SendMessageW(edit, EM_FINDTEXTEXW, FR_DOWN,
+                                       reinterpret_cast<LPARAM>(&find));
+    if (found < 0) break;
+    SendMessageW(edit, EM_EXSETSEL, 0, reinterpret_cast<LPARAM>(&find.chrgText));
+    SendMessageW(edit, EM_REPLACESEL, TRUE,
+                 reinterpret_cast<LPARAM>(value.c_str()));
+    search_from = find.chrgText.cpMin + static_cast<LONG>(value.size());
+    replaced = true;
+  }
+  return replaced;
+}
+
+bool ReplaceRtf(HWND edit, const std::wstring& token,
+                const std::filesystem::path& path) {
+  FINDTEXTEXW find{};
+  find.chrg = {0, -1};
+  find.lpstrText = const_cast<wchar_t*>(token.c_str());
+  const LRESULT found = SendMessageW(edit, EM_FINDTEXTEXW, FR_DOWN,
+                                     reinterpret_cast<LPARAM>(&find));
+  if (found < 0) return false;
+  SendMessageW(edit, EM_EXSETSEL, 0, reinterpret_cast<LPARAM>(&find.chrgText));
+  return StreamRtf(edit, path, true);
+}
+
+HDC CreateLegacyGodexDc(int width_mm, int height_mm) {
+  HANDLE printer = nullptr;
+  if (!OpenPrinterW(const_cast<wchar_t*>(L"Godex G500"), &printer, nullptr)) {
+    return nullptr;
+  }
+  const LONG bytes = DocumentPropertiesW(nullptr, printer,
+      const_cast<wchar_t*>(L"Godex G500"), nullptr, nullptr, 0);
+  if (bytes <= 0) {
+    ClosePrinter(printer);
+    return nullptr;
+  }
+  std::vector<BYTE> storage(static_cast<size_t>(bytes));
+  auto* mode = reinterpret_cast<DEVMODEW*>(storage.data());
+  if (DocumentPropertiesW(nullptr, printer, const_cast<wchar_t*>(L"Godex G500"),
+                          mode, nullptr, DM_OUT_BUFFER) != IDOK) {
+    ClosePrinter(printer);
+    return nullptr;
+  }
+  mode->dmFields |= DM_PAPERSIZE | DM_PAPERLENGTH | DM_PAPERWIDTH |
+                    DM_COPIES | DM_ORIENTATION;
+  mode->dmPaperSize = DMPAPER_USER;
+  mode->dmPaperWidth = static_cast<short>(width_mm * 10);
+  mode->dmPaperLength = static_cast<short>(height_mm * 10);
+  mode->dmCopies = 1;
+  mode->dmOrientation = DMORIENT_PORTRAIT;
+  HDC result = CreateDCW(L"WINSPOOL", L"Godex G500", nullptr, mode);
+  ClosePrinter(printer);
+  return result;
+}
+
+bool SaveBitmap(const std::filesystem::path& output, HDC reference,
+                HENHMETAFILE metafile, int width, int height) {
+  BITMAPINFO info{};
+  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  info.bmiHeader.biWidth = width;
+  info.bmiHeader.biHeight = -height;
+  info.bmiHeader.biPlanes = 1;
+  info.bmiHeader.biBitCount = 32;
+  info.bmiHeader.biCompression = BI_RGB;
+  HDC memory = CreateCompatibleDC(reference);
+  void* pixels = nullptr;
+  HBITMAP bitmap = CreateDIBSection(memory, &info, DIB_RGB_COLORS, &pixels,
+                                    nullptr, 0);
+  if (memory == nullptr || bitmap == nullptr || pixels == nullptr) return false;
+  HGDIOBJ previous = SelectObject(memory, bitmap);
+  PatBlt(memory, 0, 0, width, height, WHITENESS);
+  RECT destination{0, 0, width, height};
+  const bool replayed = PlayEnhMetaFile(memory, metafile, &destination) != FALSE;
+  GdiFlush();
+  BITMAPFILEHEADER header{};
+  header.bfType = 0x4d42;
+  header.bfOffBits = sizeof(header) + sizeof(BITMAPINFOHEADER);
+  header.bfSize = header.bfOffBits + width * height * 4;
+  std::ofstream image(output, std::ios::binary);
+  image.write(reinterpret_cast<const char*>(&header), sizeof(header));
+  image.write(reinterpret_cast<const char*>(&info.bmiHeader),
+              sizeof(info.bmiHeader));
+  image.write(static_cast<const char*>(pixels), width * height * 4);
+  const bool saved = image.good();
+  SelectObject(memory, previous);
+  DeleteObject(bitmap);
+  DeleteDC(memory);
+  return replayed && saved;
+}
+
+int CaptureLegacyRtf(const std::filesystem::path& template_path,
+                     const std::filesystem::path& replacements_path,
+                     const std::filesystem::path& output_prefix) {
+  HMODULE module = LoadLibraryW(L"Msftedit.dll");
+  HDC printer = CreateLegacyGodexDc(80, 60);
+  if (module == nullptr || printer == nullptr) return 10;
+  HWND host = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC",
+      L"", WS_POPUP, 0, 0, 640, 600, nullptr, nullptr,
+      GetModuleHandleW(nullptr), nullptr);
+  HWND edit = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_TRANSPARENT,
+      L"RICHEDIT50W", L"", WS_CHILD | WS_BORDER | WS_VSCROLL | WS_TABSTOP |
+      0x1084, 0, 0, 100, 20, host, nullptr, GetModuleHandleW(nullptr), nullptr);
+  if (host == nullptr || edit == nullptr || !StreamRtf(edit, template_path, false)) {
+    return 11;
+  }
+
+  std::wstringstream lines(DecodeUtf8(ReadBinaryFile(replacements_path)));
+  std::wstring line;
+  int replacement_count = 0;
+  while (std::getline(lines, line)) {
+    if (!line.empty() && line.back() == L'\r') line.pop_back();
+    const size_t first = line.find(L'\t');
+    const size_t second = first == std::wstring::npos
+        ? std::wstring::npos : line.find(L'\t', first + 1);
+    if (second == std::wstring::npos) continue;
+    const std::wstring kind = line.substr(0, first);
+    const std::wstring token = line.substr(first + 1, second - first - 1);
+    const std::wstring value = line.substr(second + 1);
+    const bool replaced = kind == L"rtf"
+        ? ReplaceRtf(edit, token, value)
+        : ReplacePlainText(edit, token, value);
+    if (replaced) ++replacement_count;
+  }
+
+  std::vector<char> final_rtf;
+  EDITSTREAM output_stream{};
+  output_stream.dwCookie = reinterpret_cast<DWORD_PTR>(&final_rtf);
+  output_stream.pfnCallback = WriteRtfStream;
+  SendMessageW(edit, EM_STREAMOUT, SF_RTF,
+               reinterpret_cast<LPARAM>(&output_stream));
+  std::ofstream(output_prefix.wstring() + L".rtf", std::ios::binary)
+      .write(final_rtf.data(), static_cast<std::streamsize>(final_rtf.size()));
+
+  const int dpi_x = GetDeviceCaps(printer, LOGPIXELSX);
+  const int dpi_y = GetDeviceCaps(printer, LOGPIXELSY);
+  const int width = GetDeviceCaps(printer, HORZRES);
+  const int height = GetDeviceCaps(printer, VERTRES);
+  RECT frame{0, 0, 8000, 6000};
+  const std::filesystem::path emf_path = output_prefix.wstring() + L".emf";
+  HDC recording = CreateEnhMetaFileW(printer, emf_path.c_str(), &frame, nullptr);
+  if (recording == nullptr) return 12;
+  SetMapMode(recording, MM_TEXT);
+  FORMATRANGE range{};
+  range.hdc = recording;
+  range.hdcTarget = printer;
+  range.rcPage = {0, 0, MulDiv(80, 14400, 254), MulDiv(72, 14400, 254)};
+  range.rc = range.rcPage;
+  range.rc.right -= MulDiv(3, 14400, 254);
+  range.chrg = {0, -1};
+  const LRESULT until = SendMessageW(edit, EM_FORMATRANGE, TRUE,
+      reinterpret_cast<LPARAM>(&range));
+  SendMessageW(edit, EM_DISPLAYBAND, 0, reinterpret_cast<LPARAM>(&range.rc));
+  SendMessageW(edit, EM_FORMATRANGE, FALSE, 0);
+  HENHMETAFILE metafile = CloseEnhMetaFile(recording);
+  const bool bitmap_saved = metafile != nullptr && SaveBitmap(
+      output_prefix.wstring() + L".bmp", printer, metafile, width, height);
+  HDC driver = CreateLegacyGodexDc(80, 60);
+  const std::filesystem::path prn_path = output_prefix.wstring() + L".prn";
+  DOCINFOW document{};
+  document.cbSize = sizeof(document);
+  document.lpszDocName = L"Legacy RichEdit diagnostic capture";
+  document.lpszOutput = prn_path.c_str();
+  bool driver_saved = false;
+  LRESULT driver_until = 0;
+  if (driver != nullptr && StartDocW(driver, &document) > 0 &&
+      StartPage(driver) > 0) {
+    FORMATRANGE driver_range = range;
+    driver_range.hdc = driver;
+    driver_range.hdcTarget = driver;
+    driver_until = SendMessageW(edit, EM_FORMATRANGE, TRUE,
+        reinterpret_cast<LPARAM>(&driver_range));
+    SendMessageW(edit, EM_DISPLAYBAND, 0,
+                 reinterpret_cast<LPARAM>(&driver_range.rc));
+    SendMessageW(edit, EM_FORMATRANGE, FALSE, 0);
+    const bool page_ended = EndPage(driver) > 0;
+    const bool document_ended = page_ended ? EndDoc(driver) > 0
+                                          : (AbortDoc(driver), false);
+    driver_saved = page_ended && document_ended &&
+                  std::filesystem::exists(prn_path) &&
+                  std::filesystem::file_size(prn_path) > 0;
+  } else if (driver != nullptr) {
+    AbortDoc(driver);
+  }
+  if (driver != nullptr) DeleteDC(driver);
+  const LONG text_length = GetWindowTextLengthW(edit);
+  std::cout << "legacyRtf replacements=" << replacement_count
+            << " textLength=" << text_length << " formattedUntil=" << until
+            << " device=" << width << "x" << height << " dpi=" << dpi_x
+            << "x" << dpi_y << " bitmap=" << bitmap_saved
+            << " driverUntil=" << driver_until << " prn=" << driver_saved
+            << "\n";
+  if (metafile != nullptr) DeleteEnhMetaFile(metafile);
+  DestroyWindow(edit);
+  DestroyWindow(host);
+  DeleteDC(printer);
+  FreeLibrary(module);
+  return bitmap_saved && driver_saved && until > 0 ? 0 : 13;
+}
 
 int CALLBACK CollectText(HDC, HANDLETABLE*, const ENHMETARECORD* record,
                          int, LPARAM context) {
@@ -403,6 +675,9 @@ bool VerifyNativeTextDeviceLayout() {
 }
 
 int wmain(int count, wchar_t** arguments) {
+  if (count == 5 && std::wstring(arguments[1]) == L"--legacy-rtf-emf") {
+    return CaptureLegacyRtf(arguments[2], arguments[3], arguments[4]);
+  }
   if (count == 2 && std::wstring(arguments[1]) == L"--native-device-text") {
     return VerifyNativeTextDeviceLayout() ? 0 : 1;
   }
