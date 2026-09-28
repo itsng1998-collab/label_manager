@@ -128,6 +128,8 @@
 - 1.4.34 결과 `.tmp/IMG_20260928_0004.png`: 명시적 Gulim의 글자 폭·간격이 `0001`과 동일하게 복원됐고 fallback `0002`, 압축된 18dot `0003`보다 낫다. 네 문자열과 `171.9kcal` 끝이 온전해 glyph 합성 문제는 해결됐지만 전폭 검정 띠의 핀홀은 남는다.
 - 다음 최소 후보는 레이아웃과 17dot Gulim glyph를 그대로 유지하고 job-local 농도만 H04→H06으로 올린 `.tmp/log/godex_inverse/production_explicit_gulim_17dot_fullclear_h06_20260928.prn`, 37,698 bytes, SHA256 `D40F0046F8A741842DEBEE2BA281CCBD23F4F24026F4648817347F5CC85E5E94`. 원본과 byte 차이는 `^H04`의 `4`→`6` 한 바이트뿐이며 Vt 4개, AZ1 0개, H06/H08 복원 각 1개다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 사용자 승인 후 위 H06 후보를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=11`, 요청/쓰기 `37698/37698`, SHA256 일치, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않는다. 종이 결과에서 H04 `0004` 대비 검정 띠 핀홀 감소와 흰 glyph 획 보존을 비교한다.
+- H06 결과 `.tmp/IMG_20260928_0005.png`: H04 `0004`보다 검정 띠가 진하고 핀홀이 줄었으며 17dot Gulim의 흰 획과 `171.9kcal` 끝도 유지됐다. H06은 유효한 개선이지만 프린터 기본/레거시 농도 H08의 품질 경계는 아직 확인하지 않았다.
+- 마지막 농도 비교 후보 `.tmp/log/godex_inverse/production_explicit_gulim_17dot_fullclear_h08_20260928.prn`, 37,698 bytes, SHA256 `7665E7CA4735DDC6DC6DD6D2E3980D450A96CD67C5179036D28E07599FC94726`. H04 원본과 시작 농도 `4`→`8` 한 바이트만 다르고 H08 명령 2개(시작/복원), Vt 4개, AZ1 0개다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
