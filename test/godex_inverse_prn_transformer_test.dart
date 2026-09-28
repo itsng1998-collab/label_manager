@@ -11,16 +11,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   LabelSheetWindowsTextDescriptor descriptor({
-    int left = 0,
-    int right = 32,
+    int left = 4,
+    int right = 28,
     int secondRunLeft = 24,
   }) => LabelSheetWindowsTextDescriptor(
     candidateToken: 'text:0:0',
     text: 'A  B',
     left: left,
-    top: 0,
+    top: 4,
     right: right,
-    bottom: 16,
+    bottom: 18,
     fontFamily: 'Gulim',
     fontPixelHeight: 16,
     bold: true,
@@ -31,19 +31,25 @@ void main() {
     horizontalAlign: '1',
     verticalAlign: '1',
     wrap: false,
-    predictedPaintedFootprint: const ui.Rect.fromLTWH(0, 0, 32, 16),
+    predictedPaintedFootprint: const ui.Rect.fromLTWH(4, 4, 24, 14),
     firmwareInverseRuns: <LabelSheetWindowsFirmwareTextRun>[
-      const LabelSheetWindowsFirmwareTextRun(text: 'A', left: 0, top: 0),
-      LabelSheetWindowsFirmwareTextRun(text: 'B', left: secondRunLeft, top: 0),
+      const LabelSheetWindowsFirmwareTextRun(text: 'A', left: 4, top: 4),
+      LabelSheetWindowsFirmwareTextRun(text: 'B', left: secondRunLeft, top: 4),
     ],
   );
 
   Uint8List samplePrn() {
-    final payload = Uint8List.fromList(List<int>.filled(4 * 16, 0xff));
-    payload[1] &= 0xf7;
-    payload[15 * 4 + 3] &= 0xfd;
+    final payload = Uint8List(4 * 20);
+    for (var row = 2; row < 19; row += 1) {
+      payload[row * 4] = 0x3f;
+      payload[row * 4 + 1] = 0xff;
+      payload[row * 4 + 2] = 0xff;
+      payload[row * 4 + 3] = 0xfc;
+    }
+    payload[4 * 4 + 1] &= 0xf7;
+    payload[18 * 4 + 3] &= 0xfb;
     return Uint8List.fromList(<int>[
-      ...ascii.encode('^P1\r\n^L\r\nQ0,0,4,16\r'),
+      ...ascii.encode('^P1\r\n^L\r\nQ0,0,4,20\r'),
       ...payload,
       ...ascii.encode('\r\nE\r\n'),
     ]);
@@ -77,9 +83,9 @@ void main() {
     final result = await transformGodexInverseDriverPrn(
       prnBytes: samplePrn(),
       sourceWidth: 32,
-      sourceHeight: 16,
+      sourceHeight: 20,
       targetWidth: 32,
-      targetHeight: 16,
+      targetHeight: 20,
       textDescriptors: <LabelSheetWindowsTextDescriptor>[descriptor()],
       glyphRasterizer: rasterize,
     );
@@ -87,26 +93,25 @@ void main() {
     expect(result.inverseDescriptors, 1);
     expect(result.nativeRuns, 2);
     expect(result.restoredWhitePixels, 2);
-    expect(result.clearedPixels, 36);
-    final qHeader = ascii.encode('Q0,0,4,16\r');
+    expect(result.clearedPixels, 24);
+    final qHeader = ascii.encode('Q0,0,4,20\r');
     final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
-    for (var row = 0; row < 3; row += 1) {
+    for (var row = 0; row < 20; row += 1) {
+      final expected = switch (row) {
+        0 || 1 || 19 => <int>[0, 0, 0, 0],
+        4 || 5 => <int>[0x30, 0x0f, 0xff, 0x0c],
+        _ => <int>[0x3f, 0xff, 0xff, 0xfc],
+      };
       expect(
         result.bytes.sublist(qOffset + row * 4, qOffset + row * 4 + 4),
-        <int>[0, 0xff, 0xff, 0x0f],
-      );
-    }
-    for (var row = 3; row < 16; row += 1) {
-      expect(
-        result.bytes.sublist(qOffset + row * 4, qOffset + row * 4 + 4),
-        <int>[0xff, 0xff, 0xff, 0xff],
+        expected,
       );
     }
     final payload = latin1.decode(result.bytes);
     expect(payload, startsWith('~MDELE,A\r\n~JA\r\n'));
     expect(payload, contains('^H08\r\n^L\r\n'));
-    expect(payload, contains('VA,0,0,1,1,0,0I,!\r\n'));
-    expect(payload, contains('VA,24,0,1,1,0,0I,"\r\n'));
+    expect(payload, contains('VA,4,4,1,1,0,0I,!\r\n'));
+    expect(payload, contains('VA,24,4,1,1,0,0I,"\r\n'));
     expect(payload, isNot(contains('AZ1,')));
     expect(payload, endsWith('E\r\n^H08\r\n'));
   });
@@ -130,9 +135,9 @@ void main() {
       transformGodexInverseDriverPrn(
         prnBytes: samplePrn(),
         sourceWidth: 32,
-        sourceHeight: 16,
+        sourceHeight: 20,
         targetWidth: 32,
-        targetHeight: 16,
+        targetHeight: 20,
         textDescriptors: <LabelSheetWindowsTextDescriptor>[
           descriptor(right: 40, secondRunLeft: 32),
         ],

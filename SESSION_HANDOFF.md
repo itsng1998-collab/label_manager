@@ -143,6 +143,10 @@
 - 사용자 최종 기준: 시트 라벨의 배치·검정 띠 크기·문구·좌표·글꼴 크기를 바꾸지 않고 그대로 고품질 출력한다. 짧은 검정 블록으로 바꾸거나 레거시 RTF 레이아웃으로 되돌리는 방식은 사용하지 않는다.
 - 1.4.36 잔상 제거 후보를 직전 H08 production PRN과 Q bitmap pixel 단위 비교했다. 변경은 두 역상 행 내부의 기존 GDI 잔상 1,160픽셀을 흰색→검정으로 복원한 것뿐이며 역상 행 밖 변경 픽셀은 0, 검정→흰색 변경도 0이다. 파일 길이와 전체 시트 레이아웃은 37,698 bytes로 유지된다. 즉 시트 디자인은 그대로 보존하고 중복 잔상만 제거한다.
 - 사용자 승인 후 위 1.4.36 잔상 제거 후보를 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=17`, 요청/쓰기 `37698/37698`, SHA256 `D56D17ED538BA9D7D844ACD24D78917454B535C4F3F619F6DD425F1474FFA40C` 일치, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않았고 Windows Debug 산출물은 1.4.36 기본 앱으로 복원했다.
+- 작업 17번 결과 `.tmp/IMG_20260928_0008.png`: 기존 이중 글자 잔상은 제거됐지만 두 검정 띠 우측에 검정 블록이 표 범위를 벗어나고, 각 PCL 역상 run 아래에 1dot 흰 언더라인이 남았다. 확대 사진과 원본 Q를 대조한 결과 실제 검정 띠는 `x=10..603`인데 1.4.36의 고정 padding 복원이 `x=617`까지 흰 배경을 검정으로 바꾼 것이 우측 14dot 번짐의 직접 원인이다. 언더라인은 17dot Q clear에 비해 G500의 inverse V 셀 배경이 마지막 행을 칠하지 않는 1dot 높이 불일치다.
+- 수정: 원본 Q에서 descriptor 전체를 포함하는 실제 검정 띠의 수평 경계와 50% 이상 검정인 연속 세로 범위를 검출해 그 안에서만 기존 흰 glyph를 복원한다. 이후 PCL glyph clear는 마지막 1dot을 검정 guard로 남긴다. 회귀 테스트는 검정 띠 밖 흰 영역 보존, descriptor 아래쪽 잔상 복원, 마지막 clear 행의 검정 guard를 함께 고정한다.
+- 파일 전용 후보 `.tmp/log/godex_inverse/production_v1437_bandclip_bottomguard_20260928.prn.transformed`: 37,698 bytes, SHA256 `BA6B811C9B4053D2D180A5A6D90D72929C4F3FDA22B0D7098D63FACD4CE42B6F`, `restoredWhitePixels=2695`, `clearedPixels=10832`, `physicalPrintSubmitted=false`. 1.4.36 대비 표 밖 검정 532픽셀을 흰색으로 복구하고 네 run 폭 합계 677픽셀의 마지막 행을 검정으로 유지하며, 원본 대비 변경은 실제 두 검정 띠 안에만 존재한다. 프린터 `Normal`, 대기열 0건이며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
+- 호환 가능한 역상 합성 경계 버그 수정이므로 `1.4.36 -> 1.4.37` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.37`. 관련 파일만 분리 커밋한다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류

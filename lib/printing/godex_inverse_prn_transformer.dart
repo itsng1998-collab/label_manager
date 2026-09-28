@@ -10,6 +10,7 @@ const int godexInversePrintDarkness = 8;
 const int godexRestoredPrintDarkness = 8;
 const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';
+const int _godexInverseClearBottomGuardDots = 1;
 
 typedef GodexInverseGlyphRasterizer =
     Future<Pcl4BitmapGlyph> Function({
@@ -72,6 +73,101 @@ class _GodexQPattern {
   final int stride;
   final int height;
   final int payloadOffset;
+}
+
+class _GodexPixelRect {
+  const _GodexPixelRect(this.left, this.top, this.right, this.bottom);
+
+  final int left;
+  final int top;
+  final int right;
+  final int bottom;
+}
+
+bool _isGodexPixelBlack(Uint8List bytes, _GodexQPattern pattern, int x, int y) {
+  final localX = x - pattern.originX;
+  final localY = y - pattern.originY;
+  final byteIndex =
+      pattern.payloadOffset + localY * pattern.stride + localX ~/ 8;
+  return (bytes[byteIndex] & (0x80 >> (localX % 8))) != 0;
+}
+
+_GodexPixelRect _findInverseBlackBand({
+  required Uint8List bytes,
+  required _GodexQPattern pattern,
+  required int descriptorLeft,
+  required int descriptorTop,
+  required int descriptorRight,
+  required int descriptorBottom,
+  required int horizontalSearchPadding,
+}) {
+  final patternRight = pattern.originX + pattern.stride * 8;
+  final patternBottom = pattern.originY + pattern.height;
+  final searchLeft = math.max(
+    pattern.originX,
+    descriptorLeft - horizontalSearchPadding,
+  );
+  final searchRight = math.min(
+    patternRight,
+    descriptorRight + horizontalSearchPadding,
+  );
+  var bandLeft = -1;
+  var bandRight = -1;
+  for (var y = descriptorTop; y < descriptorBottom; y += 1) {
+    int? runStart;
+    var lastBlack = -1;
+    var whiteGap = 0;
+    void considerRun() {
+      if (runStart == null || lastBlack < runStart) return;
+      final runRight = lastBlack + 1;
+      if (runStart <= descriptorLeft && runRight >= descriptorRight) {
+        if (bandLeft < 0 || runRight - runStart > bandRight - bandLeft) {
+          bandLeft = runStart;
+          bandRight = runRight;
+        }
+      }
+    }
+
+    for (var x = searchLeft; x < searchRight; x += 1) {
+      if (_isGodexPixelBlack(bytes, pattern, x, y)) {
+        runStart ??= x;
+        lastBlack = x;
+        whiteGap = 0;
+      } else if (runStart != null) {
+        whiteGap += 1;
+        if (whiteGap > 2) {
+          considerRun();
+          runStart = null;
+          lastBlack = -1;
+          whiteGap = 0;
+        }
+      }
+    }
+    considerRun();
+  }
+  if (bandLeft < 0 || bandRight <= bandLeft) {
+    throw const FormatException(
+      'Could not resolve the original black band for inverse text.',
+    );
+  }
+
+  bool rowBelongsToBand(int y) {
+    var blackPixels = 0;
+    for (var x = bandLeft; x < bandRight; x += 1) {
+      if (_isGodexPixelBlack(bytes, pattern, x, y)) blackPixels += 1;
+    }
+    return blackPixels * 2 >= bandRight - bandLeft;
+  }
+
+  var bandTop = descriptorTop;
+  while (bandTop > pattern.originY && rowBelongsToBand(bandTop - 1)) {
+    bandTop -= 1;
+  }
+  var bandBottom = descriptorBottom;
+  while (bandBottom < patternBottom && rowBelongsToBand(bandBottom)) {
+    bandBottom += 1;
+  }
+  return _GodexPixelRect(bandLeft, bandTop, bandRight, bandBottom);
 }
 
 Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
@@ -217,27 +313,31 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   var restoredWhitePixels = 0;
   for (final descriptor in inverseDescriptors) {
     final horizontalPadding = scaleFontHeight(descriptor.fontPixelHeight) + 1;
-    final left = math.max(
-      pattern.originX,
-      scaleX(descriptor.left) - horizontalPadding,
-    );
-    final top = math.max(pattern.originY, scaleY(descriptor.top));
-    final right = math.min(
-      pattern.originX + pattern.stride * 8,
-      scaleX(descriptor.right) + horizontalPadding,
-    );
-    final bottom = math.min(
+    final descriptorLeft = scaleX(descriptor.left);
+    final descriptorTop = math.max(pattern.originY, scaleY(descriptor.top));
+    final descriptorRight = scaleX(descriptor.right);
+    final descriptorBottom = math.min(
       pattern.originY + pattern.height,
       scaleY(descriptor.bottom),
     );
-    if (right <= left || bottom <= top) {
+    if (descriptorRight <= descriptorLeft ||
+        descriptorBottom <= descriptorTop) {
       throw FormatException(
         'Inverse descriptor is outside the GoDEX Q pattern: '
-        '$left,$top,$right,$bottom',
+        '$descriptorLeft,$descriptorTop,$descriptorRight,$descriptorBottom',
       );
     }
-    for (var y = top; y < bottom; y += 1) {
-      for (var x = left; x < right; x += 1) {
+    final band = _findInverseBlackBand(
+      bytes: prnBytes,
+      pattern: pattern,
+      descriptorLeft: descriptorLeft,
+      descriptorTop: descriptorTop,
+      descriptorRight: descriptorRight,
+      descriptorBottom: descriptorBottom,
+      horizontalSearchPadding: horizontalPadding,
+    );
+    for (var y = band.top; y < band.bottom; y += 1) {
+      for (var x = band.left; x < band.right; x += 1) {
         final localX = x - pattern.originX;
         final localY = y - pattern.originY;
         final byteIndex =
@@ -253,7 +353,13 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     final left = rasterizedRun.x;
     final top = rasterizedRun.y;
     final right = left + rasterizedRun.glyph.width;
-    final bottom = top + rasterizedRun.glyph.height;
+    // G500 inverse V text leaves the final bitmap-cell row unpainted. Keep
+    // that row from the restored black band instead of exposing a white line.
+    final clearHeight = math.max(
+      1,
+      rasterizedRun.glyph.height - _godexInverseClearBottomGuardDots,
+    );
+    final bottom = top + clearHeight;
     if (left < pattern.originX ||
         top < pattern.originY ||
         right > pattern.originX + pattern.stride * 8 ||
