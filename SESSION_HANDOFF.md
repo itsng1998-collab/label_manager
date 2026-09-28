@@ -153,6 +153,7 @@
 - 수정: 검정 띠는 원본 Q에서 검출한 경계로만 복원하고, 사각형이 아니라 다운로드하는 PCL glyph의 실제 1-bit raster mask가 켜진 픽셀만 동일 좌표에서 clear한다. 따라서 PCL이 흰색으로 출력할 글자 획만 미리 비우고 외곽과 표 경계는 원본 검정 띠를 유지한다. sparse raster 회귀 테스트로 비-glyph 픽셀과 띠 밖 흰 영역이 보존되는 계약을 고정했다.
 - 파일 전용 후보 `.tmp/log/godex_inverse/production_v1438_glyphmask_clear_20260928.prn.transformed`: 37,698 bytes, SHA256 `55BABC88B9DBAC778A35BC2A4201722EE9E987B3A5337E47D584C93735FCF194`, `restoredWhitePixels=2695`, `clearedPixels=4412`, `physicalPrintSubmitted=false`. 원본 대비 변경 5,443픽셀은 모두 실제 두 검정 띠 안이고 띠 밖 변경은 0이다. 1.4.37 사각형 clear의 불필요한 흰 여백 6,430픽셀을 검정으로 복원했다. Q 미리보기에서 네 문자열 외곽 박스 없이 glyph mask만 흰색이며 프린터 `Normal`, 대기열 0건이다.
 - 호환 가능한 역상 합성 잔상 수정이므로 `1.4.37 -> 1.4.38` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.38`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
+- 기능 커밋 `e2febf7` (`GoDEX 역상 문자열 외곽 잔상 제거`). 다음 액션은 위 1.4.38 glyph-mask 후보를 사용자 별도 승인 후 정확히 1매 출력하고 사진에서 네 문자열 외곽 박스와 우측 1px 번짐 제거를 확인하는 것이다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
