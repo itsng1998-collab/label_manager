@@ -267,8 +267,15 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       math.max(1, (value * targetHeight / sourceHeight).round());
 
   final rasterizedRuns = <_GodexRasterizedRun>[];
+  final rasterizedRunsByDescriptor =
+      Map<
+        LabelSheetWindowsTextDescriptor,
+        List<_GodexRasterizedRun>
+      >.identity();
   var characterCode = 0x21;
   for (final descriptor in inverseDescriptors) {
+    final descriptorRuns = <_GodexRasterizedRun>[];
+    rasterizedRunsByDescriptor[descriptor] = descriptorRuns;
     for (final run in descriptor.firmwareInverseRuns) {
       if (run.text.isEmpty ||
           run.text.contains('\r') ||
@@ -303,7 +310,9 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
         italic: descriptor.italic,
         maximumWidth: maximumWidth,
       );
-      rasterizedRuns.add(_GodexRasterizedRun(x: x, y: y, glyph: glyph));
+      final rasterizedRun = _GodexRasterizedRun(x: x, y: y, glyph: glyph);
+      rasterizedRuns.add(rasterizedRun);
+      descriptorRuns.add(rasterizedRun);
       characterCode += 1;
     }
   }
@@ -335,8 +344,29 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       descriptorBottom: descriptorBottom,
       horizontalSearchPadding: horizontalPadding,
     );
-    for (var y = band.top; y < band.bottom; y += 1) {
-      for (var x = band.left; x < band.right; x += 1) {
+    final descriptorRuns = rasterizedRunsByDescriptor[descriptor]!;
+    final contentLeft = descriptorRuns.fold<int>(
+      descriptorLeft,
+      (value, run) => math.min(value, run.x),
+    );
+    final contentTop = descriptorRuns.fold<int>(
+      descriptorTop,
+      (value, run) => math.min(value, run.y),
+    );
+    final contentRight = descriptorRuns.fold<int>(
+      descriptorRight,
+      (value, run) => math.max(value, run.x + run.glyph.width),
+    );
+    final contentBottom = descriptorRuns.fold<int>(
+      descriptorBottom,
+      (value, run) => math.max(value, run.y + run.glyph.height),
+    );
+    final restoreLeft = math.max(band.left, contentLeft - 1);
+    final restoreTop = math.max(band.top, contentTop - 1);
+    final restoreRight = math.min(band.right, contentRight + 1);
+    final restoreBottom = math.min(band.bottom, contentBottom + 1);
+    for (var y = restoreTop; y < restoreBottom; y += 1) {
+      for (var x = restoreLeft; x < restoreRight; x += 1) {
         final localX = x - pattern.originX;
         final localY = y - pattern.originY;
         final byteIndex =

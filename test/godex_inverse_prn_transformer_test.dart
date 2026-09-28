@@ -47,7 +47,8 @@ void main() {
       payload[row * 4 + 3] = 0xfc;
     }
     payload[4 * 4 + 1] &= 0xf7;
-    payload[18 * 4 + 3] &= 0xfb;
+    payload[10 * 4] &= 0xdf;
+    payload[18 * 4 + 3] &= 0xf7;
     return Uint8List.fromList(<int>[
       ...ascii.encode('^P1\r\n^L\r\nQ0,0,4,20\r'),
       ...payload,
@@ -82,7 +83,7 @@ void main() {
     );
   }
 
-  test('clears only glyph pixels and emits inverse soft-font runs', () async {
+  test('clears glyph pixels and preserves unrelated inverse content', () async {
     final result = await transformGodexInverseDriverPrn(
       prnBytes: samplePrn(),
       sourceWidth: 32,
@@ -105,6 +106,7 @@ void main() {
         4 => <int>[0x37, 0xef, 0xff, 0x6c],
         5 => <int>[0x3b, 0xdf, 0xff, 0x6c],
         6 => <int>[0x3d, 0xbf, 0xff, 0x6c],
+        10 => <int>[0x1f, 0xff, 0xff, 0xfc],
         _ => <int>[0x3f, 0xff, 0xff, 0xfc],
       };
       expect(
