@@ -39,18 +39,21 @@ class GodexInversePrnTransformResult {
     required this.bytes,
     required this.inverseDescriptors,
     required this.nativeRuns,
+    required this.restoredWhitePixels,
     required this.clearedPixels,
   });
 
   final Uint8List bytes;
   final int inverseDescriptors;
   final int nativeRuns;
+  final int restoredWhitePixels;
   final int clearedPixels;
 
   bool get transformed => inverseDescriptors > 0;
 
   String get diagnostics =>
       'firmwareInverse=$inverseDescriptors nativeRuns=$nativeRuns '
+      'restoredWhitePixels=$restoredWhitePixels '
       'clearedPixels=$clearedPixels darkness=$godexInversePrintDarkness '
       'restoreDarkness=$godexRestoredPrintDarkness';
 }
@@ -92,6 +95,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       bytes: prnBytes,
       inverseDescriptors: 0,
       nativeRuns: 0,
+      restoredWhitePixels: 0,
       clearedPixels: 0,
     );
   }
@@ -210,6 +214,40 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   }
 
   final modified = Uint8List.fromList(prnBytes);
+  var restoredWhitePixels = 0;
+  for (final descriptor in inverseDescriptors) {
+    final horizontalPadding = scaleFontHeight(descriptor.fontPixelHeight) + 1;
+    final left = math.max(
+      pattern.originX,
+      scaleX(descriptor.left) - horizontalPadding,
+    );
+    final top = math.max(pattern.originY, scaleY(descriptor.top));
+    final right = math.min(
+      pattern.originX + pattern.stride * 8,
+      scaleX(descriptor.right) + horizontalPadding,
+    );
+    final bottom = math.min(
+      pattern.originY + pattern.height,
+      scaleY(descriptor.bottom),
+    );
+    if (right <= left || bottom <= top) {
+      throw FormatException(
+        'Inverse descriptor is outside the GoDEX Q pattern: '
+        '$left,$top,$right,$bottom',
+      );
+    }
+    for (var y = top; y < bottom; y += 1) {
+      for (var x = left; x < right; x += 1) {
+        final localX = x - pattern.originX;
+        final localY = y - pattern.originY;
+        final byteIndex =
+            pattern.payloadOffset + localY * pattern.stride + localX ~/ 8;
+        final mask = 0x80 >> (localX % 8);
+        if ((modified[byteIndex] & mask) == 0) restoredWhitePixels += 1;
+        modified[byteIndex] |= mask;
+      }
+    }
+  }
   var clearedPixels = 0;
   for (final rasterizedRun in rasterizedRuns) {
     final left = rasterizedRun.x;
@@ -288,6 +326,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     bytes: result.takeBytes(),
     inverseDescriptors: inverseDescriptors.length,
     nativeRuns: rasterizedRuns.length,
+    restoredWhitePixels: restoredWhitePixels,
     clearedPixels: clearedPixels,
   );
 }

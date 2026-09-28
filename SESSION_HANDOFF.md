@@ -136,6 +136,9 @@
 - 기능 커밋 `7212688` (`GoDEX 역상 출력 농도 확정`). 현재 production 기준은 explicit Gulim 17dot + actual glyph full-clear + PCL4 soft-font inverse + H08이다.
 - 최종 1.4.35 기본 transformer를 별도 override 없이 저장된 실제 요청에 파일 전용 재생했다. `.tmp/log/godex_inverse/production_v1435_final_replay_20260928.prn.transformed`는 37,698 bytes, SHA256 `7665E7CA4735DDC6DC6DD6D2E3980D450A96CD67C5179036D28E07599FC94726`이며 실물 합격 H08 후보와 byte 차이 0이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건. 진단 entrypoint 뒤 Windows Debug 산출물도 1.4.35 기본 앱으로 복원 빌드했다.
 - 사용자 승인 후 스캔 제출용으로 위 최종 production PRN을 `Godex G500`/`USB001`에 정확히 1매 RAW 제출했다. `jobId=14`, 요청/쓰기 `37698/37698`, SHA256 일치, `physicalPrintSubmitted=true`; 작업 소멸 후 프린터 `Normal`, 대기열 0건이다. 추가 출력은 하지 않았고 Windows Debug 산출물은 다시 1.4.35 기본 앱으로 복원했다.
+- 스캔 결과 `.tmp/IMG_20260928_0007.png`: 사용자가 육안 잔상·이상을 지적했고 사진에서도 우측 문자열 앞의 점/이중 획이 확인됐다. 원인은 transformer가 새 PCL glyph 직사각형만 흰색 clear해, 드라이버 Q bitmap의 기존 흰 GDI glyph 중 새 경계 밖 픽셀이 남은 것이다. 기존 최종 PRN에서 새 glyph 밖 잔여 흰 픽셀은 상단 640, 하단 520, 총 1,160개였다. 앞선 완료 판정은 취소한다.
+- 수정: 각 역상 descriptor 행의 기존 흰 glyph를 먼저 검정으로 복원하고, 그 다음 새 PCL glyph 실제 영역만 흰색 clear한다. 실제 요청에서는 기존 흰 픽셀 3,225개를 복원하고 새 glyph 영역 11,509픽셀을 clear했다. 반올림 우측 1dot padding까지 보정한 파일 전용 후보 `.tmp/log/godex_inverse/production_v1435_ghostclear2_20260928.prn.transformed`는 37,698 bytes, SHA256 `D56D17ED538BA9D7D844ACD24D78917454B535C4F3F619F6DD425F1474FFA40C`, 두 행의 새 glyph 밖 잔여 흰 픽셀 0이다. `physicalPrintSubmitted=false`, 프린터 `Normal`, 대기열 0건이다.
+- 원래 glyph 밖 흰 픽셀이 검정으로 복원되는 transformer 회귀 테스트를 추가했다. 호환 가능한 잔상 버그 수정이므로 `1.4.35 -> 1.4.36` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 빌드 성공. EXE FileVersion/ProductVersion `1.4.36`. 실제 제출은 새 사용자 승인 전 실행하지 않는다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류

@@ -38,11 +38,16 @@ void main() {
     ],
   );
 
-  Uint8List samplePrn() => Uint8List.fromList(<int>[
-    ...ascii.encode('^P1\r\n^L\r\nQ0,0,4,16\r'),
-    ...List<int>.filled(4 * 16, 0xff),
-    ...ascii.encode('\r\nE\r\n'),
-  ]);
+  Uint8List samplePrn() {
+    final payload = Uint8List.fromList(List<int>.filled(4 * 16, 0xff));
+    payload[1] &= 0xf7;
+    payload[15 * 4 + 3] &= 0xfd;
+    return Uint8List.fromList(<int>[
+      ...ascii.encode('^P1\r\n^L\r\nQ0,0,4,16\r'),
+      ...payload,
+      ...ascii.encode('\r\nE\r\n'),
+    ]);
+  }
 
   Future<Pcl4BitmapGlyph> rasterize({
     required String text,
@@ -81,6 +86,7 @@ void main() {
 
     expect(result.inverseDescriptors, 1);
     expect(result.nativeRuns, 2);
+    expect(result.restoredWhitePixels, 2);
     expect(result.clearedPixels, 36);
     final qHeader = ascii.encode('Q0,0,4,16\r');
     final qOffset = _indexOf(result.bytes, qHeader) + qHeader.length;
