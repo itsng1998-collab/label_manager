@@ -164,6 +164,7 @@
 - 일반화 수정: G500의 실제 inverse XOR cell은 glyph bitmap보다 좌·우 각 1dot, 하단 1dot 크다. 각 동적 run의 이 셀을 계산해 검정 배경 안에서는 셀 전체를 흰색 preimage로 만들고, 검정 배경 밖에서는 glyph가 아닌 셀 픽셀을 미리 XOR 보상해 명령 적용 후 원본 시트 픽셀로 돌아오게 한다. 특정 시트 좌표·문구·폭을 사용하지 않는다.
 - 회귀 테스트는 sparse glyph 두 개, 같은 검정 배경의 별도 흰 요소, 배경 밖으로 걸친 inverse cell을 구성하고 firmware XOR를 모사한 최종 bitmap이 글자와 주변 원본을 모두 보존하는지 검증한다. 파일 전용 후보 `.tmp/log/godex_inverse/production_v1440_xor_precompose_20260928.prn.transformed`는 37,698 bytes, SHA256 `3E4E58BF93CAFBC24AB2F4F43D8C1544692962501B563D232B76199AD5F141A5`, `restoredWhitePixels=2693`, `clearedPixels=12312`, `compensatedPixels=18`, `physicalPrintSubmitted=false`다. 보상 18픽셀은 상단 우측 run의 XOR cell이 실제 검정 띠 우측 `x=603`보다 1dot 밖인 `x=604`, `y=90..107`에 걸친 부분과 정확히 일치한다.
 - 호환 가능한 역상 XOR 합성 버그 수정이므로 `1.4.39 -> 1.4.40` PATCH 증가했다. 관련 출력 경로 테스트 **23/23 통과**, focused analyzer **No issues found**, `git diff --check` 통과, Windows Debug 기본 앱 복원 빌드 성공. EXE FileVersion/ProductVersion `1.4.40`. 관련 파일만 분리 커밋하며 실제 제출은 새 사용자 승인 전 실행하지 않는다.
+- 기능 커밋 `f0c4eec` (`GoDEX 역상 XOR 합성 보정`). 다음 액션은 일반화된 XOR precompose 후보를 사용자 별도 승인 후 정확히 1매 출력해 정상 역상 문자, 외곽 박스 제거, 표 밖 1px 보상 결과를 확인하는 것이다.
 - 기존 사용자/진행 중 변경 `lib/core/app.dart`, 영양성분표 관련 4개 파일은 수정·stage·commit에서 제외한다.
 
 ## 현재 작업: 영양성분표 RTF 선택 중 오류
