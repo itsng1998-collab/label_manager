@@ -16,6 +16,7 @@
 - 관련 테스트 **통과(30/30)**, analyzer **No issues found**, IDE 오류 0건, 관련 파일 `git diff --check` 통과.
 - 운영 DB에 공지 저장은 자동 수행하지 않았다. 실제 계정 재시작 흐름은 사용자 재시험 대상이며 실행 중인 앱이 없어 hot reload 대상 없음.
 - 커밋 대상: `lib/widgets/notice_display.dart`, `lib/features/login/presentation/startup_dialog.dart`, `lib/features/update_notice/data/notice_dao.dart`, `test/startup_dialog_test.dart`, `pubspec.yaml`, 이번 작업 인수인계 섹션만 포함한다.
+- 기능 구현 커밋: `ba79aac` (`비동기 업데이트 공지 미표시 수정 및 재현 로그 추가`).
 - 범위 밖 사용자 변경: `lib/core/app.dart`, 인쇄 관련 파일, 기존 `SESSION_HANDOFF.md` 정리 내용을 보존하고 stage/commit에서 제외한다.
 
 ## 현재 작업: GoDEX G500 역상 흰 획 소실
