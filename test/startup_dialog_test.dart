@@ -282,6 +282,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NoticeDisplayPanel), findsOneWidget);
+    final contentField = find.descendant(
+      of: find.byKey(const ValueKey('notice-content-area')),
+      matching: find.byType(EditableText),
+    );
+    expect(
+      tester.widget<EditableText>(contentField).controller.text,
+      '새 업데이트 공지',
+    );
   });
 
   testWidgets('saved id does not replace edited id when notice closes', (
@@ -345,6 +353,112 @@ void main() {
       isNot(contains('3575')),
     );
     expect(find.byType(NoticeDisplayPanel), findsNothing);
+  });
+
+  testWidgets('typed TESTER1 shows updated notice after Enter', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'user_id': '3575',
+      'save_id': true,
+    });
+    const updatedMessage = '업데이트 공지 (+1.4.16)';
+    final debugMessages = <String>[];
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) {
+      if (message != null) debugMessages.add(message);
+    };
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StartupDialog(
+              onLogin: () {},
+              loginService: StartupLoginService(
+                loadNotice: (userId) async => Notice(
+                  message: userId == 'TESTER1' ? updatedMessage : '기존 공지',
+                  state: 0,
+                ),
+                loadUser: (userId) async => User(
+                  userId: userId,
+                  marketId: 1,
+                  name: '사용자',
+                  pwd: '',
+                  grade: UserGrade.CLIENT_USER,
+                  marketName: '지점',
+                  customerName: '거래처',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final contentField = find.descendant(
+        of: find.byKey(const ValueKey('notice-content-area')),
+        matching: find.byType(EditableText),
+      );
+      expect(tester.widget<EditableText>(contentField).controller.text, '기존 공지');
+      await tester.enterText(
+        find.byKey(const ValueKey('startup-login-user-id')),
+        'TESTER1',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<EditableText>(contentField).controller.text,
+        updatedMessage,
+      );
+      expect(
+        debugMessages,
+        contains(contains('event=noticeApplied userId=TESTER1')),
+      );
+      expect(
+        debugMessages,
+        contains(
+          contains(
+            'event=displayContentSynced messageLength=${updatedMessage.length}',
+          ),
+        ),
+      );
+    } finally {
+      debugPrint = originalDebugPrint;
+    }
+  });
+
+  testWidgets('shared notice panel preserves editing on parent rebuild', (
+    tester,
+  ) async {
+    var content = '공지';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => NoticeDisplayPanel(
+              version: '1.4.16',
+              content: content,
+              editable: true,
+              onContentChanged: (value) => setState(() => content = value),
+            ),
+          ),
+        ),
+      ),
+    );
+    final contentField = find.descendant(
+      of: find.byKey(const ValueKey('notice-content-area')),
+      matching: find.byType(EditableText),
+    );
+    final controller = tester.widget<EditableText>(contentField).controller;
+    await tester.enterText(contentField, '공지 (+1.4.16)');
+    final selection = controller.selection;
+    await tester.pump();
+
+    expect(tester.widget<EditableText>(contentField).controller, same(controller));
+    expect(controller.text, '공지 (+1.4.16)');
+    expect(controller.selection, selection);
   });
 
   testWidgets('edited id supersedes saved id lookup in flight', (

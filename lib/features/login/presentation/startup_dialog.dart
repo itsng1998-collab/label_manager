@@ -101,6 +101,14 @@ class _StartupDialogState extends State<StartupDialog> {
 
   Future<void> _closeNotice() async {
     final userId = _noticeUserId;
+    RegressionDebugLog.event(
+      'updateNotice',
+      'closeRequested',
+      fields: {
+        'userId': userId,
+        'dontShowAgain': _dontShowUntilNextUpdate,
+      },
+    );
     if (userId != null) {
       await _loginService.updateNoticeState(
         userId: userId,
@@ -142,6 +150,19 @@ class _StartupDialogState extends State<StartupDialog> {
           _noticeClosed =
               widget.forceNoticeClosed || _noticeConfirmed || isSuppressed;
         });
+        RegressionDebugLog.event(
+          'updateNotice',
+          'noticeApplied',
+          fields: {
+            'userId': nextNoticeUserId,
+            'messageLength': result.notice.message.length,
+            'state': result.notice.state,
+            'userChanged': userChanged,
+            'forceClosed': widget.forceNoticeClosed,
+            'confirmed': _noticeConfirmed,
+            'closed': _noticeClosed,
+          },
+        );
       },
       serverName: widget.serverName,
       loginService: _loginService,

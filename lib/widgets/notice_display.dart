@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:label_manager/core/app.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class NoticeDisplayPanel extends StatelessWidget {
+class NoticeDisplayPanel extends StatefulWidget {
   const NoticeDisplayPanel({
     super.key,
     required this.version,
@@ -29,6 +30,47 @@ class NoticeDisplayPanel extends StatelessWidget {
   final int adFlex;
 
   @override
+  State<NoticeDisplayPanel> createState() => _NoticeDisplayPanelState();
+}
+
+class _NoticeDisplayPanelState extends State<NoticeDisplayPanel> {
+  late final TextEditingController _versionController;
+  late final TextEditingController _contentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _versionController = TextEditingController(text: widget.version);
+    _contentController = TextEditingController(text: widget.content);
+  }
+
+  @override
+  void didUpdateWidget(covariant NoticeDisplayPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_versionController.text != widget.version) {
+      _versionController.text = widget.version;
+    }
+    if (_contentController.text != widget.content) {
+      _contentController.text = widget.content;
+      RegressionDebugLog.event(
+        'updateNotice',
+        'displayContentSynced',
+        fields: {
+          'messageLength': _contentController.text.length,
+          'editable': widget.editable,
+        },
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _versionController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -36,11 +78,11 @@ class NoticeDisplayPanel extends StatelessWidget {
         SizedBox(
           width: 240,
           child: TextFormField(
-            focusNode: initialFocusNode,
-            initialValue: version,
-            readOnly: !editable,
+            focusNode: widget.initialFocusNode,
+            controller: _versionController,
+            readOnly: !widget.editable,
             decoration: const InputDecoration(labelText: '업데이트 버전'),
-            onChanged: editable ? onVersionChanged : null,
+            onChanged: widget.editable ? widget.onVersionChanged : null,
           ),
         ),
         const SizedBox(height: 12),
@@ -50,10 +92,10 @@ class NoticeDisplayPanel extends StatelessWidget {
             children: [
               Expanded(
                 key: const ValueKey('notice-content-area'),
-                flex: contentFlex,
+                flex: widget.contentFlex,
                 child: TextFormField(
-                  initialValue: content,
-                  readOnly: !editable,
+                  controller: _contentController,
+                  readOnly: !widget.editable,
                   expands: true,
                   maxLines: null,
                   minLines: null,
@@ -67,13 +109,13 @@ class NoticeDisplayPanel extends StatelessWidget {
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.all(14),
                   ),
-                  onChanged: editable ? onContentChanged : null,
+                  onChanged: widget.editable ? widget.onContentChanged : null,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 key: const ValueKey('notice-ad-area'),
-                flex: adFlex,
+                flex: widget.adFlex,
                 child: const NoticeAdBanner(),
               ),
             ],

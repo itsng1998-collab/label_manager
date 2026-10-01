@@ -1,5 +1,23 @@
 # SESSION HANDOFF
 
+## 현재 작업: 선택 사용자 업데이트 메시지 미표시
+- **완료**: 관리자로 TESTER1에 공지를 저장한 뒤 재시작·TESTER1 조회 시 공지 내용이 빈 화면으로 보이는 오류를 화면 controller 회귀 테스트로 재현하고 수정했다.
+- 로그 확인: 종료 전 TESTER1 저장 SQL과 COMMIT 성공, 종료 후 TESTER1 공지 SELECT와 사용자 조회 성공이 모두 있다. 저장 반영 행 수와 조회된 공지 길이/상태는 없어 실제 저장 결과는 판별할 수 없다.
+- 원인 확정: `NoticeDisplayPanel`의 `TextFormField.initialValue`는 최초 빈 내용으로 생성된 필드에 비동기 공지 조회 결과를 반영하지 않는다. controller 검증으로 `noticeApplied messageLength=9` 로그에도 필드 내용이 `''`인 증상을 재현했다.
+- SQL 누락 가설은 직접 원인 재현 후 폐기했다. 추정 기반 SQL/계약 테스트 변경은 원복했으며 DB 스키마/저장 SQL은 변경하지 않는다.
+- `NoticeDAO` 편집 완료: 저장·조회 단계의 ID/내용 길이/상태/소요시간 진단 로그만 추가했다.
+- `StartupDialog` 편집 완료: 공지 적용 시 사용자 ID/내용 길이/상태 및 forceClosed/confirmed/closed를 기록하고 공지 닫기 시 대상 ID와 숨김 선택을 기록한다.
+- `lib/widgets/notice_display.dart` 편집 완료: 버전·내용 controller를 보유하고 부모에서 전달된 새 값만 동기화한다. 내용 반영 시 `displayContentSynced` 길이/편집 여부 로그를 남긴다.
+- `test/startup_dialog_test.dart` 보강: 비동기 조회 후 실제 필드 내용, 3575 → TESTER1 Enter 전환 후 새 공지 표시·로그, 관리자 편집 중 controller/selection 유지 테스트를 추가한다.
+- focused 테스트 결과: 실제 공지 표시 **통과(1/1)**, TESTER1 전환·편집 유지 **통과(2/2)**, 기존 SQL/빈 선택 계약 **통과(2/2)**.
+- 버전: `1.4.45` → `1.4.46` (국소 버그 수정 PATCH 증가).
+- 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/startup_dialog_test.dart test/startup_login_service_test.dart test/notice_menu_dao_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze lib/widgets/notice_display.dart lib/features/login/presentation/startup_dialog.dart lib/features/update_notice/data/notice_dao.dart test/startup_dialog_test.dart`.
+- 관련 테스트 **통과(30/30)**, analyzer **No issues found**, IDE 오류 0건, 관련 파일 `git diff --check` 통과.
+- 운영 DB에 공지 저장은 자동 수행하지 않았다. 실제 계정 재시작 흐름은 사용자 재시험 대상이며 실행 중인 앱이 없어 hot reload 대상 없음.
+- 커밋 대상: `lib/widgets/notice_display.dart`, `lib/features/login/presentation/startup_dialog.dart`, `lib/features/update_notice/data/notice_dao.dart`, `test/startup_dialog_test.dart`, `pubspec.yaml`, 이번 작업 인수인계 섹션만 포함한다.
+- 범위 밖 사용자 변경: `lib/core/app.dart`, 인쇄 관련 파일, 기존 `SESSION_HANDOFF.md` 정리 내용을 보존하고 stage/commit에서 제외한다.
+
 ## 현재 작업: GoDEX G500 역상 흰 획 소실
 - **진행 중**: `1.4.30` PRN→RAW 실물 결과 `.tmp/IMG_20260926_0001.png`에서 두 검정 띠의 흰 한글 획 소실이 계속된 것을 확인했다.
 - 대응 로그 `.tmp/log/app_2026-09-26_11-37-49.log`: `driverPrnGenerated=true`, `driverTransport=generatedPrnRaw`, 요청/쓰기 `35933/35933`, `physicalPrintSubmitted=true`로 PRN 생성과 RAW 전체 제출은 정상이다.

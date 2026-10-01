@@ -4,6 +4,7 @@ import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 class NoticeDAO extends DAO {
   static const String selectSql =
@@ -71,12 +72,42 @@ class NoticeDAO extends DAO {
   ''';
 
   static Future<Notice> selectNoticeByUserId(String userId) async {
-    final result = await DbClient.instance.getDataWithParams(selectSql, {
-      'userId': userId,
-    });
-    final map = DAO.getRowMapFromResult(result);
-    if (map == null) throw StateError('업데이트 메시지를 찾을 수 없습니다.');
-    return Notice.fromMap(map);
+    final watch = Stopwatch()..start();
+    RegressionDebugLog.event(
+      'updateNotice',
+      'lookupStarted',
+      fields: {'userId': userId},
+    );
+    try {
+      final result = await DbClient.instance.getDataWithParams(selectSql, {
+        'userId': userId,
+      });
+      final map = DAO.getRowMapFromResult(result);
+      if (map == null) throw StateError('업데이트 메시지를 찾을 수 없습니다.');
+      final notice = Notice.fromMap(map);
+      RegressionDebugLog.event(
+        'updateNotice',
+        'lookupCompleted',
+        fields: {
+          'userId': userId,
+          'messageLength': notice.message.length,
+          'state': notice.state,
+          'elapsedMs': watch.elapsedMilliseconds,
+        },
+      );
+      return notice;
+    } catch (error) {
+      RegressionDebugLog.event(
+        'updateNotice',
+        'lookupFailed',
+        fields: {
+          'userId': userId,
+          'elapsedMs': watch.elapsedMilliseconds,
+          'error': error,
+        },
+      );
+      rethrow;
+    }
   }
 
   static Future<String> selectByUserId(String userId) async {
@@ -118,14 +149,45 @@ class NoticeDAO extends DAO {
   static Future<void> updateSelectedUsers({
     required List<String> userIds,
     required String message,
-  }) {
+  }) async {
     if (userIds.isEmpty) {
       throw ArgumentError.value(userIds, 'userIds', '사용자를 선택해주세요.');
     }
-    return DbClient.instance.transaction([
-      for (final userId in userIds)
-        selectedUserStatement(userId: userId, message: message),
-    ]);
+    final watch = Stopwatch()..start();
+    RegressionDebugLog.event(
+      'updateNotice',
+      'selectedSaveStarted',
+      fields: {
+        'userIds': userIds.join(','),
+        'messageLength': message.length,
+      },
+    );
+    try {
+      await DbClient.instance.transaction([
+        for (final userId in userIds)
+          selectedUserStatement(userId: userId, message: message),
+      ]);
+      RegressionDebugLog.event(
+        'updateNotice',
+        'selectedSaveCompleted',
+        fields: {
+          'userIds': userIds.join(','),
+          'messageLength': message.length,
+          'elapsedMs': watch.elapsedMilliseconds,
+        },
+      );
+    } catch (error) {
+      RegressionDebugLog.event(
+        'updateNotice',
+        'selectedSaveFailed',
+        fields: {
+          'userIds': userIds.join(','),
+          'elapsedMs': watch.elapsedMilliseconds,
+          'error': error,
+        },
+      );
+      rethrow;
+    }
   }
 
   static Future<void> updateAll(String message) =>
