@@ -12,6 +12,7 @@
 - 관련 검증 **36/36 통과**: `C:/Flutter/bin/flutter.bat test test/notice_menu_dao_test.dart test/startup_dialog_test.dart test/startup_login_service_test.dart --reporter expanded`. 기존 검색 Enter/일반 사용자 저장 Enter와 공용 로그인 패널 계약 유지.
 - analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze lib/widgets/notice_display.dart lib/features/update_notice/presentation/update_notice_dialog.dart test/notice_menu_dao_test.dart`. 변경 파일 IDE diagnostics 오류 없음.
 - 버전: `1.4.46 → 1.4.47` PATCH. 공지 편집 키보드 동작의 국소 버그 수정이며 저장 SQL/데이터 형식은 변경하지 않는다.
+- 기능 커밋: `3ffa505` (`업데이트 메시지 Enter 줄바꿈 저장 충돌 수정 및 재현 로그 추가`). `git diff --check`, `git diff --cached --check` 통과. 범위 밖 사용자 변경은 stage/commit에 포함하지 않았다.
 - DTD에 연결해 앱을 조회했지만 활성 앱이 없어 hot reload 불가. 사용자 실제 Windows/IME 입력 테스트는 별도 확인 필요.
 - 임시 코드/배포 산출물 없음. stage/commit 대상: 공지 패널·다이얼로그·관련 테스트·버전 및 **이 섹션만**. 기존 handoff 정리/인쇄 관련 사용자 변경은 제외한다.
 - 범위 밖 사용자 인쇄 변경과 기존 인수인계 정리 내용은 보존하고 이번 stage/commit에서 제외한다.
