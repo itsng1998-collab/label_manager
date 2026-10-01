@@ -19,6 +19,15 @@
 - DTD 연결 결과: 실행 중인 앱 없음. hot reload 대상 없음.
 - 최종 `git diff --check` 통과. 실제 운영 DB의 해당 RTF payload 및 미리보기 렌더링은 미검증이며 사용자 재시험이 필요하다.
 - stage/commit 대상: 공용 표 수정, 영양성분표 진단 로그, 두 회귀 테스트 파일, 버전 및 이번 작업 인수인계 기록만 포함한다. 다른 인쇄 파일과 인수인계의 unrelated 정리는 제외한다.
+- 기능 구현 커밋: `3f0a4c1` (`영양성분표 RTF 선택 중 해제된 표 포커스 오류 수정`).
+- 재개 후 화면 focused test 결과: **통과(1/1)**. `C:/Flutter/bin/flutter.bat test test/nutrition_box_dialog_test.dart --plain-name "RTF row pointer selection survives preview portal creation"`.
+- 버전: 현재 작업 트리의 `1.4.44` → `1.4.45` (국소 오류 수정에 따른 PATCH 증가). 중단 사이 추가된 인쇄 관련 변경은 보존하며 이번 커밋에서 제외한다.
+- 전체 관련 테스트 실행 예정: `C:/Flutter/bin/flutter.bat test test/fortune_table_test.dart test/nutrition_box_dialog_test.dart`.
+- analyzer 실행 예정: `C:/Flutter/bin/flutter.bat analyze third_party/fortune_sheet/lib/src/fortune_table.dart lib/features/nutrition/presentation/nutrition_box_dialog.dart test/fortune_table_test.dart test/nutrition_box_dialog_test.dart`.
+- 관련 테스트 결과: **통과(89/89)**. analyzer 결과: **No issues found**. IDE diagnostics 결과: 변경 Dart 파일 오류 0건.
+- DTD 연결 결과: 실행 중인 앱 없음. hot reload 대상 없음.
+- 최종 `git diff --check` 통과. 실제 운영 DB의 해당 RTF payload 및 미리보기 렌더링은 미검증이며 사용자 재시험이 필요하다.
+- stage/commit 대상: 공용 표 수정, 영양성분표 진단 로그, 두 회귀 테스트 파일, 버전 및 이번 작업 인수인계 기록만 포함한다. 다른 인쇄 파일과 인수인계의 unrelated 정리는 제외한다.
 - 사용자 승인 후 진단 PRN 1매를 `Godex G500`/`USB001`에 RAW 제출 완료: `jobId=4`, 요청/쓰기 `36102/36102` bytes. 첫 제출 시 임시 C# helper의 미사용 지역변수 경고가 오류로 처리되어 컴파일만 실패했고 프린터 제출은 발생하지 않았다. 해당 변수를 제거한 재실행에서 위 job 1건만 제출됐다.
 - 최초 진단 판정 항목은 전체 레이아웃 유지 여부와 두 역상 띠의 `AZ1 1x1` 한글 출력·획 연속성이었다.
 - 실물 결과 `.tmp/IMG_20260926_0002.png`: 일반 레이아웃은 유지됐고 네 `AZ1 ... 1,1,0,0I` 위치에 예상 폭의 흰 역상 박스가 생성됐지만 박스 안 한글/영문 glyph는 전부 비었다. 올바른 배율과 inverse 명령 자체는 G500이 정상 해석했으며, 현재 프린터 메모리에서 `Z1` 한글 폰트를 찾지 못한 상태로 판정한다.
