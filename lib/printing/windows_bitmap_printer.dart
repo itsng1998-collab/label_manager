@@ -32,9 +32,11 @@ class WindowsBitmapPrinter {
       RawPrinterWin32.sendRaw;
   static int _captureSequence = 0;
 
-  static Future<File?> _captureDebugRequest(Map<String, Object?> arguments) async {
-    final directory = debugCaptureDirectory ??
-        Directory('.tmp/log/bitmap_print_requests');
+  static Future<File?> _captureDebugRequest(
+    Map<String, Object?> arguments,
+  ) async {
+    final directory =
+        debugCaptureDirectory ?? Directory('.tmp/log/bitmap_print_requests');
     try {
       await directory.create(recursive: true);
       final file = File(
@@ -45,11 +47,14 @@ class WindowsBitmapPrinter {
         'schemaVersion': 1,
         'arguments': arguments,
       })!;
-      await file.writeAsBytes(data.buffer.asUint8List(
-        data.offsetInBytes, data.lengthInBytes,
-      ), flush: true);
-      debugPrint('bitmapRequestCaptureVersion=1.3.127 '
-          'requestFile=${file.path} notActualSpoolCapture=true');
+      await file.writeAsBytes(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        flush: true,
+      );
+      debugPrint(
+        'bitmapRequestCaptureVersion=1.3.127 '
+        'requestFile=${file.path} notActualSpoolCapture=true',
+      );
       return file;
     } on FileSystemException catch (error) {
       debugPrint('bitmapRequestCaptureFailed=${error.message}');
@@ -65,18 +70,22 @@ class WindowsBitmapPrinter {
     final capture = const StandardMessageCodec().decodeMessage(
       ByteData.sublistView(bytes),
     );
-    if (capture is! Map || capture['schemaVersion'] != 1 ||
+    if (capture is! Map ||
+        capture['schemaVersion'] != 1 ||
         capture['arguments'] is! Map) {
       throw const FormatException('Unsupported bitmap print request capture.');
     }
     final result = await _channel.invokeMapMethod<String, Object?>(
-      'replayBitmapToFile', capture['arguments'],
+      'replayBitmapToFile',
+      capture['arguments'],
     );
     final diagnostics = result?['diagnostics']?.toString() ?? '';
     if (result?['ok'] != false ||
         !diagnostics.contains('debugFileCaptured=true')) {
-      throw StateError('File-only request replay failed: '
-          '${result?['error'] ?? 'invalid result'} $diagnostics');
+      throw StateError(
+        'File-only request replay failed: '
+        '${result?['error'] ?? 'invalid result'} $diagnostics',
+      );
     }
     return diagnostics;
   }
@@ -97,31 +106,35 @@ class WindowsBitmapPrinter {
     List<LabelSheetWindowsBorderDescriptor> borderDescriptors = const [],
   }) async {
     if (!Platform.isWindows) {
-      throw UnsupportedError('Windows bitmap printing is only supported on Windows.');
+      throw UnsupportedError(
+        'Windows bitmap printing is only supported on Windows.',
+      );
     }
     final arguments = <String, Object?>{
-        'printerName': printer.name,
-        'documentName': documentName,
-        'bgra': bgraBytes,
-        'sourceWidth': sourceWidth,
-        'sourceHeight': sourceHeight,
-        'pageWidthMm': pageWidthMm,
-        'pageHeightMm': pageHeightMm,
-        'copies': copies,
-        'widthAppendMm': widthAppendMm,
-        'legacyPrinterType': legacyPrinterType.name,
-        'textDescriptors': [
-          for (final descriptor in textDescriptors) descriptor.toChannelMap(),
-        ],
-        'borderDescriptors': [
-          for (final descriptor in borderDescriptors)
-            descriptor.toChannelMap(),
-        ],
-      };
-    final requestCapture = kDebugMode ? await _captureDebugRequest(arguments) : null;
+      'printerName': printer.name,
+      'documentName': documentName,
+      'bgra': bgraBytes,
+      'sourceWidth': sourceWidth,
+      'sourceHeight': sourceHeight,
+      'pageWidthMm': pageWidthMm,
+      'pageHeightMm': pageHeightMm,
+      'copies': copies,
+      'widthAppendMm': widthAppendMm,
+      'legacyPrinterType': legacyPrinterType.name,
+      'textDescriptors': [
+        for (final descriptor in textDescriptors) descriptor.toChannelMap(),
+      ],
+      'borderDescriptors': [
+        for (final descriptor in borderDescriptors) descriptor.toChannelMap(),
+      ],
+    };
+    final requestCapture = kDebugMode
+        ? await _captureDebugRequest(arguments)
+        : null;
     final useDriverPrn = legacyPrinterType == LegacyPrinterType.godex;
     final result = await _channel.invokeMapMethod<String, Object?>(
-      useDriverPrn ? 'renderBitmapToPrn' : 'printBitmap', arguments,
+      useDriverPrn ? 'renderBitmapToPrn' : 'printBitmap',
+      arguments,
     );
     if (result == null) {
       throw StateError('Windows bitmap printer returned no result.');
@@ -153,7 +166,7 @@ class WindowsBitmapPrinter {
           final file = File('${requestCapture.path}.prn');
           await file.writeAsBytes(bytes, flush: true);
           debugPrint(
-            'driverPrnVersion=1.3.130 driverPrnFile=${file.path} '
+            'driverPrnVersion=1.3.134 driverPrnFile=${file.path} '
             '${transformed.diagnostics}',
           );
         } on FileSystemException catch (error) {
@@ -164,14 +177,12 @@ class WindowsBitmapPrinter {
       if (submitted.writtenBytes != bytes.length) {
         throw StateError('GoDEX driver PRN was not completely submitted.');
       }
-      diagnostics = '$diagnostics driverTransport=generatedPrnRaw '
-          'driverTransportVersion=1.3.130 ${transformed.diagnostics} '
+      diagnostics =
+          '$diagnostics driverTransport=generatedPrnRaw '
+          'driverTransportVersion=1.3.134 ${transformed.diagnostics} '
           '${submitted.diagnostics} '
           'physicalPrintSubmitted=true';
     }
-    return WindowsBitmapPrintResult(
-      accepted: true,
-      diagnostics: diagnostics,
-    );
+    return WindowsBitmapPrintResult(accepted: true, diagnostics: diagnostics);
   }
 }

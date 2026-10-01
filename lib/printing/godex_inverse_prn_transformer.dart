@@ -12,6 +12,19 @@ const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';
 const int _godexInverseCellRightOverhang = 1;
 const int _godexInverseCellBottomOverhang = 1;
+const int _godexSmallInverseReinforcementMaxDots = 15;
+const double _godexSmallInversePointScale = 4 / 3;
+
+bool _isSmallMalgunInverse({
+  required String fontFamily,
+  required int fontPixelHeight,
+}) {
+  if (fontPixelHeight > _godexSmallInverseReinforcementMaxDots) {
+    return false;
+  }
+  final normalized = fontFamily.trim().toLowerCase().replaceAll(' ', '');
+  return normalized == '맑은고딕' || normalized == 'malgungothic';
+}
 
 typedef GodexInverseGlyphRasterizer =
     Future<Pcl4BitmapGlyph> Function({
@@ -44,6 +57,7 @@ class GodexInversePrnTransformResult {
     required this.restoredWhitePixels,
     required this.clearedPixels,
     required this.compensatedPixels,
+    required this.reinforcedRuns,
   });
 
   final Uint8List bytes;
@@ -52,6 +66,7 @@ class GodexInversePrnTransformResult {
   final int restoredWhitePixels;
   final int clearedPixels;
   final int compensatedPixels;
+  final int reinforcedRuns;
 
   bool get transformed => inverseDescriptors > 0;
 
@@ -59,6 +74,7 @@ class GodexInversePrnTransformResult {
       'firmwareInverse=$inverseDescriptors nativeRuns=$nativeRuns '
       'restoredWhitePixels=$restoredWhitePixels '
       'clearedPixels=$clearedPixels compensatedPixels=$compensatedPixels '
+      'reinforcedRuns=$reinforcedRuns '
       'darkness=$godexInversePrintDarkness '
       'restoreDarkness=$godexRestoredPrintDarkness';
 }
@@ -198,6 +214,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       restoredWhitePixels: 0,
       clearedPixels: 0,
       compensatedPixels: 0,
+      reinforcedRuns: 0,
     );
   }
   if (sourceWidth <= 0 ||
@@ -210,7 +227,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   var offset = 0;
   int? labelStartOffset;
   int? endCommandOffset;
-  _GodexQPattern? pattern;
+  final patterns = <_GodexQPattern>[];
   while (offset < prnBytes.length) {
     if (prnBytes[offset] == 10 || prnBytes[offset] == 13) {
       offset += 1;
@@ -232,9 +249,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     }
     final qMatch = RegExp(r'^Q(\d+),(\d+),(\d+),(\d+)$').firstMatch(command);
     if (qMatch != null) {
-      if (pattern != null ||
-          offset >= prnBytes.length ||
-          prnBytes[offset] != 13) {
+      if (offset >= prnBytes.length || prnBytes[offset] != 13) {
         throw const FormatException('GoDEX PRN has an invalid Q pattern.');
       }
       final stride = int.parse(qMatch.group(3)!);
@@ -246,13 +261,27 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
           payloadOffset + payloadLength > prnBytes.length) {
         throw const FormatException('GoDEX Q payload is truncated.');
       }
-      pattern = _GodexQPattern(
-        originX: int.parse(qMatch.group(1)!),
-        originY: int.parse(qMatch.group(2)!),
+      final originX = int.parse(qMatch.group(1)!);
+      final originY = int.parse(qMatch.group(2)!);
+      final pattern = _GodexQPattern(
+        originX: originX,
+        originY: originY,
         stride: stride,
         height: height,
         payloadOffset: payloadOffset,
       );
+      final patternRight = originX + stride * 8;
+      final patternBottom = originY + height;
+      if (patterns.any(
+        (existing) =>
+            originX < existing.originX + existing.stride * 8 &&
+            patternRight > existing.originX &&
+            originY < existing.originY + existing.height &&
+            patternBottom > existing.originY,
+      )) {
+        throw const FormatException('GoDEX PRN has overlapping Q patterns.');
+      }
+      patterns.add(pattern);
       offset = payloadOffset + payloadLength;
       continue;
     }
@@ -261,9 +290,11 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
       break;
     }
   }
-  if (labelStartOffset == null || pattern == null || endCommandOffset == null) {
+  if (labelStartOffset == null ||
+      patterns.isEmpty ||
+      endCommandOffset == null) {
     throw const FormatException(
-      'GoDEX PRN must contain one ^L, one Q pattern, and E.',
+      'GoDEX PRN must contain one ^L, at least one Q pattern, and E.',
     );
   }
 
@@ -272,6 +303,33 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   int scaleFontHeight(int value) =>
       math.max(1, (value * targetHeight / sourceHeight).round());
 
+  final patternsByDescriptor =
+      Map<LabelSheetWindowsTextDescriptor, _GodexQPattern>.identity();
+  for (final descriptor in inverseDescriptors) {
+    final descriptorLeft = scaleX(descriptor.left);
+    final descriptorTop = scaleY(descriptor.top);
+    final descriptorRight = scaleX(descriptor.right);
+    final descriptorBottom = scaleY(descriptor.bottom);
+    final matchingPatterns = patterns
+        .where((pattern) {
+          final patternRight = pattern.originX + pattern.stride * 8;
+          final patternBottom = pattern.originY + pattern.height;
+          return descriptorLeft >= pattern.originX &&
+              descriptorTop >= pattern.originY &&
+              descriptorRight <= patternRight &&
+              descriptorBottom <= patternBottom;
+        })
+        .toList(growable: false);
+    if (matchingPatterns.length != 1) {
+      throw FormatException(
+        'Inverse descriptor must fit exactly one GoDEX Q pattern: '
+        '$descriptorLeft,$descriptorTop,$descriptorRight,$descriptorBottom '
+        'matches=${matchingPatterns.length}',
+      );
+    }
+    patternsByDescriptor[descriptor] = matchingPatterns.single;
+  }
+
   final rasterizedRuns = <_GodexRasterizedRun>[];
   final rasterizedRunsByDescriptor =
       Map<
@@ -279,7 +337,9 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
         List<_GodexRasterizedRun>
       >.identity();
   var characterCode = 0x21;
+  var reinforcedRuns = 0;
   for (final descriptor in inverseDescriptors) {
+    final pattern = patternsByDescriptor[descriptor]!;
     final descriptorRuns = <_GodexRasterizedRun>[];
     rasterizedRunsByDescriptor[descriptor] = descriptorRuns;
     for (final run in descriptor.firmwareInverseRuns) {
@@ -307,12 +367,29 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
           'Inverse run starts outside the GoDEX Q pattern: $x,$y',
         );
       }
+      final scaledFontHeight = scaleFontHeight(descriptor.fontPixelHeight);
+      final reinforce = _isSmallMalgunInverse(
+        fontFamily: descriptor.fontFamily,
+        fontPixelHeight: scaledFontHeight,
+      );
+      if (reinforce) reinforcedRuns += 1;
+      // Fortune Sheet stores toolbar font sizes as 96-DPI logical pixels,
+      // while the legacy RichEdit toolbar treated the same displayed value as
+      // points. A small 7-size inverse run therefore arrives as 15 dots rather
+      // than the legacy 20 dots at 203 DPI. Restore that point-size mapping
+      // only for this narrowly-scoped thermal inverse compensation.
+      final rasterFontHeight = reinforce
+          ? math.max(
+              scaledFontHeight + 1,
+              (scaledFontHeight * _godexSmallInversePointScale).round(),
+            )
+          : scaledFontHeight;
       final glyph = await glyphRasterizer(
         text: run.text,
         characterCode: characterCode,
         fontFamily: descriptor.fontFamily,
-        fontPixelHeight: scaleFontHeight(descriptor.fontPixelHeight).toDouble(),
-        bold: descriptor.bold,
+        fontPixelHeight: rasterFontHeight.toDouble(),
+        bold: descriptor.bold || reinforce,
         italic: descriptor.italic,
         maximumWidth: maximumWidth,
       );
@@ -325,8 +402,10 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
 
   final modified = Uint8List.fromList(prnBytes);
   final bandsByRun = Map<_GodexRasterizedRun, _GodexPixelRect>.identity();
+  final patternsByRun = Map<_GodexRasterizedRun, _GodexQPattern>.identity();
   var restoredWhitePixels = 0;
   for (final descriptor in inverseDescriptors) {
+    final pattern = patternsByDescriptor[descriptor]!;
     final horizontalPadding = scaleFontHeight(descriptor.fontPixelHeight) + 1;
     final descriptorLeft = scaleX(descriptor.left);
     final descriptorTop = math.max(pattern.originY, scaleY(descriptor.top));
@@ -354,6 +433,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     final descriptorRuns = rasterizedRunsByDescriptor[descriptor]!;
     for (final run in descriptorRuns) {
       bandsByRun[run] = band;
+      patternsByRun[run] = pattern;
     }
     final contentLeft = descriptorRuns.fold<int>(
       descriptorLeft,
@@ -390,6 +470,7 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
   var clearedPixels = 0;
   var compensatedPixels = 0;
   for (final rasterizedRun in rasterizedRuns) {
+    final pattern = patternsByRun[rasterizedRun]!;
     // G500 applies downloaded-font inverse text as XOR over a cell that is
     // one dot wider on the right and one dot taller at the bottom than the
     // PCL bitmap. Precompose that exact cell so nearby sheet pixels survive.
@@ -500,5 +581,6 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     restoredWhitePixels: restoredWhitePixels,
     clearedPixels: clearedPixels,
     compensatedPixels: compensatedPixels,
+    reinforcedRuns: reinforcedRuns,
   );
 }

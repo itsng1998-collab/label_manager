@@ -172,6 +172,114 @@ void main() {
     expect(result.bytes, same(bytes));
   });
 
+  test(
+    'reinforces small Malgun inverse runs whether already bold or not',
+    () async {
+      final boldArguments = <bool>[];
+      final fontHeights = <double>[];
+      Future<Pcl4BitmapGlyph> captureRasterize({
+        required String text,
+        required int characterCode,
+        required String fontFamily,
+        required double fontPixelHeight,
+        required bool bold,
+        required bool italic,
+        int? maximumWidth,
+      }) async {
+        boldArguments.add(bold);
+        fontHeights.add(fontPixelHeight);
+        return Pcl4BitmapGlyph(
+          characterCode: characterCode,
+          width: 4,
+          height: 3,
+          advance: 4,
+          raster: Uint8List.fromList(<int>[0x90, 0x90, 0x90]),
+        );
+      }
+
+      final base = descriptor(right: 24, secondRunLeft: 16);
+      LabelSheetWindowsTextDescriptor malgun({required bool bold}) =>
+          LabelSheetWindowsTextDescriptor(
+            candidateToken: base.candidateToken,
+            text: base.text,
+            left: base.left,
+            top: base.top,
+            right: base.right,
+            bottom: base.bottom,
+            fontFamily: '맑은 고딕',
+            fontPixelHeight: 15,
+            bold: bold,
+            italic: base.italic,
+            underline: base.underline,
+            strikeThrough: base.strikeThrough,
+            colorArgb: base.colorArgb,
+            horizontalAlign: base.horizontalAlign,
+            verticalAlign: base.verticalAlign,
+            wrap: base.wrap,
+            predictedPaintedFootprint: base.predictedPaintedFootprint,
+            firmwareInverseRuns: base.firmwareInverseRuns,
+          );
+
+      final result = await transformGodexInverseDriverPrn(
+        prnBytes: samplePrn(),
+        sourceWidth: 32,
+        sourceHeight: 20,
+        targetWidth: 32,
+        targetHeight: 20,
+        textDescriptors: <LabelSheetWindowsTextDescriptor>[malgun(bold: false)],
+        glyphRasterizer: captureRasterize,
+      );
+      final alreadyBoldResult = await transformGodexInverseDriverPrn(
+        prnBytes: samplePrn(),
+        sourceWidth: 32,
+        sourceHeight: 20,
+        targetWidth: 32,
+        targetHeight: 20,
+        textDescriptors: <LabelSheetWindowsTextDescriptor>[malgun(bold: true)],
+        glyphRasterizer: captureRasterize,
+      );
+
+      expect(boldArguments, <bool>[true, true, true, true]);
+      expect(fontHeights, <double>[20, 20, 20, 20]);
+      expect(result.reinforcedRuns, 2);
+      expect(alreadyBoldResult.reinforcedRuns, 2);
+      expect(result.diagnostics, contains('reinforcedRuns=2'));
+    },
+  );
+
+  test(
+    'transforms the Q pattern containing inverse text when PRN is segmented',
+    () async {
+      final original = samplePrn();
+      final qHeader = ascii.encode('Q0,0,4,20\r');
+      final payloadOffset = _indexOf(original, qHeader) + qHeader.length;
+      final payload = original.sublist(payloadOffset, payloadOffset + 4 * 20);
+      final segmented = Uint8List.fromList(<int>[
+        ...original.sublist(0, payloadOffset - qHeader.length),
+        ...ascii.encode('Q0,0,4,2\r'),
+        ...payload.sublist(0, 4 * 2),
+        ...ascii.encode('\r\nQ0,2,4,18\r'),
+        ...payload.sublist(4 * 2),
+        ...original.sublist(payloadOffset + 4 * 20),
+      ]);
+
+      final result = await transformGodexInverseDriverPrn(
+        prnBytes: segmented,
+        sourceWidth: 32,
+        sourceHeight: 20,
+        targetWidth: 32,
+        targetHeight: 20,
+        textDescriptors: <LabelSheetWindowsTextDescriptor>[descriptor()],
+        glyphRasterizer: rasterize,
+      );
+
+      expect(result.transformed, isTrue);
+      expect(result.nativeRuns, 2);
+      expect(latin1.decode(result.bytes), contains('Q0,0,4,2\r'));
+      expect(latin1.decode(result.bytes), contains('Q0,2,4,18\r'));
+    },
+  );
+
   test('rejects an inverse run outside the driver Q pattern', () async {
     await expectLater(
       transformGodexInverseDriverPrn(
