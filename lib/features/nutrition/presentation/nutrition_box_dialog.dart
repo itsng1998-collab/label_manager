@@ -25,6 +25,7 @@ import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:path/path.dart' as p;
 
 typedef NutritionBoxListLoader = Future<List<NutritionBox>> Function();
@@ -457,6 +458,19 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
 
   void _selectManagerRow(int index) {
     setState(() => _selectedIndex = index);
+    final selected = _selectedBox;
+    RegressionDebugLog.event(
+      'nutritionBoxRtfSelection',
+      'rowSelected',
+      fields: {
+        'index': index,
+        'boxId': selected?.id,
+        'name': selected?.name,
+        'rtfLength': selected?.rtf.length ?? 0,
+        'isLegacyRtf': labelSheetLooksLikeRichEditRtf(selected?.rtf),
+        'previewWindowExists': _rtfPreviewWindow != null,
+      },
+    );
     _syncSelectedRtfPreview();
   }
 
@@ -464,6 +478,15 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
     final selected = _selectedBox;
     final data = selected?.rtf;
     if (!labelSheetLooksLikeRichEditRtf(data)) {
+      RegressionDebugLog.event(
+        'nutritionBoxRtfSelection',
+        'previewCleared',
+        fields: {
+          'boxId': selected?.id,
+          'hasData': data?.isNotEmpty ?? false,
+          'previewWindowExists': _rtfPreviewWindow != null,
+        },
+      );
       _rtfPreviewData = null;
       _rtfPreviewClosedByUser = false;
       _rtfPreviewWindow?.setChild(null);
@@ -493,14 +516,47 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         ),
         usePortalHost: true,
       );
+      RegressionDebugLog.event(
+        'nutritionBoxRtfSelection',
+        'previewPortalCreated',
+        fields: {
+          'boxId': selected.id,
+          'rtfLength': rtf.length,
+          'widthMm': selected.width,
+        },
+      );
       if (mounted) setState(() {});
     } else {
       existingWindow.setChild(preview);
+      RegressionDebugLog.event(
+        'nutritionBoxRtfSelection',
+        'previewChildUpdated',
+        fields: {
+          'boxId': selected.id,
+          'rtfLength': rtf.length,
+          'widthMm': selected.width,
+        },
+      );
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _rtfPreviewClosedByUser || _rtfPreviewData != rtf) {
+        RegressionDebugLog.event(
+          'nutritionBoxRtfSelection',
+          'previewShowSkipped',
+          fields: {
+            'boxId': selected.id,
+            'mounted': mounted,
+            'closedByUser': _rtfPreviewClosedByUser,
+            'selectionChanged': _rtfPreviewData != rtf,
+          },
+        );
         return;
       }
+      RegressionDebugLog.event(
+        'nutritionBoxRtfSelection',
+        'previewShowRequested',
+        fields: {'boxId': selected.id, 'rtfLength': rtf.length},
+      );
       _rtfPreviewWindow?.show(context);
     });
   }

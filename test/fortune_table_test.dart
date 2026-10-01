@@ -23,6 +23,71 @@ import 'package:label_manager/core/table_search.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  testWidgets(
+    'FortuneTable ignores pointer up after row selection unmounts table',
+    (tester) async {
+      var showTable = true;
+      late StateSetter rebuild;
+      final debugMessages = <String>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) debugMessages.add(message);
+      };
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) {
+                  rebuild = setState;
+                  if (!showTable) return const SizedBox();
+                  return SizedBox(
+                    width: 320,
+                    height: 160,
+                    child: FortuneTable<String>(
+                      rows: const ['RTF 표 1', '총 내용량 80mm'],
+                      columns: [
+                        FortuneTableColumn<String>(
+                          id: 'name',
+                          header: '표 명칭',
+                          text: (row) => row,
+                        ),
+                      ],
+                      onRowSelected: (_, _) {
+                        rebuild(() => showTable = false);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.text('총 내용량 80mm')),
+        );
+        await tester.pump();
+        expect(find.byType(FortuneTable<String>), findsNothing);
+        await gesture.up();
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        expect(
+          debugMessages,
+          contains(
+            contains(
+              '[fortune-table-pointer-debug-v1] '
+              'event=focusSkipped reason=unmounted',
+            ),
+          ),
+        );
+      } finally {
+        debugPrint = originalDebugPrint;
+      }
+    },
+  );
+
   testWidgets('row double tap only reports a valid data row', (tester) async {
     final activated = <String>[];
     await tester.pumpWidget(

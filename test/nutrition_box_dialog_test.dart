@@ -559,6 +559,106 @@ void main() {
     expect(tester.widget<LabelSheetRtfPreview>(find.byType(LabelSheetRtfPreview)).rtf, contains('200'));
   });
 
+  testWidgets('RTF row pointer selection survives preview portal creation', (
+    tester,
+  ) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final debugMessages = <String>[];
+    final originalDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) {
+      if (message != null) debugMessages.add(message);
+    };
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BlockingModelessDialog(
+              child: NutritionBoxDialogContent(
+                controller: controller,
+                onCommitOutcomeUnknown: () {},
+                loadBoxes: () async => const [
+                  NutritionBox(
+                    id: 1,
+                    typeId: 2,
+                    typeName: '기본형',
+                    name: '시트 표',
+                    rtf: '',
+                    width: 75,
+                  ),
+                  NutritionBox(
+                    id: 2,
+                    typeId: 2,
+                    typeName: '기본형',
+                    name: '총 내용량 80mm',
+                    rtf: r'{\rtf1\ansi Calories 200}',
+                    width: 80,
+                  ),
+                ],
+                loadTypes: () async => const [],
+                loadColumns: (_) async => const [],
+                insert:
+                    ({
+                      required typeId,
+                      required name,
+                      required rtf,
+                      required width,
+                    }) async {},
+                update:
+                    ({
+                      required boxId,
+                      required typeId,
+                      required name,
+                      required rtf,
+                      required width,
+                    }) async {},
+                delete: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('총 내용량 80mm')),
+      );
+      await tester.pump();
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LabelSheetRtfPreview), findsOneWidget);
+      for (final event in [
+        'rowSelected',
+        'previewPortalCreated',
+        'previewShowRequested',
+      ]) {
+        expect(
+          debugMessages,
+          contains(
+            contains(
+              'feature=nutritionBoxRtfSelection event=$event',
+            ),
+          ),
+        );
+      }
+      expect(
+        debugMessages,
+        contains(
+          contains(
+            '[fortune-table-pointer-debug-v1] '
+            'event=focusSkipped reason=unmounted',
+          ),
+        ),
+      );
+    } finally {
+      debugPrint = originalDebugPrint;
+    }
+  });
+
   testWidgets('create editor ignores selected row and starts empty', (
     tester,
   ) async {

@@ -1440,7 +1440,16 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             _selectedIndex = rowIndex;
           }
         },
-        onPointerUp: (_) => FocusScope.of(context).requestFocus(_focusNode),
+        onPointerUp: (_) {
+          if (!mounted) {
+            debugPrint(
+              '[fortune-table-pointer-debug-v1] '
+              'event=focusSkipped reason=unmounted',
+            );
+            return;
+          }
+          _focusNode.requestFocus();
+        },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onDoubleTap: column.onDoubleTap != null
