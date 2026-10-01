@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/lifecycle.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
@@ -82,6 +83,9 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
   final FocusNode _initialFocusNode = FocusNode(
     debugLabel: 'UpdateNoticeInitialFocus',
   );
+  final FocusNode _messageFocusNode = FocusNode(
+    debugLabel: 'UpdateNoticeMessageEditor',
+  );
 
   static const double _targetUserExtent = 64;
 
@@ -105,6 +109,7 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
     _targetUserScrollController.dispose();
     _accountIdSearchFocusNode.dispose();
     _initialFocusNode.dispose();
+    _messageFocusNode.dispose();
     super.dispose();
   }
 
@@ -115,10 +120,36 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
       return true;
     }
     if (event.logicalKey != LogicalKeyboardKey.enter || _saving) return false;
+    if (_isAdministrator && _messageFocusNode.hasFocus) {
+      RegressionDebugLog.event(
+        'updateNoticeKeyboard',
+        'enterRouted',
+        fields: {
+          'action': 'newline',
+          'alt': HardwareKeyboard.instance.isAltPressed,
+          'focus': _messageFocusNode.debugLabel,
+        },
+      );
+      return false;
+    }
     if (_accountIdSearchFocusNode.hasFocus) {
+      RegressionDebugLog.event(
+        'updateNoticeKeyboard',
+        'enterRouted',
+        fields: {'action': 'search'},
+      );
       _searchNextTargetUser();
       return true;
     }
+    RegressionDebugLog.event(
+      'updateNoticeKeyboard',
+      'enterRouted',
+      fields: {
+        'action': 'save',
+        'alt': HardwareKeyboard.instance.isAltPressed,
+        'focus': FocusManager.instance.primaryFocus?.debugLabel,
+      },
+    );
     _save();
     return true;
   }
@@ -295,6 +326,7 @@ class _UpdateNoticeDialogState extends State<UpdateNoticeDialog> {
                 contentFlex: 1,
                 adFlex: 1,
                 initialFocusNode: _initialFocusNode,
+                contentFocusNode: _messageFocusNode,
                 editable: _isAdministrator,
                 onVersionChanged: (value) {
                   _version = value;

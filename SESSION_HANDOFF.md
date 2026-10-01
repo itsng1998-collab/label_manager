@@ -1,5 +1,21 @@
 # SESSION HANDOFF
 
+## 최근 완료: 업데이트 메시지 줄바꿈 중 저장
+- **완료**: 설정 → 업데이트 메시지에서 관리자 본문 Enter/Alt+Enter가 줄바꿈 대신 저장을 호출하는 1.4.16 오류를 수정했다. 요청 제목의 관리자 복사가 아니라 첨부 화면·재현 순서의 업데이트 메시지 경로를 기준으로 했다.
+- 제출 로그에는 짧은 간격의 공지 UPDATE/COMMIT 요청이 반복된다. 직접 원인 가설은 `_handleKeyEvent`가 사용자 검색 외 모든 Enter를 무조건 `_save()`로 보내고 Alt/본문 focus를 구분하지 않는 것이다.
+- 수정 전 focused 테스트: `C:/Flutter/bin/flutter.bat test test/notice_menu_dao_test.dart --name "administrator message .* does not save"`.
+- 수정 전 focused 결과: **실패(2/2)**. Enter/Alt+Enter 모두 실제 saveCount=1로 제출 증상을 재현했다.
+- `UpdateNoticeDialog` 편집 완료: 본문 focus를 식별해 Enter를 저장 handler에서 제외하고 줄바꿈/검색/저장 분기를 `updateNoticeKeyboard/enterRouted`로 기록한다.
+- `NoticeDisplayPanel` 편집 완료: 편집 가능한 본문 내부의 Enter/Alt+Enter는 선택 영역을 줄바꿈 1개로 바꾸며 dirty 콜백을 유지하고 `newlineInserted` 위치·길이 로그를 남긴다.
+- 수정 직후 동일 focused 테스트 **2/2 통과**. 실제 로그 action=newline, newlineInserted 확인.
+- 테스트 보강: 실제 개행 내용·커서 위치, 길게 누른 Enter 반복, 선택 영역 개행 치환 검증도 **2/2 통과**.
+- 관련 검증 **36/36 통과**: `C:/Flutter/bin/flutter.bat test test/notice_menu_dao_test.dart test/startup_dialog_test.dart test/startup_login_service_test.dart --reporter expanded`. 기존 검색 Enter/일반 사용자 저장 Enter와 공용 로그인 패널 계약 유지.
+- analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze lib/widgets/notice_display.dart lib/features/update_notice/presentation/update_notice_dialog.dart test/notice_menu_dao_test.dart`. 변경 파일 IDE diagnostics 오류 없음.
+- 버전: `1.4.46 → 1.4.47` PATCH. 공지 편집 키보드 동작의 국소 버그 수정이며 저장 SQL/데이터 형식은 변경하지 않는다.
+- DTD에 연결해 앱을 조회했지만 활성 앱이 없어 hot reload 불가. 사용자 실제 Windows/IME 입력 테스트는 별도 확인 필요.
+- 임시 코드/배포 산출물 없음. stage/commit 대상: 공지 패널·다이얼로그·관련 테스트·버전 및 **이 섹션만**. 기존 handoff 정리/인쇄 관련 사용자 변경은 제외한다.
+- 범위 밖 사용자 인쇄 변경과 기존 인수인계 정리 내용은 보존하고 이번 stage/commit에서 제외한다.
+
 ## 현재 작업: 선택 사용자 업데이트 메시지 미표시
 - **완료**: 관리자로 TESTER1에 공지를 저장한 뒤 재시작·TESTER1 조회 시 공지 내용이 빈 화면으로 보이는 오류를 화면 controller 회귀 테스트로 재현하고 수정했다.
 - 로그 확인: 종료 전 TESTER1 저장 SQL과 COMMIT 성공, 종료 후 TESTER1 공지 SELECT와 사용자 조회 성공이 모두 있다. 저장 반영 행 수와 조회된 공지 길이/상태는 없어 실제 저장 결과는 판별할 수 없다.

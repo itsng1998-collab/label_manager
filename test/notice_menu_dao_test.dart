@@ -233,6 +233,73 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  for (final useAlt in [false, true]) {
+    testWidgets('administrator message ${useAlt ? 'Alt+Enter' : 'Enter'} does not save', (
+      tester,
+    ) async {
+      final controller = UpdateNoticeDialogController();
+      addTearDown(controller.dispose);
+      var saveCount = 0;
+      var closeCount = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: UpdateNoticeDialog(
+              controller: controller,
+              user: _systemAdministrator,
+              notice: const Notice(message: '첫 줄', state: 0),
+              targetUsers: const [],
+              onSave: (_) async => saveCount++,
+              onClose: () => closeCount++,
+              onCommitOutcomeUnknown: () => closeCount++,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final contentField = find.descendant(
+        of: find.byKey(const ValueKey('notice-content-area')),
+        matching: find.byType(EditableText),
+      );
+      await tester.tap(contentField);
+      await tester.pump();
+      if (useAlt) await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      if (useAlt) await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await tester.pump();
+
+      expect(saveCount, 0);
+      expect(closeCount, 0);
+      expect(find.byType(UpdateNoticeDialog), findsOneWidget);
+      final editingController = tester.widget<EditableText>(contentField).controller;
+      expect(editingController.text, '첫 줄\n');
+      expect(editingController.selection.baseOffset, 4);
+
+      if (useAlt) await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      if (useAlt) await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await tester.pump();
+      expect(editingController.text, '첫 줄\n\n\n');
+      expect(saveCount, 0);
+      expect(closeCount, 0);
+
+      editingController.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 1,
+      );
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(editingController.text, '\n 줄\n\n\n');
+      expect(editingController.selection.baseOffset, 1);
+      expect(saveCount, 0);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets('unknown commit outcome is shown once and closes the dialog', (
     tester,
   ) async {

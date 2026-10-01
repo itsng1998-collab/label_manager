@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show rootBundle, LogicalKeyboardKey;
 import 'package:http/http.dart' as http;
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/utils/regression_debug_log.dart';
@@ -16,6 +16,7 @@ class NoticeDisplayPanel extends StatefulWidget {
     this.onVersionChanged,
     this.onContentChanged,
     this.initialFocusNode,
+    this.contentFocusNode,
     this.contentFlex = 2,
     this.adFlex = 1,
   });
@@ -26,6 +27,7 @@ class NoticeDisplayPanel extends StatefulWidget {
   final ValueChanged<String>? onVersionChanged;
   final ValueChanged<String>? onContentChanged;
   final FocusNode? initialFocusNode;
+  final FocusNode? contentFocusNode;
   final int contentFlex;
   final int adFlex;
 
@@ -70,6 +72,29 @@ class _NoticeDisplayPanelState extends State<NoticeDisplayPanel> {
     super.dispose();
   }
 
+  void _insertNewline() {
+    final value = _contentController.value;
+    final selection = value.selection.isValid
+        ? value.selection
+        : TextSelection.collapsed(offset: value.text.length);
+    final text = value.text.replaceRange(selection.start, selection.end, '\n');
+    _contentController.value = value.copyWith(
+      text: text,
+      selection: TextSelection.collapsed(offset: selection.start + 1),
+      composing: TextRange.empty,
+    );
+    widget.onContentChanged?.call(text);
+    RegressionDebugLog.event(
+      'updateNoticeKeyboard',
+      'newlineInserted',
+      fields: {
+        'messageLength': text.length,
+        'selectionStart': selection.start,
+        'selectionEnd': selection.end,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -93,9 +118,22 @@ class _NoticeDisplayPanelState extends State<NoticeDisplayPanel> {
               Expanded(
                 key: const ValueKey('notice-content-area'),
                 flex: widget.contentFlex,
-                child: TextFormField(
+                child: CallbackShortcuts(
+                  bindings: widget.editable
+                      ? {
+                          const SingleActivator(LogicalKeyboardKey.enter):
+                              _insertNewline,
+                          const SingleActivator(
+                            LogicalKeyboardKey.enter,
+                            alt: true,
+                          ): _insertNewline,
+                        }
+                      : const {},
+                  child: TextFormField(
+                  focusNode: widget.contentFocusNode,
                   controller: _contentController,
                   readOnly: !widget.editable,
+                  textInputAction: TextInputAction.newline,
                   expands: true,
                   maxLines: null,
                   minLines: null,
@@ -110,6 +148,7 @@ class _NoticeDisplayPanelState extends State<NoticeDisplayPanel> {
                     contentPadding: EdgeInsets.all(14),
                   ),
                   onChanged: widget.editable ? widget.onContentChanged : null,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
