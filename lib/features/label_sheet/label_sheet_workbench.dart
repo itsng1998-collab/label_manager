@@ -1626,6 +1626,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       globalPosition,
     );
     if (inserted) _markKeywordInsertDirty();
+    RegressionDebugLog.event(
+      'commonLabelKeyword',
+      'dropInsert',
+      fields: {
+        'text': data.text,
+        'globalX': globalPosition.dx,
+        'globalY': globalPosition.dy,
+        'inserted': inserted,
+        'dragColumns': 'keyword-name-v1',
+      },
+    );
   }
 
   void _markKeywordInsertDirty() {

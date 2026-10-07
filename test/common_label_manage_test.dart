@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
@@ -353,7 +355,81 @@ void main() {
     ]);
   });
 
-  testWidgets('keyword and name columns insert keyword on double tap', (
+  testWidgets('name column drag drops keyword into the label sheet', (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final dirtyValues = <bool>[];
+    final logLines = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: 350,
+                height: 120,
+                child: commonLabelRequiredTableForTesting(
+                  columns: [_column('SWEIGHT', columnName: '저울중량')],
+                  onRequiredChanged: () {},
+                ),
+              ),
+              Expanded(
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 'label', name: 'Label', rowCount: 20, columnCount: 5,
+                      ),
+                    ],
+                  ),
+                  onDirtyChanged: dirtyValues.add,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final destination = tester.getTopLeft(find.byType(FortuneSheetCanvas)) +
+      const Offset(220, 120);
+    final previousDebugPrint = debugPrint;
+    debugPrint = (message, {wrapWidth}) {
+      if (message != null) logLines.add(message);
+    };
+    try {
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('저울중량')),
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump();
+      expect(find.text('#SWEIGHT'), findsOneWidget);
+      await gesture.moveTo(destination);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+    } finally {
+      debugPrint = previousDebugPrint;
+    }
+    expect(logLines, contains(contains('inserted=true dragColumns=keyword-name-v1')));
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is EditableText && widget.controller.text == '#SWEIGHT',
+      ),
+      findsOneWidget,
+    );
+    final app = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    app.controller!.commitActiveCellEditing();
+    await tester.pumpAndSettle();
+    expect(app.controller!.getSheet()!.cells.values.single.renderedText, '#SWEIGHT');
+    expect(dirtyValues, [true]);
+    expect(logLines, contains(contains('feature=commonLabelKeyword event=dropInsert text=#SWEIGHT')));
+  });
+
+  testWidgets('keyword and name columns share drag payload and double tap insertion', (
     tester,
   ) async {
     final logLines = <String>[];
@@ -417,6 +493,15 @@ void main() {
         ),
       ),
     );
-    expect(table.columns[1].dragData, isNull);
+    expect(
+      nameColumn.dragData!(columns.single, 0),
+      isA<LabelSheetKeywordDragData>().having(
+        (data) => data.text,
+        'text',
+        '#SWEIGHT',
+      ),
+    );
+    expect(nameColumn.dragFeedbackBuilder, isNotNull);
+    expect(table.columns[2].dragData, isNull);
   });
 }

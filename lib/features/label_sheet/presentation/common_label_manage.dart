@@ -570,11 +570,11 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                     ? (row, rowIndex) =>
                           _insertKeyword(row, rowIndex, index)
                     : null,
-                dragData: index == 0
+                dragData: index < 2
                     ? (row, rowIndex) =>
                       LabelSheetKeywordDragData('#${row.keyword}')
                     : null,
-                dragFeedbackBuilder: index == 0
+                dragFeedbackBuilder: index < 2
                     ? (context, row, rowIndex) => Material(
                         elevation: 4,
                         color: Theme.of(context).colorScheme.surface,

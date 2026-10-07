@@ -1,6 +1,18 @@
 # SESSION HANDOFF
 
-## 현재 작업: 자동 성분표 선택 셀 삽입
+## 현재 작업: 사용항목 이름 드래그 삽입
+- **구현·검증 완료, 커밋 진행 중**: 이름 열(index 1)에도 키워드 열과 동일한 `#keyword` payload/피드백을 허용했다. 필수등록 체크박스 열은 제외하며 기존 더블클릭 유지.
+- `label_sheet_workbench._insertKeywordAtDrop`: `commonLabelKeyword/dropInsert` 로그에 text/globalX/globalY/inserted/`dragColumns=keyword-name-v1` 기록. 로그는 관측만 하며 업무 처리는 기존 경로 유지.
+- 실제 마우스 드래그 → 편집기 `#SWEIGHT` 입력 → 편집 확정 → 셀 저장/dirty/드롭 로그 계약 검증. 기존 드롭은 draft 입력이며 편집 확정 전 cells가 비어 있는 것은 정상이다. 테스트의 즉시 저장 가정을 수정했다.
+- 공용라벨 전체 **14/14 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/common_label_manage_test.dart --timeout 30s`.
+- 기존 keyword 경로 **18/18 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/label_sheet_toolbar_test.dart --plain-name "keyword" --timeout 30s`.
+- analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/label_sheet/presentation/common_label_manage.dart lib/features/label_sheet/label_sheet_workbench.dart test/common_label_manage_test.dart`. 변경 파일 IDE 오류 0건.
+- 버전 `1.5.0 → 1.5.1` PATCH: 기존 키워드 드래그를 이름 열에도 허용하는 국소 UI 확장.
+- **대기 재발 회피**: 이미지의 `rip_grep_packages`/`read_package_uris` MCP 호출 응답 대기가 중단 지점이다. 두 호출은 반복하지 않고 로컬 read/search로 재개했다. 테스트 30초, 터미널 120초 안전 제한 적용. 현재 debug main.jsonl에는 세션 시작만 있어 서버 내부 원인은 미확정이며 서버 자체의 지연을 수정했다고 주장하지 않는다. DTD 조회는 즉시 반환해 MCP 전체 정지로 단정하지 않는다.
+- DTD 활성 앱 없음, hot reload 시도 불가. 실제 실행 앱 수동 드래그는 **미검증**. 운영 DB 변경·인쇄·배포 산출물 없음.
+- 표/워크벤치/테스트/버전/이 인수인계 총 5개 stage 확인, `git diff --check`/`git diff --cached --check` 통과. 사용자 `lib/core/app.dart`는 보존·제외. 임시 소스/테스트 파일 없음. 기능 커밋 확정 후 해시를 기록한다.
+
+## 최근 완료: 자동 성분표 선택 셀 삽입
 - **완료**: 강제 중단 당시 변경을 보존해 재개했다. 미처리 `insert-auto-ingredient-table` 명령을 기존 양식 선택창에 연결했다.
 - `label_sheet_settings/workbench`: 메뉴 시점 셀·시트를 보존하고 기존 비동기 workbook/RTF 변환 결과를 삽입. 공용 overlay/frame, 재진입 차단, 취소/owner dispose 처리와 상태 로그를 사용한다.
 - `nutrition_box_dialog`: 기존 목록·미리보기 재사용, `onSelected` 선택 모드에서 삽입 버튼/Enter/더블클릭 지원. 관리 모드는 유지한다.
