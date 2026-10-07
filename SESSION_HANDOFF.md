@@ -1,14 +1,14 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 신규 라벨 크기 발행 RangeError
-- **구현·자동 검증 완료, 커밋 진행 중**. 제출 1.4.47 로그의 Godex G500 LAN/windowsDriver/80x60mm 출력이 `FortuneSheetMetrics.rowEnd → resolveLabelSheetHybridPrintGeometry`에서 길이14/인덱스14 RangeError로 실패. 원인: 물리 출력 범위가 실제 시트 개수를 초과.
+- **완료**. 제출 1.4.47 로그의 Godex G500 LAN/windowsDriver/80x60mm 출력이 `FortuneSheetMetrics.rowEnd → resolveLabelSheetHybridPrintGeometry`에서 길이14/인덱스14 RangeError로 실패. 원인: 물리 출력 범위가 실제 시트 개수를 초과.
 - `labelSheetPrintRange`/`_lastPrintIndexForExtent`를 실제 행·열 개수 안으로 제한하고 공용 geometry에서 settings 기본 개수 전달. WindowsDriver/EZPL 모두 적용, 저장 시트 확장/변경 없음. 앞선 PDF 줌 오류와 별개다.
 - workbench `_captureWindowsDriver`/`_captureEzpl`: `labelSheetHybridCapture` started/prepared에 실제 개수/물리 크기/원본 줌/출력 범위·줌/논리 영역과 `print-range-bounds-v1` 기록. 로그는 관측만 수행한다.
 - focused 수정 전 **2/2 실패**(제출과 동일한 `0..13:14`, 열 `0..1:2`) → 수정 후 **3/3 통과**(행14/열2/settings 기본 개수, 각 WindowsDriver/EZPL).
 - 관련 회귀 **82/82 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/label_sheet_print_job_test.dart test/label_print_session_test.dart third_party/fortune_sheet/test/fortune_print_capture_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart --timeout 30s` (터미널 120초).
 - analyzer: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/printing/label_sheet_print_job.dart lib/features/label_sheet/label_sheet_workbench.dart test/label_sheet_print_job_test.dart` → 기존 미사용 함수 경고2개로 exit=1, 신규 오류 없음(HEAD의 두 함수 확인). IDE 오류0건, `git diff --check` 통과.
 - 버전 **1.5.4 → 1.5.5 PATCH**. DTD 탐색·연결 확인·hot reload 시도: 활성 앱 없음. 실제 test1/생크림크라상12입 재발행은 **미검증**, 사용자 재시험 필요. 생성 과정 추가 로그는 현 단계 불필요. 운영 DB 접속·변경/마이그레이션·실제 인쇄·배포 산출물 없음.
-- 임시 `tmp/label_print_bounds_regression.log` 삭제 완료. stage/commit 대상: print_job, workbench, print_job_test, pubspec, 이 인수인계 총5개. 사용자 `lib/core/app.dart` 보존·제외, push 없음.
+- 임시 `tmp/label_print_bounds_regression.log` 삭제 완료. 기능 커밋 `3d09721` (`신규 라벨 발행 시 출력 행열 범위 초과 오류 수정`): print_job, workbench, print_job_test, pubspec, 이 인수인계 총5개. `git diff --cached --check` 통과. 사용자 `lib/core/app.dart` 보존·제외, push 없음. 확정 해시 기록 후속 문서 커밋은 버전 재증가 없음.
 
 ## 현재 작업: PDF 출력 하단 잘림
 - **완료**. 제출 1.4.47 PDF 로그의 80x60mm/1890x1418px/dispatch accepted=true는 전송만 보장했다. 캡처 좌표는 화면 줌 적용, 글꼴과 물리 clip은 미적용하여 하단이 밀려 잘리는 현상을 픽셀 테스트로 재현했다.
