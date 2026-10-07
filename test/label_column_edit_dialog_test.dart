@@ -272,6 +272,81 @@ void main() {
     TColumnType.datas = null;
   });
 
+  for (final type in [barcodeColumnType, qrColumnType, gs1BarcodeColumnType]) {
+    testWidgets('barcode dropdown options follow item kind ${type.code}', (tester) async {
+      TColumnType.datas = [baseType, barcodeColumnType, qrColumnType, gs1BarcodeColumnType];
+      await tester.binding.setSurfaceSize(const Size(1300, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpDialog(
+        tester,
+        columns: [_column(1, 'BARCODE').copyWith(columnType: type)],
+      );
+      final menu = tester.widget<DropdownMenu<BarcodeType>>(
+        find.byType(DropdownMenu<BarcodeType>),
+      );
+      final expected = switch (type.code) {
+        TColumnType.TYPE_BARCODE => const [
+          'EAN13', 'CODE128', 'I2OF5', 'CODE39', 'UPC-A', 'CODE93', 'EAN8',
+        ],
+        TColumnType.TYPE_QR_CODE => const ['DataMatrix', 'QRCode', 'MicroQRCode'],
+        _ => BarcodeType.values.map((value) => value.dbName).toList(),
+      };
+      expect(menu.dropdownMenuEntries.map((entry) => entry.label), expected);
+      expect(menu.initialSelection, BarcodeType.Code128);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('QR generation dropdown preserves stored internal link value', (tester) async {
+    TColumnType.datas = [baseType, barcodeColumnType, qrColumnType];
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'QR_LEGACY').copyWith(
+          columnType: qrColumnType,
+          qrCodeCreateType: QRCodeCreateType.BARCODE_TEXT_LINK,
+        ),
+      ],
+    );
+    final menu = tester.widget<DropdownMenu<QRCodeCreateType>>(
+      find.byType(DropdownMenu<QRCodeCreateType>),
+    );
+    expect(menu.initialSelection, QRCodeCreateType.BARCODE_TEXT_LINK);
+    expect(menu.initialSelection!.code, 3);
+    expect(
+      menu.dropdownMenuEntries.map((entry) => entry.value),
+      isNot(contains(QRCodeCreateType.BARCODE_TEXT_LINK)),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('QR generation dropdown uses Korean labels and excludes internal link', (tester) async {
+    TColumnType.datas = [baseType, barcodeColumnType, qrColumnType];
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [_column(1, 'QR_A').copyWith(columnType: qrColumnType)],
+    );
+    final finder = find.byType(DropdownMenu<QRCodeCreateType>);
+    final menu = tester.widget<DropdownMenu<QRCodeCreateType>>(finder);
+    expect(menu.dropdownMenuEntries.map((entry) => entry.label), [
+      '기본', '사용자 정의', '나트륨 표시 사항',
+    ]);
+    expect(menu.dropdownMenuEntries.map((entry) => entry.value.code), [0, 1, 2]);
+    await _tapVisible(tester, finder);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(MenuItemButton, 'BARCODE_TEXT_LINK'), findsNothing);
+    await _tapVisible(tester, find.widgetWithText(MenuItemButton, '사용자 정의').last);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<DropdownMenu<QRCodeCreateType>>(finder).initialSelection,
+      QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+    );
+  });
+
   testWidgets('opens three-area layout and switches fixed/customer candidates', (
     tester,
   ) async {

@@ -19,6 +19,12 @@ const Map<int, String> labelColumnTimeBarcodeOptions = {
   9: 'YYMMDD(9)',
 };
 
+const _qrCodeCreateTypeLabels = {
+  QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT: '기본',
+  QRCodeCreateType.QRCODE_TYPE_USER_DEFINE: '사용자 정의',
+  QRCodeCreateType.QRCODE_TYPE_NATRIUM: '나트륨 표시 사항',
+};
+
 bool labelColumnTimeBarcodeEnabled(BarcodeType barcodeType) =>
     barcodeType != BarcodeType.CodeEAN13 &&
     barcodeType != BarcodeType.UpcA &&
@@ -1467,10 +1473,27 @@ class _PropertyFields extends StatelessWidget {
               label: '생성 방식',
               value: column.qrCodeCreateType,
               entries: [
-                for (final type in QRCodeCreateType.values)
-                  DropdownMenuEntry(value: type, label: type.name),
+                for (final entry in _qrCodeCreateTypeLabels.entries)
+                  DropdownMenuEntry(value: entry.key, label: entry.value),
               ],
-              onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrCodeCreateType: value)); } : null,
+              onChanged: enabled
+                  ? (value) {
+                      if (value == null) return;
+                      RegressionDebugLog.event(
+                        'labelColumnBarcodeOptions',
+                        'creationTypeChanged',
+                        fields: {
+                          'columnId': column.columnId,
+                          'keyword': column.keyword,
+                          'previous': column.qrCodeCreateType.code,
+                          'next': value.code,
+                          'label': _qrCodeCreateTypeLabels[value],
+                          'optionsVersion': 'barcode-options-v1',
+                        },
+                      );
+                      onChanged(column.copyWith(qrCodeCreateType: value));
+                    }
+                  : null,
             ),
             height: 36,
           ),
@@ -1655,13 +1678,30 @@ class _PropertyFields extends StatelessWidget {
   }
 
   Widget _barcodeDropdown() {
+    final types = switch (column.columnType.code) {
+      TColumnType.TYPE_BARCODE => const [
+        BarcodeType.CodeEAN13,
+        BarcodeType.Code128,
+        BarcodeType.Itf,
+        BarcodeType.Code39,
+        BarcodeType.UpcA,
+        BarcodeType.Code93,
+        BarcodeType.CodeEAN8,
+      ],
+      TColumnType.TYPE_QR_CODE => const [
+        BarcodeType.DataMatrix,
+        BarcodeType.QrCode,
+        BarcodeType.MicroQrCode,
+      ],
+      _ => BarcodeType.values,
+    };
     return _field(
       _DialogDropdown<BarcodeType>(
         key: const Key('label-column-barcode-type'),
         label: '바코드 종류',
         value: column.barcodeType,
         entries: [
-          for (final type in BarcodeType.values)
+          for (final type in types)
             DropdownMenuEntry(value: type, label: type.dbName),
         ],
         onChanged: enabled
@@ -1677,6 +1717,8 @@ class _PropertyFields extends StatelessWidget {
                   fields: {
                     'columnId': column.columnId,
                     'keyword': column.keyword,
+                    'columnTypeCode': column.columnType.code,
+                    'optionsVersion': 'barcode-options-v1',
                     'previousBarcodeType': column.barcodeType.dbName,
                     'barcodeType': value.dbName,
                     'previousTimeBarcodeType': column.timeBarcodeType,

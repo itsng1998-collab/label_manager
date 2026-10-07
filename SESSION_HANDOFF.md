@@ -1,5 +1,17 @@
 # SESSION HANDOFF
 
+## 현재 작업: 라벨 항목 편집 바코드 콤보박스
+- **구현·검증 완료, 커밋 진행 중**: 라벨 항목 편집의 항목 종류별 콤보박스 표시 목록을 변경했다.
+- 2D 바코드: DataMatrix/QRCode/MicroQRCode. 바코드: EAN13/CODE128/I2OF5/CODE39/UPC-A/CODE93/EAN8. GS1 목록은 기존 그대로 유지한다.
+- 생성방식: 기본/사용자 정의/나트륨 표시 사항. BARCODE_TEXT_LINK는 선택지에서만 제외하며 enum/DB code(0·1·2·3) 및 기존 값은 자동 교체하지 않는다.
+- 진단: 기존 barcodeTypeChanged 로그에 columnTypeCode/optionsVersion 추가, `labelColumnBarcodeOptions/creationTypeChanged`에 기존·선택 code/표시명/keyword 및 `barcode-options-v1` 기록. 로그 함수는 관측만 한다.
+- focused 수정 전 **3건 실패/GS1 1건 통과 → 수정 후 5/5 통과**. 실제 DropdownMenu 목록, 한글 선택, GS1 유지, 기존 BARCODE_TEXT_LINK=3 보존 확인.
+- 전체 회귀 **41/41 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/label_column_edit_dialog_test.dart test/label_column_edit_test.dart --timeout 30s` (터미널 180초).
+- analyzer **No issues found**, IDE 오류 0건: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/label_column/presentation/label_column_edit_dialog.dart test/label_column_edit_dialog_test.dart` (터미널 120초).
+- 버전 `1.5.1 → 1.5.2` PATCH: 기존 데이터 형식을 유지하는 콤보박스 표시/선택지 변경.
+- DTD 활성 앱 없음으로 hot reload 시도 불가. 실제 실행 앱 콤보박스 수동 확인은 **미검증**. 운영 DB 변경/마이그레이션·인쇄·배포 산출물 없음.
+- 편집 창/테스트/버전/이 인수인계 총 4개 stage 확인, `git diff --check`/`git diff --cached --check` 통과. 사용자 `lib/core/app.dart` 보존·제외. 임시 소스/테스트 파일 없음. 기능 커밋 확정 후 해시 기록.
+
 ## 현재 작업: 사용항목 이름 드래그 삽입
 - **완료**: 이름 열(index 1)에도 키워드 열과 동일한 `#keyword` payload/피드백을 허용했다. 필수등록 체크박스 열은 제외하며 기존 더블클릭 유지.
 - `label_sheet_workbench._insertKeywordAtDrop`: `commonLabelKeyword/dropInsert` 로그에 text/globalX/globalY/inserted/`dragColumns=keyword-name-v1` 기록. 로그는 관측만 하며 업무 처리는 기존 경로 유지.
