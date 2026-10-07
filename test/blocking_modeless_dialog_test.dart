@@ -340,6 +340,74 @@ void main() {
     outsideFocus.dispose();
   });
 
+  testWidgets('overlay warning isolates repeat keys and restores owner focus', (
+    tester,
+  ) async {
+    final ownerFocus = FocusNode();
+    final confirmFocus = FocusNode();
+    addTearDown(ownerFocus.dispose);
+    addTearDown(confirmFocus.dispose);
+    var ownerEnterCount = 0;
+    var confirmations = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Focus(
+            focusNode: ownerFocus,
+            autofocus: true,
+            onKeyEvent: (_, event) {
+              if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+                  event.logicalKey == LogicalKeyboardKey.enter) {
+                ownerEnterCount += 1;
+                showBlockingModelessOverlayDialog<void>(
+                  context: context,
+                  builder: (_, close) => AlertDialog(
+                    content: const Text('키보드 경고'),
+                    actions: [
+                      TextButton(
+                        focusNode: confirmFocus,
+                        onPressed: () {
+                          confirmations += 1;
+                          close(null);
+                        },
+                        child: const Text('확인'),
+                      ),
+                    ],
+                  ),
+                );
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: const Scaffold(body: Text('설정')),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(ownerFocus.hasPrimaryFocus, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(ownerFocus.hasFocus, isFalse);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(ownerEnterCount, 1);
+    expect(find.text('키보드 경고'), findsOneWidget);
+
+    confirmFocus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(confirmations, 1);
+    expect(find.text('키보드 경고'), findsNothing);
+    expect(ownerFocus.hasPrimaryFocus, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('allows keyboard text editing inside dialog content', (
     tester,
   ) async {

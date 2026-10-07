@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
@@ -203,6 +204,52 @@ void main() {
       find.byKey(const ValueKey('nutritionTypeDraftTable')),
     );
     expect(table.rows.single.name, '');
+  });
+
+  testWidgets('repeated Enter keeps one nutrition validation overlay', (
+    tester,
+  ) async {
+    final controller = NutritionTypeDialogController();
+    addTearDown(controller.dispose);
+    var inserts = 0;
+    await pumpDialog(
+      tester,
+      controller: controller,
+      insert: (_, _) async => inserts += 1,
+    );
+    await tester.tap(find.byKey(const ValueKey('nutritionTypeAddButton')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('nutritionTypeNameField')),
+      'TEST',
+    );
+    await tester.pumpAndSettle();
+    final initialBarrierCount = find.byType(ModalBarrier).evaluate().length;
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    const message = '영양성분 구성을 한 개 이상 입력해주세요!!';
+    expect(find.text(message), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(ModalBarrier), findsNWidgets(initialBarrierCount + 1));
+    expect(inserts, 0);
+
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsNothing);
+    expect(find.byType(ModalBarrier), findsNWidgets(initialBarrierCount));
+    expect(find.text('TEST'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsOneWidget);
+    expect(find.byType(ModalBarrier), findsNWidgets(initialBarrierCount + 1));
+    expect(inserts, 0);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('committed delete closes after list reload failure', (

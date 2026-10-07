@@ -47,7 +47,8 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
 
   debugLog(
     'blockingOverlayDialog#$dialogId create overlay=${identityHashCode(overlay)} '
-    'context=${context.runtimeType} barrierColor=$barrierColor',
+    'context=${context.runtimeType} barrierColor=$barrierColor '
+    'keyboardIsolation=focusScope-v1',
   );
 
   void close(T? result) {
@@ -76,18 +77,13 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
         'blockingOverlayDialog#$dialogId build '
         'overlayContext=${overlayContext.runtimeType}',
       );
-      return AppShortcutBlockingScope(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ModalBarrier(dismissible: false, color: barrierColor),
-            Center(
-              child: Material(
-                type: MaterialType.transparency,
-                child: builder(overlayContext, close),
-              ),
-            ),
-          ],
+      return BlockingModelessDialog(
+        barrierColor: barrierColor,
+        child: Center(
+          child: Material(
+            type: MaterialType.transparency,
+            child: builder(overlayContext, close),
+          ),
         ),
       );
     },
