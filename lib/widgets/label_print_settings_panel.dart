@@ -26,6 +26,8 @@ class LabelPrintSettingsPanel extends StatelessWidget {
     this.errorText,
     this.onIssue,
     this.autoSpacingItems,
+    this.onDriverSettings,
+    this.driverSettingsBusy = false,
   });
 
   final TextEditingController leftMarginController;
@@ -50,6 +52,18 @@ class LabelPrintSettingsPanel extends StatelessWidget {
   final bool pdfSingleFile;
   final ValueChanged<bool?>? onPdfSingleFileChanged;
   final List<DropdownMenuItem<String>>? autoSpacingItems;
+  final VoidCallback? onDriverSettings;
+  final bool driverSettingsBusy;
+
+  Widget get _driverSettingsButton => IconButton(
+    key: const ValueKey('label-print-driver-settings'),
+    tooltip: '드라이버 설정',
+    icon: const Icon(Icons.tune, size: 18),
+    padding: EdgeInsets.zero,
+    onPressed: driverSettingsBusy || selectedPrinterName.trim().isEmpty
+        ? null
+        : onDriverSettings,
+  );
 
   bool get _hasLabelPrintAdjustments =>
       rightMarginController != null &&
@@ -210,7 +224,7 @@ class LabelPrintSettingsPanel extends StatelessWidget {
                   const SizedBox(width: 12),
                   SizedBox(
                     key: const ValueKey('label-print-printer-value'),
-                    width: 291,
+                    width: onDriverSettings == null ? 291 : 251,
                     height: 30,
                     child: _PrintDialogInsetValue(value: selectedPrinterName),
                   ),
@@ -224,6 +238,10 @@ class LabelPrintSettingsPanel extends StatelessWidget {
                       onPressed: onSelectPrinter,
                     ),
                   ),
+                  if (onDriverSettings != null) ...[
+                    const SizedBox(width: 4),
+                    SizedBox(width: 36, height: 30, child: _driverSettingsButton),
+                  ],
                 ],
               ),
             ),
@@ -256,13 +274,13 @@ class LabelPrintSettingsPanel extends StatelessWidget {
             Positioned(
               left: 107,
               top: 74,
-              width: 291,
+              width: onDriverSettings == null ? 291 : 251,
               height: 30,
               child: _PrintDialogInsetValue(value: selectedPrinterName),
             ),
           if (!_hasLabelPrintAdjustments)
             Positioned(
-              right: 22,
+              right: onDriverSettings == null ? 22 : 62,
               top: 74,
               width: 94,
               height: 30,
@@ -270,6 +288,14 @@ class LabelPrintSettingsPanel extends StatelessWidget {
                 label: '프린터 선택',
                 onPressed: onSelectPrinter,
               ),
+            ),
+          if (!_hasLabelPrintAdjustments && onDriverSettings != null)
+            Positioned(
+              right: 22,
+              top: 74,
+              width: 36,
+              height: 30,
+              child: _driverSettingsButton,
             ),
           if (!_hasLabelPrintAdjustments)
             Positioned(

@@ -83,6 +83,33 @@ void main() {
     );
   }
 
+  for (final driverHeat in ['', '^H08\r\n', '^H14\r\n']) {
+    test('preserves driver heat and speed commands ${driverHeat.trim()}', () async {
+      final driverBytes = Uint8List.fromList([
+        ...ascii.encode('$driverHeat^S3\r\n'),
+        ...samplePrn(),
+      ]);
+      final result = await transformGodexInverseDriverPrn(
+        prnBytes: driverBytes,
+        sourceWidth: 32,
+        sourceHeight: 20,
+        targetWidth: 32,
+        targetHeight: 20,
+        textDescriptors: [descriptor()],
+        glyphRasterizer: rasterize,
+      );
+      final payload = latin1.decode(result.bytes);
+      expect(payload, contains('$driverHeat^S3\r\n^P1\r\n^L\r\n'));
+      expect(
+        RegExp(r'\^H\d+').allMatches(payload).map((match) => match.group(0)),
+        driverHeat.isEmpty ? isEmpty : [driverHeat.trim()],
+      );
+      expect(payload, endsWith('E\r\n'));
+      expect(result.inverseDescriptors, 1);
+      expect(result.nativeRuns, 2);
+    });
+  }
+
   test(
     'precomposes inverse XOR cells without changing nearby content',
     () async {
@@ -150,11 +177,11 @@ void main() {
       }
       final payload = latin1.decode(result.bytes);
       expect(payload, startsWith('~MDELE,A\r\n~JA\r\n'));
-      expect(payload, contains('^H08\r\n^L\r\n'));
+      expect(payload, isNot(contains('^H08\r\n')));
       expect(payload, contains('VA,4,4,1,1,0,0I,!\r\n'));
       expect(payload, contains('VA,27,4,1,1,0,0I,"\r\n'));
       expect(payload, isNot(contains('AZ1,')));
-      expect(payload, endsWith('E\r\n^H08\r\n'));
+      expect(payload, endsWith('E\r\n'));
     },
   );
 

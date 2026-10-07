@@ -17,6 +17,7 @@
 #include FT_SYNTHESIS_H
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -1943,6 +1944,80 @@ EncodableValue PrintResult(bool ok, const std::string& diagnostics,
   return EncodableValue(result);
 }
 
+bool LoadPrinterPreferences(HANDLE printer, const std::wstring& printer_name,
+                            std::vector<uint8_t>& storage,
+                            std::string& source) {
+  const LONG size = DocumentPropertiesW(nullptr, printer,
+      const_cast<wchar_t*>(printer_name.c_str()), nullptr, nullptr, 0);
+  if (size <= 0) return false;
+  storage.resize(static_cast<size_t>(size));
+  auto* mode = reinterpret_cast<DEVMODEW*>(storage.data());
+  if (DocumentPropertiesW(nullptr, printer,
+      const_cast<wchar_t*>(printer_name.c_str()), mode, nullptr,
+      DM_OUT_BUFFER) != IDOK) return false;
+  source = "driverDefaults";
+  for (const DWORD level : {9UL, 8UL}) {
+    DWORD needed = 0;
+    GetPrinterW(printer, level, nullptr, 0, &needed);
+    if (needed == 0) continue;
+    std::vector<uint8_t> info(needed);
+    if (!GetPrinterW(printer, level, info.data(), needed, &needed)) continue;
+    const auto* saved = level == 9
+        ? reinterpret_cast<PRINTER_INFO_9W*>(info.data())->pDevMode
+        : reinterpret_cast<PRINTER_INFO_8W*>(info.data())->pDevMode;
+    if (saved == nullptr) continue;
+    const size_t saved_size = saved->dmSize + saved->dmDriverExtra;
+    if (saved_size > storage.size()) return false;
+    std::memcpy(storage.data(), saved, saved_size);
+    source = level == 9 ? "userDefaults" : "globalDefaults";
+    break;
+  }
+  return true;
+}
+
+EncodableValue ShowPrinterPreferences(const EncodableMap& args) {
+  const auto* name = StringArg(args, "printerName");
+  if (name == nullptr || name->empty()) {
+    return PrintResult(false, {}, "Printer name is required");
+  }
+  const auto printer_name = Utf8ToWide(*name);
+  HANDLE printer = nullptr;
+  if (!OpenPrinterW(const_cast<wchar_t*>(printer_name.c_str()), &printer,
+                    nullptr)) {
+    return PrintResult(false, {}, "OpenPrinterW failed: " +
+                                  std::to_string(GetLastError()));
+  }
+  std::vector<uint8_t> storage;
+  std::string source;
+  if (!LoadPrinterPreferences(printer, printer_name, storage, source)) {
+    ClosePrinter(printer);
+    return PrintResult(false, {}, "Could not load printer preferences");
+  }
+  auto* mode = reinterpret_cast<DEVMODEW*>(storage.data());
+  const LONG outcome = DocumentPropertiesW(GetActiveWindow(), printer,
+      const_cast<wchar_t*>(printer_name.c_str()), mode, mode,
+      DM_IN_BUFFER | DM_OUT_BUFFER | DM_IN_PROMPT);
+  if (outcome != IDOK && outcome != IDCANCEL) {
+    ClosePrinter(printer);
+    return PrintResult(false, {}, "Printer preferences dialog failed");
+  }
+  if (outcome == IDOK) {
+    PRINTER_INFO_9W info{mode};
+    if (!SetPrinterW(printer, 9, reinterpret_cast<LPBYTE>(&info), 0)) {
+      const DWORD error = GetLastError();
+      ClosePrinter(printer);
+      return PrintResult(false, {}, "Save user printer preferences failed: " +
+                                    std::to_string(error));
+    }
+  }
+  ClosePrinter(printer);
+  return EncodableValue(EncodableMap{
+      {EncodableValue("ok"), EncodableValue(true)},
+      {EncodableValue("changed"), EncodableValue(outcome == IDOK)},
+      {EncodableValue("diagnostics"), EncodableValue(
+          "settingsVersion=driver-preferences-v1 preferencesSource=" + source)}});
+}
+
 EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
                            const DebugPrintFileTarget* generated_file = nullptr) {
   const auto debug_file = generated_file == nullptr
@@ -1996,22 +2071,17 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
                                       std::to_string(GetLastError()));
   }
 
-  const LONG devmode_size = DocumentPropertiesW(
-      nullptr, printer, const_cast<wchar_t*>(printer_name.c_str()), nullptr,
-      nullptr, 0);
-  if (devmode_size <= 0) {
-    const DWORD error = GetLastError();
+  std::vector<uint8_t> devmode_storage;
+  std::string preferences_source;
+  if (!LoadPrinterPreferences(printer, printer_name, devmode_storage,
+                              preferences_source)) {
     ClosePrinter(printer);
-    return PrintResult(false, {}, "DocumentPropertiesW size failed: " +
-                                      std::to_string(error));
+    return PrintResult(false, {}, "Could not load printer preferences");
   }
-  std::vector<uint8_t> devmode_storage(static_cast<size_t>(devmode_size));
   auto* devmode = reinterpret_cast<DEVMODEW*>(devmode_storage.data());
-  if (DocumentPropertiesW(nullptr, printer,
-                          const_cast<wchar_t*>(printer_name.c_str()), devmode,
-                          nullptr, DM_OUT_BUFFER) != IDOK) {
-    ClosePrinter(printer);
-    return PrintResult(false, {}, "DocumentPropertiesW defaults failed");
+  uint64_t preferences_hash = 14695981039346656037ULL;
+  for (const auto byte : devmode_storage) {
+    preferences_hash = (preferences_hash ^ byte) * 1099511628211ULL;
   }
   devmode->dmFields |= DM_PAPERSIZE | DM_PAPERWIDTH | DM_PAPERLENGTH |
                        DM_ORIENTATION | DM_COPIES;
@@ -2082,7 +2152,11 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
     }
   }
   std::ostringstream diagnostics;
-  diagnostics << "printerDpi=" << dpi_x << "x" << dpi_y
+  diagnostics << "settingsVersion=driver-preferences-v1"
+              << " preferencesSource=" << preferences_source
+              << " preferencesHash=" << std::hex << preferences_hash << std::dec
+              << " driverExtraBytes=" << devmode->dmDriverExtra
+              << " printerDpi=" << dpi_x << "x" << dpi_y
               << " source=" << source_width << "x" << source_height
               << " requestedTarget=" << requested_target_width << "x"
               << requested_target_height
@@ -2527,13 +2601,19 @@ void RegisterLabelBitmapPrintChannel(flutter::FlutterEngine* engine) {
          std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
         const bool file_only = call.method_name() == "replayBitmapToFile";
         const bool render_prn = call.method_name() == "renderBitmapToPrn";
-        if (call.method_name() != "printBitmap" && !file_only && !render_prn) {
+        const bool preferences = call.method_name() == "showPrinterPreferences";
+        if (call.method_name() != "printBitmap" && !file_only && !render_prn &&
+          !preferences) {
           result->NotImplemented();
           return;
         }
         const auto* args = std::get_if<EncodableMap>(call.arguments());
         if (args == nullptr) {
           result->Error("invalid_arguments", "Expected argument map");
+          return;
+        }
+        if (preferences) {
+          result->Success(ShowPrinterPreferences(*args));
           return;
         }
         result->Success(render_prn ? RenderBitmapToPrn(*args)

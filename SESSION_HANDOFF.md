@@ -1,5 +1,16 @@
 # SESSION HANDOFF
 
+## 현재 작업: 프린터 드라이버 환경값 미적용
+- **구현·자동 검증 완료, 커밋 진행 중**. 제출 1.4.47의 Godex G500 LAN/windowsDriver 두 발행 모두 darkness=8/restoreDarkness=8. 역상 보정의 ^H08 강제 삽입/복원이 드라이버 어두움14를 덮어쓴 것이 원인. 고정 명령 제거, 기존 역상 raster/font 보정 유지.
+- 네이티브 LoadPrinterPreferences: GetPrinter level9 사용자→level8 전체→드라이버 기본 DEVMODE(private bytes 포함), 발행마다 조회. 앱 발행 규격/매수/방향은 기존대로 우선하고 나머지 제조사 환경값 보존. 제조사별 private 필드를 Dart에서 추정·수정하지 않는다.
+- [프린터설정]의 드라이버 설정 아이콘은 실제 제조사 창(DocumentProperties DM_IN_PROMPT)을 연다. 확인 시 SetPrinter level9 사용자 기본값 저장, 취소 시 미저장. 속도·어두움·그래픽·용지 항목은 해당 드라이버 UI 사용. 라벨 출력/독립 workbench 모두 연결, 열림 중 비활성·오류 안내 포함.
+- 진단: preferencesSource/Hash/driverExtraBytes, darkness=driver/restoreDarkness=unchanged/driverSettings=preserved/settingsVersion=driver-preferences-v1, PRN 전송 버전1.6.0. 로그 함수는 관측만 수행한다.
+- 열8/14/명령 없음 focused **수정 전3/3 실패→수정 후3/3 통과**. 채널 확인/취소/저장 오류·인쇄0회 **3/3**, UI 선택 프린터 전달/배치/대기중 비활성/복귀 **1/1 통과**. 전체 관련 회귀 **82/82 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/godex_inverse_prn_transformer_test.dart test/godex_inverse_reference_test.dart test/windows_bitmap_printer_test.dart test/label_print_session_test.dart test/label_print_settings_test.dart test/label_sheet_print_job_test.dart --timeout 30s`.
+- analyzer **No issues found**, IDE 오류0건: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/printing/godex_inverse_prn_transformer.dart lib/printing/windows_bitmap_printer.dart lib/widgets/label_print_settings_panel.dart lib/features/label_print/presentation/label_print_settings_dialog.dart lib/features/label_sheet/label_sheet_workbench.dart test/godex_inverse_prn_transformer_test.dart test/windows_bitmap_printer_test.dart test/label_print_session_test.dart`. `git diff --check` 통과.
+- 최종 Windows **Debug 빌드 통과**(41.3초): `C:/Flutter/bin/flutter.bat build windows --debug --no-pub`. CMake 확장은 프로젝트 미구성/진단 없음으로 Flutter Debug로 대체. 버전 **1.5.5→1.6.0 MINOR**, 새 제조사 설정/사용자 기본값 저장 흐름, 라벨 저장/DB 호환 유지.
+- DTD 탐색·연결 확인·hot restart 시도: 활성 앱 없음. 네이티브 변경은 **앱 완전 종료 후 재실행 필요**. 실물 어두움8/14 비교·실제 제조사 창 저장/취소·제어판 환경값 적용은 **미검증**, 사용자 재시험 필요. 운영 DB/실제 인쇄/Release·설치파일 생성 없음.
+- 임시 tmp/printer_preferences_regression.log 및 tmp/printer_preferences_debug.log 삭제 완료. stage/commit은 요청 관련11개 파일만, 사용자 lib/core/app.dart 보존·제외, push 없음.
+
 ## 현재 작업: 신규 라벨 크기 발행 RangeError
 - **완료**. 제출 1.4.47 로그의 Godex G500 LAN/windowsDriver/80x60mm 출력이 `FortuneSheetMetrics.rowEnd → resolveLabelSheetHybridPrintGeometry`에서 길이14/인덱스14 RangeError로 실패. 원인: 물리 출력 범위가 실제 시트 개수를 초과.
 - `labelSheetPrintRange`/`_lastPrintIndexForExtent`를 실제 행·열 개수 안으로 제한하고 공용 geometry에서 settings 기본 개수 전달. WindowsDriver/EZPL 모두 적용, 저장 시트 확장/변경 없음. 앞선 PDF 줌 오류와 별개다.

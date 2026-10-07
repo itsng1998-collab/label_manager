@@ -6,8 +6,6 @@ import 'package:label_manager/printing/godex_pcl4_bitmap_font.dart';
 import 'package:label_manager/printing/godex_text_glyph_rasterizer.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
-const int godexInversePrintDarkness = 8;
-const int godexRestoredPrintDarkness = 8;
 const String _godexInverseFontSlot = 'A';
 const String _godexInverseFontName = 'LMINVAPP1';
 const int _godexInverseCellRightOverhang = 1;
@@ -75,8 +73,8 @@ class GodexInversePrnTransformResult {
       'restoredWhitePixels=$restoredWhitePixels '
       'clearedPixels=$clearedPixels compensatedPixels=$compensatedPixels '
       'reinforcedRuns=$reinforcedRuns '
-      'darkness=$godexInversePrintDarkness '
-      'restoreDarkness=$godexRestoredPrintDarkness';
+      'darkness=driver restoreDarkness=unchanged '
+      'driverSettings=preserved settingsVersion=driver-preferences-v1';
 }
 
 class _GodexQPattern {
@@ -561,19 +559,9 @@ Future<GodexInversePrnTransformResult> transformGodexInverseDriverPrn({
     ..add(fontDownload)
     ..add(const <int>[13, 10])
     ..add(modified.sublist(0, labelStartOffset))
-    ..add(
-      ascii.encode(
-        '^H${godexInversePrintDarkness.toString().padLeft(2, '0')}\r\n',
-      ),
-    )
     ..add(modified.sublist(labelStartOffset, endCommandOffset))
     ..add(nativeCommands.takeBytes())
-    ..add(modified.sublist(endCommandOffset))
-    ..add(
-      ascii.encode(
-        '^H${godexRestoredPrintDarkness.toString().padLeft(2, '0')}\r\n',
-      ),
-    );
+    ..add(modified.sublist(endCommandOffset));
   return GodexInversePrnTransformResult(
     bytes: result.takeBytes(),
     inverseDescriptors: inverseDescriptors.length,

@@ -50,6 +50,30 @@ void main() {
     legacyPrinterType: type,
   );
 
+  for (final changed in [true, false]) {
+    test('driver preferences confirmation changed=$changed', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'showPrinterPreferences');
+        expect(call.arguments, {'printerName': 'Godex G500'});
+        return {'ok': true, 'changed': changed};
+      });
+      expect(await WindowsBitmapPrinter.showPrinterPreferences('Godex G500'), changed);
+      expect(rawCalls, 0);
+    }, skip: !Platform.isWindows);
+  }
+
+  test('driver preferences propagates save failure without printing', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async => {
+      'ok': false,
+      'error': 'Save user printer preferences failed: 5',
+    });
+    await expectLater(
+      WindowsBitmapPrinter.showPrinterPreferences('Godex G500'),
+      throwsA(isA<StateError>()),
+    );
+    expect(rawCalls, 0);
+  }, skip: !Platform.isWindows);
+
   test('file-only capture cannot become an accepted print', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
       expect(call.method, 'renderBitmapToPrn');

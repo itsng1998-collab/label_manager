@@ -1123,6 +1123,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   String _printAutoSpacing = 'none';
   String _printOrientation = 'horizontal';
   String _printSelectedPrinterName = '';
+  bool _printDriverSettingsBusy = false;
 
   FortuneWorkbook get _baseWorkbook {
     final workbook =
@@ -2662,6 +2663,27 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     widget.onSheetDialogClosed?.call();
   }
 
+  Future<void> _handleDriverSettings() async {
+    if (_printDriverSettingsBusy) return;
+    setState(() => _printDriverSettingsBusy = true);
+    _rebuildPrintSettingsDialog?.call();
+    try {
+      await WindowsBitmapPrinter.showPrinterPreferences(_printSelectedPrinterName);
+    } catch (error) {
+      debugLog('printerPreferences UI failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('드라이버 설정을 열거나 저장하지 못했습니다.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _printDriverSettingsBusy = false);
+        _rebuildPrintSettingsDialog?.call();
+      }
+    }
+  }
+
   Future<void> _handleSelectPrinter() async {
     final printerName = Platform.isWindows
         ? await RawPrinterWin32.showPrinterSetupDialog(
@@ -3526,6 +3548,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               _rebuildPrintSettingsDialog?.call();
             },
             onSelectPrinter: _handleSelectPrinter,
+            onDriverSettings: Platform.isWindows ? _handleDriverSettings : null,
+            driverSettingsBusy: _printDriverSettingsBusy,
             onIssue: () => unawaited(_handleIssuePrintSettings()),
             onApply: () => unawaited(_handleApplyPrintSettings()),
             onClose: _closePrintSettingsDialog,

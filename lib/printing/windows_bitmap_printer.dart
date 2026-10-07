@@ -32,6 +32,26 @@ class WindowsBitmapPrinter {
       RawPrinterWin32.sendRaw;
   static int _captureSequence = 0;
 
+  static Future<bool> showPrinterPreferences(String printerName) async {
+    if (!Platform.isWindows) {
+      throw UnsupportedError('Printer preferences require Windows.');
+    }
+    debugPrint('printerPreferences started printer=$printerName '
+        'settingsVersion=driver-preferences-v1');
+    final result = await _channel.invokeMapMethod<String, Object?>(
+      'showPrinterPreferences',
+      {'printerName': printerName},
+    );
+    debugPrint('printerPreferences completed printer=$printerName '
+        'ok=${result?['ok']} changed=${result?['changed']} '
+        'diagnostics=${result?['diagnostics']} error=${result?['error']} '
+        'settingsVersion=driver-preferences-v1');
+    if (result == null || result['ok'] != true) {
+      throw StateError('Printer preferences failed: ${result?['error']}');
+    }
+    return result['changed'] == true;
+  }
+
   static Future<File?> _captureDebugRequest(
     Map<String, Object?> arguments,
   ) async {
@@ -166,7 +186,7 @@ class WindowsBitmapPrinter {
           final file = File('${requestCapture.path}.prn');
           await file.writeAsBytes(bytes, flush: true);
           debugPrint(
-            'driverPrnVersion=1.3.134 driverPrnFile=${file.path} '
+            'driverPrnVersion=1.6.0 driverPrnFile=${file.path} '
             '${transformed.diagnostics}',
           );
         } on FileSystemException catch (error) {
@@ -179,7 +199,7 @@ class WindowsBitmapPrinter {
       }
       diagnostics =
           '$diagnostics driverTransport=generatedPrnRaw '
-          'driverTransportVersion=1.3.134 ${transformed.diagnostics} '
+          'driverTransportVersion=1.6.0 ${transformed.diagnostics} '
           '${submitted.diagnostics} '
           'physicalPrintSubmitted=true';
     }

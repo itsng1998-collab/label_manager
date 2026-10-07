@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:label_manager/features/label_print/application/label_print_settings.dart';
 import 'package:label_manager/features/label_print/domain/label_print.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
+import 'package:label_manager/printing/windows_bitmap_printer.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_print_dialog_close_icon.dart';
 import 'package:label_manager/widgets/label_print_settings_panel.dart';
@@ -36,6 +37,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
       _isPdfPrinter(Printer(url: printerName, name: printerName));
   var initialBackendResolveStarted = false;
   String? errorText;
+  var driverSettingsBusy = false;
 
   try {
     return await showGeneralDialog<LabelPrintSettingsSnapshot>(
@@ -74,6 +76,28 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                 : lineSpacing.text,
             orientation: orientation,
             selectedPrinterName: printerName,
+            driverSettingsBusy: driverSettingsBusy,
+            onDriverSettings: !Platform.isWindows ? null : () async {
+              if (driverSettingsBusy) return;
+              setDialogState(() {
+                driverSettingsBusy = true;
+                errorText = null;
+              });
+              try {
+                await WindowsBitmapPrinter.showPrinterPreferences(printerName);
+              } catch (error) {
+                debugPrint('printerPreferences UI failed: $error');
+                if (context.mounted) {
+                  setDialogState(() {
+                    errorText = '드라이버 설정을 열거나 저장하지 못했습니다.';
+                  });
+                }
+              } finally {
+                if (context.mounted) {
+                  setDialogState(() => driverSettingsBusy = false);
+                }
+              }
+            },
             showPdfSingleFileOption:
                 showPdfSingleFileOption && isPdfPrinter,
             pdfSingleFile: pdfSingleFile,

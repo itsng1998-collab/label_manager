@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as img;
@@ -884,6 +888,60 @@ void main() {
       '100',
     );
   });
+
+  testWidgets('driver preferences button opens selected printer settings', (
+    tester,
+  ) async {
+    const channel = MethodChannel('label_manager/bitmap_print');
+    final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final confirmation = Completer<Map<String, Object>>();
+    var opened = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'showPrinterPreferences');
+      expect(call.arguments, {'printerName': 'Godex G500'});
+      opened++;
+      return confirmation.future;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    late BuildContext dialogContext;
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) {
+      dialogContext = context;
+      return const Scaffold(body: SizedBox());
+    })));
+    final result = showLabelPrintSettingsDialog(
+      context: dialogContext,
+      initial: const LabelPrintSettingsSnapshot(
+        printerName: 'Godex G500',
+        leftMarginMm: 0,
+        rightMarginMm: 0,
+        topMarginMm: 0,
+        leftPushMm: 0,
+        topPushMm: 0,
+        lineSpacingPercent: 100,
+        extraAreaMm: 0,
+        orientation: LabelPrintOrientation.horizontal,
+      ),
+      showPdfSingleFileOption: false,
+    );
+    await tester.pumpAndSettle();
+    final button = find.byKey(const ValueKey('label-print-driver-settings'));
+    expect(tester.getTopLeft(button).dx, greaterThanOrEqualTo(
+      tester.getTopRight(find.byKey(const ValueKey('label-print-printer-select'))).dx,
+    ));
+    await tester.tap(button);
+    await tester.pump();
+    expect(tester.widget<IconButton>(button).onPressed, isNull);
+    expect(opened, 1);
+    confirmation.complete({'ok': true, 'changed': true});
+    await tester.pumpAndSettle();
+    expect(opened, 1);
+    expect(find.byType(LabelPrintSettingsPanel), findsOneWidget);
+    expect(tester.widget<IconButton>(button).onPressed, isNotNull);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(await result, isNull);
+  }, skip: !Platform.isWindows);
 
   testWidgets('printer settings uses common label dialog styling', (
     tester,
