@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 라벨 항목 변경 취소 ESC 중복
-- **구현·검증 완료, 커밋 진행 중**: 1.4.47 제출 로그에서 확인창 #1~#5 중첩 생성 확인. 현재 공용 포커스 격리는 유지하고 변경 취소 확인창의 ESC 버리기 및 종료 재진입 차단을 추가했다.
+- **완료**: 1.4.47 제출 로그에서 확인창 #1~#5 중첩 생성 확인. 현재 공용 포커스 격리는 유지하고 변경 취소 확인창의 ESC 버리기 및 종료 재진입 차단을 추가했다.
 - `BlockingModelessDialog`/`showBlockingModelessOverlayDialog`: 선택적 onEscape 처리. KeyDown만 실행하고 Repeat/Up은 소비하며 자식 버튼 포커스에서도 처리한다. 옵션 미지정 확인창은 기존 동작 유지.
 - `LabelColumnEditDialog`: 변경 취소 확인창의 ESC는 버리기와 동일하게 true 반환→저장 없이 항목 편집 종료. `_closeRequestPending`으로 확인창 중복 생성 차단, 부모 ESC KeyRepeat 제외, 확인창 취소 시 다시 요청 가능.
 - 진단: `labelColumnDiscard` requestStarted/requestIgnored/confirmationCompleted/closed와 `escape-discard-v1` 기록. 공용 overlay의 dialogId별 `escape requested result=true` 로그와 앱 버전으로 다음 재현 판별. 로그 함수에 업무 로직 없음.
@@ -10,7 +10,7 @@
 - analyzer **No issues found**, IDE 오류 0건: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/widgets/blocking_modeless_dialog.dart lib/features/label_column/presentation/label_column_edit_dialog.dart test/blocking_modeless_dialog_test.dart test/label_column_edit_dialog_test.dart` (터미널 120초).
 - 버전 `1.5.2 → 1.5.3` PATCH: 변경 취소 ESC 동작/중복 창 버그 수정.
 - DTD 활성 앱 없음으로 hot reload 시도 불가. 실제 Windows 3575/1.4.47테스트/test2 재현은 **미검증**, 사용자 재시험 필요. 운영 DB 변경·마이그레이션·인쇄·배포 산출물 없음.
-- 공용 wrapper/라벨 항목 편집/인접 테스트 2개/버전/이 인수인계 총 6개 stage 확인, `git diff --check`/`git diff --cached --check` 통과. 사용자 `lib/core/app.dart` 보존·제외. 임시 소스/테스트 파일 없음. 기능 커밋 확정 후 해시 기록.
+- 기능 커밋 `2524619` (`라벨 항목 변경 취소 ESC 버리기 및 확인창 중복 방지`): 공용 wrapper/라벨 항목 편집/인접 테스트 2개/버전/이 인수인계 총 6개. `git diff --check`/`git diff --cached --check` 통과. 사용자 `lib/core/app.dart` 보존·제외. 임시 소스/테스트 파일 없음. 해시 기록 후속 문서 커밋은 버전을 재증가하지 않는다.
 
 ## 현재 작업: 라벨 항목 편집 바코드 콤보박스
 - **완료**: 라벨 항목 편집의 항목 종류별 콤보박스 표시 목록을 변경했다.
