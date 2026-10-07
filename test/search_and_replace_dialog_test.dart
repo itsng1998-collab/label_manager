@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/search_and_replace/domain/item_detail.dart';
+import 'package:label_manager/features/search_and_replace/domain/search_and_replace.dart';
 import 'package:label_manager/features/search_and_replace/presentation/search_and_replace_dialog.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
@@ -32,6 +35,8 @@ void main() {
     SearchReplaceSaver? save,
     Future<void> Function()? onSaved,
     VoidCallback? onClose,
+    Future<void> Function(SearchReplaceEditTarget)? onMoveToEdit,
+    Future<void> Function(SearchReplacePrintTarget)? onMoveToPrint,
   }) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -57,8 +62,8 @@ void main() {
                   labelSizeId,
                 }) async => const [result],
             save: save ?? (_) async {},
-            onMoveToEdit: (_) async {},
-            onMoveToPrint: (_) async {},
+            onMoveToEdit: onMoveToEdit ?? (_) async {},
+            onMoveToPrint: onMoveToPrint ?? (_) async {},
             onSaved: onSaved ?? () async {},
             onCommitOutcomeUnknown: onClose ?? () {},
           ),
@@ -93,6 +98,62 @@ void main() {
     expect(calls, 1);
     expect(searched, '초기 품명');
     expect(find.text('품목 1'), findsOneWidget);
+  });
+
+  testWidgets('edit move keeps target and blocks duplicate pending moves', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    final targets = <SearchReplaceEditTarget>[];
+    await pumpContent(
+      tester,
+      editable: true,
+      initialSearchText: '버터',
+      onMoveToEdit: (target) {
+        targets.add(target);
+        return pending.future;
+      },
+    );
+    await tester.tap(find.text('품목 1'));
+    await tester.pumpAndSettle();
+    final move = find.byKey(const ValueKey('searchReplaceMoveEditButton'));
+    await tester.tap(move);
+    await tester.pump();
+    await tester.tap(move);
+    await tester.pump();
+    expect(targets, hasLength(1));
+    expect(targets.single.brandId, 10);
+    expect(targets.single.labelSizeId, 100);
+    expect(targets.single.itemId, 1000);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed edit move shows error and allows retry', (tester) async {
+    var calls = 0;
+    await pumpContent(
+      tester,
+      editable: true,
+      initialSearchText: '버터',
+      onMoveToEdit: (_) async {
+        calls += 1;
+        if (calls == 1) throw StateError('대상 로딩 실패');
+      },
+    );
+    await tester.tap(find.text('품목 1'));
+    await tester.pumpAndSettle();
+    final move = find.byKey(const ValueKey('searchReplaceMoveEditButton'));
+    await tester.tap(move);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('대상 로딩 실패'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    await tester.tap(move);
+    await tester.pumpAndSettle();
+    expect(calls, 2);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('brand filter enables label size filter in order', (tester) async {

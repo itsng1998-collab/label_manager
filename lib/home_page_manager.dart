@@ -205,6 +205,14 @@ bool itemManagerSessionLoadWaitsForRenderReady({required bool isReload}) =>
     !isReload;
 
 @visibleForTesting
+bool itemManagerBrandChangeNeedsLabelLoad({
+  required int? selectedBrandId,
+  required int? searchReplaceTargetBrandId,
+}) =>
+    searchReplaceTargetBrandId == null ||
+    selectedBrandId != searchReplaceTargetBrandId;
+
+@visibleForTesting
 void startItemManagerInitialLoad({
   required VoidCallback showProgress,
   required Future<void> Function() load,
@@ -540,6 +548,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   Completer<void>? _itemManagerReadyCompleter;
   int? _labelDialogBrandChangeInFlightId;
   bool _labelDialogBrandChangeInFlight = false;
+  int? _searchReplaceTargetBrandId;
   int _rtfPreviewCaptureGeneration = 0;
   int _rtfPreviewResizeFinalizeToken = 0;
   PreviewFloatingWindow? _itemPreviewWindow;
@@ -1338,6 +1347,19 @@ class _HomePageManagerState extends State<HomePageManager> {
       _syncAppMenuWorkState();
     }
     if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId) {
+      final searchReplaceTargetBrandId = _searchReplaceTargetBrandId;
+      _searchReplaceTargetBrandId = null;
+      if (!itemManagerBrandChangeNeedsLabelLoad(
+        selectedBrandId: widget.selectedBrand?.brandId,
+        searchReplaceTargetBrandId: searchReplaceTargetBrandId,
+      )) {
+        RegressionDebugLog.event(
+          'searchReplaceNavigation',
+          'automaticLabelLoadSkipped',
+          fields: {'brandId': searchReplaceTargetBrandId},
+        );
+        return;
+      }
       if (_suppressNextBrandDidUpdateLabelLoad &&
           oldWidget.selectedBrand == null &&
           widget.selectedBrand != null) {
@@ -3794,28 +3816,67 @@ class _HomePageManagerState extends State<HomePageManager> {
     int brandId,
     int labelSizeId,
   ) async {
-    final customerId = Customer.instance?.customerId;
-    if (customerId == null) throw StateError('현재 거래처 정보가 없습니다.');
-    final brands =
-        await BrandDAO.selectByCustomerIdByBrandOrder(customerId) ??
-        const <Brand>[];
-    final brand = brands.firstWhereOrNull((value) => value.brandId == brandId);
-    if (brand == null) throw StateError('이동할 브랜드를 찾을 수 없습니다.');
-    Brand.setDatas(brands);
-    _brands = List<Brand>.from(brands);
-    widget.onBrandChanged(brand);
-
-    final labelSizes =
-        await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
-        const <LabelSize>[];
-    final labelSize = labelSizes.firstWhereOrNull(
-      (value) => value.labelSizeId == labelSizeId,
+    final stopwatch = Stopwatch()..start();
+    RegressionDebugLog.event(
+      'searchReplaceNavigation',
+      'targetLoadStarted',
+      fields: {
+        'brandId': brandId,
+        'labelSizeId': labelSizeId,
+        'currentBrandId': widget.selectedBrand?.brandId,
+        'currentLabelSizeId': _currentLabelSize?.labelSizeId,
+      },
     );
-    if (labelSize == null) throw StateError('이동할 라벨 크기를 찾을 수 없습니다.');
-    LabelSize.setDatas(labelSizes);
-    _labelSizesBrandId = brandId;
-    final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
-    if (!loaded) throw StateError('이동할 품목 정보를 불러오지 못했습니다.');
+    try {
+      final customerId = Customer.instance?.customerId;
+      if (customerId == null) throw StateError('현재 거래처 정보가 없습니다.');
+      final brands =
+          await BrandDAO.selectByCustomerIdByBrandOrder(customerId) ??
+          const <Brand>[];
+      final brand = brands.firstWhereOrNull((value) => value.brandId == brandId);
+      if (brand == null) throw StateError('이동할 브랜드를 찾을 수 없습니다.');
+      Brand.setDatas(brands);
+      _brands = List<Brand>.from(brands);
+      _searchReplaceTargetBrandId = widget.selectedBrand?.brandId != brandId
+          ? brandId
+          : null;
+      widget.onBrandChanged(brand);
+
+      final labelSizes =
+          await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
+          const <LabelSize>[];
+      final labelSize = labelSizes.firstWhereOrNull(
+        (value) => value.labelSizeId == labelSizeId,
+      );
+      if (labelSize == null) throw StateError('이동할 라벨 크기를 찾을 수 없습니다.');
+      LabelSize.setDatas(labelSizes);
+      _labelSizesBrandId = brandId;
+      final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
+      if (!loaded) throw StateError('이동할 품목 정보를 불러오지 못했습니다.');
+      RegressionDebugLog.event(
+        'searchReplaceNavigation',
+        'targetLoadCompleted',
+        fields: {
+          'brandId': brandId,
+          'labelSizeId': labelSizeId,
+          'loadedLabelSizeId': _itemDraftLoadedLabelSizeId,
+          'items': ItemOfMarket.datas?.length ?? 0,
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+        },
+      );
+    } catch (error) {
+      RegressionDebugLog.event(
+        'searchReplaceNavigation',
+        'targetLoadFailed',
+        fields: {
+          'brandId': brandId,
+          'labelSizeId': labelSizeId,
+          'error': error,
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+        },
+      );
+      rethrow;
+    }
   }
 
   void _selectHomeTab(Object value) {

@@ -12,6 +12,7 @@ import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/search_and_replace/application/search_and_replace_sheet.dart';
 import 'package:label_manager/features/search_and_replace/domain/search_and_replace.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/modeless_dropdown_form_field.dart';
 
@@ -366,13 +367,12 @@ class _SearchAndReplaceDialogContentState
   Future<void> _moveToEdit() async {
     final row = _selectedRow;
     if (_busy || row == null) return;
-    await widget.onMoveToEdit(
-      SearchReplaceEditTarget(
-        brandId: row.source.brandId,
-        labelSizeId: row.source.labelSizeId,
-        itemId: row.source.itemId,
-      ),
+    final target = SearchReplaceEditTarget(
+      brandId: row.source.brandId,
+      labelSizeId: row.source.labelSizeId,
+      itemId: row.source.itemId,
     );
+    await _moveToTarget('edit', () => widget.onMoveToEdit(target));
   }
 
   Future<void> _moveToPrint() async {
@@ -388,13 +388,41 @@ class _SearchAndReplaceDialogContentState
       await _showMessage('같은 브랜드의 라벨사이즈만 선택해주세요.');
       return;
     }
-    await widget.onMoveToPrint(
-      SearchReplacePrintTarget(
-        brandId: first.brandId,
-        labelSizeId: first.labelSizeId,
-        itemIds: [for (final row in checked) row.source.itemId],
-      ),
+    final target = SearchReplacePrintTarget(
+      brandId: first.brandId,
+      labelSizeId: first.labelSizeId,
+      itemIds: [for (final row in checked) row.source.itemId],
     );
+    await _moveToTarget('print', () => widget.onMoveToPrint(target));
+  }
+
+  Future<void> _moveToTarget(
+    String mode,
+    Future<void> Function() move,
+  ) async {
+    setState(() => _loading = true);
+    RegressionDebugLog.event(
+      'searchReplaceNavigation',
+      'moveStarted',
+      fields: {'mode': mode},
+    );
+    try {
+      await move();
+      RegressionDebugLog.event(
+        'searchReplaceNavigation',
+        'moveCompleted',
+        fields: {'mode': mode},
+      );
+    } catch (error) {
+      RegressionDebugLog.event(
+        'searchReplaceNavigation',
+        'moveFailed',
+        fields: {'mode': mode, 'error': error},
+      );
+      if (mounted) await _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<String?> _showElementEditor(String initial) {

@@ -4,6 +4,37 @@ import 'package:label_manager/features/item/domain/item_manager_draft.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  test('search replace brand notification skips duplicate first label load', () {
+    expect(
+      itemManagerBrandChangeNeedsLabelLoad(
+        selectedBrandId: 1200,
+        searchReplaceTargetBrandId: 1200,
+      ),
+      isFalse,
+    );
+    expect(
+      itemManagerBrandChangeNeedsLabelLoad(
+        selectedBrandId: 1200,
+        searchReplaceTargetBrandId: null,
+      ),
+      isTrue,
+    );
+    expect(
+      itemManagerBrandChangeNeedsLabelLoad(
+        selectedBrandId: 1201,
+        searchReplaceTargetBrandId: 1200,
+      ),
+      isTrue,
+    );
+    expect(
+      itemManagerBrandChangeNeedsLabelLoad(
+        selectedBrandId: null,
+        searchReplaceTargetBrandId: null,
+      ),
+      isTrue,
+    );
+  });
+
   test('item preview alignment stays above horizontal table scrollbar', () {
     expect(
       itemPreviewBottomRightTarget(
