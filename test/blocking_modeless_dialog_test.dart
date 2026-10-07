@@ -4,6 +4,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 void main() {
+  testWidgets('Escape callback handles child focus and blocks repeats', (tester) async {
+    final buttonFocus = FocusNode();
+    addTearDown(buttonFocus.dispose);
+    var escaped = 0;
+    var parentEscaped = 0;
+    var buttonPressed = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () => parentEscaped += 1,
+        },
+        child: BlockingModelessDialog(
+          onEscape: () => escaped += 1,
+          child: Center(
+            child: TextButton(
+              focusNode: buttonFocus,
+              onPressed: () => buttonPressed += 1,
+              child: const Text('확인'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    buttonFocus.requestFocus();
+    await tester.pump();
+    expect(buttonFocus.hasPrimaryFocus, isTrue);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+    for (var repeat = 0; repeat < 3; repeat += 1) {
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.escape);
+    }
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(escaped, 1);
+    expect(parentEscaped, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(buttonPressed, 1);
+  });
+
   testWidgets('frame renders shared title bar body footer and close action', (
     tester,
   ) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:label_manager/core/app_shortcut_blocker.dart';
 import 'package:label_manager/utils/log_context.dart';
 
@@ -20,10 +21,12 @@ class BlockingModelessDialog extends StatefulWidget {
     super.key,
     required this.child,
     this.barrierColor = const Color(0x8A000000),
+    this.onEscape,
   });
 
   final Widget child;
   final Color barrierColor;
+  final VoidCallback? onEscape;
 
   @override
   State<BlockingModelessDialog> createState() => _BlockingModelessDialogState();
@@ -39,6 +42,7 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
   required Widget Function(BuildContext context, void Function(T? result) close)
   builder,
   Color barrierColor = const Color(0x8A000000),
+  T? Function()? onEscape,
 }) {
   final dialogId = ++_blockingModelessOverlayDialogSequence;
   final overlay = Overlay.of(context, rootOverlay: true);
@@ -79,6 +83,15 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
       );
       return BlockingModelessDialog(
         barrierColor: barrierColor,
+        onEscape: onEscape == null
+            ? null
+            : () {
+                final result = onEscape();
+                debugLog(
+                  'blockingOverlayDialog#$dialogId escape requested result=$result',
+                );
+                close(result);
+              },
         child: Center(
           child: Material(
             type: MaterialType.transparency,
@@ -140,6 +153,11 @@ class _BlockingModelessDialogState extends State<BlockingModelessDialog> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (widget.onEscape != null &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      if (event is KeyDownEvent) widget.onEscape!();
+      return KeyEventResult.handled;
+    }
     if (!node.hasPrimaryFocus) {
       return KeyEventResult.ignored;
     }

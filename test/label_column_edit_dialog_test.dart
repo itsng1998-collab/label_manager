@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
@@ -1791,6 +1792,60 @@ void main() {
     expect(saved?.updatedColumns.single.columnType, barcodeColumnType);
   });
 
+  for (final duplicateRequest in [false, true]) {
+    testWidgets('discard confirmation Escape closes once duplicate=$duplicateRequest', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1300, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var closeCount = 0;
+      var saveCount = 0;
+      await _pumpDialog(
+        tester,
+        onClose: () => closeCount += 1,
+        onDialogSave: (_) async => saveCount += 1,
+        loadFixed: (_) async => const [
+          FixedColumnCandidate(
+            id: 9, typeId: 1, columnType: baseType,
+            keyword: 'CONTENTAMT', columnName: '내용량',
+          ),
+        ],
+      );
+      await _tapVisible(tester, find.text('내용량'));
+      await _tapVisible(tester, find.byKey(const Key('label-column-add')));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('label-column-used-table')),
+          matching: find.text('CONTENTAMT'),
+        ),
+        findsOneWidget,
+      );
+      final baselineBarriers = find.byType(ModalBarrier).evaluate().length;
+      final cancel = tester.widget<OutlinedButton>(
+        find.byKey(const Key('label-column-main-cancel')),
+      ).onPressed!;
+      cancel();
+      if (duplicateRequest) cancel();
+      await tester.pumpAndSettle();
+      expect(find.text('변경 내용 취소'), findsOneWidget);
+      expect(find.byType(ModalBarrier), findsNWidgets(baselineBarriers + 1));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(closeCount, 1);
+      expect(saveCount, 0);
+      expect(find.text('변경 내용 취소'), findsNothing);
+      for (var repeat = 0; repeat < 3; repeat += 1) {
+        await tester.sendKeyRepeatEvent(LogicalKeyboardKey.escape);
+        await tester.pump();
+      }
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(closeCount, 1);
+      expect(saveCount, 0);
+      expect(find.text('변경 내용 취소'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('main cancel confirms applied customer changes before closing', (
     tester,
   ) async {
@@ -1823,6 +1878,15 @@ void main() {
     expect(find.text('변경 내용 취소'), findsOneWidget);
     expect(closed, isFalse);
     expect(saveCount, 0);
+
+    await tester.tap(find.widgetWithText(TextButton, '취소').last);
+    await tester.pumpAndSettle();
+    expect(find.text('변경 내용 취소'), findsNothing);
+    expect(closed, isFalse);
+    expect(saveCount, 0);
+    await _tapVisible(tester, find.byKey(const Key('label-column-main-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.text('변경 내용 취소'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, '버리기').last);
     await tester.pumpAndSettle();

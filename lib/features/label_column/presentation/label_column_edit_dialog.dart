@@ -104,6 +104,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   bool _candidateTableDragging = false;
   bool _candidateTableFocused = false;
   bool _removeDropEating = false;
+  bool _closeRequestPending = false;
 
   bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
   bool get _normalEnabled => !_busy && !_exclusiveMode;
@@ -595,21 +596,52 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _requestClose() async {
-    if (!_workspaceEnabled) return;
-    if (_dialogDirty) {
-      final discard = await _confirm('변경 내용 취소', '저장하지 않은 변경 내용을 버리시겠습니까?', confirmText: '버리기');
-      if (discard != true || !mounted) return;
+    if (!_workspaceEnabled || _closeRequestPending) {
+      RegressionDebugLog.event('labelColumnDiscard', 'requestIgnored', fields: {
+        'pending': _closeRequestPending,
+        'workspaceEnabled': _workspaceEnabled,
+      });
+      return;
     }
-    widget.onClose();
+    _closeRequestPending = true;
+    RegressionDebugLog.event('labelColumnDiscard', 'requestStarted', fields: {
+      'labelSizeId': widget.labelSizeId,
+      'dirty': _dialogDirty,
+      'keyboard': 'escape-discard-v1',
+    });
+    try {
+      if (_dialogDirty) {
+        final discard = await _confirm(
+          '변경 내용 취소',
+          '저장하지 않은 변경 내용을 버리시겠습니까?',
+          confirmText: '버리기',
+          confirmOnEscape: true,
+        );
+        if (!mounted) return;
+        RegressionDebugLog.event('labelColumnDiscard', 'confirmationCompleted', fields: {
+          'discard': discard,
+        });
+        if (discard != true) return;
+      }
+      RegressionDebugLog.event('labelColumnDiscard', 'closed', fields: {
+        'labelSizeId': widget.labelSizeId,
+        'discarded': _dialogDirty,
+      });
+      widget.onClose();
+    } finally {
+      _closeRequestPending = false;
+    }
   }
 
   Future<bool?> _confirm(
     String title,
     String message, {
     String confirmText = '확인',
+    bool confirmOnEscape = false,
   }) {
     return showBlockingModelessOverlayDialog<bool>(
       context: context,
+      onEscape: confirmOnEscape ? () => true : null,
       builder: (dialogContext, close) => AlertDialog(
         title: Text(title),
         content: Text(message),
@@ -649,7 +681,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       ),
       child: Shortcuts(
         shortcuts: const {
-          SingleActivator(LogicalKeyboardKey.escape): _CloseIntent(),
+          SingleActivator(LogicalKeyboardKey.escape, includeRepeats: false): _CloseIntent(),
         },
         child: Actions(
           actions: {
