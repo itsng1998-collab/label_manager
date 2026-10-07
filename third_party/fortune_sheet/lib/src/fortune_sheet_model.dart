@@ -4827,6 +4827,82 @@ Map<String, Object?>? pasteHandlerOfPaintModel(
   );
 }
 
+FortuneSheet fortuneInsertSheetContent(
+  FortuneSheet target,
+  FortuneSheet source,
+  FortuneCellCoord origin, {
+  FortuneSettings settings = defaultSettings,
+}) {
+  final coords = <FortuneCellCoord>[
+    ...source.cells.keys,
+    for (final range in _apiMergedRanges(source)) ...[
+      FortuneCellCoord(range.rowStart, range.columnStart),
+      FortuneCellCoord(range.rowEnd, range.columnEnd),
+    ],
+  ];
+  if (coords.isEmpty) return target.copyWith();
+  final rowStart = coords.map((coord) => coord.row).reduce(math.min);
+  final rowEnd = coords.map((coord) => coord.row).reduce(math.max);
+  final columnStart = coords.map((coord) => coord.column).reduce(math.min);
+  final columnEnd = coords.map((coord) => coord.column).reduce(math.max);
+  final sourceSheet = source.copyWith(id: '${target.id}:insert-source');
+  final result = pasteHandlerOfCopyPaste(
+    FortuneWorkbook(sheets: [target, sourceSheet]),
+    {
+      'currentSheetId': target.id,
+      'luckysheet_select_save': [
+        {
+          'row': [origin.row, origin.row],
+          'column': [origin.column, origin.column],
+        },
+      ],
+    },
+    {
+      'dataSheetId': sourceSheet.id,
+      'row': [rowStart, rowEnd],
+      'column': [columnStart, columnEnd],
+    },
+  );
+  final copied = (result!['workbook'] as FortuneWorkbook).activeSheet;
+  return copied.copyWith(
+    cells: {
+      for (final entry in copied.cells.entries)
+        entry.key: entry.key.row >= origin.row &&
+                entry.key.row <= origin.row + rowEnd - rowStart &&
+                entry.key.column >= origin.column &&
+                entry.key.column <= origin.column + columnEnd - columnStart
+            ? _shiftApiCellMetadata(
+                entry.value,
+                rowFrom: rowStart,
+                rowDelta: origin.row - rowStart,
+                columnFrom: columnStart,
+                columnDelta: origin.column - columnStart,
+              )
+            : entry.value,
+    },
+    rowCount: math.max(
+      effectiveRowCount(target, settings: settings),
+      origin.row + rowEnd - rowStart + 1,
+    ),
+    columnCount: math.max(
+      effectiveColumnCount(target, settings: settings),
+      origin.column + columnEnd - columnStart + 1,
+    ),
+    rowHeights: {
+      ...target.rowHeights,
+      for (final entry in source.rowHeights.entries)
+        if (entry.key >= rowStart && entry.key <= rowEnd)
+          origin.row + entry.key - rowStart: entry.value,
+    },
+    columnWidths: {
+      ...target.columnWidths,
+      for (final entry in source.columnWidths.entries)
+        if (entry.key >= columnStart && entry.key <= columnEnd)
+          origin.column + entry.key - columnStart: entry.value,
+    },
+  );
+}
+
 Map<String, Object?>? pasteHandlerOfCopyPaste(
   FortuneWorkbook workbook,
   Context ctx,

@@ -124,6 +124,115 @@ Future<void> _insertToolbarImage(
 }
 
 void main() {
+  testWidgets('sheet content insertion undo restores expansion and notifies', (tester) async {
+    final controller = FortuneSheetController();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+    });
+    var changes = 0;
+    await tester.pumpWidget(_fortuneSheetPublicApiTestHost(
+      FortuneSheetCanvas(
+        controller: controller,
+        workbook: FortuneWorkbook(sheets: [
+          FortuneSheet(id: 'label', name: 'Label', rowCount: 2, columnCount: 2),
+        ]),
+        onChange: (_) => changes += 1,
+      ),
+    ));
+    final changesBeforeInsertion = changes;
+    expect(controller.insertSheetContent(
+      FortuneSheet(
+        id: 'nutrition', name: 'Nutrition',
+        cells: {const FortuneCellCoord(1, 2): const FortuneCell(value: '#N01')},
+      ),
+      origin: const FortuneCellCoord(2, 2), id: 'label',
+    ), isTrue);
+    await tester.pump();
+    expect(controller.getSheet(id: 'label')?.columnCount, 3);
+    expect(controller.getSheet(id: 'label')?.rowCount, 3);
+    expect(changes, changesBeforeInsertion + 1);
+    controller.handleUndo();
+    await tester.pump();
+    expect(controller.getSheet(id: 'label')?.columnCount, 2);
+    expect(controller.getSheet(id: 'label')?.rowCount, 2);
+    expect(controller.getSheet(id: 'label')?.cells, isEmpty);
+    controller.handleRedo();
+    await tester.pump();
+    expect(controller.getSheet(id: 'label')?.cells[const FortuneCellCoord(2, 2)]?.renderedText, '#N01');
+  });
+
+  test('sheet content insertion offsets cells and expands destination columns', () {
+    final source = FortuneSheet(
+      id: 'nutrition',
+      name: 'Nutrition',
+      rowCount: 2,
+      columnCount: 3,
+      cells: {
+        const FortuneCellCoord(0, 0): const FortuneCell(
+          value: '영양정보',
+          bold: true,
+          fontSize: 9,
+          background: Color(0xff303030),
+          merge: FortuneCellMerge(
+            row: 0, column: 0, rowSpan: 1, columnSpan: 2,
+            rawRow: 0, hasRawRow: true,
+            rawColumn: 0, hasRawColumn: true,
+          ),
+        ),
+        const FortuneCellCoord(0, 2): const FortuneCell(value: '#N01'),
+        const FortuneCellCoord(1, 2): const FortuneCell(value: '#N02'),
+      },
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-all',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [FortuneRange(rowStart: 0, rowEnd: 1, columnStart: 0, columnEnd: 2)],
+        ),
+      ],
+      columnWidths: const {0: 40, 1: 50, 2: 60},
+      rowHeights: const {0: 30, 1: 24},
+    );
+    final target = FortuneSheet(
+      id: 'label',
+      name: 'Label',
+      rowCount: 2,
+      columnCount: 2,
+      cells: {
+        const FortuneCellCoord(0, 0): const FortuneCell(value: '유지'),
+      },
+    );
+    final inserted = fortuneInsertSheetContent(
+      target,
+      source,
+      const FortuneCellCoord(1, 1),
+    );
+    expect(inserted.columnCount, 4);
+    expect(inserted.rowCount, 3);
+    expect(inserted.cells[const FortuneCellCoord(1, 1)]?.renderedText, '영양정보');
+    final title = inserted.cells[const FortuneCellCoord(1, 1)]!;
+    expect(title.bold, isTrue);
+    expect(title.fontSize, 9);
+    expect(title.background, const Color(0xff303030));
+    expect(title.merge?.row, 1);
+    expect(title.merge?.column, 1);
+    expect(title.merge?.columnSpan, 2);
+    expect(title.merge?.hasRawRow, isFalse);
+    expect(title.merge?.hasRawColumn, isFalse);
+    final borders = getBorderInfoCompute(inserted);
+    expect(borders[const FortuneCellCoord(1, 1)]?.top?.style, 1);
+    expect(borders[const FortuneCellCoord(2, 3)]?.bottom?.style, 1);
+    expect(borders[const FortuneCellCoord(2, 3)]?.right?.style, 1);
+    expect(inserted.cells[const FortuneCellCoord(2, 3)]?.renderedText, '#N02');
+    expect(inserted.cells[const FortuneCellCoord(0, 0)]?.renderedText, '유지');
+    expect(inserted.columnWidths[3], 60);
+    expect(inserted.rowHeights[1], 30);
+    expect(target.columnCount, 2);
+    expect(source.cells[const FortuneCellCoord(1, 2)]?.renderedText, '#N02');
+  });
+
   test('public library barrel exposes core FortuneSheet APIs', () async {
     final sheet = FortuneSheet(
       id: 'sheet1',

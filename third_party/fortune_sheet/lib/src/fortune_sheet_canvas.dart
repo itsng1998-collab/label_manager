@@ -2139,6 +2139,15 @@ class FortuneSheetController extends ChangeNotifier {
     return _state?._autoFillControllerCell(copyRange, applyRange, direction);
   }
 
+  bool insertSheetContent(
+    FortuneSheet source, {
+    required FortuneCellCoord origin,
+    String? id,
+  }) {
+    if (!_prepareCanonicalCommand()) return false;
+    return _state?._insertControllerSheetContent(source, origin, id: id) ?? false;
+  }
+
   void setRowHeight(
     Map<int, double> rowInfo, {
     bool custom = false,
@@ -6178,6 +6187,32 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final sheet =
         _workbook.sheets[_sheetIndexByIdOrIndex(id: id, index: index)];
     return getCellValue(sheet, row, column, type: type);
+  }
+
+  bool _insertControllerSheetContent(
+    FortuneSheet source,
+    FortuneCellCoord origin, {
+    String? id,
+  }) {
+    if (source.cells.isEmpty || origin.row < 0 || origin.column < 0) return false;
+    final sheetIndex = _sheetIndexByIdOrIndex(id: id);
+    final sheet = _workbook.sheets[sheetIndex];
+    if (id != null && sheet.id != id) return false;
+    final nextSheet = fortuneInsertSheetContent(
+      sheet,
+      source,
+      origin,
+      settings: _workbook.settings,
+    );
+    for (final coord in {...sheet.cells.keys, ...nextSheet.cells.keys}) {
+      if (_cellWouldChange(sheet, coord, nextSheet.cells[coord]) &&
+          !_canEditCell(sheet, coord)) {
+        return false;
+      }
+    }
+    if (!_workbook.settings.allowEdit) return false;
+    _replaceControllerSheet(sheetIndex, nextSheet, recalculate: true);
+    return true;
   }
 
   void _setControllerCellValue(

@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
+import 'package:label_manager/features/nutrition/data/nutrition_box_dao.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
+import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
@@ -28,6 +31,7 @@ import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/printing/windows_bitmap_printer.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
@@ -715,6 +719,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageImportUseRootOverlay = false,
     this.editingLifecycleController,
     this.keywordInsertController,
+    this.nutritionBoxListLoader,
     this.outputCaptureController,
     this.outputCaptureOwnerToken,
     this.onWorkbookChanged,
@@ -764,6 +769,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool imageImportUseRootOverlay;
   final LabelSheetEditingLifecycleController? editingLifecycleController;
   final LabelSheetKeywordInsertController? keywordInsertController;
+  final NutritionBoxListLoader? nutritionBoxListLoader;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final Object? outputCaptureOwnerToken;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
@@ -1074,6 +1080,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   final LayerLink _zoomToolbarLayerLink = LayerLink();
   final GlobalKey _sheetAppKey = GlobalKey(debugLabel: 'label_sheet_sheet_app');
   OverlayEntry? _zoomToolbarOverlayEntry;
+  VoidCallback? _closeNutritionBoxSelector;
+  bool _nutritionTableInsertBusy = false;
   int? _zoomEditOriginalPercent;
   bool _zoomCommitPendingBlur = false;
   late FortuneSheetLocale _locale = _localeForPlatform();
@@ -1155,6 +1163,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     onImportLabelImage: _handleImportLabelImage,
     onSave: _handleSave,
     onImportLabelFile: _handleImportLabelFile,
+    onInsertNutritionTable: _handleInsertNutritionTable,
     onExportLabelFile: _handleExportLabelFile,
     contextMenuDisabledItemsBuilder: _labelFileContextMenuDisabledItems,
     onPrint: _handlePrint,
@@ -1550,6 +1559,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   void dispose() {
+    _closeNutritionBoxSelector?.call();
     _objectPropertyFocusGeneration += 1;
     _objectPanelFocusHandoffGeneration += 1;
     _objectOverlayTriggerFocus = null;
@@ -2672,6 +2682,93 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('라벨 파일을 내보냈습니다: ${p.basename(path)}')),
     );
+  }
+
+  Future<void> _handleInsertNutritionTable() async {
+    if (_nutritionTableInsertBusy) return;
+    final sheet = _controller.getSheet();
+    final selected = _controller.getFlattenRange();
+    if (sheet == null || selected == null || selected.isEmpty ||
+        _controller.settingsSnapshot?.allowEdit != true) {
+      return;
+    }
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return;
+    _controller.commitActiveCellEditing();
+    final origin = selected.first;
+    _nutritionTableInsertBusy = true;
+    final dialogController = NutritionBoxDialogController();
+    final started = DateTime.now();
+    RegressionDebugLog.event('nutritionTableInsert', 'selectionOpened', fields: {
+      'sheetId': sheet.id, 'row': origin.row, 'column': origin.column,
+      'rowsBefore': sheet.rowCount, 'columnsBefore': sheet.columnCount,
+      'insertion': 'sheet-range-v1',
+    });
+    try {
+      await _notifyBeforeSheetDialog();
+      if (!mounted) return;
+      final box = await showBlockingModelessOverlayDialog<NutritionBox>(
+        context: context,
+        builder: (_, close) {
+          _closeNutritionBoxSelector = () => close(null);
+          return BlockingModelessDialogFrame(
+            title: '영양성분표 삽입', width: 1100, height: 760,
+            onClose: () => close(null),
+            child: NutritionBoxDialogContent(
+              controller: dialogController,
+              onCommitOutcomeUnknown: () => close(null),
+              onSelected: close,
+              loadBoxes: widget.nutritionBoxListLoader ?? NutritionBoxDAO.selectAll,
+            ),
+          );
+        },
+      );
+      _closeNutritionBoxSelector = null;
+      if (!mounted) return;
+      if (box == null) {
+        RegressionDebugLog.event('nutritionTableInsert', 'selectionCancelled');
+        return;
+      }
+      RegressionDebugLog.event('nutritionTableInsert', 'templateSelected', fields: {
+        'boxId': box.id, 'name': box.name, 'widthMm': box.width,
+        'sourceLength': box.rtf.length,
+      });
+      final source = await nutritionBoxWorkbookFromData(box.rtf, widthMm: box.width);
+      if (!mounted) return;
+      if (!_controller.insertSheetContent(source.activeSheet, origin: origin, id: sheet.id)) {
+        throw StateError('선택한 셀에 영양성분표를 삽입할 수 없습니다.');
+      }
+      final inserted = _controller.getSheet(id: sheet.id);
+      RegressionDebugLog.event('nutritionTableInsert', 'completed', fields: {
+        'boxId': box.id, 'sheetId': sheet.id,
+        'row': origin.row, 'column': origin.column,
+        'rowsAfter': inserted?.rowCount, 'columnsAfter': inserted?.columnCount,
+        'sourceCells': source.activeSheet.cells.length,
+        'elapsedMs': DateTime.now().difference(started).inMilliseconds,
+      });
+    } catch (error) {
+      RegressionDebugLog.event('nutritionTableInsert', 'failed', fields: {
+        'sheetId': sheet.id, 'row': origin.row, 'column': origin.column,
+        'error': error, 'elapsedMs': DateTime.now().difference(started).inMilliseconds,
+      });
+      if (mounted) {
+        await showBlockingModelessOverlayDialog<void>(
+          context: context,
+          builder: (_, close) => AlertDialog(
+            title: const Text('영양성분표 삽입 실패'),
+            content: Text('$error'),
+            actions: [TextButton(onPressed: () => close(null), child: const Text('확인'))],
+          ),
+        );
+      }
+    } finally {
+      _closeNutritionBoxSelector = null;
+      dialogController.dispose();
+      _nutritionTableInsertBusy = false;
+      if (mounted) {
+        widget.onSheetDialogClosed?.call();
+        _controller.focusCanvas();
+      }
+    }
   }
 
   Future<void> _handleImportLabelFile() async {

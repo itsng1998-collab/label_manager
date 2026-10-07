@@ -26,6 +26,7 @@ import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
 import 'package:label_manager/widgets/preview_floating_window.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_ai_import_temp.dart';
@@ -3900,6 +3901,111 @@ void main() {
     expect(editor.controller.text, 'AB{#PRICE}CD');
     expect(editor.controller.selection, const TextSelection.collapsed(offset: 10));
     expect(editor.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('automatic nutrition table inserts selected format at captured cell', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final template = labelSheetEncodeWorkbookSave(FortuneWorkbook(sheets: [
+      FortuneSheet(id: 'nutrition', name: 'Nutrition', rowCount: 2, columnCount: 3,
+        columnWidths: const {0: 50, 1: 60, 2: 70},
+        cells: {
+          const FortuneCellCoord(0, 0): const FortuneCell(value: '영양정보'),
+          const FortuneCellCoord(1, 2): const FortuneCell(value: '#N01'),
+        },
+      ),
+    ]));
+    var dirty = false;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: LabelSheetWorkbench(
+      initialWorkbook: FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'label', name: 'Label', rowCount: 20, columnCount: 2,
+          cells: {const FortuneCellCoord(0, 0): const FortuneCell(value: '유지')},
+        ),
+      ]),
+      nutritionBoxListLoader: () async => [
+        NutritionBox(id: 9, typeId: 2, typeName: '기본', name: '선택 양식', rtf: template, width: 70),
+      ],
+      onDirtyChanged: (value) => dirty = value,
+    ))));
+    await tester.pumpAndSettle();
+    final app = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final controller = app.controller!;
+    controller.focusCanvas();
+    await tester.pump();
+    for (var row = 0; row < 7; row += 1) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    final origin = controller.getFlattenRange()!.first;
+    expect(origin, const FortuneCellCoord(7, 1));
+    final insertion = app.settings!.onContextMenuCommand!(labelSheetInsertNutritionTableCommand);
+    await tester.pumpAndSettle();
+    expect(find.text('영양성분표 삽입'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('nutritionBoxInsertButton')));
+    await tester.pumpAndSettle();
+    await insertion;
+    final inserted = controller.getSheet(id: 'label')!;
+    expect(inserted.cells[origin]?.renderedText, '영양정보');
+    expect(inserted.cells[const FortuneCellCoord(8, 3)]?.renderedText, '#N01');
+    expect(inserted.columnCount, greaterThanOrEqualTo(4));
+    expect(inserted.cells[const FortuneCellCoord(0, 0)]?.renderedText, '유지');
+    expect(dirty, isTrue);
+    expect(find.text('영양성분표 삽입'), findsNothing);
+  });
+
+  testWidgets('automatic nutrition table cancellation keeps sheet unchanged', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var dirtyChanges = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: LabelSheetWorkbench(
+      initialWorkbook: FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'label', name: 'Label', rowCount: 20, columnCount: 2,
+          cells: {const FortuneCellCoord(0, 0): const FortuneCell(value: '유지')},
+        ),
+      ]),
+      nutritionBoxListLoader: () async => const [],
+      onDirtyChanged: (_) => dirtyChanges += 1,
+    ))));
+    await tester.pumpAndSettle();
+    final app = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final controller = app.controller!;
+    controller.focusCanvas();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    final before = controller.getSheet(id: 'label')!;
+    final dirtyChangesBefore = dirtyChanges;
+    final insertion = app.settings!.onContextMenuCommand!(labelSheetInsertNutritionTableCommand);
+    await tester.pumpAndSettle();
+    expect(find.text('영양성분표 삽입'), findsOneWidget);
+    await tester.tap(find.byTooltip('닫기').last);
+    await tester.pumpAndSettle();
+    await insertion;
+    final after = controller.getSheet(id: 'label')!;
+    expect(after.cells.keys, unorderedEquals(before.cells.keys));
+    for (final entry in before.cells.entries) {
+      expect(after.cells[entry.key]?.renderedText, entry.value.renderedText);
+    }
+    expect(after.columnCount, before.columnCount);
+    expect(after.rowCount, before.rowCount);
+    expect(dirtyChanges, dirtyChangesBefore);
+    expect(find.text('영양성분표 삽입'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('automatic nutrition table command invokes selection callback', () async {
+    var calls = 0;
+    final settings = labelSheetSettings(
+      const FortuneSettings(),
+      onInsertNutritionTable: () async => calls += 1,
+    );
+    await settings.onContextMenuCommand?.call(
+      labelSheetInsertNutritionTableCommand,
+    );
+    expect(calls, 1);
   });
 
   test('label sheet context menu exposes AI image import', () {

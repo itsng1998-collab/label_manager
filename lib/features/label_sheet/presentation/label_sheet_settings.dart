@@ -5,6 +5,7 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 
 const String labelSheetSaveToolbarCommand = 'label-sheet-save';
 const String labelSheetPrintToolbarCommand = 'label-sheet-print';
+const String labelSheetInsertNutritionTableCommand = 'insert-auto-ingredient-table';
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -91,6 +92,7 @@ FortuneSettings labelSheetSettings(
   FutureOr<void> Function()? onSave,
   FutureOr<void> Function()? onImportLabelFile,
   FutureOr<void> Function()? onExportLabelFile,
+  FutureOr<void> Function()? onInsertNutritionTable,
   Set<String> Function()? contextMenuDisabledItemsBuilder,
   VoidCallback? onPrint,
   FortuneDialogVisibilityChanged? onDialogVisibilityChanged,
@@ -183,6 +185,9 @@ FortuneSettings labelSheetSettings(
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
     onDialogVisibilityChanged: onDialogVisibilityChanged,
     onContextMenuCommand: (command) {
+      if (command == labelSheetInsertNutritionTableCommand) {
+        return onInsertNutritionTable?.call();
+      }
       if (command == fortuneContextImportLabelImageCommand) {
         final callback = onImportLabelImage;
         if (callback == null) {

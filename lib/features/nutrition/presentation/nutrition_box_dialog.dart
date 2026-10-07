@@ -58,7 +58,6 @@ typedef NutritionBoxUpdater = Future<void> Function({
 });
 typedef NutritionBoxDeleter = Future<void> Function(int boxId);
 
-@visibleForTesting
 Future<FortuneWorkbook> nutritionBoxWorkbookFromData(
   String data, {
   required int widthMm,
@@ -178,6 +177,7 @@ class NutritionBoxDialogContent extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onCommitOutcomeUnknown,
+    this.onSelected,
     this.loadBoxes = NutritionBoxDAO.selectAll,
     this.loadTypes = NutritionTypeDAO.selectTypesById,
     this.loadColumns = NutritionTypeDAO.selectColumns,
@@ -191,6 +191,7 @@ class NutritionBoxDialogContent extends StatefulWidget {
 
   final NutritionBoxDialogController controller;
   final VoidCallback onCommitOutcomeUnknown;
+  final ValueChanged<NutritionBox>? onSelected;
   final NutritionBoxListLoader loadBoxes;
   final NutritionBoxTypeListLoader loadTypes;
   final NutritionBoxTypeColumnsLoader loadColumns;
@@ -677,11 +678,21 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
         ),
       );
 
+  void _activateSelectedBox() {
+    final selected = _selectedBox;
+    if (_busy || selected == null) return;
+    final onSelected = widget.onSelected;
+    if (onSelected != null) {
+      onSelected(selected);
+    } else {
+      _openEditor(NutritionBoxEditorMode.edit);
+    }
+  }
+
   Widget _buildManager() {
     Widget result = CallbackShortcuts(
     bindings: {
-      const SingleActivator(LogicalKeyboardKey.enter): () =>
-          _openEditor(NutritionBoxEditorMode.edit),
+        const SingleActivator(LogicalKeyboardKey.enter): _activateSelectedBox,
     },
     child: Focus(
       autofocus: true,
@@ -694,6 +705,18 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
               height: 34,
               child: Row(
               children: [
+                if (widget.onSelected != null)
+                  IconButton(
+                    key: const ValueKey('nutritionBoxInsertButton'),
+                    tooltip: '선택 셀에 영양성분표 삽입',
+                    onPressed: _busy || _selectedBox == null
+                        ? null
+                        : _activateSelectedBox,
+                    icon: const Icon(Icons.table_rows_outlined),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+                  )
+                else ...[
                 IconButton(
                   key: const ValueKey('nutritionBoxAddButton'),
                   tooltip: '영양성분표 추가',
@@ -731,6 +754,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                     height: 30,
                   ),
                 ),
+                ],
                 const Spacer(),
                 SizedBox(
                   key: _rtfPreviewRestoreKey,
@@ -805,7 +829,7 @@ class _NutritionBoxDialogContentState extends State<NutritionBoxDialogContent> {
                       onRowSelected: (_, index) => _selectManagerRow(index),
                       onRowDoubleTap: (_, index) {
                         _selectManagerRow(index);
-                        _openEditor(NutritionBoxEditorMode.edit);
+                        _activateSelectedBox();
                       },
                       autoFitColumns: false,
                       fillLastColumn: true,

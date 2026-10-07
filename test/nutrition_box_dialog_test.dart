@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as imglib;
@@ -21,6 +20,35 @@ import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets('nutrition selection mode inserts chosen row without editing', (tester) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    final selected = <int>[];
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      body: NutritionBoxDialogContent(
+        controller: controller,
+        onCommitOutcomeUnknown: () {},
+        onSelected: (box) => selected.add(box.id),
+        loadBoxes: () async => const [
+          NutritionBox(id: 1, typeId: 2, typeName: '기본', name: '양식 A', rtf: '', width: 70),
+          NutritionBox(id: 4, typeId: 2, typeName: '기본', name: '양식 B', rtf: '', width: 70),
+        ],
+      ),
+    )));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('nutritionBoxAddButton')), findsNothing);
+    expect(find.byKey(const ValueKey('nutritionBoxModifyButton')), findsNothing);
+    expect(find.byKey(const ValueKey('nutritionBoxDeleteButton')), findsNothing);
+    await tester.tap(find.text('양식 B'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nutritionBoxInsertButton')));
+    expect(selected, [4]);
+    expect(controller.activeEditing, isFalse);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(selected, [4, 4]);
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
   test('validation follows legacy name width type order', () {
     expect(nutritionBoxValidationMessage('', 0, null), '명칭을 입력하셔야 합니다 !!');
     expect(nutritionBoxValidationMessage('표', 0, null), '너비를 입력하셔야 합니다 !!');
