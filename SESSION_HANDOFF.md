@@ -1,26 +1,16 @@
 # SESSION HANDOFF
 
-## 현재 작업: 영양성분 형식 추가 오류 메시지 겹침
-- **진행 중**: 1.4.47 제출 두 화면과 `.tmp/1.4.47 로그/설정_영양성분형식추가_오류메시지겹침.log` 확인. 기존 경고가 닫히기 전에 overlay #3/#4 및 #5/#6/#7이 추가된다.
-- 원인 가설: `showBlockingModelessOverlayDialog`는 pointer 차단막만 만들고 포커스를 옮기지 않아 형식명의 Enter가 부모 `CallbackShortcuts` 저장으로 재전달된다.
-- 수정 예정: 공용 `lib/widgets/blocking_modeless_dialog.dart`에서 기존 `BlockingModelessDialog` wrapper 재사용. `test/nutrition_type_dialog_test.dart`와 공용 wrapper 테스트에 키보드 차단/포커스 복원 계약 추가. 사용자 `lib/core/app.dart` 제외.
-- `test/nutrition_type_dialog_test.dart` 편집 완료: TEST 입력 후 반복 Enter에서 경고·barrier 1개 유지, 확인 후 제거·이름 유지·재검증 가능 여부와 DB 미호출을 검증한다.
-- 검증 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/nutrition_type_dialog_test.dart --plain-name "repeated Enter keeps one nutrition validation overlay"`.
-- 수정 전 focused 결과: **실패(예상 일치)**. 실제 형식명 Enter 3회로 동일 오류 메시지 3개와 overlay #1/#2/#3 생성이 재현됐다.
-- `lib/widgets/blocking_modeless_dialog.dart` 편집 완료: 경고 overlay를 공용 `BlockingModelessDialog`로 감싸 포커스를 가져오고 부모 단축키 전달을 차단한다. 차단막은 wrapper의 1개만 사용하며 생성 로그에 `keyboardIsolation=focusScope-v1`을 기록한다.
-- 검증 예정: 동일 영양성분 focused 테스트 즉시 재실행.
-- 수정 후 첫 검증: 경고 1개 유지와 추가 overlay 미생성은 확인됐으나 전체 화면의 기존 barrier를 포함한 개수 기대가 실패했다. 경고 전 baseline 대비 추가 barrier 1개로 검증을 보정했다.
-- 영양성분 focused 재검증 **1/1 통과**. 경고 단일 유지·확인 후 제거·형식명 유지·재검증 가능·DB 미호출을 확인했다.
-- `test/blocking_modeless_dialog_test.dart` 편집 완료: warning helper의 Enter/KeyRepeat 차단, 경고 안 확인 버튼 키보드 활성화, 닫기 후 원래 포커스 복원 테스트를 추가했다.
-- 검증 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/blocking_modeless_dialog_test.dart --plain-name "overlay warning isolates repeat keys and restores owner focus"`.
-- 공용 helper focused 결과: **1/1 통과**. Enter repeat가 부모로 전달되지 않고, 내부 확인 버튼 키보드 활성화 및 원래 포커스 복원 성공.
-- `pubspec.yaml` 편집 완료: `1.4.48 → 1.4.49` PATCH. 공용 경고 overlay의 누락된 키보드 차단 수정이며 DB/저장 형식은 변경하지 않는다.
-- 관련 테스트 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/blocking_modeless_dialog_test.dart test/app_shortcut_blocker_test.dart test/nutrition_type_dialog_test.dart test/nutrition_type_dao_test.dart test/search_and_replace_dialog_test.dart test/nutrition_box_dialog_test.dart`.
-- analyzer 예정: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/widgets/blocking_modeless_dialog.dart test/blocking_modeless_dialog_test.dart test/nutrition_type_dialog_test.dart`.
-- 관련 테스트 결과: **42/42 통과**. 공용 warning, 앱 단축키 차단, 영양성분 형식·목록 및 검색 이동 회귀 없음. 포맷/analyzer/DTD 앱 조회 진행 중.
-- 포맷 완료, analyzer **No issues found**, IDE diagnostics 오류 0건. 최종 diff는 관련 변경만 포함하며 포맷 churn 없음.
-- DTD 연결 확인, 활성 앱 없음으로 hot reload 불가. 실제 계정 Windows/IME 입력은 **미검증**이며 사용자 재시험 필요. 운영 DB 접속/변경·인쇄·배포파일 생성 없음.
-- 상태: **구현·검증 완료, 커밋 준비**. stage/commit 대상: `lib/widgets/blocking_modeless_dialog.dart`, `test/blocking_modeless_dialog_test.dart`, `test/nutrition_type_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 `lib/core/app.dart` 제외.
+## 최근 완료: 영양성분 형식 추가 오류 메시지 겹침
+- **완료**: 1.4.47 제출 두 화면과 `.tmp/1.4.47 로그/설정_영양성분형식추가_오류메시지겹침.log`의 경고 overlay 중복 생성을 실제 형식명 Enter 테스트로 재현하고 수정했다.
+- 원인: `showBlockingModelessOverlayDialog`에 키보드 포커스 격리가 없어 TEST 형식명의 Enter가 부모 저장 `CallbackShortcuts`로 계속 전달된다. 수정 전 Enter 3회에 같은 경고가 3개 쌓였다.
+- 수정: 공용 경고 helper가 기존 `BlockingModelessDialog` wrapper를 재사용해 포커스를 소유한다. 반복 Enter/KeyRepeat의 부모 전달 차단, 경고 안 버튼 키보드 동작과 닫기 후 원래 포커스 복원을 유지한다. 중복 barrier는 추가하지 않는다.
+- 진단: overlay 생성 로그에 `keyboardIsolation=focusScope-v1` 추가. 기존 dialog ID/create/build/close 로그와 앱 버전으로 다음 재현을 판별한다.
+- focused: 영양성분 실제 재현 **수정 전 실패 → 수정 후 1/1 통과**, 공용 반복 키/내부 버튼/포커스 복원 **1/1 통과**. 경고 1개·추가 barrier 1개 유지, 확인 후 형식명 보존·재검증 가능, DB 미호출을 검증했다.
+- 관련 테스트 **42/42 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/blocking_modeless_dialog_test.dart test/app_shortcut_blocker_test.dart test/nutrition_type_dialog_test.dart test/nutrition_type_dao_test.dart test/search_and_replace_dialog_test.dart test/nutrition_box_dialog_test.dart`.
+- analyzer **No issues found**, IDE 오류 0건: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/widgets/blocking_modeless_dialog.dart test/blocking_modeless_dialog_test.dart test/nutrition_type_dialog_test.dart`. 포맷 및 `git diff --check`, `git diff --cached --check` 통과.
+- 버전 `1.4.48 → 1.4.49` PATCH, 기능 커밋 `b9a3a2d` (`영양성분 형식 경고 반복 Enter 중복 표시 수정`). 해시 기록을 위한 후속 문서 커밋은 버전을 재증가하지 않는다.
+- DTD 연결 확인, 활성 앱 없음으로 hot reload 불가. 실제 Windows/IME 입력은 **미검증**이며 사용자 재시험 필요. 운영 DB 접속/변경·인쇄·배포 산출물 없음.
+- 사용자 변경 `lib/core/app.dart` 보존, stage/commit 제외. 후속 커밋은 이 완료 기록 요약만 포함한다.
 
 ## 최근 완료: 검색 및 치환 다른 브랜드 품목편집 이동
 - **완료**: 1.4.47의 검색 및 치환에서 다른 브랜드로 이동할 때 지정 라벨 6436과 첫 라벨 6302의 로딩이 중복되는 경로를 수정했다. 제출 세 화면과 `.tmp/1.4.47 로그/조회이력_검색및치환_품목편집이동_오류.log` 기준이다.
