@@ -37,6 +37,30 @@ void main() {
     expect(sql, contains('IF @@ROWCOUNT<>1'));
   });
 
+  test('delete suppresses empty child rowcounts and returns explicit result', () {
+    final statement = NutritionTypeDAO.deleteStatement(16);
+    final sql = statement.sql;
+    expect(sql.trimLeft(), startsWith('SET NOCOUNT ON;'));
+    expect(sql.trimRight(), endsWith('SELECT 1 AS DELETED_COUNT;'));
+    expect(statement.params, {'typeId': 16});
+    expect(sql, contains('IF @@ROWCOUNT<>1'));
+    expect(sql, contains("THROW 51011, 'Nutrition type delete count mismatch.', 1;"));
+    expect(
+      sql.indexOf('SELECT 1 AS DELETED_COUNT;'),
+      greaterThan(sql.indexOf('THROW 51011')),
+    );
+    for (final unsupported in [
+      'OPENJSON',
+      'JSON_VALUE',
+      'TRY_CONVERT',
+      'STRING_SPLIT',
+      'STRING_AGG',
+      'ALTER TABLE',
+    ]) {
+      expect(sql.toUpperCase(), isNot(contains(unsupported)));
+    }
+  });
+
   test('manager list stays unordered while templates and details use id order', () {
     expect(NutritionTypeDAO.selectTypesSql, isNot(contains('ORDER BY')));
     expect(

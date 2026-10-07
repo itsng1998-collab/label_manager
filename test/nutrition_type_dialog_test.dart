@@ -282,4 +282,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(closes, 1);
   });
+
+  testWidgets('delete TEST2 sends selected id and reloads remaining types', (
+    tester,
+  ) async {
+    final controller = NutritionTypeDialogController();
+    addTearDown(controller.dispose);
+    var loads = 0;
+    final deletedIds = <int>[];
+    var types = const [
+      NutritionType(id: 1, name: '기본형'),
+      NutritionType(id: 16, name: 'TEST2'),
+    ];
+    await pumpDialog(
+      tester,
+      controller: controller,
+      loadTypes: () async {
+        loads += 1;
+        return types;
+      },
+      delete: (typeId) async {
+        deletedIds.add(typeId);
+        types = [for (final type in types) if (type.id != typeId) type];
+      },
+    );
+
+    await tester.tap(find.text('TEST2'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nutritionTypeDeleteButton')));
+    await tester.pumpAndSettle();
+    expect(deletedIds, isEmpty);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(deletedIds, [16]);
+    expect(loads, 2);
+    expect(find.text('TEST2'), findsNothing);
+    expect(find.text('기본형'), findsOneWidget);
+    expect(controller.writeBusy, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -4,6 +4,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 import 'package:label_manager/database/dao.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 class NutritionTypeDAO extends DAO {
   static const String selectTypesSql =
@@ -77,6 +78,8 @@ class NutritionTypeDAO extends DAO {
   ''';
 
   static const String deleteSql = '''
+    SET NOCOUNT ON;
+
     DELETE FROM BM_RICH_NUTBOX
      WHERE RICH_NUTBOX_TYPE=@typeId;
 
@@ -87,6 +90,9 @@ class NutritionTypeDAO extends DAO {
      WHERE RICH_NUTTYPE_ID=@typeId;
     IF @@ROWCOUNT<>1
       THROW 51011, 'Nutrition type delete count mismatch.', 1;
+
+    SET NOCOUNT OFF;
+    SELECT 1 AS DELETED_COUNT;
   ''';
 
   static Future<List<NutritionType>> selectTypes() async {
@@ -139,8 +145,33 @@ class NutritionTypeDAO extends DAO {
     List<NutritionTypeColumn> columns,
   ) => DbClient.instance.transaction([updateStatement(typeId, name, columns)]);
 
-  static Future<void> delete(int typeId) =>
-      DbClient.instance.transaction([deleteStatement(typeId)]);
+  static Future<void> delete(int typeId) async {
+    final stopwatch = Stopwatch()..start();
+    RegressionDebugLog.event(
+      'nutritionTypeDelete',
+      'transactionStarted',
+      fields: {'typeId': typeId, 'sqlBatch': 'noCountResult-v1'},
+    );
+    try {
+      await DbClient.instance.transaction([deleteStatement(typeId)]);
+      RegressionDebugLog.event(
+        'nutritionTypeDelete',
+        'transactionCompleted',
+        fields: {'typeId': typeId, 'elapsedMs': stopwatch.elapsedMilliseconds},
+      );
+    } catch (error) {
+      RegressionDebugLog.event(
+        'nutritionTypeDelete',
+        'transactionFailed',
+        fields: {
+          'typeId': typeId,
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+          'error': error,
+        },
+      );
+      rethrow;
+    }
+  }
 
   static String _detailsXml(List<NutritionTypeColumn> columns) {
     final escape = const HtmlEscape(HtmlEscapeMode.attribute);
