@@ -1,26 +1,16 @@
 # SESSION HANDOFF
 
-## 현재 작업: 영양성분 형식 TEST2 삭제 불가
-- **진행 중**: 1.4.47 제출 화면과 `.tmp/1.4.47 로그/설정_영양성분형식추가_삭제불가.log` 확인. typeId=16 삭제가 `SQLExecute failed: 100`으로 실패하고 롤백됐다.
-- 원인 가설: 첫 `BM_RICH_NUTBOX` DELETE가 0행이면 ODBC SQL_NO_DATA(100) 응답이 발생한다. 드라이버는 100을 예외로 처리하며 삭제 배치에는 NOCOUNT/최종 결과 SELECT가 없다. 기존 DAO 이력과 compatibility 100 메모·인접 NOCOUNT 패턴을 확인했다.
-- 수정 예정: `lib/features/nutrition/data/nutrition_type_dao.dart` 삭제 SQL의 중간 rowcount 억제·최종 명시적 결과와 typeId/완료/실패 진단 로그. 기존 nutbox→column→type 순서 및 대상 1행 검증 유지. DB 마이그레이션/드라이버 전역 변경은 하지 않는다.
-- `test/nutrition_type_dao_test.dart` 편집 완료: 번호 16 파라미터, NOCOUNT/최종 SELECT, ROWCOUNT/THROW 계약, 금지 SQL 함수·마이그레이션 미사용 검증 추가.
-- 검증 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/nutrition_type_dao_test.dart --plain-name "delete suppresses empty child rowcounts and returns explicit result"`.
-- 사용자 `lib/core/app.dart` 변경은 수정/stage/commit 제외.
-- 수정 전 focused 결과: **실패(예상 일치)**. 삭제 SQL에 SET NOCOUNT ON이 없다.
-- `nutrition_type_dao.dart` 편집 완료: NOCOUNT ON으로 중간 rowcount를 억제하고 기존 ROWCOUNT/THROW 검증 후 NOCOUNT OFF 및 `SELECT 1 AS DELETED_COUNT`로 명시적 성공 결과를 반환한다. DAO에 `nutritionTypeDelete` transactionStarted/Completed/Failed 로그(typeId/배치버전/소요시간/오류)를 추가하며 오류는 재전파한다.
-- 검증 예정: 동일 DAO focused 테스트 즉시 재실행.
-- DAO focused 결과: **1/1 통과**. NOCOUNT/명시적 결과·대상 1행 검증·SQL Server compatibility 100 금지 함수 미사용 확인.
-- `test/nutrition_type_dialog_test.dart` 편집 완료: 번호16 TEST2 선택→삭제 확인→대상 ID16 전달→목록 재조회 후 제거와 다른 형식 유지, busy 해제 화면 테스트 추가.
-- 검증 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/nutrition_type_dialog_test.dart --plain-name "delete TEST2 sends selected id and reloads remaining types"`.
-- 화면 focused 결과: **1/1 통과**. 삭제 확인 전 미호출, ID16 전달·목록 1회 재조회·TEST2 제거·다른 형식 유지·busy 해제 확인.
-- `pubspec.yaml` 편집 완료: `1.4.49 → 1.4.50` PATCH. 영양성분 형식 삭제 SQL의 ODBC 응답 버그 수정이며 DB 스키마/데이터 형식은 변경하지 않는다.
-- 관련 테스트 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/nutrition_type_dao_test.dart test/nutrition_type_dialog_test.dart test/nutrition_box_dao_test.dart`.
-- analyzer 예정: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/nutrition/data/nutrition_type_dao.dart test/nutrition_type_dao_test.dart test/nutrition_type_dialog_test.dart`.
-- 관련 테스트 결과: **15/15 통과**. 삭제 SQL 계약·삭제 화면·영양성분표 DAO 및 기존 경고 겹침 회귀 없음. 포맷/analyzer/DTD 확인 진행 중.
-- 포맷 완료, analyzer **No issues found**, IDE 오류 0건. 최종 diff는 요청 관련 변경만 포함한다.
-- DTD 연결 확인, 활성 앱 없음으로 hot reload 불가. 실제 운영 SQL Server의 ID16 삭제는 **미검증**이며 사용자 재시험 필요. DB 접속/데이터 변경·마이그레이션·인쇄·배포파일 생성은 수행하지 않았다.
-- 상태: **구현·검증 완료, 커밋 준비**. stage/commit 대상은 `lib/features/nutrition/data/nutrition_type_dao.dart`, `test/nutrition_type_dao_test.dart`, `test/nutrition_type_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 `lib/core/app.dart` 제외.
+## 최근 완료: 영양성분 형식 TEST2 삭제 불가
+- **완료**: 1.4.47 제출 화면과 `.tmp/1.4.47 로그/설정_영양성분형식추가_삭제불가.log`에서 typeId=16 삭제의 `SQLExecute failed: 100` 및 롤백 확인 후 삭제 배치 응답을 수정했다.
+- 원인 경로: 첫 BM_RICH_NUTBOX DELETE의 0행 응답은 ODBC SQL_NO_DATA(100)가 될 수 있으며 드라이버는 이를 예외로 처리한다. 제출 로그에는 실제 자식 행 수가 없어 0행 여부 자체는 운영 DB에서 별도 확인 대상이다.
+- `NutritionTypeDAO.deleteSql`: NOCOUNT ON으로 중간 rowcount 억제, 기존 nutbox→column→type 삭제 순서와 ROWCOUNT/THROW 대상 1행 검증 유지, NOCOUNT OFF 및 `SELECT 1 AS DELETED_COUNT`로 최종 결과 반환. 드라이버 전역 변경/마이그레이션 없음.
+- 진단 로그: `regression-debug-v1 feature=nutritionTypeDelete`의 transactionStarted(typeId/sqlBatch=noCountResult-v1), transactionCompleted/Failed(typeId/elapsedMs/오류). 오류는 재전파하며 기존 트랜잭션 처리 유지.
+- focused: 삭제 SQL 계약 **수정 전 실패 → 수정 후 1/1 통과**, ID16 선택·삭제 확인·목록 갱신 화면 **1/1 통과**. SQL Server compatibility 100 금지 함수 미사용, 다른 형식 유지, busy 해제 확인.
+- 관련 테스트 **15/15 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/nutrition_type_dao_test.dart test/nutrition_type_dialog_test.dart test/nutrition_box_dao_test.dart`.
+- analyzer **No issues found**, IDE 오류 0건: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/nutrition/data/nutrition_type_dao.dart test/nutrition_type_dao_test.dart test/nutrition_type_dialog_test.dart`. 포맷, `git diff --check`, `git diff --cached --check` 통과.
+- 버전 `1.4.49 → 1.4.50` PATCH, 기능 커밋 `eaf6c67` (`영양성분 형식 삭제 ODBC 0행 응답 오류 수정`). 해시 기록 후속 문서 커밋은 버전을 재증가하지 않는다.
+- DTD 연결 확인, 활성 앱 없음으로 hot reload 불가. 실제 운영 SQL Server의 ID16 삭제는 **미검증**, 사용자 재시험 필요. 운영 DB 접속/변경·마이그레이션·인쇄·배포 산출물 없음.
+- 사용자 변경 `lib/core/app.dart` 보존, stage/commit 제외. 후속 커밋은 이번 완료 기록 요약만 포함한다.
 
 ## 최근 완료: 영양성분 형식 추가 오류 메시지 겹침
 - **완료**: 1.4.47 제출 두 화면과 `.tmp/1.4.47 로그/설정_영양성분형식추가_오류메시지겹침.log`의 경고 overlay 중복 생성을 실제 형식명 Enter 테스트로 재현하고 수정했다.
