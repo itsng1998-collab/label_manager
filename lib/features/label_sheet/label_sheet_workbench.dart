@@ -2487,6 +2487,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || settings == null || physicalSize == null) return null;
+    RegressionDebugLog.event('labelSheetHybridCapture', 'started', fields: {
+      'backend': 'windowsDriver',
+      'sheetId': sheet.id,
+      'rows': sheet.rowCount ?? settings.row,
+      'columns': sheet.columnCount ?? settings.column,
+      'previewZoom': sheet.zoomRatio,
+      'physicalMm': '${physicalSize.widthMm}x${physicalSize.heightMm}',
+      'boundsVersion': 'print-range-bounds-v1',
+    });
     final preparation = prepareLabelSheetWindowsHybridPrint(
       sheet: sheet,
       settings: settings,
@@ -2495,6 +2504,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       options: options,
       lineSpacingPercent: lineSpacingPercent,
     );
+    RegressionDebugLog.event('labelSheetHybridCapture', 'prepared', fields: {
+      'backend': 'windowsDriver',
+      'rowEnd': preparation.geometry.range.rowEnd,
+      'columnEnd': preparation.geometry.range.columnEnd,
+      'printZoom': preparation.plan.sheet.zoomRatio,
+      'logicalBounds': preparation.geometry.transform.sourceLogicalBounds,
+      'boundsVersion': 'print-range-bounds-v1',
+    });
     final capture = await _controller.captureHybridPlanAsPng(
       preparation.plan,
       pixelRatio:
@@ -2531,6 +2548,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || settings == null || physicalSize == null) return null;
+    RegressionDebugLog.event('labelSheetHybridCapture', 'started', fields: {
+      'backend': 'ezplRaw',
+      'sheetId': sheet.id,
+      'rows': sheet.rowCount ?? settings.row,
+      'columns': sheet.columnCount ?? settings.column,
+      'previewZoom': sheet.zoomRatio,
+      'physicalMm': '${physicalSize.widthMm}x${physicalSize.heightMm}',
+      'boundsVersion': 'print-range-bounds-v1',
+    });
     final preparation = prepareLabelSheetEzplPrint(
       sheet: sheet,
       settings: settings,
@@ -2539,6 +2565,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       options: options,
       lineSpacingPercent: lineSpacingPercent,
     );
+    RegressionDebugLog.event('labelSheetHybridCapture', 'prepared', fields: {
+      'backend': 'ezplRaw',
+      'rowEnd': preparation.geometry.range.rowEnd,
+      'columnEnd': preparation.geometry.range.columnEnd,
+      'printZoom': preparation.plan.sheet.zoomRatio,
+      'logicalBounds': preparation.geometry.transform.sourceLogicalBounds,
+      'boundsVersion': 'print-range-bounds-v1',
+    });
     final capture = await _controller.captureHybridPlanAsPng(
       preparation.plan,
       pixelRatio:

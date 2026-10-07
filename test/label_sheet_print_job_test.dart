@@ -63,6 +63,66 @@ void main() {
     expect(range.columnEnd, 2);
   });
 
+  for (final axis in ['rows', 'columns', 'settings']) {
+    test('hybrid print bounds short sheet $axis', () {
+      const physicalSize = fs.FortuneSheetGridClientPhysicalSize(
+        widthMm: 80,
+        heightMm: 60,
+      );
+      final sheet = fs.FortuneSheet(
+        id: 'short-sheet',
+        name: 'Label',
+        rowCount: axis == 'settings' ? null : (axis == 'rows' ? 14 : 24),
+        columnCount: axis == 'settings' ? null : (axis == 'columns' ? 2 : 1),
+        defaultRowHeight: 16,
+        defaultColWidth: axis != 'rows' ? 150 : physicalSize.logicalSize.width,
+      );
+      const settings = fs.FortuneSettings(row: 14, column: 2);
+      const metrics = LabelSheetPrintPageMetrics(
+        labelWidthMm: 80,
+        labelHeightMm: 60,
+        dpi: 203.2,
+      );
+      const options = LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      );
+      for (final windowsDriver in [true, false]) {
+        final geometry = windowsDriver
+            ? prepareLabelSheetWindowsHybridPrint(
+                sheet: sheet,
+                settings: settings,
+                physicalSize: physicalSize,
+                metrics: metrics,
+                options: options,
+                lineSpacingPercent: null,
+              ).geometry
+            : prepareLabelSheetEzplPrint(
+                sheet: sheet,
+                settings: settings,
+                physicalSize: physicalSize,
+                metrics: metrics,
+                options: options,
+              ).geometry;
+        expect(geometry.range.rowEnd, lessThan(sheet.rowCount ?? settings.row));
+        expect(
+          geometry.range.columnEnd,
+          lessThan(sheet.columnCount ?? settings.column),
+        );
+        if (axis != 'columns') expect(geometry.range.rowEnd, 13);
+        if (axis != 'rows') expect(geometry.range.columnEnd, 1);
+        expect(geometry.transform.sourceLogicalBounds.width, greaterThan(0));
+        expect(geometry.transform.sourceLogicalBounds.height, greaterThan(0));
+        expect(geometry.metrics.labelWidthMm, 80);
+        expect(geometry.metrics.labelHeightMm, 60);
+      }
+    });
+  }
+
   test('hybrid geometry resolves source metrics and print transform', () {
     final geometry = resolveLabelSheetHybridPrintGeometry(
       sheet: fs.FortuneSheet(

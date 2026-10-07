@@ -287,19 +287,22 @@ class LabelSheetPrintPageMetrics {
 
 FortuneRange labelSheetPrintRange(
   FortuneSheet sheet,
-  FortuneSheetGridClientPhysicalSize physicalSize,
-) {
+  FortuneSheetGridClientPhysicalSize physicalSize, {
+  FortuneSettings settings = const FortuneSettings(),
+}) {
   final logicalSize = physicalSize.logicalSize;
   return FortuneRange(
     rowStart: 0,
     rowEnd: _lastPrintIndexForExtent(
       logicalSize.height,
+      axisCount: sheet.rowCount ?? settings.row,
       lengthForIndex: (row) =>
           sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? 19,
     ),
     columnStart: 0,
     columnEnd: _lastPrintIndexForExtent(
       logicalSize.width,
+      axisCount: sheet.columnCount ?? settings.column,
       lengthForIndex: (column) =>
           sheet.columnWidths[column] ?? sheet.defaultColWidth ?? 73,
     ),
@@ -308,6 +311,7 @@ FortuneRange labelSheetPrintRange(
 
 int _lastPrintIndexForExtent(
   double extent, {
+  required int axisCount,
   required double Function(int index) lengthForIndex,
 }) {
   if (extent <= 0) {
@@ -315,7 +319,7 @@ int _lastPrintIndexForExtent(
   }
   var offset = 0.0;
   var index = 0;
-  while (offset < extent) {
+  while (offset < extent && index < axisCount - 1) {
     offset += lengthForIndex(index);
     if (offset >= extent) {
       return index;
@@ -462,7 +466,7 @@ LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
 }) {
-  final range = labelSheetPrintRange(sheet, physicalSize);
+  final range = labelSheetPrintRange(sheet, physicalSize, settings: settings);
   final sheetMetrics = sheet.metrics(settings);
   final rowStart = math.min(range.rowStart, range.rowEnd);
   final rowEnd = math.max(range.rowStart, range.rowEnd);
