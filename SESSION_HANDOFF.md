@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 자동 성분표 선택 셀 삽입
-- **완료, 기능 커밋 확정 예정**: 강제 중단 당시 변경을 보존해 재개했다. 미처리 `insert-auto-ingredient-table` 명령을 기존 양식 선택창에 연결했다.
+- **완료**: 강제 중단 당시 변경을 보존해 재개했다. 미처리 `insert-auto-ingredient-table` 명령을 기존 양식 선택창에 연결했다.
 - `label_sheet_settings/workbench`: 메뉴 시점 셀·시트를 보존하고 기존 비동기 workbook/RTF 변환 결과를 삽입. 공용 overlay/frame, 재진입 차단, 취소/owner dispose 처리와 상태 로그를 사용한다.
 - `nutrition_box_dialog`: 기존 목록·미리보기 재사용, `onSelected` 선택 모드에서 삽입 버튼/Enter/더블클릭 지원. 관리 모드는 유지한다.
 - 공용 `FortuneSheetController.insertSheetContent`/`fortuneInsertSheetContent`: 사용 범위를 선택 셀에 복사, 부족한 열/행 확장, 양식 치수·스타일·테두리·병합 보존, 단일 Undo/Redo 및 변경 알림. 병합 runtime/raw anchor 좌표는 기존 `_shiftApiCellMetadata`로 보정한다.
@@ -12,7 +12,7 @@
 - analyzer: 변경 production/test 8개 파일 신규 항목 0건, 기존 canvas 미사용 경고 10개로 종료 코드 1. 변경 파일 IDE 오류 0건.
 - 버전 `1.4.50 → 1.5.0` MINOR: 기존 데이터 호환을 유지하면서 양식 선택/삽입이라는 새 사용자 흐름 추가.
 - DTD 발견·연결 확인 및 hot reload 시도: 활성 앱 없음으로 실행 불가. 실제 Windows/운영 DB 양식 삽입은 **미검증**, 사용자 재시험 필요. 운영 DB 변경·마이그레이션·인쇄·배포 산출물 없음.
-- 커밋 대상: 위 production 5개, 인접 테스트 3개, `pubspec.yaml`, 이 인수인계 총 10개 stage 확인. 사용자 `lib/core/app.dart`는 보존·제외. 임시 소스/테스트 파일 없음. `git diff --check`/`git diff --cached --check` 통과. 기능 커밋 해시는 확정 후 후속 문서 커밋에 기록한다.
+- 기능 커밋 `b5d9ac3` (`공용라벨 자동 성분표 선택 셀 삽입 및 열 확장 구현`): production 5개, 인접 테스트 3개, `pubspec.yaml`, 이 인수인계 총 10개. 사용자 `lib/core/app.dart`는 보존·제외. 임시 소스/테스트 파일 없음. `git diff --check`/`git diff --cached --check` 통과. 해시 기록 후속 문서 커밋은 버전을 재증가하지 않는다.
 
 ## 최근 완료: 영양성분 형식 TEST2 삭제 불가
 - **완료**: 1.4.47 제출 화면과 `.tmp/1.4.47 로그/설정_영양성분형식추가_삭제불가.log`에서 typeId=16 삭제의 `SQLExecute failed: 100` 및 롤백 확인 후 삭제 배치 응답을 수정했다.
