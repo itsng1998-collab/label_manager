@@ -1,5 +1,15 @@
 # SESSION HANDOFF
 
+## 현재 작업: PDF 출력 하단 잘림
+- **구현·자동 검증 완료, 커밋 진행 중**. 제출 1.4.47 PDF 로그의 80x60mm/1890x1418px/dispatch accepted=true는 전송만 보장했다. 캡처 좌표는 화면 줌 적용, 글꼴과 물리 clip은 미적용하여 하단이 밀려 잘리는 현상을 픽셀 테스트로 재현했다.
+- `FortuneSheetController.captureRangeAsPng(normalizeZoom:true)`는 사본만 100% 좌표로 캡처한다. 기본 false로 일반 화면 캡처 계약 유지. `_captureOutput`/독립 `_handlePrint`의 PDF·밴드 PNG 경로에 연결; 원본 시트 줌/저장 데이터/PDF 배치/WindowsDriver/EZPL RAW는 변경 없음.
+- 진단: `labelSheetOutputCapture` started/failed/completed에 previewZoom/captureZoom/논리·픽셀 크기/DPI/줄 간격 및 `print-zoom-normalized-v1`, 독립 출력 기존 로그에도 줌·버전 기록. 로그 함수에 업무 로직 없음.
+- focused 수정 전 하단 표식 실패 → 수정 후 통과. 실제 controller 220%/600dpi/80x60mm/1890x1418px/하단 표식·원본 줌 유지 통과. 통합 초기 fixture의 기본100mm 적용 오류는 LabelSize 명시로 해결.
+- 최종 관련 회귀 **79/79 통과**: `C:/Flutter/bin/flutter.bat test --no-pub third_party/fortune_sheet/test/fortune_print_capture_test.dart third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart test/label_print_session_test.dart test/label_sheet_print_job_test.dart --timeout 30s` (터미널 120초).
+- 최종 analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/label_sheet/label_sheet_workbench.dart test/label_print_session_test.dart third_party/fortune_sheet/test/fortune_print_capture_test.dart`. 캔버스 직접 포함 분석은 기존 미사용 경고 10개(exit=1), 신규 오류 없음. IDE 변경 파일 오류 0건, `git diff --check` 통과.
+- 버전 **1.5.3 → 1.5.4 PATCH**. DTD 탐색·연결 확인·hot reload 시도: 활성 앱 없음. 실제 Microsoft Print to PDF의 제출 라벨 재발행은 **미검증**, 사용자 재시험 필요. DB 변경·마이그레이션·실제 인쇄·배포 산출물 없음.
+- 임시 `tmp/pdf_capture_regression.log` 삭제 완료. stage/commit 대상: workbench, canvas, 캡처·출력 세션 테스트 2개, pubspec, 이 인수인계 총6개. 사용자 `lib/core/app.dart` 보존·제외, push 없음.
+
 ## 현재 작업: 라벨 항목 변경 취소 ESC 중복
 - **완료**: 1.4.47 제출 로그에서 확인창 #1~#5 중첩 생성 확인. 현재 공용 포커스 격리는 유지하고 변경 취소 확인창의 ESC 버리기 및 종료 재진입 차단을 추가했다.
 - `BlockingModelessDialog`/`showBlockingModelessOverlayDialog`: 선택적 onEscape 처리. KeyDown만 실행하고 Repeat/Up은 소비하며 자식 버튼 포커스에서도 처리한다. 옵션 미지정 확인창은 기존 동작 유지.

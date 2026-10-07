@@ -69,6 +69,82 @@ bool _hasDarkPixelNear(ByteData pixels, int width, int height, int x, int y) {
 }
 
 void main() {
+  testWidgets('physical print capture retains bottom content at preview zoom', (
+    tester,
+  ) async {
+    const physicalSize = FortuneSheetGridClientPhysicalSize(
+      widthMm: 80,
+      heightMm: 60,
+    );
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: FortuneSheetCanvas(
+          workbook: FortuneWorkbook(sheets: [
+            FortuneSheet(
+              id: 'label',
+              name: 'Label',
+              rowCount: 24,
+              columnCount: 1,
+              zoomRatio: 2.2,
+              defaultRowHeight: 10,
+              defaultColWidth: physicalSize.logicalSize.width,
+              cells: {
+                const FortuneCellCoord(19, 0): const FortuneCell(
+                  background: ui.Color(0xff000000),
+                ),
+              },
+            ),
+          ]),
+          controller: controller,
+          showFormulaBar: false,
+          showSheetTabs: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    const range = FortuneRange(
+      rowStart: 0,
+      rowEnd: 23,
+      columnStart: 0,
+      columnEnd: 0,
+    );
+    final previewCapture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        range,
+        includeGridLines: false,
+        includeLabelAreaBoundary: false,
+        logicalClipSize: physicalSize.logicalSize,
+      ),
+    );
+    expect(previewCapture!.sheet.zoomRatio, 2.2);
+    final previewPixels = await tester.runAsync(
+      () => _decodeRawRgba(previewCapture.pngBytes),
+    );
+    expect(
+      _isBlack(previewPixels!, previewCapture.pixelSize.width.round(), 5, 215),
+      isFalse,
+    );
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        range,
+        includeGridLines: false,
+        includeLabelAreaBoundary: false,
+        logicalClipSize: physicalSize.logicalSize,
+        normalizeZoom: true,
+      ),
+    );
+    expect(capture, isNotNull);
+    expect(capture!.logicalSize, physicalSize.logicalSize);
+    expect(capture.sheet.zoomRatio, 1);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture.pngBytes));
+    expect(_isBlack(pixels!, capture.pixelSize.width.round(), 5, 215), isTrue);
+    expect(controller.getSheet()!.zoomRatio, 2.2);
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
   test('output line height preserves stored value unless overridden', () {
     expect(fortuneOutputLineHeight(1.5, null), 1.5);
     expect(fortuneOutputLineHeight(1.5, 1), 1);

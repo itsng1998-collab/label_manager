@@ -2238,7 +2238,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             outputLineHeightMultiplier: options.autoSpacingPercent == null
                 ? null
                 : options.autoSpacingPercent! / 100,
-              logicalClipSize: physicalSize.logicalSize,
+            logicalClipSize: physicalSize.logicalSize,
+            normalizeZoom: true,
           )
         : null;
     if (!mounted) {
@@ -2253,6 +2254,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
     debugLog(
       'labelSheetPrint capture backend=${backend.name} '
+      'previewZoom=${sheet.zoomRatio} captureZoom=${capture?.sheet.zoomRatio} '
+      'captureVersion=print-zoom-normalized-v1 '
       'pixel=${windowsCapture != null ? '${windowsCapture.pixelWidth}x${windowsCapture.pixelHeight}' : ezplCapture != null ? '${ezplCapture.pixelWidth}x${ezplCapture.pixelHeight}' : '${capture!.pixelSize.width}x${capture.pixelSize.height}'} '
       'pngBytes=${windowsCapture?.pngBytes.length ?? ezplCapture?.pngBytes.length ?? capture!.pngBytes.length}',
     );
@@ -2418,6 +2421,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || physicalSize == null) return null;
     final range = labelSheetPrintRange(sheet, physicalSize);
+    RegressionDebugLog.event('labelSheetOutputCapture', 'started', fields: {
+      'sheetId': sheet.id,
+      'previewZoom': sheet.zoomRatio,
+      'widthMm': physicalSize.widthMm,
+      'heightMm': physicalSize.heightMm,
+      'dpi': dpi,
+      'lineSpacingPercent': lineSpacingPercent,
+      'capture': 'print-zoom-normalized-v1',
+    });
     final capture = await _controller.captureRangeAsPng(
       range,
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
@@ -2428,9 +2440,26 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       outputLineHeightMultiplier: lineSpacingPercent == null
           ? null
           : lineSpacingPercent / 100,
-        logicalClipSize: physicalSize.logicalSize,
+      logicalClipSize: physicalSize.logicalSize,
+      normalizeZoom: true,
     );
-    if (capture == null) return null;
+    if (capture == null) {
+      RegressionDebugLog.event('labelSheetOutputCapture', 'failed', fields: {
+        'sheetId': sheet.id,
+        'capture': 'print-zoom-normalized-v1',
+      });
+      return null;
+    }
+    RegressionDebugLog.event('labelSheetOutputCapture', 'completed', fields: {
+      'sheetId': sheet.id,
+      'previewZoom': sheet.zoomRatio,
+      'captureZoom': capture.sheet.zoomRatio,
+      'logicalWidth': capture.logicalSize.width,
+      'logicalHeight': capture.logicalSize.height,
+      'pixelWidth': capture.pixelSize.width,
+      'pixelHeight': capture.pixelSize.height,
+      'capture': 'print-zoom-normalized-v1',
+    });
     return LabelSheetOutputCapture(
       pngBytes: capture.pngBytes,
       sheet: capture.sheet,

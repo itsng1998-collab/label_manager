@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:image/image.dart' as img;
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
@@ -618,6 +619,68 @@ void main() {
     );
     expect(captureController.debugActiveSheet?.zoomRatio, 1.6);
     await tester.pump();
+  });
+
+  testWidgets('output capture uses physical geometry at 220 percent zoom', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const physicalSize = FortuneSheetGridClientPhysicalSize(
+      widthMm: 80,
+      heightMm: 60,
+    );
+    final captureController = LabelSheetOutputCaptureController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LabelSheetWorkbench(
+          labelSize: const LabelSize(
+            labelSizeId: 1,
+            brandId: 1,
+            labelSizeName: '80x60',
+            labelSizeCommon: LabelSizeCommon(width: 80, height: 60, rtf: ''),
+          ),
+          initialWorkbook: FortuneWorkbook(sheets: [
+            FortuneSheet(
+              id: 'physical-print',
+              name: 'Label',
+              rowCount: 24,
+              columnCount: 1,
+              zoomRatio: 2.2,
+              defaultRowHeight: 10,
+              defaultColWidth: physicalSize.logicalSize.width,
+              extraFields: const {
+                fortuneSheetGridClientWidthMmKey: 80,
+                fortuneSheetGridClientHeightMmKey: 60,
+              },
+              cells: {
+                const FortuneCellCoord(19, 0): const FortuneCell(
+                  background: Color(0xff000000),
+                ),
+              },
+            ),
+          ]),
+          outputCaptureController: captureController,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(captureController.debugActiveSheet?.zoomRatio, 2.2);
+    final capture = await tester.runAsync(
+      () => captureController.capture(dpi: 600, lineSpacingPercent: null),
+    );
+    expect(capture, isNotNull);
+    expect(capture!.sheet.zoomRatio, 1);
+    expect(capture.sourceWidthMm, closeTo(80, 0.000001));
+    expect(capture.sourceHeightMm, closeTo(60, 0.000001));
+    expect(capture.pixelWidth, 1890);
+    expect(capture.pixelHeight, 1418);
+    final image = img.decodePng(capture.pngBytes)!;
+    final bottomMarker = image.getPixel(30, (215 * 600 / 96).round());
+    expect(bottomMarker.r, lessThan(32));
+    expect(bottomMarker.g, lessThan(32));
+    expect(bottomMarker.b, lessThan(32));
+    expect(captureController.debugActiveSheet?.zoomRatio, 2.2);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('output capture controller rejects a second attached owner', (
