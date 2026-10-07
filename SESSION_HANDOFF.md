@@ -1,30 +1,16 @@
 # SESSION HANDOFF
 
-## 현재 작업: 검색 및 치환 다른 브랜드 품목편집 이동
-- **진행 중**: 1.4.47 제출 화면과 `.tmp/1.4.47 로그/조회이력_검색및치환_품목편집이동_오류.log`를 확인했다.
-- 원인 가설: `_loadSearchAndReplaceTarget`의 브랜드 변경 콜백이 `didUpdateWidget`의 첫 라벨 자동 조회를 유발한다. 로그에서 지정 라벨 6436(sessionLoad-2) 직후 첫 라벨 6302(sessionLoad-3)가 추가 로딩되어 충돌한다.
-- 수정 예정: `lib/home_page_manager.dart`의 검색 이동 브랜드 알림에 대한 자동 로딩 생략, 이동 진단 로그와 `test/home_page_manager_session_test.dart` 회귀 테스트. 사용자 변경 `lib/core/app.dart`는 제외한다.
-- 미검증: 수정 전 focused 명령 `C:/Flutter/bin/flutter.bat test test/home_page_manager_session_test.dart --name "search replace brand"`.
-- 수정 전 결과: 신규 정책 함수가 없어 컴파일 실패. 실제 UI 재현 테스트가 아닌 중복 로딩 정책 계약 테스트다.
-- `lib/home_page_manager.dart` 편집 완료: 검색 이동 대상 브랜드 변경 알림을 1회 소비해 첫 라벨 자동 로딩만 생략하고 targetLoadStarted/Completed/Failed, automaticLabelLoadSkipped 로그를 추가했다.
-- 검증 예정: 동일 focused 테스트를 즉시 재실행한다.
-- 정책 focused 결과: **1/1 통과**. 신규 테스트는 일반 브랜드 변경·다른 브랜드 변경·브랜드 해제의 자동 조회를 유지함을 확인한다.
-- 추가 확인: 검색 이동 버튼은 callback 예외를 처리하지 않고 이동 중 중복 클릭도 허용한다. `search_and_replace_dialog.dart`의 같은 이동 경로에서 실패 안내/상태 해제를 보완한다.
-- `test/search_and_replace_dialog_test.dart` 편집 완료: 대상 ID 유지·중복 클릭 차단·실패 안내 후 재시도 회귀 테스트를 추가했다.
-- 검증 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/search_and_replace_dialog_test.dart --name "edit move"`.
-- 화면 수정 전: import 누락 보정 후 **2/2 실패**. 중복 클릭 callback 2회와 미처리 StateError를 실제 버튼 테스트로 재현했다.
-- `search_and_replace_dialog.dart` 편집 완료: 품목편집/출력 이동의 공통 완료 경로가 이동 중 controls를 비활성화하고, 실패를 기존 메시지 overlay로 표시한 뒤 상태를 해제한다. moveStarted/Completed/Failed 로그를 추가했다.
-- 검증 예정: 동일 화면 focused 테스트 즉시 재실행.
-- 화면 focused 결과: **2/2 통과**. 중복 실행 1회 제한, 실패 메시지, 재시도 성공과 이동 로그를 확인했다.
-- `pubspec.yaml` 편집 완료: `1.4.47 → 1.4.48` PATCH. 검색 이동의 호환 가능한 국소 오류 수정이며 SQL/데이터 저장 형식은 변경하지 않는다.
-- 포맷 후 검증 예정: `C:/Flutter/bin/flutter.bat test --no-pub test/home_page_manager_session_test.dart test/search_and_replace_dialog_test.dart test/search_and_replace_sheet_test.dart test/item_detail_search_test.dart`.
-- analyzer 예정: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/home_page_manager.dart lib/features/search_and_replace/presentation/search_and_replace_dialog.dart test/home_page_manager_session_test.dart test/search_and_replace_dialog_test.dart`.
-- 관련 테스트 결과: **24/24 통과**. 포맷 완료, analyzer와 앱 연결 확인 진행 중.
-- analyzer **No issues found**, 변경 파일 IDE diagnostics 오류 0건. DTD 연결 성공, 활성 앱 없음으로 hot reload 불가.
-- 포맷 도구가 디스크에 일부 들여쓰기를 반영하지 않아 해당 변경 구간만 보정했다. 최종 analyzer 재실행 예정(위 명령).
-- 실제 3575 계정의 다른 브랜드 이동은 **미검증**이며 운영 DB 접속/변경 및 인쇄는 수행하지 않았다.
-- 최종 analyzer 재실행 **No issues found**. 상태: **구현·검증 완료, 커밋 준비**.
-- 임시 코드/배포 산출물 없음. stage/commit 대상: `lib/home_page_manager.dart`, `lib/features/search_and_replace/presentation/search_and_replace_dialog.dart`, `test/home_page_manager_session_test.dart`, `test/search_and_replace_dialog_test.dart`, `pubspec.yaml`, `SESSION_HANDOFF.md`. 사용자 `lib/core/app.dart` 제외.
+## 최근 완료: 검색 및 치환 다른 브랜드 품목편집 이동
+- **완료**: 1.4.47의 검색 및 치환에서 다른 브랜드로 이동할 때 지정 라벨 6436과 첫 라벨 6302의 로딩이 중복되는 경로를 수정했다. 제출 세 화면과 `.tmp/1.4.47 로그/조회이력_검색및치환_품목편집이동_오류.log` 기준이다.
+- `HomePageManager`: 검색 이동이 소유한 브랜드 변경 알림을 1회 소비해 첫 라벨 자동 로딩을 생략한다. 일반 브랜드 선택/브랜드 해제의 자동 조회는 유지한다.
+- `SearchAndReplaceDialogContent`: 품목편집/출력 이동 중 중복 클릭을 차단하고, 실패를 기존 메시지 overlay로 안내한 뒤 상태를 해제해 재시도를 허용한다.
+- 진단 로그: `regression-debug-v1 feature=searchReplaceNavigation`의 targetLoadStarted/Completed/Failed(브랜드·라벨·현재/로드 ID·행 수·소요시간), automaticLabelLoadSkipped, moveStarted/Completed/Failed(mode/오류).
+- 회귀 검증: 자동 조회 정책 **1/1**, 실제 버튼 중복 호출/미처리 StateError 수정 전 **2/2 실패 → 수정 후 2/2 통과**. 브랜드 이동 전체 UI 흐름은 테스트에서 재현하지 않았다.
+- 관련 테스트 **24/24 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/home_page_manager_session_test.dart test/search_and_replace_dialog_test.dart test/search_and_replace_sheet_test.dart test/item_detail_search_test.dart`.
+- analyzer **No issues found**, IDE 오류 0건: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/home_page_manager.dart lib/features/search_and_replace/presentation/search_and_replace_dialog.dart test/home_page_manager_session_test.dart test/search_and_replace_dialog_test.dart`. 최종 analyzer 재실행과 `git diff --check`, `git diff --cached --check`도 통과했다.
+- 버전 `1.4.47 → 1.4.48` PATCH, 기능 커밋 `edabf72` (`검색 및 치환 다른 브랜드 품목 이동 로딩 충돌 수정`). 해시 기록을 위한 후속 문서 커밋은 버전을 재증가하지 않는다.
+- DTD 연결 성공, 활성 앱 없음으로 hot reload 불가. 실제 3575 계정의 `test/testflutter → *촬영용` 이동은 **미검증**, 사용자 재시험 필요. 운영 DB 접속/변경·인쇄·배포파일 생성은 수행하지 않았다.
+- 사용자 변경 `lib/core/app.dart` 보존 및 stage/commit 제외. 임시 코드/배포 산출물 없음.
 
 ## 최근 완료: 업데이트 메시지 줄바꿈 중 저장
 - **완료**: 설정 → 업데이트 메시지에서 관리자 본문 Enter/Alt+Enter가 줄바꿈 대신 저장을 호출하는 1.4.16 오류를 수정했다. 요청 제목의 관리자 복사가 아니라 첨부 화면·재현 순서의 업데이트 메시지 경로를 기준으로 했다.
