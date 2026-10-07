@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 사용항목 이름 드래그 삽입
-- **구현·검증 완료, 커밋 진행 중**: 이름 열(index 1)에도 키워드 열과 동일한 `#keyword` payload/피드백을 허용했다. 필수등록 체크박스 열은 제외하며 기존 더블클릭 유지.
+- **완료**: 이름 열(index 1)에도 키워드 열과 동일한 `#keyword` payload/피드백을 허용했다. 필수등록 체크박스 열은 제외하며 기존 더블클릭 유지.
 - `label_sheet_workbench._insertKeywordAtDrop`: `commonLabelKeyword/dropInsert` 로그에 text/globalX/globalY/inserted/`dragColumns=keyword-name-v1` 기록. 로그는 관측만 하며 업무 처리는 기존 경로 유지.
 - 실제 마우스 드래그 → 편집기 `#SWEIGHT` 입력 → 편집 확정 → 셀 저장/dirty/드롭 로그 계약 검증. 기존 드롭은 draft 입력이며 편집 확정 전 cells가 비어 있는 것은 정상이다. 테스트의 즉시 저장 가정을 수정했다.
 - 공용라벨 전체 **14/14 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/common_label_manage_test.dart --timeout 30s`.
@@ -10,7 +10,7 @@
 - 버전 `1.5.0 → 1.5.1` PATCH: 기존 키워드 드래그를 이름 열에도 허용하는 국소 UI 확장.
 - **대기 재발 회피**: 이미지의 `rip_grep_packages`/`read_package_uris` MCP 호출 응답 대기가 중단 지점이다. 두 호출은 반복하지 않고 로컬 read/search로 재개했다. 테스트 30초, 터미널 120초 안전 제한 적용. 현재 debug main.jsonl에는 세션 시작만 있어 서버 내부 원인은 미확정이며 서버 자체의 지연을 수정했다고 주장하지 않는다. DTD 조회는 즉시 반환해 MCP 전체 정지로 단정하지 않는다.
 - DTD 활성 앱 없음, hot reload 시도 불가. 실제 실행 앱 수동 드래그는 **미검증**. 운영 DB 변경·인쇄·배포 산출물 없음.
-- 표/워크벤치/테스트/버전/이 인수인계 총 5개 stage 확인, `git diff --check`/`git diff --cached --check` 통과. 사용자 `lib/core/app.dart`는 보존·제외. 임시 소스/테스트 파일 없음. 기능 커밋 확정 후 해시를 기록한다.
+- 기능 커밋 `abf9125` (`사용항목 이름 드래그 키워드 삽입 지원 및 드롭 로그 추가`): 표/워크벤치/테스트/버전/이 인수인계 총 5개. `git diff --check`/`git diff --cached --check` 통과. 사용자 `lib/core/app.dart`는 보존·제외. 임시 소스/테스트 파일 없음. 해시 기록 문서 커밋은 버전을 다시 증가시키지 않는다.
 
 ## 최근 완료: 자동 성분표 선택 셀 삽입
 - **완료**: 강제 중단 당시 변경을 보존해 재개했다. 미처리 `insert-auto-ingredient-table` 명령을 기존 양식 선택창에 연결했다.
