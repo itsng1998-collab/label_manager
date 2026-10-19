@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 최근 완료: 공용라벨 필수등록 체크→항목편집 누락 검사 해제 저장51115
-- **구현·검증 완료, 기능 커밋 기록 예정**. 제출1.6.0 로그와 이미지의 오류는 `Label column auxiliary values changed after editing started.`/51115. 우측 필수등록은 TColumn.useMissingKeywordCheck만 변경하고 공용라벨 저장 시 DB에 반영한다.
+- **구현·검증·커밋 완료: `4e7b0c5`**. 제출1.6.0 로그와 이미지의 오류는 `Label column auxiliary values changed after editing started.`/51115. 우측 필수등록은 TColumn.useMissingKeywordCheck만 변경하고 공용라벨 저장 시 DB에 반영한다.
 - 항목편집은 이 변경된 TColumn을 원본 snapshot으로 잡아 DB의 BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN과 비교하므로 로컬 변경을 타 사용자의 동시 수정으로 오인했다. 원본 DB 기준값과 화면 draft를 분리하고 실제 동시 수정 검사/트랜잭션은 완전히 유지해 해결했다.
 - SQL save history와 인접 테스트 확인. SQL Server2017 호환 유지, 새 SQL/스키마 변경 없이 모델·command 생성·성공한 공용라벨 저장 후 기준값 갱신을 연결했다. 기존 사용자 lib/core/app.dart 보존·제외. DB 연결/변경·실제 인쇄 없이 회귀 검증.
 - 수정 전 domain 회귀3건에서 원본 false/true가 로컬 토글값 true/false로 잘못 전달됨을 재현. 실제 항목편집 체크해제/적용/확인 저장 및 XML 검증을 포함한 4건은 수정 후 모두 통과했다.
