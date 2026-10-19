@@ -9664,10 +9664,10 @@ Future<fs.FortuneWorkbook> _renderItemOutputPreviewBarcodes(
               'barcodeModuleScale',
               fallback: 3,
             ),
-            barHeight: _itemPreviewExtraDouble(
-              extra,
-              'barcodeBarHeight',
-              fallback: 10,
+            barHeight: fs.fortuneBarcodeBarHeightInLogicalPixels(
+              image,
+              geometryUsesMillimeters:
+                  fs.fortuneSheetGridClientPhysicalSize(sheet) != null,
             ),
             leadingText: '${extra['barcodeLeadingText'] ?? ''}',
             trailingText: '${extra['barcodeTrailingText'] ?? ''}',

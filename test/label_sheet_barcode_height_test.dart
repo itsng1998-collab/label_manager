@@ -6,6 +6,8 @@ import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:image/image.dart' as image;
 import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
+import 'package:label_manager/home_page_manager.dart';
+import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 FortuneSheetPainter _painter(WidgetTester tester) => tester
     .widgetList<CustomPaint>(
@@ -68,13 +70,16 @@ Future<FortuneSheetController> _pumpCanvas(
   List<FortuneBarcodeRequest> requests, {
   bool millimeters = true,
   String format = 'code128',
+  bool withPanel = false,
+  List<FortuneImage> initialImages = const [],
 }) async {
-  await tester.binding.setSurfaceSize(const Size(900, 700));
+  await tester.binding.setSurfaceSize(Size(withPanel ? 1200 : 900, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final controller = FortuneSheetController();
   await tester.pumpWidget(MaterialApp(
     home: Scaffold(
-      body: FortuneSheetCanvas(
+      body: Row(children: [
+      SizedBox(width: 900, child: FortuneSheetCanvas(
         controller: controller,
         workbook: FortuneWorkbook(
           settings: const FortuneSettings(
@@ -84,6 +89,7 @@ Future<FortuneSheetController> _pumpCanvas(
             FortuneSheet(
               id: 'label',
               name: 'Label',
+              images: initialImages,
               extraFields: millimeters ? const {
                 fortuneSheetGridClientWidthMmKey: 150,
                 fortuneSheetGridClientHeightMmKey: 150,
@@ -103,7 +109,10 @@ Future<FortuneSheetController> _pumpCanvas(
           requests.add(request);
           return _renderBarcode(request);
         },
-      ),
+      )),
+      if (withPanel)
+        SizedBox(width: 300, child: FortuneObjectLayerPanel(controller: controller)),
+      ]),
     ),
   ));
   await tester.pumpAndSettle();
@@ -168,6 +177,155 @@ int _inkHeight(FortuneImage barcode) {
 }
 
 void main() {
+  for (final imported in [false, true]) {
+    test('barcode height units match preview and native print${imported ? ' for RTF import' : ''}', () async {
+      final height = fortuneMillimetersToLogicalPixels(10);
+      final barcode = FortuneImage(
+        id: 'barcode',
+        src: '',
+        left: 10,
+        top: 10,
+        width: fortuneMillimetersToLogicalPixels(20),
+        height: height,
+        extraFields: {
+          'fortuneBarcode': true,
+          'barcodeText': '1234',
+          'barcodeFormatId': 'code128',
+          'barcodeBarHeight': imported ? height : 10,
+          'rtfBarcodeDecoded': imported,
+          'itemCodePreviewResolved': true,
+          'barcodeShowText': false,
+        },
+      );
+      final sheet = FortuneSheet(
+        id: 'label',
+        name: 'Label',
+        extraFields: const {
+          fortuneSheetGridClientWidthMmKey: 150,
+          fortuneSheetGridClientHeightMmKey: 150,
+        },
+        images: [barcode],
+      );
+      expect(fortuneBarcodeBarHeightInLogicalPixels(barcode, geometryUsesMillimeters: true),
+          closeTo(height, 0.001));
+      FortuneBarcodeRequest? request;
+      await debugRenderItemOutputPreviewBarcodesForTesting(
+        FortuneWorkbook(sheets: [sheet]),
+        renderer: (value) async {
+          request = value;
+          return _renderBarcode(value);
+        },
+      );
+      expect(request!.barHeight, closeTo(height, 0.001));
+      final preparation = prepareLabelSheetEzplPrint(
+        sheet: sheet,
+        settings: const FortuneSettings(),
+        physicalSize: const FortuneSheetGridClientPhysicalSize(widthMm: 150, heightMm: 150),
+        metrics: const LabelSheetPrintPageMetrics(labelWidthMm: 150, labelHeightMm: 150, dpi: 203.2),
+        options: const LabelSheetPrintOptions(
+          copies: 1, leftMarginMm: 0, topMarginMm: 0, extraAreaMm: 0,
+          autoSpacingPercent: null, orientation: LabelSheetPrintOrientation.horizontal,
+        ),
+      );
+      final command = preparation.descriptors.single.command;
+      expect(command, contains(',80,0,0,1234\r\n'));
+    });
+  }
+
+  for (final mode in ['mm', 'px', 'rtf']) {
+    testWidgets('duplicated barcode rotation preserves ink height in $mode', (tester) async {
+      final millimeters = mode != 'px';
+      final requests = <FortuneBarcodeRequest>[];
+      final initialImages = <FortuneImage>[];
+      if (mode == 'rtf') {
+        final width = fortuneMillimetersToLogicalPixels(20);
+        final height = fortuneMillimetersToLogicalPixels(10);
+        final rendered = await tester.runAsync(() => _renderBarcode(FortuneBarcodeRequest(
+          text: '1234', formatId: 'code128', width: width, height: height,
+          rotation: 0, barHeight: height,
+        )));
+        initialImages.add(FortuneImage(
+          id: 'rtf_barcode', src: 'data:image/png;base64,${base64Encode(rendered!.bytes)}',
+          left: 10, top: 10, width: width, height: height,
+          extraFields: {
+            'fortuneBarcode': true, 'rtfBarcodeDecoded': true,
+            'barcodeText': '1234', 'barcodeFormatId': 'code128',
+            'barcodeBarHeight': height,
+          },
+        ));
+      }
+      final controller = await _pumpCanvas(
+        tester, requests, millimeters: millimeters, withPanel: true,
+        initialImages: initialImages,
+      );
+      if (initialImages.isEmpty) {
+        await _openDialog(tester);
+        await _tapDialog(tester, fortuneBarcodeLinkButtonRect);
+        await _enter(tester, 'width', '20');
+        await _enter(tester, 'height', '10');
+        await _confirm(tester);
+      }
+      final original = _painter(tester).workbook.activeSheet.images.single;
+      controller.selectObject(FortuneSheetObjectKey(
+        FortuneSheetObjectKind.barcode, original.id,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('선택한 개체 복제'));
+      await tester.pumpAndSettle();
+      final duplicate = controller.objectSelection.activeImage!;
+      expect(duplicate.id, isNot(original.id));
+      expect(duplicate.src, original.src);
+      for (final angle in [1, 2]) {
+        final list = find.descendant(
+          of: find.byType(FortuneObjectLayerPanel), matching: find.byType(ListView),
+        ).last;
+        await tester.drag(list, const Offset(0, 1200));
+        await tester.pumpAndSettle();
+        final rotation = find.byKey(const ValueKey('fortune-object-property-rotation'));
+        await tester.scrollUntilVisible(rotation, 100, scrollable: find.descendant(
+          of: list, matching: find.byType(Scrollable),
+        ).first);
+        await tester.enterText(rotation, '$angle');
+        await tester.pumpAndSettle();
+        final apply = find.byKey(const ValueKey('fortune-object-property-apply'));
+        await tester.drag(list, const Offset(0, -900));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(apply);
+        await tester.pump();
+        await tester.runAsync(() async {
+          await tester.tap(apply);
+          final timer = Stopwatch()..start();
+          while (controller.barcodePropertyRenderPending) {
+            if (timer.elapsed > const Duration(seconds: 5)) {
+              fail('Barcode property render did not finish.');
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
+        });
+        await tester.pumpAndSettle();
+        expect(requests.last.barHeight, closeTo(original.height, 0.001));
+        final updated = controller.objectSelection.activeImage!;
+        expect(updated.extraFields['rotation'], angle);
+        expect((updated.width, updated.height), (original.width, original.height));
+        expect(updated.extraFields['barcodeBarHeight'],
+            closeTo(mode == 'rtf' ? original.height : 10, 0.001));
+        expect(_inkHeight(updated), _inkHeight(original));
+        final payload = labelSheetBuildSavePayload(_painter(tester).workbook);
+        final saved = labelSheetDecodeWorkbookSave(payload.encodedWorkbook);
+        expect(_inkHeight(saved.activeSheet.images.last), _inkHeight(original));
+        expect(saved.activeSheet.images.first.src, original.src);
+      }
+      controller.handleUndo();
+      await tester.pumpAndSettle();
+      expect(controller.objectSelection.activeImage!.extraFields['rotation'], 1);
+      controller.handleRedo();
+      await tester.pumpAndSettle();
+      expect(controller.objectSelection.activeImage!.extraFields['rotation'], 2);
+      expect(_inkHeight(controller.objectSelection.activeImage!), _inkHeight(original));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final millimeters in [true, false]) {
     testWidgets(
       'barcode insertion renders distinct 10 and 20 heights in ${millimeters ? 'mm' : 'px'}',

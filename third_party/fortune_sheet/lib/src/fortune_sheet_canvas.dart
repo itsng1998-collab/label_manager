@@ -406,6 +406,29 @@ class FortuneBarcodeRenderResult {
 
 enum FortuneBarcodePropertyRenderOutcome { success, failure, stale }
 
+// RTF-decoded barcodes retain the logical-pixel metadata written by import.
+bool fortuneBarcodeBarHeightUsesMillimeters(
+  FortuneImage image, {
+  required bool geometryUsesMillimeters,
+}) => geometryUsesMillimeters &&
+    image.extraFields['rtfBarcodeDecoded'] != true;
+
+double fortuneBarcodeBarHeightInLogicalPixels(
+  FortuneImage image, {
+  required bool geometryUsesMillimeters,
+  double? fallbackLogicalPixels,
+}) {
+  final stored = _fortuneExtraDouble(image.extraFields['barcodeBarHeight']);
+  if (stored == null && fallbackLogicalPixels != null) {
+    return fallbackLogicalPixels;
+  }
+  final height = stored ?? 10;
+  return fortuneBarcodeBarHeightUsesMillimeters(
+    image,
+    geometryUsesMillimeters: geometryUsesMillimeters,
+  ) ? fortuneMillimetersToLogicalPixels(height) : height;
+}
+
 Map<String, Object?> fortuneImageResizeExtraFieldsForMetadata(
   FortuneImage initial, {
   required double width,
@@ -25392,9 +25415,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   double _barcodeEditBarHeightValue(FortuneImage image) {
-    final barHeight = _metadataDouble(
-      image.extraFields['barcodeBarHeight'],
-      10,
+    final barHeight = _barcodeEditDisplayLogicalSize(
+      fortuneBarcodeBarHeightInLogicalPixels(
+        image,
+        geometryUsesMillimeters: _barcodeUsesMillimeters,
+      ),
     );
     return _barcodeEditScaledByStaleHeight(image, barHeight);
   }
@@ -28094,7 +28119,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'originHeight': result.pixelHeight ?? imageHeight,
       'rotation': canonicalRotation,
       'barcodeModuleScale': moduleScale,
-      'barcodeBarHeight': barHeight,
+      'barcodeBarHeight': fortuneBarcodeBarHeightUsesMillimeters(
+        source,
+        geometryUsesMillimeters: fortuneSheetGridClientPhysicalSize(sheet) != null,
+      ) ? fortuneLogicalPixelsToMillimeters(barHeight) : barHeight,
       'barcodeLeadingText': leadingText,
       'barcodeTrailingText': trailingText,
       'barcodeShowText': showHumanReadableText,

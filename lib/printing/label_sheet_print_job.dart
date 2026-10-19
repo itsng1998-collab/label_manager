@@ -1270,7 +1270,12 @@ List<LabelSheetEzplNativeDescriptor> _preflightLabelSheetEzplCandidates({
       final wide = math.max(narrow + 1, (narrow * 2.5).round());
       final height = math.max(
         8,
-        (_metadataDouble(image.extraFields['barcodeBarHeight'], image.height) *
+        (fortuneBarcodeBarHeightInLogicalPixels(
+                image,
+                geometryUsesMillimeters:
+                    fortuneSheetGridClientPhysicalSize(sheet) != null,
+                fallbackLogicalPixels: image.height,
+              ) *
                 transform.dotsPerLogicalPixel)
             .round(),
       );

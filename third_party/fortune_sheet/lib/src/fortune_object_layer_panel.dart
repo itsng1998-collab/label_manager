@@ -1161,7 +1161,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         final matchedFormatId = _matchingBarcodeFormatId(metadataFormatId);
         _setField('barcodeFormatId', matchedFormatId ?? metadataFormatId);
         _setField('moduleScale', extra['barcodeModuleScale'] ?? 3.0);
-        _setField('barHeight', extra['barcodeBarHeight'] ?? 10.0);
+        _setGeometryField('barHeight', fortuneBarcodeBarHeightInLogicalPixels(
+          image,
+          geometryUsesMillimeters: widget.snapshot.geometryUsesMillimeters,
+        ));
         _setField('leadingText', extra['barcodeLeadingText'] ?? '');
         _setField('trailingText', extra['barcodeTrailingText'] ?? '');
         _setField('fontFamily', extra['barcodeHumanReadableFontFamily'] ?? '');
@@ -1298,7 +1301,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       }
       if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
         final moduleScale = _number('moduleScale');
-        final barHeight = _number('barHeight');
+        final barHeight = _number('barHeight', geometry: true);
         final fontSize = _number('fontSize');
         final text = _fields['barcodeText']?.text ?? '';
         final formatId = _fields['barcodeFormatId']?.text ?? '';
@@ -1605,7 +1608,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             ],
           ),
           _field('모듈 배율', 'moduleScale'),
-          _field('바 높이', 'barHeight'),
+          _field('바 높이', 'barHeight', suffix: unit),
           _field('앞쪽 텍스트', 'leadingText'),
           _field('뒤쪽 텍스트', 'trailingText'),
           CheckboxListTile(

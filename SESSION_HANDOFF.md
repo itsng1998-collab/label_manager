@@ -1,6 +1,18 @@
 # SESSION HANDOFF
 
-## 현재 작업: 최초 바코드 삽입 시 세로 10mm/20mm 표시 동일
+## 현재 작업: 복제 바코드의 회전 속성 적용 시 막대 높이 축소
+- **구현·검증 완료, 커밋 준비. 버전1.8.5.**
+- 제출 `공용라벨_바코드속성_서식오류.log`는1.6.0. 첨부 이미지에서 회전0→1만 변경했는데 막대 높이가 약1/3.78로 줄어듦.
+- 원인 확인: mm 라벨 삽입은 barcodeBarHeight를mm로 저장하지만 속성 패널은 단위 변환 없이renderer에 논리px로 전달한다. 속성 저장은 다시px로 저장해 metadata 계약까지 바뀐다. geometry width/height는 이미 올바르게 변환한다.
+- 수정 전 실제UI 복제→회전1 적용에서 renderer.barHeight 기대37.795px/실제10px 실패, px 라벨은 통과. 속성 panel 숫자 읽기와 저장을 라벨 단위에 맞췄으며 공통 unit resolver를 품목 미리보기/EZPL 준비에도 연결했다. 바 높이 입력에도 mm/px 접미사 표시.
+- RTF import는 기존부터 metadata가px인 점을 실제 import 코드에서 확인해 `rtfBarcodeDecoded` 경로는px 계약을 유지한다. 별도 schema/unit marker나 모호한 기존 데이터 추정 변환은 추가하지 않았다. 회전만 바꿔도 이미 손상된 과거 데이터의 원래 막대 높이를 복구하지는 않는다.
+- portable10건 통과: 기존5 + 실제 복제/회전1→2 재적용/치수·잉크 높이/저장/undo·redo의mm·px·RTF3건 + 일반·RTF의 품목 미리보기 request와 native command높이10mm=80dots@203.2dpi2건. controller 전체·print job전체 포함3파일89건 통과. 실제 인쇄 없이 명령 준비까지만 검증.
+- native encoder모드42건도 통과: 새10건+barcode dialog/toolbar의 관련32건. 중복 제외 전체 관련121건(89+32), 신규5건. `BARCODE_HEIGHT_NATIVE=true`와 기존 DLL의 프로세스 PATH를 사용했으며 DLL/설정 변경 없음.
+- analyzer5파일: 오류/신규 진단 없음. 기존 canvas unused10건 + print job의 기존 `_unusedDarkBandCheckerboard`/`_unusedFeedLeadWhiteRelief`2건 경고만 존재(HEAD 원본 확인). 신규 테스트/패널/Home3파일만 분석은 `No issues found`.
+- 버전1.8.4→1.8.5 PATCH: 속성 렌더링 시mm/px 혼동 수정. 저장 포맷 변경 없음. README 갱신. DTD발견·연결 확인 및hot reload 시도했으나 실행 중 앱 없음. 기존 사용자 app.dart 보존·제외, DB/실제 인쇄 금지.
+- 다음 사용자 확인:1.8.5 실행→test/testflutter→연결 안함1234/20×10mm 삽입→선택한 개체 복제→회전0→1 적용→높이 유지 확인. 회전2 재적용/저장·재열기/품목 미리보기도 확인.
+
+## 최근 완료: 최초 바코드 삽입 시 세로 10mm/20mm 표시 동일
 - **구현·검증·커밋 완료: `bce0749` (1.8.4). push하지 않음.**
 - 제출 `공용라벨_바코드삽입_세로길이오류.log`는1.6.0. 연결 안함/1234/가로20/비율해제에서 세로10과20의 막대 높이가 같은 현상. 세로 입력은 전달되지만 별도 `바코드 높이` 기본10이 그대로여서 renderer가 나머지를 빈 공간으로 남긴 것이 원인.
 - 사용자 `sync-height` 선택: 세로를 바꾸면 바코드 높이도 같은 값으로 변경하고, 이후 바코드 높이를 직접 입력하면 그 값을 사용한다. 비율유지 가로→세로 변경도 같은 helper로 동기화. 비율해제 시에는 가로를 유지한다. 빈값/0 입력은 바코드 높이를 덮어쓰지 않는다.
