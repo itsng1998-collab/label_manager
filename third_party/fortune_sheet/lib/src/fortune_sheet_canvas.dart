@@ -26095,6 +26095,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   double get _barcodeAspectRatio => math.max(0.1, _selectedBarcodeFormat.ratio);
 
+  void _syncBarcodeBarHeight(double height) {
+    if (!_barcodeIsTwoDimensional) {
+      _setImageInsertControllerText(
+        _barcodeBarHeightController,
+        _formatImageInsertNumber(height),
+      );
+    }
+  }
+
   void _handleBarcodeWidthChanged() {
     if (_barcodeUpdatingPair || !_barcodeAspectLocked) {
       return;
@@ -26103,20 +26112,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_barcodeDialogOpen || width == null || width <= 0) {
       return;
     }
+    final height = width / _barcodeAspectRatio;
     _barcodeUpdatingPair = true;
     _setImageInsertControllerText(
       _barcodeHeightController,
-      _formatImageInsertNumber(width / _barcodeAspectRatio),
+      _formatImageInsertNumber(height),
     );
+    _syncBarcodeBarHeight(height);
     _barcodeUpdatingPair = false;
   }
 
   void _handleBarcodeHeightChanged() {
-    if (_barcodeUpdatingPair || !_barcodeAspectLocked) {
+    if (_barcodeUpdatingPair) {
       return;
     }
     final height = double.tryParse(_barcodeHeightController.text.trim());
     if (!_barcodeDialogOpen || height == null || height <= 0) {
+      return;
+    }
+    _syncBarcodeBarHeight(height);
+    if (!_barcodeAspectLocked) {
       return;
     }
     _barcodeUpdatingPair = true;
