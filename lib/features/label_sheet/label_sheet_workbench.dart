@@ -1055,7 +1055,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         _baseWorkbook,
         labelSize: widget.labelSize,
         labelRtf: widget.labelRtf,
-      );
+      ).then(_workbookWithExternalZoom);
   late final FortuneSheetController _controller = FortuneSheetController();
   final FocusScopeNode _objectPanelFocusScopeNode = FocusScopeNode(
     debugLabel: 'Label sheet object panel focus scope',
@@ -1709,6 +1709,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _setLabelSheetZoomPercent(int percent) {
+    _controller.commitActiveCellEditing();
     final externalController = widget.zoomController;
     final clamped = percent.clamp(
       externalController?.minPercent ?? labelSheetMinZoomPercent,
@@ -3203,9 +3204,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           future: _initialWorkbook,
           initialData: _fallbackWorkbook,
           builder: (context, snapshot) {
-            final workbook = _workbookWithExternalZoom(
-              snapshot.data ?? _fallbackWorkbook,
-            );
+            // Zoom updates the live controller, not its initial workbook.
+            final workbook = snapshot.data ?? _fallbackWorkbook;
             final sheetSettings = _sheetSettings(workbook);
             if (!_isDirty) {
               _latestWorkbook = workbook.copyWith(settings: sheetSettings);

@@ -1,8 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
 
 void main() {
+  for (final key in [
+    LogicalKeyboardKey.enter,
+    LogicalKeyboardKey.numpadEnter,
+  ]) {
+    testWidgets('zoom input consumes ${key.keyLabel} before parent save', (
+      tester,
+    ) async {
+      final controller = LabelSheetZoomController();
+      addTearDown(controller.dispose);
+      var saveCount = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CallbackShortcuts(
+              bindings: {
+                SingleActivator(key): () => saveCount += 1,
+              },
+              child: LabelSheetZoomToolbar(controller: controller),
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('label-sheet-zoom-input')),
+        '150',
+      );
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+
+      expect(saveCount, 0);
+      expect(controller.value, 150);
+      expect(_zoomInputText(tester), '150');
+    });
+  }
+
   testWidgets('zoom toolbar follows controller and steps by ten', (
     tester,
   ) async {

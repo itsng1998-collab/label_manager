@@ -76,7 +76,9 @@ class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
   late final TextEditingController _textController = TextEditingController(
     text: '${widget.controller.value}',
   );
-  late final FocusNode _focusNode = FocusNode();
+  late final FocusNode _focusNode = FocusNode(
+    onKeyEvent: _handleZoomInputKeyEvent,
+  );
   bool _zoomTextUpdateScheduled = false;
 
   @override
@@ -127,6 +129,15 @@ class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
       int.tryParse(_textController.text) ?? labelSheetDefaultZoomPercent,
     );
     _focusNode.unfocus();
+  }
+
+  KeyEventResult _handleZoomInputKeyEvent(FocusNode node, KeyEvent event) {
+    if (event.logicalKey != LogicalKeyboardKey.enter &&
+        event.logicalKey != LogicalKeyboardKey.numpadEnter) {
+      return KeyEventResult.ignored;
+    }
+    if (event is KeyDownEvent) _commit();
+    return KeyEventResult.handled;
   }
 
   @override

@@ -1,5 +1,20 @@
 # SESSION HANDOFF
 
+## 현재 작업: 영양성분표 확대 시 작성 내용 초기화 / 배율 Enter 오저장
+- **구현·검증 완료, 기능 커밋 기록 예정**. 제출 `설정_영양성분표추가_확대오류.log`는 1.6.0. 09:09:08에 `영양성분표 수정` 편집 commit이 changed=true로 완료되어 단순 IME 미확정 문제가 아니다. 첨부는 확대100→110 후 내용/선택 초기화다.
+- 공용 workbench build가 외부 zoom을 초기 Future snapshot에 다시 적용해 새 workbook 객체를 만든다. Canvas는 이를 외부 workbook 교체로 받아 canonical 내용/선택/history를 재초기화했다. 초기 로딩 seed와 현재 controller 상태를 분리해 해결했다.
+- 별도 `LabelSheetZoomToolbar`의 EditableText Enter가 바깥 nutrition editor의 CallbackShortcuts Enter→save에 먼저 잡혔다. 영양성분표의 일반 저장 단축키는 유지하고 zoom 입력에서 Enter/numpadEnter만 소비하도록 해결했다.
+- 레거시 메뉴얼v2.docx의 영양성분표 선택/삽입 및 InsertNewNutboxDlg.cpp OnOK→OnSave 계약 확인. 확대는 저장·표 추가를 유발하면 안 된다. 운영 DB/실제 인쇄 없이 widget 회귀로 검증하며 기존 사용자 `lib/core/app.dart`는 보존·제외한다.
+- 수정 전 신규 회귀 6/6 실패 확인: 공용 외부 확대의 실제 cell 소실, 실제 영양성분표 A5 입력 후 + 클릭 소실, Enter의 실제 insert spy 호출, numpadEnter 배율 미적용, 도구모음 단독 Enter/numpadEnter 상위 단축키 실행.
+- 초기 로딩 Future 완료 시만 외부 배율을 반영하고 이후 build에서는 동일 seed를 유지한다. 배율 변경은 기존 controller.setZoomRatio 경로로만 적용하므로 canonical 시트·선택·undo history를 초기화하지 않는다. 별도 zoom toolbar의 FocusNode가 Enter/numpadEnter를 소비하고 배율만 확정한다.
+- 실제 A5 inline 편집→배율 입력→Enter→명시적 저장까지 검증하면서, 배율 입력란으로 포커스만 이동하면 cell draft가 확정되지 않아 저장 payload에서 빠지는 경계도 확인했다. 공용 확대 setter에서 기존 commitActiveCellEditing을 먼저 호출하여 geometry 변경 전 입력을 확정한다. 테스트는 실제 A5 canonical 값과 최종 저장 decode 값을 모두 검증한다.
+- 병렬 Flutter runner의 동일 build/test_cache 컴파일 산출물 충돌로 한 실행이 loading 실패·대기해 해당 세션59만 중지했다. 이후 관련 Flutter test는 단일 runner/순차 실행한다. 공유 캐시/다른 프로세스는 삭제·중지하지 않음.
+- 버전 1.7.1→1.7.2 PATCH: 저장 포맷/일반 저장 단축키 호환성을 유지하는 확대·키보드 버그 수정.
+- 최종 검증: 영양성분표/형식 dialog·DAO와 zoom widget/controller 6파일 42/42 통과. 공용 workbench 확대·초기 workbook·RTF·dirty·저장 선택 회귀 70/70 통과(아래 기존 ANSI 실패 제외). 새 회귀 6건 모두 포함해 112건 통과. 변경 Dart 5파일 analyzer 및 IDE diagnostics/pubspec 진단 정상.
+- 별도 기존 실패: `label_sheet_toolbar_test.dart`의 `item element RTF conversion decodes Korean ANSI hex`는 기대 `제품명: 딸기`, 실제 `제품명: 딪기`. 단독 실행에서도 동일 실패. 해당 테스트 fixture·home_page_manager.dart·label_sheet_rtf_import.dart는 HEAD와 동일하고 이번 확대 코드와 무관한 pure conversion 경로이므로 고치지 않음. 재검증 selector는 `^(?!item element RTF conversion decodes Korean ANSI hex$).*(zoom|workbook|RTF|dirty|label sheet.*save)`.
+- 실제 A5 입력/F2→+110/−100 또는 배율150 Enter·numpadEnter→의도치 않은 저장0회→명시적 저장1회→decode A5 원문 보존을 검증했다. 공용 확대150 후 선택A5·undo/redo history도 유지됨.
+- DTD 발견·연결 확인 및 hot reload 시도했으나 실행 중 앱 없음. DB 접근/변경·실제 인쇄 없음. 다음 사용자 확인: 1.7.2 실행 후 A5 입력→+ 및 배율150 입력→Enter 시 내용 유지, 배율 적용, 저장/추가 미실행 확인.
+
 ## 최근 완료: 영양성분표 선택 후 다른 표 내용이 미리보기에 남음
 - **구현·검증·커밋 완료: `d457042`**. 제출1.6.0 로그는 TEST1(id124)/TEST2(id126)의 선택 전환을 기록하고, 첨부는 TEST1 편집 A1=11111과 목록 미리보기 A1=22222 불일치다.
 - `NutritionBoxSheetPreview`가 Future 교체 중 유지된 이전 snapshot.data를 새 identity의 `LabelSheetWorkbench`에 전달할 수 있다. workbench 초기 workbook은 State 수명 동안 고정되어, 정상 완료 후 widget 입력만 바뀌어도 이전 표가 남을 수 있다.

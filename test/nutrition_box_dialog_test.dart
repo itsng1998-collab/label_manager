@@ -919,6 +919,103 @@ void main() {
     expect(editor.initialWorkbook?.activeSheet.cells, isEmpty);
   });
 
+  for (final action in ['buttons', 'enter', 'numpadEnter']) {
+    testWidgets('nutrition editor zoom $action keeps A5 and only saves explicitly', (
+      tester,
+    ) async {
+      final controller = NutritionBoxDialogController();
+      addTearDown(controller.dispose);
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final saved = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NutritionBoxDialogContent(
+              controller: controller,
+              onCommitOutcomeUnknown: () {},
+              loadBoxes: () async => const [],
+              loadTypes: () async => const [NutritionType(id: 2, name: '기본형')],
+              loadColumns: (_) async => const [],
+              insert: ({required typeId, required name, required rtf, required width}) async {
+                saved.add(rtf);
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('nutritionBoxAddButton')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('nutritionBoxNameField')), '확대 테스트',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('nutritionBoxWidthField')), '100',
+      );
+      tester.widget<ModelessDropdownFormField<int>>(
+        find.byKey(const ValueKey('nutritionBoxTypeSelector')),
+      ).onChanged!(2);
+      await tester.pumpAndSettle();
+      final sheetController = tester.widget<FortuneSheetApp>(
+        find.byType(FortuneSheetApp),
+      ).controller!;
+      sheetController.setSelection(const [
+        FortuneRange(rowStart: 4, rowEnd: 4, columnStart: 0, columnEnd: 0),
+      ]);
+      sheetController.focusCanvas();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pumpAndSettle();
+      final cellEditor = find.descendant(
+        of: find.byType(FortuneSheetApp),
+        matching: find.byType(EditableText),
+      );
+      await tester.enterText(cellEditor, '영양성분표 수정');
+
+      if (action == 'buttons') {
+        await tester.tap(find.text('+'));
+        await tester.pumpAndSettle();
+        expect(sheetController.getSheet()!.zoomRatio, 1.1);
+        expect(sheetController.getSheet()!.cells[
+          const FortuneCellCoord(4, 0)
+        ]?.renderedText, '영양성분표 수정');
+        await tester.tap(find.text('-'));
+        await tester.pumpAndSettle();
+        expect(sheetController.getSheet()!.zoomRatio, 1);
+      } else {
+        final input = find.byKey(const ValueKey('label-sheet-zoom-input'));
+        await tester.tap(input);
+        await tester.enterText(input, '150');
+        await tester.sendKeyEvent(
+          action == 'enter'
+              ? LogicalKeyboardKey.enter
+              : LogicalKeyboardKey.numpadEnter,
+        );
+        await tester.pumpAndSettle();
+        expect(saved, isEmpty);
+        expect(sheetController.getSheet()!.zoomRatio, 1.5);
+      }
+      expect(saved, isEmpty);
+      expect(find.byKey(const ValueKey('nutritionBoxEditorSheet')), findsOneWidget);
+      expect(sheetController.hasActiveCellEditing, isFalse);
+      expect(sheetController.getSheet()!.cells[
+        const FortuneCellCoord(4, 0)
+      ]?.renderedText, '영양성분표 수정');
+      expect(controller.snapshot().dirtyWorks, isNotEmpty);
+      await tester.tap(find.byKey(const ValueKey('nutritionBoxSaveButton')));
+      await tester.pumpAndSettle();
+      expect(saved, hasLength(1));
+      expect(
+        labelSheetDecodeWorkbookSave(saved.single).activeSheet.cells[
+          const FortuneCellCoord(4, 0)
+        ]?.renderedText,
+        '영양성분표 수정',
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('editor saves current workbook data in rtf column', (tester) async {
     final controller = NutritionBoxDialogController();
     addTearDown(controller.dispose);

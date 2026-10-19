@@ -3158,6 +3158,58 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
+  testWidgets('external zoom preserves edited cells selection and undo history', (
+    tester,
+  ) async {
+    final zoom = LabelSheetZoomController();
+    addTearDown(zoom.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelSheetWorkbench(
+            initialWorkbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 'nutrition', name: 'Nutrition')],
+            ),
+            zoomController: zoom,
+            zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final controller = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    ).controller!;
+    const cell = FortuneCellCoord(4, 0);
+    const range = FortuneRange(
+      rowStart: 4, rowEnd: 4, columnStart: 0, columnEnd: 0,
+    );
+    controller.setSelection(const [range]);
+    controller.setCellValuesByRange(const [['영양성분표 수정']], range);
+    await tester.pumpAndSettle();
+    expect(controller.getSheet()!.cells[cell]?.renderedText, '영양성분표 수정');
+    expect(controller.projectedCanUndo, isTrue);
+
+    zoom.setZoomPercent(150);
+    await tester.pumpAndSettle();
+    expect(controller.getSheet()!.zoomRatio, 1.5);
+    expect(controller.getSheet()!.cells[cell]?.renderedText, '영양성분표 수정');
+    expect(controller.getFlattenRange()!.first, cell);
+    expect(controller.projectedCanUndo, isTrue);
+    controller.focusCanvas();
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(controller.getSheet()!.cells[cell]?.renderedText ?? '', isEmpty);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(controller.getSheet()!.cells[cell]?.renderedText, '영양성분표 수정');
+  });
+
   testWidgets('workbench preserves dialog-specific 500 percent zoom', (
     tester,
   ) async {
