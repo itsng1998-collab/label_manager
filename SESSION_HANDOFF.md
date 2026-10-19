@@ -8,7 +8,7 @@
 - 전체 첫 실행은 **38통과/1실패**. 제외한 기존 `LoginLogDAO SQL does not truncate IP expressions before insert`는 테스트가 `@loginIP` 변환을 기대하지만 현재 SQL은 서버 `CONNECTIONPROPERTY`를 쓰는 불일치다. 해당 production/test 모두 HEAD와 변경 없음을 확인했으며 이번 사용자관리 수정 범위 밖이라 보존했다. Flutter CLI에 `--exclude-name`이 없어 정규식 selector로 분리했다.
 - analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/managed_user/data/managed_user_dao.dart lib/features/managed_user/presentation/user_manager_dialog.dart test/managed_user_dao_test.dart test/user_manager_dialog_test.dart`. 변경 Dart/pubspec IDE 오류0건, `git diff --check` 통과.
 - 버전 **1.6.1→1.6.2 PATCH**(사용자 중복 확인 버그 수정, SQL/스키마 변경 없음). DTD 탐색/연결 확인 및 hot reload 시도: 활성 앱 없음. 운영 DB 접속/등록, 실제 인쇄, 배포/설치파일 생성 없음. 다음 확인은 사용자 환경 1.6.2의 신규 책임자 추가/목록 반영 재시험이다.
-- 기존 사용자 변경 `lib/core/app.dart`는 보존·제외한다. 요청 관련 6개 파일만 분리 커밋하며 확정 해시는 후속 문서 커밋으로 기록한다(버전 재증가 없음).
+- 기능 커밋 `02d7000` (`사용자 추가 시 빈 중복 조회 결과 예외 수정`): 요청 관련 6개 파일, `git diff --cached --check` 통과. 기존 사용자 변경 `lib/core/app.dart` 보존·제외, push 없음. 확정 해시 기록 후속 문서 커밋은 버전 재증가 없음.
 
 ## 현재 작업: 품목관리 연결 바코드 미리보기 로딩 고착
 - **완료**. 제출 1.6.0 로그에서 `#BARCODE`/`8812345678912`의 `renderCompleted`를 확인했다. PNG 생성 실패가 아니라 완료된 Future의 정상 `hintText=null`을 로딩 안내로 대체하여 `LabelOutputPreview`가 시트를 숨기는 상태 표시 오류다.
