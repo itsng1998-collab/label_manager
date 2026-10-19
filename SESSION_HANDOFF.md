@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
-## 현재 작업: 영양성분표 확대 시 작성 내용 초기화 / 배율 Enter 오저장
-- **구현·검증 완료, 기능 커밋 기록 예정**. 제출 `설정_영양성분표추가_확대오류.log`는 1.6.0. 09:09:08에 `영양성분표 수정` 편집 commit이 changed=true로 완료되어 단순 IME 미확정 문제가 아니다. 첨부는 확대100→110 후 내용/선택 초기화다.
+## 최근 완료: 영양성분표 확대 시 작성 내용 초기화 / 배율 Enter 오저장
+- **구현·검증·커밋 완료: `4041c11`**. 제출 `설정_영양성분표추가_확대오류.log`는 1.6.0. 09:09:08에 `영양성분표 수정` 편집 commit이 changed=true로 완료되어 단순 IME 미확정 문제가 아니다. 첨부는 확대100→110 후 내용/선택 초기화다.
 - 공용 workbench build가 외부 zoom을 초기 Future snapshot에 다시 적용해 새 workbook 객체를 만든다. Canvas는 이를 외부 workbook 교체로 받아 canonical 내용/선택/history를 재초기화했다. 초기 로딩 seed와 현재 controller 상태를 분리해 해결했다.
 - 별도 `LabelSheetZoomToolbar`의 EditableText Enter가 바깥 nutrition editor의 CallbackShortcuts Enter→save에 먼저 잡혔다. 영양성분표의 일반 저장 단축키는 유지하고 zoom 입력에서 Enter/numpadEnter만 소비하도록 해결했다.
 - 레거시 메뉴얼v2.docx의 영양성분표 선택/삽입 및 InsertNewNutboxDlg.cpp OnOK→OnSave 계약 확인. 확대는 저장·표 추가를 유발하면 안 된다. 운영 DB/실제 인쇄 없이 widget 회귀로 검증하며 기존 사용자 `lib/core/app.dart`는 보존·제외한다.
