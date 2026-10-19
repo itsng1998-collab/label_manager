@@ -27843,13 +27843,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   Future<bool> _replaceSelectedImageFileFromController() async {
-    final picker = widget.imagePicker;
+    final picker = widget.imagePicker ?? _pickImageFromFileSystem;
     final snapshot = _objectSelectionSnapshot(attached: true);
     final key = snapshot.activeKey;
     final source = snapshot.activeImage;
     final ownerSheetId = snapshot.sheetId;
     if (!_workbook.settings.allowEdit ||
-        picker == null ||
         key == null ||
         key.kind != FortuneSheetObjectKind.image ||
         source == null ||
