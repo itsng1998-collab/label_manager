@@ -9450,6 +9450,7 @@ class _ItemOutputPreviewTab extends StatefulWidget {
     this.zoomToolbarPlacement =
         LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomController,
+    this.barcodeRenderer = labelSheetBarcodeRenderer,
   });
 
   final ItemOfMarket item;
@@ -9463,6 +9464,7 @@ class _ItemOutputPreviewTab extends StatefulWidget {
   final Map<int, String>? projectedColumnValues;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final LabelSheetZoomController? zoomController;
+  final fs.FortuneBarcodeRenderer barcodeRenderer;
 
   @override
   State<_ItemOutputPreviewTab> createState() =>
@@ -9511,7 +9513,10 @@ class _ItemOutputPreviewTabState extends State<_ItemOutputPreviewTab> {
     }
     if (_renderIdentity != identity) {
       _renderIdentity = identity;
-      _renderFuture = _renderItemOutputPreview(preview);
+      _renderFuture = _renderItemOutputPreview(
+        preview,
+        renderer: widget.barcodeRenderer,
+      );
     }
     return FutureBuilder<({fs.FortuneWorkbook? workbook, String? hintText})>(
       future: _renderFuture,
@@ -9520,9 +9525,11 @@ class _ItemOutputPreviewTabState extends State<_ItemOutputPreviewTab> {
         return _buildPreview(
           (
             workbook: rendered?.workbook,
-            hintText: snapshot.hasError
+            hintText: snapshot.connectionState != ConnectionState.done
+                ? '미리보기를 불러오는 중입니다.'
+                : snapshot.hasError
                 ? '바코드 미리보기를 생성하지 못했습니다.'
-                : rendered?.hintText ?? '미리보기를 불러오는 중입니다.',
+                : rendered?.hintText,
           ),
           identity,
         );
@@ -9559,15 +9566,37 @@ bool _itemOutputPreviewHasResolvedBarcodes(fs.FortuneWorkbook? workbook) =>
 
 Future<({fs.FortuneWorkbook? workbook, String? hintText})>
 _renderItemOutputPreview(
-  ({fs.FortuneWorkbook? workbook, String? hintText}) preview,
-) async {
+  ({fs.FortuneWorkbook? workbook, String? hintText}) preview, {
+  required fs.FortuneBarcodeRenderer renderer,
+}) async {
   final workbook = preview.workbook;
   if (workbook == null) return preview;
   return (
-    workbook: await _renderItemOutputPreviewBarcodes(workbook),
+    workbook: await _renderItemOutputPreviewBarcodes(
+      workbook,
+      renderer: renderer,
+    ),
     hintText: preview.hintText,
   );
 }
+
+@visibleForTesting
+Widget debugItemOutputPreviewTabForTesting({
+  required ItemOfMarket item,
+  required LabelSize labelSize,
+  required fs.FortuneWorkbook elementWorkbook,
+  required fs.FortuneBarcodeRenderer renderer,
+  Map<int, String>? projectedColumnValues,
+}) => _ItemOutputPreviewTab(
+  item: item,
+  labelSize: labelSize,
+  elementText: '',
+  elementWorkbook: elementWorkbook,
+  imageObjectIds: const [],
+  barcodeObjectIds: const [],
+  projectedColumnValues: projectedColumnValues,
+  barcodeRenderer: renderer,
+);
 
 @visibleForTesting
 Future<fs.FortuneWorkbook> debugRenderItemOutputPreviewBarcodesForTesting(

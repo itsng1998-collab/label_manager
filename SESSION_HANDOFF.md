@@ -1,5 +1,15 @@
 # SESSION HANDOFF
 
+## 현재 작업: 품목관리 연결 바코드 미리보기 로딩 고착
+- **완료**. 제출 1.6.0 로그에서 `#BARCODE`/`8812345678912`의 `renderCompleted`를 확인했다. PNG 생성 실패가 아니라 완료된 Future의 정상 `hintText=null`을 로딩 안내로 대체하여 `LabelOutputPreview`가 시트를 숨기는 상태 표시 오류다.
+- `ConnectionState.done` 기준으로 로딩 안내를 분리하고 완료 시 정상 null hint를 유지한다. 저장된 시트/바코드 데이터/renderer 기본값/인쇄 경로는 변경하지 않았다.
+- 새 위젯 회귀 **5/5 통과**: 바코드/2D/GS1 정상 생성, renderer 실패/예외의 대기→완료 전환, 실제 workbench 표시, GS1 AI 값 치환, PNG/오류 placeholder, 원본 보존과 동일 입력 재렌더 방지 확인. 수정 전 로딩 고착 4건 재현; 초기 GS1 fixture의 원본 컬럼 값 누락은 메모리 fixture로 보정했다.
+- 관련 회귀 **32/32 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/label_sheet_toolbar_test.dart test/item_code_data_resolver_test.dart test/barcode_data_helper_test.dart --name 'item output preview|\[QR viewer\]|barcode' --timeout 30s`. 데이터 resolver/helper 전체 **13/13**도 별도 통과. `runTests`는 테스트를 찾지 못하여 Flutter CLI로 실행했다.
+- analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/home_page_manager.dart test/label_sheet_toolbar_test.dart`. 변경 Dart/pubspec IDE 오류0건, `git diff --check` 통과.
+- 버전 **1.6.0→1.6.1 PATCH**(기존 미리보기 상태 표시 버그 수정, 저장/DB/인쇄 계약 변경 없음). DTD 탐색/연결 및 hot reload 시도: 활성 앱 없음으로 적용 대상 없음.
+- 다음 확인: 1.6.1 실행 후 사용자 제공 test/testflutter의 공용라벨 저장→품목관리 미리보기 재시험. 운영 DB 접속/변경, 실제 인쇄, Windows 배포/설치파일 생성은 실행하지 않았다. 실물 발행 결과/바코드 판독 품질은 미검증이다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정/stage/commit에서 제외한다. 요청 관련 4개 파일만 분리 커밋하며 확정 해시 기록은 후속 문서 커밋으로 남긴다(버전 재증가 없음).
+
 ## 현재 작업: 프린터 드라이버 환경값 미적용
 - **완료**. 제출 1.4.47의 Godex G500 LAN/windowsDriver 두 발행 모두 darkness=8/restoreDarkness=8. 역상 보정의 ^H08 강제 삽입/복원이 드라이버 어두움14를 덮어쓴 것이 원인. 고정 명령 제거, 기존 역상 raster/font 보정 유지.
 - 네이티브 LoadPrinterPreferences: GetPrinter level9 사용자→level8 전체→드라이버 기본 DEVMODE(private bytes 포함), 발행마다 조회. 앱 발행 규격/매수/방향은 기존대로 우선하고 나머지 제조사 환경값 보존. 제조사별 private 필드를 Dart에서 추정·수정하지 않는다.

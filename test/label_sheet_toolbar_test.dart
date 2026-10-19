@@ -16,6 +16,8 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/core/barcode.dart';
+import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
+import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
@@ -25,6 +27,7 @@ import 'package:label_manager/features/item/data/item_dao.dart';
 import 'package:label_manager/features/item/data/item_of_market_dao.dart';
 import 'package:label_manager/features/item/domain/item.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
+import 'package:label_manager/features/item/domain/column_content.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
 import 'package:label_manager/widgets/preview_floating_window.dart';
@@ -760,6 +763,189 @@ void main() {
       closeTo(44 / 60, 0.0001),
     );
   });
+
+  for (final scenario in [
+    (name: 'barcode', type: TColumnType.TYPE_BARCODE, outcome: 'success'),
+    (name: '2D barcode', type: TColumnType.TYPE_QR_CODE, outcome: 'success'),
+    (name: 'GS1 barcode', type: TColumnType.TYPE_GS1_BARCODE, outcome: 'success'),
+    (name: 'failed barcode', type: TColumnType.TYPE_BARCODE, outcome: 'null'),
+    (name: 'throwing barcode', type: TColumnType.TYPE_BARCODE, outcome: 'error'),
+  ]) {
+    testWidgets(
+      'item output preview leaves loading state for ${scenario.name}',
+      (tester) async {
+        final previousColumns = TColumn.datas;
+        final previousContents = TColumnContent.datas;
+        final previousDefinitions = Gs1AiDefinitions.values;
+        addTearDown(() {
+          TColumn.datas = previousColumns;
+          TColumnContent.setDatas(previousContents);
+          Gs1AiDefinitions.values = previousDefinitions;
+        });
+        TColumn.datas = [
+          _testColumn(7, 'BARCODE').copyWith(
+            columnType: TColumnType(
+              code: scenario.type,
+              name: scenario.name,
+              order: 1,
+            ),
+            useGS1Code: scenario.type == TColumnType.TYPE_GS1_BARCODE,
+            containColumns: '8',
+          ),
+          _testColumn(8, 'GS1AI').copyWith(
+            columnType: const TColumnType(
+              code: TColumnType.TYPE_GS1_AI,
+              name: 'GS1 AI',
+              order: 2,
+            ),
+          ),
+        ];
+        Gs1AiDefinitions.set(const [
+          Gs1AiDefinition(
+            code: '01',
+            name: 'GTIN',
+            content: '',
+            dataFormat: 'N2+N14',
+            dataFormatType: 0,
+            needsFnc1: false,
+          ),
+        ]);
+        TColumnContent.setDatas({
+          const ColumnItemKey(columnId: 8, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 8,
+            itemId: 10,
+            editable: true,
+            dataString: '12341234123412',
+          ),
+        });
+        final source = FortuneWorkbook(
+          sheets: [
+            FortuneSheet(
+              id: 'label',
+              name: 'Label',
+              cells: {
+                const FortuneCellCoord(0, 0): const FortuneCell(
+                  value: '#GS1AI',
+                ),
+              },
+              images: const [
+                FortuneImage(
+                  id: 'barcode',
+                  src: 'data:image/png;base64,OLD=',
+                  left: 10,
+                  top: 20,
+                  width: 120,
+                  height: 60,
+                  extraFields: {
+                    'fortuneBarcode': true,
+                    fortuneBarcodeObjectIdExtraKey: '#BARCODE',
+                    'barcodeText': 'template',
+                    'barcodeFormatId': 'code128',
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+        final labelSize = _testLabelSizeWithFormData(
+          labelSheetEncodeWorkbookSave(source),
+        );
+        final pending = Completer<FortuneBarcodeRenderResult?>();
+        FortuneBarcodeRequest? request;
+        var renderCount = 0;
+        final bytes = Uint8List.fromList(
+          imglib.encodePng(imglib.Image(width: 2, height: 2)),
+        );
+        Widget preview() => MaterialApp(
+          home: Scaffold(
+            body: debugItemOutputPreviewTabForTesting(
+              item: _testItemOfMarket(),
+              labelSize: labelSize,
+              elementWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 'element', name: 'Element')],
+              ),
+              projectedColumnValues: const {
+                7: '8812345678912',
+                8: '12341234123412',
+              },
+              renderer: (value) {
+                request = value;
+                renderCount += 1;
+                return pending.future;
+              },
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(preview());
+        expect(find.text('미리보기를 불러오는 중입니다.'), findsOneWidget);
+        expect(find.byType(LabelSheetWorkbench), findsNothing);
+        expect(request?.text, scenario.type == TColumnType.TYPE_GS1_BARCODE
+            ? '0112341234123412'
+            : '8812345678912');
+        expect(request?.formatId, scenario.type == TColumnType.TYPE_QR_CODE
+            ? 'qrCode'
+            : 'code128');
+
+        if (scenario.outcome == 'error') {
+          pending.completeError(StateError('barcode rendering failed'));
+        } else {
+          pending.complete(
+            scenario.outcome == 'null'
+                ? null
+                : FortuneBarcodeRenderResult(
+                    bytes: bytes,
+                    mimeType: 'image/png',
+                    pixelWidth: 2,
+                    pixelHeight: 2,
+                  ),
+          );
+        }
+        await tester.pumpAndSettle();
+
+        expect(find.text('미리보기를 불러오는 중입니다.'), findsNothing);
+        final output = tester.widget<LabelOutputPreview>(
+          find.byType(LabelOutputPreview),
+        );
+        expect(output.hintText, isNull);
+        final workbench = tester.widget<LabelSheetWorkbench>(
+          find.byType(LabelSheetWorkbench),
+        );
+        final rendered = workbench.initialWorkbook!.activeSheet;
+        expect(
+          rendered.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+          '12341234123412',
+        );
+        if (scenario.outcome == 'success') {
+          expect(
+            rendered.images.single.src,
+            'data:image/png;base64,${base64Encode(bytes)}',
+          );
+          expect(
+            rendered.images.single.extraFields[fortuneBarcodeObjectIdExtraKey],
+            isNull,
+          );
+        } else {
+          expect(find.text('바코드를 표시할 수 없습니다.'), findsOneWidget);
+          expect(
+            rendered.images.single.src,
+            startsWith('data:image/svg+xml;base64,'),
+          );
+        }
+        expect(source.activeSheet.images.single.src,
+            'data:image/png;base64,OLD=');
+        expect(
+          source.activeSheet.images.single.extraFields[fortuneBarcodeObjectIdExtraKey],
+          '#BARCODE',
+        );
+        await tester.pumpWidget(preview());
+        await tester.pumpAndSettle();
+        expect(renderCount, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   test(
     'item output preview creates fallback sheet for empty saved workbook',
