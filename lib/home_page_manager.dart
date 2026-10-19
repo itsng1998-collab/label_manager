@@ -54,6 +54,7 @@ import 'package:label_manager/features/brand/data/brand_dao.dart';
 import 'package:label_manager/features/brand/domain/brand.dart';
 import 'package:label_manager/features/label_column/data/column_dao.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
+import 'package:label_manager/features/label_column/domain/column_text_template.dart';
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/item/domain/item_of_market.dart';
@@ -9963,6 +9964,10 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
       elementText: elementText,
       columnValue: columnValue,
     );
+    replacements.addAll(basicColumnTextReplacements(
+      columns: TColumn.datas ?? const <TColumn>[],
+      itemValues: replacements,
+    ));
     _itemOutputPreviewMappingLog(
       'templateDecoded',
       trace: mappingTrace,

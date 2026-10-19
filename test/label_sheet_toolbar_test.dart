@@ -2274,6 +2274,77 @@ void main() {
     expect(materialized.shapes.single.top, 30 + rowDelta);
   });
 
+  test('basic custom text replaces output only and resolves current item tokens once', () {
+    final previousColumns = TColumn.datas;
+    final previousContents = TColumnContent.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      TColumnContent.datas = previousContents;
+    });
+    TColumn.datas = [
+      _testColumn(1, 'TEXT1').copyWith(
+        userDefineBarcodeText: '#ITEMNAME: #TEXT1 + #TEXT2 + #TEXT10 = 6',
+      ),
+      _testColumn(2, 'TEXT2'),
+      _testColumn(10, 'TEXT10'),
+      _testColumn(11, 'LITERAL').copyWith(userDefineBarcodeText: '사용자정의'),
+      _testColumn(12, 'LEGACY').copyWith(
+        qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+        userDefineQRData: '기존 #TEXT2',
+      ),
+      _testColumn(13, 'PLAIN'),
+      _testColumn(14, 'BARCODE_TEXT').copyWith(
+        columnType: const TColumnType(
+          code: TColumnType.TYPE_BARCODE, name: '바코드', order: 1,
+        ),
+        userDefineBarcodeText: '바코드 전용',
+      ),
+    ];
+    final encoded = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'common', name: '출력', cells: {
+          const FortuneCellCoord(0, 0): const FortuneCell(
+            value: '#TEXT1 / #LITERAL / #LEGACY / #PLAIN / #BARCODE_TEXT',
+          ),
+        }),
+      ]),
+    );
+    for (final entry in [
+      (id: 20, name: '첫 품목', values: <int, String>{1: '1', 2: '2', 10: '3', 13: '기본값', 14: '1234'}),
+      (id: 21, name: '둘째 품목', values: <int, String>{1: '17', 2: '#TEXT1', 10: '30', 13: '다른값', 14: '5678'}),
+    ]) {
+      final item = _testItemOfMarket(itemId: entry.id, itemName: entry.name);
+      final preview = debugItemOutputPreviewForTesting(
+        labelSize: _testLabelSizeWithFormData(encoded),
+        item: item,
+        elementText: '',
+        projectedColumnValues: entry.values,
+      );
+      expect(
+        preview.workbook!.activeSheet.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+        '${entry.name}: ${entry.values[1]} + ${entry.values[2]} + ${entry.values[10]} = 6'
+        ' / 사용자정의 / 기존 ${entry.values[2]} / ${entry.values[13]} / ${entry.values[14]}',
+      );
+    }
+    expect(labelSheetDecodeWorkbookSave(encoded).activeSheet.cells[
+      const FortuneCellCoord(0, 0)
+    ]?.renderedText, '#TEXT1 / #LITERAL / #LEGACY / #PLAIN / #BARCODE_TEXT');
+    TColumn.datas = [
+      TColumn.datas!.first.copyWith(userDefineBarcodeText: ''),
+      ...TColumn.datas!.skip(1),
+    ];
+    final restored = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(encoded),
+      item: _testItemOfMarket(),
+      elementText: '',
+      projectedColumnValues: const {1: '17', 2: '2', 13: '기본값', 14: '1234'},
+    );
+    expect(restored.workbook!.activeSheet.cells[
+      const FortuneCellCoord(0, 0)
+    ]?.renderedText, '17 / 사용자정의 / 기존 2 / 기본값 / 1234');
+    expect(TColumnContent.datas, same(previousContents));
+  });
+
   test('item output preview prefers projected column values over shared content', () {
     final previousColumns = TColumn.datas;
     TColumn.datas = [_testColumn(7, 'EXP')];

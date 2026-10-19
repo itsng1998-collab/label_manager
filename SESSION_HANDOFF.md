@@ -1,5 +1,18 @@
 # SESSION HANDOFF
 
+## 현재 완료: 기본 항목 사용자 정의 text 출력·키워드 삽입·참조 색상
+- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_사용자정의_미적용.log`는 1.6.0. 기본 항목의 사용자 정의 text가 RICH_USER_DEFINE_BARCODE_TEXT에 저장되지만 출력 replacement는 품목의 raw/projected 값만 사용하던 원인을 수정했다.
+- 레거시 ColumnSetupBasic.cpp/TableRowRTFMaker.cpp는 TYPE_BASE+USER_DEFINE의 QRData 템플릿에 현재 품목 raw 값을 치환하며 self 참조도 해당 품목 원래 값을 쓴다. 사용자 예시도 그리드 값17은 유지하고 출력만 대체하므로 DB 품목 원본은 수정하지 않는다. `= 6` 등 일반 문자는 계산하지 않고 그대로 출력한다.
+- 현재 필드에 저장된 text를 우선 적용하고, 기존 legacy 기본 사용자 정의 데이터도 지원한다. 실제 미리보기/발행/저울출력의 공통 _itemOutputPreview 경로에서 적용하며 자동증가 DB writeback에 템플릿 결과를 섞지 않는다. 자기/상호 참조는 재귀 확장하지 않고 원래 품목값을 1회 치환한다.
+- 기본 text 편집기에 사용 항목·품명 키워드 목록과 더블클릭/드래그 삽입을 추가하고, 현재 편집 행의 연한하늘색과 참조 행의 연한보라색을 구분한다. 적용/취소/저장 기존 흐름 유지. 운영DB/실제인쇄 없이 회귀 검증. 사용자 lib/core/app.dart 보존·제외.
+- 수정 전 actual output workbook 회귀에서 기대 `첫 품목: 1 + 2 + 3 = 6 / 사용자정의 / 기존 2`, 실제 `1 / /`를 확인했다. 공용 출력 replacement에 별도 기본 템플릿 치환 map을 한 번 합쳐 해결. 두 품목별/접두키워드TEXT1·TEXT10/self참조/치환값 속 #키워드 재확장 방지/원본 form 유지 회귀 통과.
+- 키워드 삽입 버튼으로 여는 큰 편집창: 실제 더블클릭·long-press drag gesture·선택 텍스트 교체·팝업 적용/취소·속성 취소·보라색 참조·하늘색 선택·저장 command 테스트 통과. legacy 사용자 정의 필드 제거 시 createType도 기본으로 바꿔 예전 QRData가 다시 살아나지 않도록 함. 팝업 200자 제한 안내 포함.
+- 최종 관련 회귀: column_text_template·label_column_edit_dialog/edit/save·common_label_manage·item_code_data_resolver·label_print_pipeline/auto_increment/persistence·scale_output·label_sheet_toolbar 11파일 348/348 통과. 이후 추가한 최소창크기900×600/200자 허용·201자 거절/초과 안내/self키워드 삽입 회귀1/1 통과. 총349건, 신규9건(출력1+helper4+UI4) 포함.
+- 기존 별도 재현된 미수정 `item element RTF conversion decodes Korean ANSI hex`(기대 딸기/실제 딪기) 1건만 이름 selector로 제외했다. 현재 변경과 무관한 ANSI 변환/fixture는 손대지 않았다. 변경 Dart6파일 analyzer 정상, IDE diagnostics 및 pubspec 정상, git diff --check 정상.
+- 실제 2품목별 최종 workbook text·미정의 토큰 유지·TEXT1/TEXT10 경계·자가/상호 참조1회·바코드 전용 text 비간섭·기본 설정 해제 시 raw 복원·원본 form/품목 content identity 보존을 검증했다. 인쇄/저울 projection 및 accepted 자동증가 저장 회귀도 통과. 운영DB 수정/실제 인쇄는 수행하지 않았다.
+- 새 DTD 발견·연결 성공(앱0개), hot reload는 실행 중 앱이 없어 불가. 다음 사용자 확인: 1.8.0 실행→공용라벨관리 항목편집에서 기본 TEST의 사용자 정의 text 입력/키워드 삽입→적용/저장→품목관리의 출력내용 및 승인된 테스트 인쇄를 확인. 품목 그리드 원본값은 그대로 남는 것이 의도한 동작.
+- 버전1.7.3→1.8.0 MINOR: 기본 항목 출력 템플릿 활성화 및 키워드 삽입 편집 UI·참조 색상 신규 기능. 기존 DB 필드 재사용, SQL/스키마/품목 원본 변경 없음. README 사용법 갱신.
+
 ## 최근 완료: 공용라벨 필수등록 체크→항목편집 누락 검사 해제 저장51115
 - **구현·검증·커밋 완료: `4e7b0c5`**. 제출1.6.0 로그와 이미지의 오류는 `Label column auxiliary values changed after editing started.`/51115. 우측 필수등록은 TColumn.useMissingKeywordCheck만 변경하고 공용라벨 저장 시 DB에 반영한다.
 - 항목편집은 이 변경된 TColumn을 원본 snapshot으로 잡아 DB의 BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN과 비교하므로 로컬 변경을 타 사용자의 동시 수정으로 오인했다. 원본 DB 기준값과 화면 draft를 분리하고 실제 동시 수정 검사/트랜잭션은 완전히 유지해 해결했다.

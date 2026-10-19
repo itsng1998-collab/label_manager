@@ -6,6 +6,7 @@ import 'package:label_manager/features/label_column/domain/label_column_candidat
 import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
+import 'package:label_manager/features/label_column/domain/column_text_template.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/utils/regression_debug_log.dart';
@@ -44,6 +45,10 @@ const double _labelColumnDialogMaxWidth = 1264;
 const double _labelColumnDialogMinContentWidth = 1144;
 const double _customerCandidateRegionWidth = 426;
 const double _customerTypeColumnWidth = 176;
+const labelColumnTextReferenceColor = Color(0xFFF3D9F5);
+const _labelColumnEditingColor = Color(0xFFE3F2FD);
+
+typedef _TextKeyword = ({String keyword, String name, String typeName});
 
 @visibleForTesting
 double labelColumnEditDialogWidth(double screenWidth) =>
@@ -787,6 +792,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     final selectedIndex = _session.workingColumns.indexWhere(
       (row) => row.key == _session.selectedColumnKey,
     );
+    final editingColumn = _session.propertyDraft?.column ?? _session.selectedColumn?.column;
+    final referenced = labelColumnTextReferences(
+      editingColumn == null ? '' : basicColumnTextTemplate(editingColumn),
+      _session.workingColumns.map((row) => row.column.keyword),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -825,6 +835,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 autoFitColumns: false,
                 fillLastColumn: true,
                 selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+                rowColorBuilder: (row, index, selected) => selected
+                    ? _labelColumnEditingColor
+                    : referenced.contains(labelColumnTextToken(row.column.keyword))
+                    ? labelColumnTextReferenceColor
+                    : index.isEven ? Colors.white : const Color(0xFFF2F4F7),
                 rowReorderEnabled: !_busy && _session.mode == LabelColumnEditMode.reorder,
                 rowDragDataBuilder: (row, index) => _workspaceEnabled
                     ? _UsedColumnDragPayload(row.key)
@@ -1327,6 +1342,15 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                     child: _PropertyFields(
                       key: ValueKey('property:${draft.key}:$_propertyRevision'),
                       column: draft.column,
+                      textKeywords: [
+                        (keyword: 'ITEMNAME', name: '품명', typeName: '고정'),
+                        for (final row in _session.workingColumns)
+                          (
+                            keyword: row.column.keyword,
+                            name: row.column.columnName,
+                            typeName: row.column.columnType.name,
+                          ),
+                      ],
                       gs1ContainKeywords: _gs1ContainKeywords(draft.column),
                       columnTypes: _columnTypes,
                       enabled: enabled,
@@ -1361,10 +1385,239 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 }
 
+class _BasicTextTemplateField extends StatefulWidget {
+  const _BasicTextTemplateField({
+    required this.value,
+    required this.keywords,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String value;
+  final List<_TextKeyword> keywords;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_BasicTextTemplateField> createState() => _BasicTextTemplateFieldState();
+}
+
+class _BasicTextTemplateFieldState extends State<_BasicTextTemplateField> {
+  late final _controller = TextEditingController(text: widget.value);
+
+  @override
+  void didUpdateWidget(covariant _BasicTextTemplateField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_controller.text != widget.value) {
+      _controller.value = TextEditingValue(
+        text: widget.value,
+        selection: TextSelection.collapsed(offset: widget.value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _edit() async {
+    final value = await showBlockingModelessOverlayDialog<String>(
+      context: context,
+      onEscape: () => null,
+      builder: (context, close) => _BasicTextTemplateEditor(
+        initialValue: _controller.text,
+        keywords: widget.keywords,
+        close: close,
+      ),
+    );
+    if (!mounted || value == null) return;
+    widget.onChanged(value);
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: TextFormField(
+      key: const Key('label-column-user-define-text'),
+      controller: _controller,
+      enabled: widget.enabled,
+      maxLength: 200,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        labelText: '사용자 정의 text',
+        border: const OutlineInputBorder(),
+        isDense: true,
+        contentPadding: const EdgeInsets.fromLTRB(10, 12, 10, 4),
+        counterText: '',
+        suffixIcon: IconButton(
+          key: const Key('label-column-text-keywords'),
+          tooltip: '키워드 삽입 및 사용자 정의 text 편집',
+          onPressed: widget.enabled ? _edit : null,
+          icon: const Icon(Icons.playlist_add, size: 20),
+        ),
+      ),
+      onChanged: widget.onChanged,
+    ),
+  );
+}
+
+class _BasicTextTemplateEditor extends StatefulWidget {
+  const _BasicTextTemplateEditor({
+    required this.initialValue,
+    required this.keywords,
+    required this.close,
+  });
+
+  final String initialValue;
+  final List<_TextKeyword> keywords;
+  final ValueChanged<String?> close;
+
+  @override
+  State<_BasicTextTemplateEditor> createState() => _BasicTextTemplateEditorState();
+}
+
+class _BasicTextTemplateEditorState extends State<_BasicTextTemplateEditor> {
+  late final _controller = TextEditingController(text: widget.initialValue);
+  final _focus = FocusNode();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _insert(String keyword) {
+    final text = _controller.text;
+    final selection = _controller.selection;
+    final start = selection.isValid ? selection.start : text.length;
+    final end = selection.isValid ? selection.end : text.length;
+    final token = labelColumnTextToken(keyword);
+    final next = text.replaceRange(start, end, token);
+    if (next.length > 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사용자 정의 text는 200자까지 입력할 수 있습니다.')),
+      );
+      return;
+    }
+    setState(() {
+      _controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: start + token.length),
+      );
+    });
+    _focus.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final references = labelColumnTextReferences(
+      _controller.text,
+      widget.keywords.map((entry) => entry.keyword),
+    );
+    return AlertDialog(
+      title: const Text('사용자 정의 text'),
+      content: SizedBox(
+        width: 760,
+        height: 380,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('입력 항목을 더블클릭하거나 오른쪽 입력란으로 드래그하세요.'),
+            const Text('연한 보라색: 참조 키워드 · 품목 원래 값을 치환하며 수식은 계산하지 않습니다.'),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: SwipeActionTable<_TextKeyword>(
+                      key: const Key('label-column-text-keyword-table'),
+                      rows: widget.keywords,
+                      autoFitColumns: false,
+                      fillLastColumn: true,
+                      rowColorBuilder: (row, index, selected) =>
+                          references.contains(labelColumnTextToken(row.keyword))
+                          ? labelColumnTextReferenceColor
+                          : selected ? _labelColumnEditingColor : Colors.white,
+                      rowDragDataBuilder: (row, index) => row.keyword,
+                      columns: [
+                        SwipeActionTableColumn(
+                          header: '키워드',
+                          initialWidth: 100,
+                          text: (row) => row.keyword,
+                          onDoubleTap: (row, index) => _insert(row.keyword),
+                        ),
+                        SwipeActionTableColumn(
+                          header: '항목명',
+                          initialWidth: 100,
+                          text: (row) => row.name,
+                          onDoubleTap: (row, index) => _insert(row.keyword),
+                        ),
+                        SwipeActionTableColumn(
+                          header: '종류',
+                          initialWidth: 80,
+                          text: (row) => row.typeName,
+                          onDoubleTap: (row, index) => _insert(row.keyword),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: DragTarget<String>(
+                      key: const Key('label-column-text-drop-target'),
+                      onWillAcceptWithDetails: (details) => widget.keywords.any(
+                        (entry) => entry.keyword == details.data,
+                      ),
+                      onAcceptWithDetails: (details) => _insert(details.data),
+                      builder: (context, candidates, rejected) => ColoredBox(
+                        color: candidates.isEmpty
+                            ? Colors.transparent
+                            : labelColumnTextReferenceColor,
+                        child: TextField(
+                          key: const Key('label-column-text-template-input'),
+                          controller: _controller,
+                          focusNode: _focus,
+                          maxLength: 200,
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                          decoration: const InputDecoration(
+                            labelText: '사용자 정의 text',
+                            alignLabelWithHint: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => widget.close(null), child: const Text('취소')),
+        FilledButton(
+          key: const Key('label-column-text-template-apply'),
+          onPressed: () => widget.close(_controller.text),
+          child: const Text('적용'),
+        ),
+      ],
+    );
+  }
+}
+
 class _PropertyFields extends StatelessWidget {
   const _PropertyFields({
     super.key,
     required this.column,
+    required this.textKeywords,
     required this.gs1ContainKeywords,
     required this.columnTypes,
     required this.enabled,
@@ -1372,6 +1625,7 @@ class _PropertyFields extends StatelessWidget {
   });
 
   final TColumn column;
+  final List<_TextKeyword> textKeywords;
   final String gs1ContainKeywords;
   final List<TColumnType> columnTypes;
   final bool enabled;
@@ -1598,14 +1852,25 @@ class _PropertyFields extends StatelessWidget {
         return [
           ..._autoFields(),
           _check('검색 출력', column.searchPrint, (value) => onChanged(column.copyWith(searchPrint: value))),
-          _text(
-            '사용자 정의 text',
-            column.userDefineBarcodeText,
-            (value) => onChanged(column.copyWith(userDefineBarcodeText: value)),
-            key: const Key('label-column-user-define-text'),
-            fieldEnabled:
-                enabled && column.columnType.code != TColumnType.TYPE_FIX,
-          ),
+          if (column.columnType.code == TColumnType.TYPE_BASE)
+            _BasicTextTemplateField(
+              value: basicColumnTextTemplate(column),
+              keywords: textKeywords,
+              enabled: enabled,
+              onChanged: (value) => onChanged(column.copyWith(
+                userDefineBarcodeText: value,
+                qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
+              )),
+            )
+          else
+            _text(
+              '사용자 정의 text',
+              column.userDefineBarcodeText,
+              (value) => onChanged(column.copyWith(userDefineBarcodeText: value)),
+              key: const Key('label-column-user-define-text'),
+              fieldEnabled:
+                  enabled && column.columnType.code != TColumnType.TYPE_FIX,
+            ),
         ];
     }
   }

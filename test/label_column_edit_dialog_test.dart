@@ -627,6 +627,170 @@ void main() {
     expect(tester.widget<EditableText>(editor).controller.text, '바코드');
   });
 
+  testWidgets('basic text keyword editor inserts by double click and drag then saves', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    LabelColumnSaveCommand? saved;
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'TEXT1'),
+        _column(2, 'TEXT2', order: 2),
+        _column(10, 'TEXT10', order: 3),
+      ],
+      onSave: (command) async => saved = command,
+    );
+    await _tapVisible(tester, find.byKey(const Key('label-column-text-keywords')));
+    final input = find.byKey(const Key('label-column-text-template-input'));
+    await tester.enterText(input, '사용자 정의: ');
+    final keywordTable = find.byKey(const Key('label-column-text-keyword-table'));
+    final text2 = find.descendant(of: keywordTable, matching: find.text('TEXT2')).first;
+    await tester.tap(text2);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(text2);
+    await tester.pump();
+    expect(tester.widget<TextField>(input).controller!.text, '사용자 정의: #TEXT2');
+
+    final text10 = find.descendant(of: keywordTable, matching: find.text('TEXT10')).first;
+    final gesture = await _startRowDrag(tester, text10);
+    await gesture.moveTo(tester.getCenter(
+      find.byKey(const Key('label-column-text-drop-target')),
+    ));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+    expect(tester.widget<TextField>(input).controller!.text, '사용자 정의: #TEXT2#TEXT10');
+
+    final editorController = tester.widget<TextField>(input).controller!;
+    editorController.selection = const TextSelection(baseOffset: 0, extentOffset: 6);
+    final itemName = find.descendant(of: keywordTable, matching: find.text('ITEMNAME'));
+    await tester.tap(itemName);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(itemName);
+    await tester.pump();
+    expect(editorController.text, '#ITEMNAME: #TEXT2#TEXT10');
+    await tester.tap(find.byKey(const Key('label-column-text-template-apply')));
+    await tester.pumpAndSettle();
+
+    final used = tester.widget<SwipeActionTable<LabelColumnDraft>>(
+      find.byKey(const Key('label-column-used-table')),
+    );
+    expect(used.rowColorBuilder!(used.rows[0], 0, true), const Color(0xFFE3F2FD));
+    expect(used.rowColorBuilder!(used.rows[1], 1, false), labelColumnTextReferenceColor);
+    expect(used.rowColorBuilder!(used.rows[2], 2, false), labelColumnTextReferenceColor);
+    expect(find.text('TEXT1'), findsWidgets);
+    await _tapVisible(tester, find.byKey(const Key('label-column-property-apply')));
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+    expect(saved!.updatedColumns.single.column.userDefineBarcodeText, '#ITEMNAME: #TEXT2#TEXT10');
+    expect(saved!.changedKeysByColumnId[1], {'barcodeText'});
+    expect(saved!.originalColumnsById[1]!.column.userDefineBarcodeText, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('basic keyword editor cancel and property cancel preserve saved template', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(tester, columns: [
+      _column(1, 'TEXT1').copyWith(userDefineBarcodeText: '원본 #TEXT2'),
+      _column(2, 'TEXT2', order: 2),
+    ]);
+    await _tapVisible(tester, find.byKey(const Key('label-column-text-keywords')));
+    await tester.enterText(
+      find.byKey(const Key('label-column-text-template-input')), '취소할 내용',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    final field = find.byKey(const Key('label-column-user-define-text'));
+    expect(tester.widget<TextFormField>(field).controller!.text, '원본 #TEXT2');
+    await tester.enterText(field, '변경 #TEXT1');
+    await tester.pump();
+    final used = tester.widget<SwipeActionTable<LabelColumnDraft>>(
+      find.byKey(const Key('label-column-used-table')),
+    );
+    expect(used.rowColorBuilder!(used.rows[0], 0, true), const Color(0xFFE3F2FD));
+    expect(used.rowColorBuilder!(used.rows[1], 1, false), isNot(labelColumnTextReferenceColor));
+    await _tapVisible(tester, find.byKey(const Key('label-column-property-cancel')));
+    expect(tester.widget<TextFormField>(field).controller!.text, '원본 #TEXT2');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('basic text popup fits 900x600 and enforces 200 characters on keyword insertion', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(tester, columns: [_column(1, 'TEXT1')]);
+    await _tapVisible(tester, find.byKey(const Key('label-column-text-keywords')));
+    final input = find.byKey(const Key('label-column-text-template-input'));
+    final table = find.byKey(const Key('label-column-text-keyword-table'));
+    final self = find.descendant(of: table, matching: find.text('TEXT1')).first;
+    final prefix = List.filled(195, 'a').join();
+    await tester.enterText(input, prefix);
+    await tester.tap(self);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(self);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.widget<TextField>(input).controller!.text, prefix);
+    expect(find.text('사용자 정의 text는 200자까지 입력할 수 있습니다.'), findsOneWidget);
+    await tester.enterText(input, prefix.substring(1));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(self);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(self);
+    await tester.pump();
+    expect(tester.widget<TextField>(input).controller!.text, '${prefix.substring(1)}#TEXT1');
+    expect(tester.widget<TextField>(input).controller!.text.length, 200);
+    await tester.tap(find.byKey(const Key('label-column-text-template-apply')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextFormField>(
+      find.byKey(const Key('label-column-user-define-text')),
+    ).controller!.text.length, 200);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('clearing legacy basic template disables it without reviving QR data', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    LabelColumnSaveCommand? saved;
+    await _pumpDialog(
+      tester,
+      columns: [_column(1, 'TEXT1').copyWith(
+        qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+        userDefineQRData: '이전 #TEXT1',
+      )],
+      onSave: (command) async => saved = command,
+    );
+    final field = find.byKey(const Key('label-column-user-define-text'));
+    await tester.ensureVisible(field);
+    expect(tester.widget<TextFormField>(field).controller!.text, '이전 #TEXT1');
+    await tester.enterText(field, '');
+    await tester.pump();
+    await _tapVisible(tester, find.byKey(const Key('label-column-property-apply')));
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+    final column = saved!.updatedColumns.single.column;
+    expect(column.userDefineBarcodeText, isEmpty);
+    expect(column.qrCodeCreateType, QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT);
+    expect(column.userDefineQRData, '이전 #TEXT1');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('fixed column disables user defined text', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1300, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
