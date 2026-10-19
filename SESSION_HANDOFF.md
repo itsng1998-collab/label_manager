@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 이미지 연결 ID 변경 시 공용라벨 표시 불일치
-- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_이미지속성_연결ID표시오류.log`는1.6.0. 복제 이미지 연결을 #PARTMARK로 변경하면 metadata는 바뀌지만 공용 편집 canvas는 기존 src(PVC)를 그대로 그린다. 품목 미리보기만 itemBmpPreview resolver로 PP를 치환한다.
+- **구현·검증·커밋 완료: `a7d9415` (1.8.2)**. 제출 `공용라벨_이미지속성_연결ID표시오류.log`는1.6.0. 복제 이미지 연결을 #PARTMARK로 변경하면 metadata는 바뀌지만 공용 편집 canvas는 기존 src(PVC)를 그대로 그린다. 품목 미리보기만 itemBmpPreview resolver로 PP를 치환한다.
 - 사용자 확인 완료: 공용라벨의 연결 이미지는 **품목관리에서 현재 선택한 품목 기준**으로 표시. 기준 품목/이미지가 없으면 이전 파일을 남기지 않고 연결 안내 표시. 품목 원본 및 다른 품목의 발행 결과는 변경하지 않는다.
 - Home은 현재 선택 품목의 draft controller.columnValue 또는 저장 TColumnContent 값을 전달. CommonLabelManage→LabelSheetPage→Workbench→FortuneSheetApp/Canvas로 optional imageObjectSources를 전달한다. generic 앱의 null 기본값은 기존 표시 유지, 공용라벨의 빈/미존재 값은 placeholder로 표시한다.
 - FortuneSheetPainter의 표시 source resolver를 이미지 decode·화면 paint·canvas screenshot에 공통 적용. 이동 중 gesture draft도 같은 source를 사용한다. canonical workbook.src는 절대 덮어쓰지 않아 원본 파일/연결 metadata/undo/저장/품목별 출력 분리 유지. 고정 이미지·바코드는 표시 치환 제외.
