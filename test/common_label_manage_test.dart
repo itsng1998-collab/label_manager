@@ -1,8 +1,14 @@
+import 'dart:convert';
+import 'dart:ui' as ui;
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:image/image.dart' as image;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:label_manager/features/item/application/item_image_preview.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/label_sheet/application/common_label_connections.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
@@ -25,6 +31,48 @@ class _RecordingKeywordInsertController
   }
 }
 
+  FortuneSheetPainter _sheetPainter(WidgetTester tester) => tester
+      .widgetList<CustomPaint>(find.byType(CustomPaint))
+      .map((paint) => paint.painter)
+      .whereType<FortuneSheetPainter>()
+      .single;
+
+  Future<void> _waitForImage(WidgetTester tester, String src) async {
+    await tester.runAsync(() async {
+      final deadline = Stopwatch()..start();
+      while (!_sheetPainter(tester).decodedImages.containsKey(src)) {
+        if (deadline.elapsed > const Duration(seconds: 3)) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await tester.pump();
+      }
+    });
+    expect(_sheetPainter(tester).decodedImages, contains(src));
+  }
+
+  Future<int> _greenPixels(WidgetTester tester) async {
+    final paint = tester.widgetList<CustomPaint>(find.byType(CustomPaint)).singleWhere(
+      (widget) => widget.painter is FortuneSheetPainter,
+    );
+    final size = tester.getSize(find.byWidget(paint));
+    return (await tester.runAsync(() async {
+      final recorder = ui.PictureRecorder();
+      paint.painter!.paint(ui.Canvas(recorder), size);
+      final picture = recorder.endRecording();
+      final bitmap = await picture.toImage(size.width.ceil(), size.height.ceil());
+      final bytes = (await bitmap.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      var count = 0;
+      for (var offset = 0; offset < bytes.lengthInBytes; offset += 4) {
+        if (bytes.getUint8(offset) == 0 &&
+            bytes.getUint8(offset + 1) == 255 &&
+            bytes.getUint8(offset + 2) == 0) {
+          count++;
+        }
+      }
+      bitmap.dispose();
+      picture.dispose();
+      return count;
+    }))!;
+  }
 TColumnBase _column(
   String keyword, {
   String? columnName,
@@ -100,6 +148,129 @@ TColumn _storedColumn(
 }
 
 void main() {
+  testWidgets('duplicated image connection displays selected item without changing saved source', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({});
+    final previousColumns = TColumn.datas;
+    final previousSpecials = TColumnSpecial.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      TColumnSpecial.datas = previousSpecials;
+      clearSelectedItemBmpPreviewCache();
+    });
+    TColumn.datas = [
+      _storedColumn('PARTMARK', typeCode: TColumnType.TYPE_IMAGE, columnName: '이미지'),
+    ];
+    TColumnSpecial.datas = [];
+    final red = image.Image(width: 4, height: 4);
+    image.fill(red, color: image.ColorRgb8(255, 0, 0));
+    final green = image.Image(width: 4, height: 4);
+    image.fill(green, color: image.ColorRgb8(0, 255, 0));
+    final blue = image.Image(width: 4, height: 4);
+    image.fill(blue, color: image.ColorRgb8(0, 0, 255));
+    final originalSrc = 'data:image/png;base64,${base64Encode(image.encodePng(red))}';
+    cacheSelectedItemBmpPreview('PP.bmp', image.encodeBmp(green));
+    cacheSelectedItemBmpPreview('PE.bmp', image.encodeBmp(blue));
+    final linkedSrc = itemBmpPreviewDataUriForFileName('PP')!;
+    final workbook = FortuneWorkbook(sheets: [
+      FortuneSheet(id: 's1', name: 'Label', images: [
+        FortuneImage(
+          id: 'image_1', src: originalSrc,
+          left: 20, top: 30, width: 80, height: 40,
+        ),
+      ]),
+    ]);
+    final label = LabelSize(
+      labelSizeId: 10, brandId: 1, labelSizeName: 'test',
+      labelSizeCommon: LabelSizeCommon(
+        width: 100, height: 100,
+        rtf: labelSheetEncodeWorkbookSave(workbook),
+      ),
+    );
+    Future<void> show(Map<int, String> values) async {
+      await tester.pumpWidget(MaterialApp(home: Scaffold(
+        body: CommonLabelManage(
+          title: '공용라벨관리', labelSize: label, imageColumnValues: values,
+        ),
+      )));
+      await tester.pumpAndSettle();
+    }
+    await show({1: 'PP'});
+    final app = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final controller = app.controller!;
+    expect(app.imageObjectSources!['#PARTMARK'], linkedSrc);
+    await tester.tap(find.text('이미지 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('선택한 개체 복제'));
+    await tester.pumpAndSettle();
+    final cloneId = controller.objectSelection.activeImage!.id;
+    expect(cloneId, isNot('image_1'));
+    final connection = find.byKey(const ValueKey('fortune-object-property-connectionId'));
+    await tester.ensureVisible(connection);
+    await tester.tap(connection);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('이미지 (#PARTMARK)').last);
+    await tester.pumpAndSettle();
+    final apply = find.byKey(const ValueKey('fortune-object-property-apply'));
+    await tester.drag(find.descendant(
+      of: find.byType(FortuneObjectLayerPanel),
+      matching: find.byType(ListView),
+    ).last, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(apply);
+    await tester.tap(apply);
+    await tester.pumpAndSettle();
+    final canonical = controller.getSheet()!;
+    expect(canonical.images.first.src, originalSrc);
+    expect(canonical.images.last.src, originalSrc);
+    expect(canonical.images.last.extraFields[fortuneImageObjectIdExtraKey], '#PARTMARK');
+    await _waitForImage(tester, linkedSrc);
+    expect(await _greenPixels(tester), greaterThan(100));
+    final saved = labelSheetDecodeWorkbookSave(labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(sheets: [canonical]),
+    ));
+    expect(saved.activeSheet.images.last.src, originalSrc);
+    expect(saved.activeSheet.images.last.extraFields[fortuneImageObjectIdExtraKey], '#PARTMARK');
+
+    controller.handleUndo();
+    await tester.pumpAndSettle();
+    expect(await _greenPixels(tester), 0);
+    controller.handleRedo();
+    await tester.pumpAndSettle();
+    expect(await _greenPixels(tester), greaterThan(100));
+    await show({1: 'PE'});
+    await _waitForImage(tester, itemBmpPreviewDataUriForFileName('PE')!);
+    expect(await _greenPixels(tester), 0);
+    await show({});
+    expect(await _greenPixels(tester), 0);
+    expect(controller.getSheet()!.images.last.extraFields[fortuneImageObjectIdExtraKey], '#PARTMARK');
+    expect(controller.getSheet()!.images.last.src, originalSrc);
+    await show({1: 'PP'});
+    expect(await _greenPixels(tester), greaterThan(100));
+    expect(controller.getSheet()!.images, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
+
+  test('linked image display sources are separate from canonical and barcode sources', () {
+    const source = FortuneImage(
+      id: 'image', src: 'PVC', left: 0, top: 0, width: 80, height: 40,
+      extraFields: {fortuneImageObjectIdExtraKey: ' #PARTMARK '},
+    );
+    expect(fortuneImageDisplaySource(source, {'#partmark': 'PP'}), 'PP');
+    expect(fortuneImageDisplaySource(source.copyWith(left: 50), {'#PARTMARK': 'PP'}), 'PP');
+    expect(fortuneImageDisplaySource(source, {}), '');
+    expect(fortuneImageDisplaySource(source, {'#PARTMARK': ''}), '');
+    expect(fortuneImageDisplaySource(source, null), 'PVC');
+    expect(fortuneImageDisplaySource(source.copyWith(extraFields: {}), {'#PARTMARK': 'PP'}), 'PVC');
+    expect(fortuneImageDisplaySource(source.copyWith(extraFields: {
+      ...source.extraFields, 'fortuneBarcode': true,
+    }), {'#PARTMARK': 'PP'}), 'PVC');
+    expect(source.src, 'PVC');
+  });
+
   test('right pane starts and stops at ten less than previous table width', () {
     expect(commonLabelRightPaneInitialWidth, 350);
     expect(commonLabelRightPaneMinWidth, 350);

@@ -3248,6 +3248,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectSources,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectConnectionMode,
     this.barcodeObjectConnectionMode,
@@ -3272,6 +3273,8 @@ class FortuneSheetCanvas extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
+  /// Display-only sources: null keeps embedded files; missing entries show a placeholder.
+  final Map<String, String>? imageObjectSources;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final FortuneObjectConnectionMode? imageObjectConnectionMode;
   final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
@@ -4923,7 +4926,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   void _scheduleImageDecodes() {
     for (final image in _workbook.activeSheet.images) {
-      _decodeImageIfNeeded(image.src);
+      _decodeImageIfNeeded(fortuneImageDisplaySource(image, widget.imageObjectSources));
     }
   }
 
@@ -18994,7 +18997,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       canvas.translate(rect.center.dx, rect.center.dy);
       canvas.rotate(rotation * math.pi / 180);
       canvas.translate(-rect.center.dx, -rect.center.dy);
-      final decoded = decodedImages[image.src];
+      final decoded = decodedImages[fortuneImageDisplaySource(image, widget.imageObjectSources)];
       if (decoded == null) {
         _drawScreenshotImagePlaceholder(canvas, rect, image);
       } else {
@@ -48944,6 +48947,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               );
               final sheetPainter = FortuneSheetPainter(
                 workbook: _workbook,
+                imageObjectSources: widget.imageObjectSources,
                 gridSize: sheetPaintSize,
                 toolbarRightInset: widget.toolbarRightInset,
                 toolbarPopupOpenedFromMore: _toolbarPopupOpenedFromMore,

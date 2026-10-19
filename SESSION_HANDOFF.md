@@ -1,5 +1,17 @@
 # SESSION HANDOFF
 
+## 현재 작업: 이미지 연결 ID 변경 시 공용라벨 표시 불일치
+- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_이미지속성_연결ID표시오류.log`는1.6.0. 복제 이미지 연결을 #PARTMARK로 변경하면 metadata는 바뀌지만 공용 편집 canvas는 기존 src(PVC)를 그대로 그린다. 품목 미리보기만 itemBmpPreview resolver로 PP를 치환한다.
+- 사용자 확인 완료: 공용라벨의 연결 이미지는 **품목관리에서 현재 선택한 품목 기준**으로 표시. 기준 품목/이미지가 없으면 이전 파일을 남기지 않고 연결 안내 표시. 품목 원본 및 다른 품목의 발행 결과는 변경하지 않는다.
+- Home은 현재 선택 품목의 draft controller.columnValue 또는 저장 TColumnContent 값을 전달. CommonLabelManage→LabelSheetPage→Workbench→FortuneSheetApp/Canvas로 optional imageObjectSources를 전달한다. generic 앱의 null 기본값은 기존 표시 유지, 공용라벨의 빈/미존재 값은 placeholder로 표시한다.
+- FortuneSheetPainter의 표시 source resolver를 이미지 decode·화면 paint·canvas screenshot에 공통 적용. 이동 중 gesture draft도 같은 source를 사용한다. canonical workbook.src는 절대 덮어쓰지 않아 원본 파일/연결 metadata/undo/저장/품목별 출력 분리 유지. 고정 이미지·바코드는 표시 치환 제외.
+- 수정 전 실제 CommonLabelManage에서 이미지 선택→복제 버튼→연결 dropdown→#PARTMARK→적용까지 진행해 metadata 변경/원본src 유지 후 PP가 decode되지 않는 실패를 재현했다. 수정 후 실제 표시 raster의 PP색 픽셀>100, undo시0/redo시복원, 다른 품목 이미지 전환·빈 값·복원에서도 정확한 변경 및 복제/원본src 보존을 검증했다.
+- 최종 회귀82건 통과: common_label_manage18 + 이전 파일교체 실제workbench3 + fortune_object_controller 전체50 =71, 기존 toolbar/output/save 선택 회귀11. 신규3건: 실제 공용 UI/픽셀·연결 source 계약·서로 다른 2품목 출력 이미지/고정 이미지/저장src 보존.
+- 앱/테스트/FortuneSheetApp 변경7파일 analyzer 정상. 전체 변경8파일 분석 시 vendor canvas 기존 unused 경고10건과 새 테스트 lint1건을 확인했으며, 새 lint는 즉시 수정하고 앱/테스트 재분석 정상 확인. vendor painter/app 신규 진단 없음, 기존 canvas 미사용 코드10건은 변경하지 않음.
+- 버전1.8.1→1.8.2 PATCH: 기존 이미지 연결 적용의 편집 화면 표시 누락 수정. DB/저장 포맷/품목별 발행 계약은 유지하며 README에 현재 선택 품목 기준 및 표시용 치환 설명 추가.
+- 사용자 lib/core/app.dart 보존·제외. 운영DB 변경·실제 인쇄 없이 회귀 검증.
+- IDE 변경 앱/테스트/vendor app·painter/pubspec 진단 정상. DTD 발견·연결 확인 및 hot reload 시도했으나 실행 중 앱 없음. 다음 사용자 확인:1.8.2 실행→품목1의 PP 선택/편집→공용라벨 PVC 복제→연결 #PARTMARK 적용→편집 화면과 품목 미리보기 모두 복제본만 PP인지 확인. 다른 품목 선택/이미지 없음/저장 후 재열기도 확인.
+
 ## 현재 작업: 이미지 속성 파일 교체 무응답
 - **구현·검증·커밋 완료: `0f2f7a1` (1.8.1)**. 제출 `공용라벨_이미지속성_파일교체오류.log`는1.6.0. 첨부는 연결 안함 이미지의 속성 `파일 교체` 버튼. 로그에 picker 오류가 없고 코드에서 default picker 누락을 확인했다.
 - 공용 LabelSheetWorkbench는 FortuneSheetApp에 별도 imagePicker를 전달하지 않는다. 삽입은 `widget.imagePicker ?? _pickImageFromFileSystem`을 사용하지만 속성 교체 `_replaceSelectedImageFileFromController`는 picker==null이면 false로 즉시 종료하므로 파일창이 열리지 않는다.

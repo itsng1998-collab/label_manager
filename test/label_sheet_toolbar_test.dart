@@ -15,6 +15,7 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
 import 'package:label_manager/features/item/domain/additional_item.dart';
+import 'package:label_manager/features/item/application/item_image_preview.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
@@ -700,6 +701,54 @@ void main() {
       );
     },
   );
+
+  test('linked image output still resolves each item without overwriting fixed images', () {
+    final previousColumns = TColumn.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      clearSelectedItemBmpPreviewCache();
+    });
+    TColumn.datas = [_testColumn(1, 'PARTMARK').copyWith(
+      columnType: const TColumnType(
+        code: TColumnType.TYPE_IMAGE, name: '이미지', order: 1,
+      ),
+    )];
+    final original = FortuneImage(
+      id: 'fixed', src: 'data:image/png;base64,AAA=',
+      left: 0, top: 0, width: 80, height: 40,
+    );
+    final workbook = FortuneWorkbook(sheets: [
+      FortuneSheet(id: 'label', name: 'Label', images: [
+        original,
+        original.copyWith(id: 'linked', extraFields: {
+          fortuneImageObjectIdExtraKey: '#PARTMARK',
+        }),
+      ]),
+    ]);
+    final encoded = labelSheetEncodeWorkbookSave(workbook);
+    final pp = imglib.Image(width: 2, height: 2);
+    imglib.fill(pp, color: imglib.ColorRgb8(0, 255, 0));
+    final pe = imglib.Image(width: 2, height: 2);
+    imglib.fill(pe, color: imglib.ColorRgb8(0, 0, 255));
+    cacheSelectedItemBmpPreview('output_PP.bmp', imglib.encodeBmp(pp));
+    cacheSelectedItemBmpPreview('output_PE.bmp', imglib.encodeBmp(pe));
+    final sources = <String>[];
+    for (final name in ['output_PP', 'output_PE']) {
+      final preview = debugItemOutputPreviewForTesting(
+        labelSize: _testLabelSizeWithFormData(encoded),
+        item: _testItemOfMarket(),
+        elementText: '',
+        projectedColumnValues: {1: name},
+      );
+      final images = preview.workbook!.activeSheet.images;
+      expect(images.first.src, original.src);
+      expect(images.last.src, itemBmpPreviewDataUriForFileName(name));
+      sources.add(images.last.src);
+    }
+    expect(sources[0], isNot(sources[1]));
+    expect(workbook.activeSheet.images.last.src, original.src);
+    expect(labelSheetDecodeWorkbookSave(encoded).activeSheet.images.last.src, original.src);
+  });
 
   test('item output preview renders resolved barcode image source', () async {
     FortuneBarcodeRequest? request;

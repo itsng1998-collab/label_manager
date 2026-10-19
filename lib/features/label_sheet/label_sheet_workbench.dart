@@ -686,6 +686,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectSources,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.toolbarItems,
     this.hideToolbar = false,
@@ -736,6 +737,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final Map<String, String>? imageObjectSources;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String>? toolbarItems;
   final bool hideToolbar;
@@ -3314,6 +3316,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               imageObjectOptions: widget.imageObjectOptions,
+              imageObjectSources: widget.imageObjectSources,
               barcodeObjectOptions: widget.barcodeObjectOptions,
               imageObjectConnectionMode: FortuneObjectConnectionMode.structured,
               barcodeObjectConnectionMode:

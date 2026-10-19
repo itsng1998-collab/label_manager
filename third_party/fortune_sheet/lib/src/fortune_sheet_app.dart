@@ -21,6 +21,7 @@ class FortuneSheetApp extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectSources,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectConnectionMode,
     this.barcodeObjectConnectionMode,
@@ -46,6 +47,7 @@ class FortuneSheetApp extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final Map<String, String>? imageObjectSources;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final FortuneObjectConnectionMode? imageObjectConnectionMode;
   final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
@@ -166,6 +168,7 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
         toolbarRightInset: widget.toolbarRightInset,
         controller: widget.controller,
         imagePicker: widget.imagePicker,
+        imageObjectSources: widget.imageObjectSources,
         barcodeRenderer: widget.barcodeRenderer,
         barcodeFormats: widget.barcodeFormats,
         imageObjectIds: widget.imageObjectIds,

@@ -4881,6 +4881,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                   key: ValueKey('common_label:$_labelContentKey'),
                   title: '공용라벨관리',
                   labelSize: _effectiveLabelSize,
+                  imageColumnValues: _commonLabelImageColumnValues(),
                   onSheetReady: _handleCommonLabelSheetReady,
                   onGridRectChanged: _handleCommonLabelGridRectChanged,
                   onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
@@ -5192,6 +5193,20 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (row.rowKey == anchorRowKey) return row;
     }
     return null;
+  }
+
+  Map<int, String> _commonLabelImageColumnValues() {
+    final item = _selectedItemOfMarket;
+    if (item == null) return const {};
+    final row = _selectedItemDraftRow();
+    final controller = _itemDraftController;
+    return {
+      for (final column in TColumn.datas ?? const <TColumn>[])
+        if (column.columnType.code == TColumnType.TYPE_IMAGE)
+          column.columnId: row != null && controller != null
+              ? controller.columnValue(row, column.columnId)
+              : TColumnContent.get(column.columnId, item.item.itemId)?.dataString ?? '',
+    };
   }
 
   Map<int, String> _itemDraftOutputProjectedColumnValues(

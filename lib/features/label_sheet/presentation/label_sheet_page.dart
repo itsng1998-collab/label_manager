@@ -109,6 +109,7 @@ class LabelSheetPage extends StatelessWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectSources,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.requiredKeywords = const <LabelSheetRequiredKeyword>[],
     this.requiredChecks = const <LabelRequiredCheckSave>[],
@@ -130,6 +131,7 @@ class LabelSheetPage extends StatelessWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final Map<String, String>? imageObjectSources;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<LabelSheetRequiredKeyword> requiredKeywords;
   final List<LabelRequiredCheckSave> requiredChecks;
@@ -181,6 +183,7 @@ class LabelSheetPage extends StatelessWidget {
         imageObjectIds: imageObjectIds,
         barcodeObjectIds: barcodeObjectIds,
         imageObjectOptions: imageObjectOptions,
+        imageObjectSources: imageObjectSources,
         barcodeObjectOptions: barcodeObjectOptions,
         onInitialLoadComplete: onSheetReady,
         onGridRectChanged: onGridRectChanged,

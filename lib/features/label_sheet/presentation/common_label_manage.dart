@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/features/label_sheet/application/common_label_connections.dart';
+import 'package:label_manager/features/item/application/item_image_preview.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
@@ -166,6 +167,22 @@ List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
   return result;
 }
 
+Map<String, String> commonLabelImageObjectSources(
+  Iterable<TColumn> columns,
+  Map<int, String> values,
+) {
+  final result = <String, String>{};
+  for (final column in columns) {
+    if (column.columnType.code != TColumnType.TYPE_IMAGE) continue;
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) continue;
+    final id = keyword.startsWith('#') ? keyword : '#$keyword';
+    result[id] =
+        itemBmpPreviewDataUriForFileName(values[column.columnId] ?? '') ?? '';
+  }
+  return result;
+}
+
 @visibleForTesting
 List<TColumn> commonLabelColumnsWithImageObjectSizes(
   FortuneWorkbook workbook,
@@ -237,6 +254,7 @@ Widget commonLabelRequiredTableForTesting({
 class CommonLabelManage extends StatefulWidget {
   final String title;
   final LabelSize? labelSize;
+  final Map<int, String> imageColumnValues;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -250,6 +268,7 @@ class CommonLabelManage extends StatefulWidget {
     super.key,
     required this.title,
     this.labelSize,
+    this.imageColumnValues = const {},
     this.onSheetReady,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -338,6 +357,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     imageObjectIds: imageObjectIds,
                     barcodeObjectIds: barcodeObjectIds,
                     imageObjectOptions: imageObjectOptions,
+                    imageObjectSources: commonLabelImageObjectSources(
+                      columns,
+                      widget.imageColumnValues,
+                    ),
                     barcodeObjectOptions: barcodeObjectOptions,
                     requiredKeywords: requiredKeywords,
                     requiredChecks: requiredChecks,

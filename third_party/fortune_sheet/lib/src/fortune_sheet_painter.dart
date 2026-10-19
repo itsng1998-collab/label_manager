@@ -15,6 +15,22 @@ import 'fortune_toolbar_icons.dart';
 
 final Set<String> _fortuneSheetRulerTraceKeys = <String>{};
 
+String fortuneImageDisplaySource(
+  FortuneImage image,
+  Map<String, String>? sources,
+) {
+  if (sources == null || fortuneImageObjectKind(image) != FortuneSheetObjectKind.image) {
+    return image.src;
+  }
+  final id = '${image.extraFields[fortuneImageObjectIdExtraKey] ?? ''}'
+      .trim().toLowerCase();
+  if (id.isEmpty) return image.src;
+  for (final entry in sources.entries) {
+    if (entry.key.trim().toLowerCase() == id) return entry.value;
+  }
+  return '';
+}
+
 void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
@@ -62747,6 +62763,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.activeImageToolbarHoveredCommand,
     this.activeImageToolbarTooltipPosition,
     this.decodedImages = const <String, ui.Image>{},
+    this.imageObjectSources,
     this.zoomMenuOpen = false,
     this.sheetFocused = true,
     this.deferToolbarPopup = false,
@@ -62974,6 +62991,7 @@ class FortuneSheetPainter extends CustomPainter {
   final String? activeImageToolbarHoveredCommand;
   final Offset? activeImageToolbarTooltipPosition;
   final Map<String, ui.Image> decodedImages;
+  final Map<String, String>? imageObjectSources;
   final TextDirection textDirection;
   final bool zoomMenuOpen;
   final bool sheetFocused;
@@ -77452,7 +77470,7 @@ class FortuneSheetPainter extends CustomPainter {
       if (!paintedBounds.overlaps(clip)) {
         continue;
       }
-      final decoded = decodedImages[image.src];
+      final decoded = decodedImages[fortuneImageDisplaySource(image, imageObjectSources)];
       if (decoded == null) {
         _drawImagePlaceholder(
           canvas,
@@ -78069,10 +78087,13 @@ class FortuneSheetPainter extends CustomPainter {
         Paint()..color = const Color(0xff5f6368),
       );
     }
-    if (image.src.isNotEmpty && rect.width > 42 && rect.height > 28) {
+    final connectionId = imageObjectSources == null
+        ? ''
+        : '${image.extraFields[fortuneImageObjectIdExtraKey] ?? ''}'.trim();
+    if ((image.src.isNotEmpty || connectionId.isNotEmpty) && rect.width > 42 && rect.height > 28) {
       _drawText(
         canvas,
-        'image',
+        connectionId.isEmpty ? 'image' : '$connectionId (이미지 없음)',
         Rect.fromLTWH(rect.left + 4, rect.bottom - 20, rect.width - 8, 16),
         fontSize: 10,
         color: const Color(0xff5f6368),
@@ -78398,6 +78419,7 @@ class FortuneSheetPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant FortuneSheetPainter oldDelegate) {
     return oldDelegate.workbook != workbook ||
+        oldDelegate.imageObjectSources != imageObjectSources ||
         oldDelegate.toolbarRightInset != toolbarRightInset ||
         oldDelegate.toolbarPopupOpenedFromMore != toolbarPopupOpenedFromMore ||
         oldDelegate.locale != locale ||
