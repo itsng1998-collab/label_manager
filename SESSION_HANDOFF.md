@@ -13,7 +13,7 @@
 - 생성 후 제출 조건 20261014/customerId=2 동일 SELECT **26ms/0행**. 예상 계획은 전체 PK스캔10,148,400행→`IX_BM_RICH_PRINT_LOG_CustomerDate` **Index Seek/예상 읽기1행**으로 변경 확인. 현재 상태의 생성 전977ms와 비교하며, 제출 당시97.9초를 동일 부하로 전후 재현했다고 주장하지 않는다.
 - 로컬 회귀 **18/18 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/print_history_index_test.dart test/print_log_test.dart test/print_history_dialog_test.dart --timeout 30s`. analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/print_history/data/print_log_dao.dart lib/features/print_history/presentation/print_history_dialog.dart test/print_history_index_test.dart test/print_history_dialog_test.dart`. IDE 변경 Dart/pubspec 오류0건. 생성 실패 시 모달 아래 spinner가 남는 문제도 오류 안내 전에 대기를 끝내도록 보정했다.
 - README에 자동 DDL/권한/일회성 대기/실패 동작 문서화. DTD 탐색/연결 확인 및 hot reload 시도: 활성 앱 없음(실제 DB 검증은 종료된 Flutter 위젯 테스트 프로세스). 운영 DB의 새 인덱스는 생성 완료 상태로 유지한다. 실제 인쇄/배포 파일 생성 없음.
-- 최종 회귀18/18 재통과, `git diff --check` 통과. 임시 live 위젯 테스트/진단 스크립트/실행계획/캡처/로그 정리 완료. 요청 관련7개 파일만 분리 커밋하며 확정 해시는 후속 문서 커밋으로 기록한다(버전 재증가 없음). 기존 사용자 `lib/core/app.dart`는 보존·제외한다.
+- 최종 회귀18/18 재통과, `git diff --check` 통과. 임시 live 위젯 테스트/진단 스크립트/실행계획/캡처/로그 정리 완료. 기능 커밋 `f0ecdc3` (`발행내역 조회 인덱스 자동 생성과 대기 화면 추가`): 요청 관련7개 파일, `git diff --cached --check` 통과. 기존 사용자 `lib/core/app.dart` 보존·제외, push 없음. 확정 해시 기록 후속 문서 커밋은 버전 재증가 없음.
 
 ## 현재 작업: 사용자 추가 시 빈 조회 결과 예외
 - **완료**. 제출 1.6.0 로그는 사용자 입력 overlay의 적용/닫힘까지 기록했다. 첨부 디버거와 동일한 `No rows in result`를 테스트로 재현했다. 신규 ID 중복 조회의 정상 0건을 `ManagedUserDAO.selectByUserId`가 예외 처리한 것이 원인이다.
