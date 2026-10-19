@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 이미지 속성 파일 교체 무응답
-- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_이미지속성_파일교체오류.log`는1.6.0. 첨부는 연결 안함 이미지의 속성 `파일 교체` 버튼. 로그에 picker 오류가 없고 코드에서 default picker 누락을 확인했다.
+- **구현·검증·커밋 완료: `0f2f7a1` (1.8.1)**. 제출 `공용라벨_이미지속성_파일교체오류.log`는1.6.0. 첨부는 연결 안함 이미지의 속성 `파일 교체` 버튼. 로그에 picker 오류가 없고 코드에서 default picker 누락을 확인했다.
 - 공용 LabelSheetWorkbench는 FortuneSheetApp에 별도 imagePicker를 전달하지 않는다. 삽입은 `widget.imagePicker ?? _pickImageFromFileSystem`을 사용하지만 속성 교체 `_replaceSelectedImageFileFromController`는 picker==null이면 false로 즉시 종료하므로 파일창이 열리지 않는다.
 - 속성 교체도 삽입과 같은 기본 파일 선택기를 사용하도록 2줄만 변경. 별도 주입 picker 우선순위와 workbook/이미지 owner 변경 차단·권한·undo·위치/크기/회전/crop/연결 metadata 보존은 유지한다. 메뉴얼v2의 이미지 관련 텍스트와 레거시 LabelEditDlg.cpp의 native picker→선택 시만 반영 경로도 확인(메뉴얼에는 현재 Flutter 이미지 속성의 별도 교체 설명 없음).
 - 수정 전 실제 LabelSheetWorkbench에서 이미지1 선택→속성 스크롤→파일 교체를 클릭하는 새 회귀3건 모두 플랫폼 openFile 기대1/실제0으로 실패 확인. 수정 후3/3 통과: 선택창 호출/filter·선택 대기 중 버튼 비활성·실제PNG decode2×3·속성 보존·undo/redo·최종 저장 payload decode·취소 시 원본/history 보존·PlatformException 오류 표시/다시 시도 검증.
