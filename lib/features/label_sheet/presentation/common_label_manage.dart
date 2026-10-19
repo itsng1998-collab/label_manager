@@ -52,6 +52,28 @@ List<LabelRequiredCheckSave> commonLabelRequiredCheckSaves(
 }
 
 @visibleForTesting
+List<TColumn> commonLabelColumnsWithSavedRequiredChecks({
+  required int labelSizeId,
+  required List<TColumn> columns,
+  required Iterable<LabelRequiredCheckSave> savedChecks,
+}) {
+  final checksById = {
+    for (final check in savedChecks) check.columnId: check.checked,
+  };
+  return [
+    for (final column in columns)
+      if (column.labelSizeId != labelSizeId ||
+          checksById[column.columnId] == null ||
+          column.persistedMissingKeywordCheck == checksById[column.columnId])
+        column
+      else
+        column.copyWith(
+          persistedMissingKeywordCheck: checksById[column.columnId],
+        ),
+  ];
+}
+
+@visibleForTesting
 List<double> commonLabelColumnWidthsForViewport(double viewportWidth) {
   final remainingWidth =
       viewportWidth - commonLabelRowNumberWidth - commonLabelRequiredColumnWidth;
@@ -284,6 +306,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           specialColumns,
           columns,
         );
+        final requiredChecks = commonLabelRequiredCheckSaves(
+          specialColumns,
+          columns,
+        );
         // 우측 폭 계산 및 하한선 적용
         final double rightWidth;
         if (_rightWidthChangedByUser) {
@@ -314,10 +340,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     imageObjectOptions: imageObjectOptions,
                     barcodeObjectOptions: barcodeObjectOptions,
                     requiredKeywords: requiredKeywords,
-                    requiredChecks: commonLabelRequiredCheckSaves(
-                      specialColumns,
-                      columns,
-                    ),
+                    requiredChecks: requiredChecks,
                     imageColumnSizes: commonLabelImageColumnSizeSaves(columns),
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
@@ -343,7 +366,17 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                       TColumn.datas = updated;
                       if (mounted) setState(() {});
                     },
-                    onSaved: widget.onLabelSaved,
+                    onSaved: (saved) {
+                      final current = TColumn.datas;
+                      if (current != null) {
+                        TColumn.datas = commonLabelColumnsWithSavedRequiredChecks(
+                          labelSizeId: saved.labelSizeId,
+                          columns: current,
+                          savedChecks: requiredChecks,
+                        );
+                      }
+                      widget.onLabelSaved?.call(saved);
+                    },
                   ),
                 ),
               ),

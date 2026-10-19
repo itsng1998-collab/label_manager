@@ -1,5 +1,17 @@
 # SESSION HANDOFF
 
+## 최근 완료: 공용라벨 필수등록 체크→항목편집 누락 검사 해제 저장51115
+- **구현·검증 완료, 기능 커밋 기록 예정**. 제출1.6.0 로그와 이미지의 오류는 `Label column auxiliary values changed after editing started.`/51115. 우측 필수등록은 TColumn.useMissingKeywordCheck만 변경하고 공용라벨 저장 시 DB에 반영한다.
+- 항목편집은 이 변경된 TColumn을 원본 snapshot으로 잡아 DB의 BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN과 비교하므로 로컬 변경을 타 사용자의 동시 수정으로 오인했다. 원본 DB 기준값과 화면 draft를 분리하고 실제 동시 수정 검사/트랜잭션은 완전히 유지해 해결했다.
+- SQL save history와 인접 테스트 확인. SQL Server2017 호환 유지, 새 SQL/스키마 변경 없이 모델·command 생성·성공한 공용라벨 저장 후 기준값 갱신을 연결했다. 기존 사용자 lib/core/app.dart 보존·제외. DB 연결/변경·실제 인쇄 없이 회귀 검증.
+- 수정 전 domain 회귀3건에서 원본 false/true가 로컬 토글값 true/false로 잘못 전달됨을 재현. 실제 항목편집 체크해제/적용/확인 저장 및 XML 검증을 포함한 4건은 수정 후 모두 통과했다.
+- TColumn은 DB load/성공한 공용라벨 저장 기준 persistedMissingKeywordCheck를 별도 보관하며 copyWith에서도 보존한다. command의 original snapshot만 이 DB 기준값을 사용하고, UI에서 변경했거나 아직 DB에 저장하지 않은 check는 updated에 포함한다. SQL의 51115/51116 비교·잠금·rollback은 변경하지 않음.
+- 공용라벨 성공 callback은 실제 제출한 체크 snapshot으로만 기준값을 갱신하고, 저장 중 새 UI 변경·다른 label/id·원본 객체는 보존한다. 공용라벨 저장 이후 다음 항목편집에서도 올바른 기준값을 사용한다.
+- 버전1.7.2→1.7.3 PATCH: 저장 포맷·DB스키마·동시수정 차단 계약을 유지하는 저장 버그 수정.
+- 최종 검증: label_column_edit/dialog/save 및 common_label_manage 4파일 80/80 통과. column_mapping·label_size_dao/cache·label_column_candidates·special_column_dao 5파일 16/16 통과. 총96건(신규6건 포함) 통과. 변경 Dart6파일 analyzer 및 IDE diagnostics/pubspec 진단 정상.
+- 실제 공용라벨 체크박스를 클릭한 동일 TColumn으로 항목편집 진입→누락 검사 해제→적용→확인 저장을 검증했다. DB main-check 유무 계약은 기존 SQL 테스트로 유지하며 새 widget 회귀는 main-check 있는 SQL의 original/updated XML check=0 및51115/51116 보존을 검증한다. 공용라벨 성공 callback의 제출 snapshot 기준 갱신·저장 중 새 UI 변경·다른 label/id 보존도 검증했다.
+- DTD 발견·연결 확인 및 hot reload 시도했으나 실행 중 앱 없음. 다음 사용자 확인: 1.7.3 실행 후 제출 재현 순서대로 체크→항목편집 해제→적용/저장 시51115 없이 저장되고 최종 필수등록이 해제되는지 확인.
+
 ## 최근 완료: 영양성분표 확대 시 작성 내용 초기화 / 배율 Enter 오저장
 - **구현·검증·커밋 완료: `4041c11`**. 제출 `설정_영양성분표추가_확대오류.log`는 1.6.0. 09:09:08에 `영양성분표 수정` 편집 commit이 changed=true로 완료되어 단순 IME 미확정 문제가 아니다. 첨부는 확대100→110 후 내용/선택 초기화다.
 - 공용 workbench build가 외부 zoom을 초기 Future snapshot에 다시 적용해 새 workbook 객체를 만든다. Canvas는 이를 외부 workbook 교체로 받아 canonical 내용/선택/history를 재초기화했다. 초기 로딩 seed와 현재 controller 상태를 분리해 해결했다.

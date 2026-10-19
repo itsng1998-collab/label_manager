@@ -25,6 +25,8 @@ enum QRCodeCreateType {
 }
 
 class TColumn extends TColumnBase {
+  // Keep the DB baseline separate from the editable required-check flag.
+  final bool persistedMissingKeywordCheck;
   final int columnId;
   final int labelSizeId;
   final int order;
@@ -82,6 +84,7 @@ class TColumn extends TColumnBase {
     required super.keyword,
     required super.columnName,
     required super.useMissingKeywordCheck,
+    bool? persistedMissingKeywordCheck,
     required super.useMinColumnCheck,
     required this.columnId,
     required this.labelSizeId,
@@ -123,13 +126,15 @@ class TColumn extends TColumnBase {
     required this.rotate,
     required this.useDateRange,
     required this.dateRange,
-  });
+  }) : persistedMissingKeywordCheck =
+           persistedMissingKeywordCheck ?? useMissingKeywordCheck;
 
   TColumn copyWith({
     TColumnType? columnType,
     String? keyword,
     String? columnName,
     bool? useMissingKeywordCheck,
+    bool? persistedMissingKeywordCheck,
     bool? useMinColumnCheck,
     int? columnId,
     int? labelSizeId,
@@ -177,6 +182,8 @@ class TColumn extends TColumnBase {
       keyword: keyword ?? this.keyword,
       columnName: columnName ?? this.columnName,
       useMissingKeywordCheck: useMissingKeywordCheck ?? this.useMissingKeywordCheck,
+      persistedMissingKeywordCheck:
+          persistedMissingKeywordCheck ?? this.persistedMissingKeywordCheck,
       useMinColumnCheck: useMinColumnCheck ?? this.useMinColumnCheck,
       columnId: columnId ?? this.columnId,
       labelSizeId: labelSizeId ?? this.labelSizeId,

@@ -12,6 +12,7 @@ import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_column/presentation/label_column_edit_dialog.dart';
+import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
@@ -1080,6 +1081,80 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('required check toggle then property uncheck saves against DB baseline', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final loaded = _column(1, 'TEST');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            key: const ValueKey('requiredTableBeforeEdit'),
+            width: 350,
+            height: 120,
+            child: commonLabelRequiredTableForTesting(
+              columns: [loaded],
+              onRequiredChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getTopLeft(find.byKey(const ValueKey('requiredTableBeforeEdit'))) +
+          const Offset(315, 50),
+    );
+    await tester.pump();
+    expect(loaded.useMissingKeywordCheck, isTrue);
+    LabelColumnSaveCommand? saved;
+    await _pumpDialog(
+      tester,
+      columns: [loaded],
+      onSave: (command) async => saved = command,
+    );
+    final missing = find.widgetWithText(CheckboxListTile, '누락 키워드 검사');
+    expect(tester.widget<CheckboxListTile>(missing).value, isTrue);
+    await _tapVisible(tester, missing);
+    await _tapVisible(tester, find.byKey(const Key('label-column-property-apply')));
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+
+    expect(saved, isNotNull);
+    expect(saved!.originalColumnsById[1]!.column.useMissingKeywordCheck, isFalse);
+    expect(saved!.updatedColumns.single.column.useMissingKeywordCheck, isFalse);
+    expect(saved!.changedKeysByColumnId[1], {'check'});
+    final statement = LabelColumnSaveDao.buildSaveStatement(
+      saved!,
+      const LabelColumnSchemaCapabilities(
+        hasCoreSchema: true,
+        hasMainMissingKeywordCheck: true,
+        hasContentEditable: false,
+        hasUpdateContent: false,
+        hasStatusData: false,
+      ),
+    );
+    final xml = statement.params['commandXml'] as String;
+    expect(
+      RegExp(r'<originalColumns>(.*?)</originalColumns>', dotAll: true)
+          .firstMatch(xml)!.group(1),
+      contains('<check>0</check>'),
+    );
+    expect(
+      RegExp(r'<updatedColumns>(.*?)</updatedColumns>', dotAll: true)
+          .firstMatch(xml)!.group(1),
+      contains('<check>0</check>'),
+    );
+    expect(statement.sql, contains("THROW 51115,"));
+    expect(statement.sql, contains("THROW 51116,"));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('property cancel restores baseline and apply reaches save command', (

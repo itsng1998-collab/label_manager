@@ -16,12 +16,12 @@ const makeDateType = TColumnType(
   order: 3,
 );
 
-TColumn column(int id, String keyword, {int order = 1}) {
+TColumn column(int id, String keyword, {int order = 1, bool checked = false}) {
   return TColumn(
     columnType: baseType,
     keyword: keyword,
     columnName: keyword,
-    useMissingKeywordCheck: false,
+    useMissingKeywordCheck: checked,
     useMinColumnCheck: false,
     columnId: id,
     labelSizeId: 10,
@@ -68,6 +68,49 @@ TColumn column(int id, String keyword, {int order = 1}) {
 
 void main() {
   group('LabelColumnEditSession', () {
+    for (final stored in [false, true]) {
+      test('required-check command keeps stored $stored baseline after local toggle', () {
+        final loaded = column(1, 'TEST', checked: stored);
+        loaded.useMissingKeywordCheck = !stored;
+        var session = LabelColumnEditSession.fromColumns(
+          labelSizeId: 10,
+          columns: [loaded],
+        ).beginPropertyEdit();
+        session = session.updatePropertyDraft(
+          session.propertyDraft!.copyWith(
+            column: session.propertyDraft!.column.copyWith(
+              useMissingKeywordCheck: stored,
+            ),
+          ),
+        ).applyProperty();
+        expect(session.workingDirty, isTrue);
+        final command = session.toSaveCommand();
+        expect(command.originalColumnsById[1]!.column.useMissingKeywordCheck, stored);
+        expect(command.updatedColumns.single.column.useMissingKeywordCheck, stored);
+        expect(command.changedKeysByColumnId[1], {'check'});
+        expect(loaded.useMissingKeywordCheck, !stored);
+      });
+    }
+
+    test('unrelated property edits retain pending required checks through copies', () {
+      final loaded = column(1, 'TEST')..useMissingKeywordCheck = true;
+      final copied = loaded.copyWith(width: 20);
+      var session = LabelColumnEditSession.fromColumns(
+        labelSizeId: 10,
+        columns: [copied, column(2, 'OTHER', order: 2)],
+      ).select('column:2').beginPropertyEdit();
+      session = session.updatePropertyDraft(
+        session.propertyDraft!.copyWith(
+          column: session.propertyDraft!.column.copyWith(columnName: '수정'),
+        ),
+      ).applyProperty();
+      final command = session.toSaveCommand();
+      expect(command.originalColumnsById[1]!.column.useMissingKeywordCheck, isFalse);
+      expect(command.changedKeysByColumnId[1], {'check'});
+      expect(command.changedKeysByColumnId[2], {'name'});
+      expect(command.updatedColumns.first.column.useMissingKeywordCheck, isTrue);
+    });
+
     test('applies and cancels property edits without mutating original', () {
       var session = LabelColumnEditSession.fromColumns(
         labelSizeId: 10,

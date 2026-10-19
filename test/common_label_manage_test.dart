@@ -11,6 +11,8 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
+import 'package:label_manager/features/label_sheet/presentation/label_sheet_page.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
 
 class _RecordingKeywordInsertController
     extends LabelSheetKeywordInsertController {
@@ -287,6 +289,68 @@ void main() {
 
     expect(TColumnSpecial.datas!.single.useMissingKeywordCheck, isFalse);
     expect(dirtyChanges, contains(true));
+  });
+
+  test('successful required-check snapshot advances only matching DB baselines', () {
+    final loaded = _storedColumn('TEST', typeCode: TColumnType.TYPE_BASE);
+    final other = loaded.copyWith(columnId: 2, keyword: 'OTHER');
+    final foreign = loaded.copyWith(labelSizeId: 99);
+    loaded.useMissingKeywordCheck = true;
+    final snapshot = commonLabelRequiredCheckSaves([], [loaded]);
+    loaded.useMissingKeywordCheck = false;
+    final updated = commonLabelColumnsWithSavedRequiredChecks(
+      labelSizeId: 10,
+      columns: [loaded, other, foreign],
+      savedChecks: snapshot,
+    );
+    expect(updated.first.persistedMissingKeywordCheck, isTrue);
+    expect(updated.first.useMissingKeywordCheck, isFalse);
+    expect(loaded.persistedMissingKeywordCheck, isFalse);
+    expect(updated[1], same(other));
+    expect(updated[2], same(foreign));
+    expect(
+      updated.first.copyWith(columnName: '수정').persistedMissingKeywordCheck,
+      isTrue,
+    );
+  });
+
+  testWidgets('common label save callback advances its captured check snapshot', (
+    tester,
+  ) async {
+    final previousColumns = TColumn.datas;
+    final previousSpecial = TColumnSpecial.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      TColumnSpecial.datas = previousSpecial;
+    });
+    final loaded = _storedColumn('TEST', typeCode: TColumnType.TYPE_BASE)
+      ..useMissingKeywordCheck = true;
+    TColumn.datas = [loaded];
+    TColumnSpecial.datas = [];
+    const labelSize = LabelSize(labelSizeId: 10, brandId: 1, labelSizeName: 'test');
+    LabelSize? notified;
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommonLabelManage(
+            title: '공용라벨관리',
+            labelSize: labelSize,
+            onLabelSaved: (saved) => notified = saved,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final page = tester.widget<LabelSheetPage>(find.byType(LabelSheetPage));
+    expect(page.requiredChecks.single.checked, isTrue);
+    expect(loaded.persistedMissingKeywordCheck, isFalse);
+    loaded.useMissingKeywordCheck = false;
+    page.onSaved!(labelSize);
+    expect(TColumn.datas!.single.persistedMissingKeywordCheck, isTrue);
+    expect(TColumn.datas!.single.useMissingKeywordCheck, isFalse);
+    expect(notified, same(labelSize));
   });
 
   test('required check save snapshot includes special and stored columns', () {

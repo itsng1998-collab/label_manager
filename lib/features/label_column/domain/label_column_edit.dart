@@ -521,7 +521,10 @@ class LabelColumnEditSession {
       if (original == null) continue;
       final changedKeys = <String>{
         for (final entry in row.persistedValues.entries)
-          if (original.persistedValues[entry.key] != entry.value) entry.key,
+          if (original.persistedValues[entry.key] != entry.value ||
+              (entry.key == 'check' &&
+                  original.column.persistedMissingKeywordCheck != entry.value))
+            entry.key,
       };
       if (changedKeys.isEmpty) continue;
       updatedColumns.add(row);
@@ -530,7 +533,12 @@ class LabelColumnEditSession {
     return LabelColumnSaveCommand(
       labelSizeId: labelSizeId,
       originalColumnsById: Map.unmodifiable({
-        for (final row in originalColumns) row.column.columnId: row,
+        for (final row in originalColumns)
+          row.column.columnId: row.copyWith(
+            column: row.column.copyWith(
+              useMissingKeywordCheck: row.column.persistedMissingKeywordCheck,
+            ),
+          ),
       }),
       newColumns: List.unmodifiable(workingColumns.where((row) => row.isNew)),
       updatedColumns: List.unmodifiable(updatedColumns),
