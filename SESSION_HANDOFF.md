@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: 이미지 속성 적용 후 항목편집 저장51113
-- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_이미지속성_항목편집저장오류.log`는1.6.0, 실제오류 `Label columns changed after editing started.`/51113. 이미지 속성30→31 적용은 commonLabelColumnsWithImageObjectSizes에서 TColumn.width/height만 로컬31로 바꾸고 DB는30. 항목편집이31을 DB original로 전송해 동시 수정으로 오인한다.
+- **구현·검증·커밋 완료: `a427d7f` (1.8.3)**. 제출 `공용라벨_이미지속성_항목편집저장오류.log`는1.6.0, 실제오류 `Label columns changed after editing started.`/51113. 이미지 속성30→31 적용은 commonLabelColumnsWithImageObjectSizes에서 TColumn.width/height만 로컬31로 바꾸고 DB는30. 항목편집이31을 DB original로 전송해 동시 수정으로 오인한다.
 - 수정 전 domain회귀3건에서original.width 기대30/실제31 실패 확인. TColumn.persistedWidth/Height는 DB load 시의 값으로 초기화하고 copyWith로 유지. 이미지 column의 original snapshot에만 DB 기준값을 사용하며, 로컬 원본/DB 기준값 어느 쪽과든 다른 폭·높이는 updated keys에 포함한다. 31→32뿐 아니라31→30 복귀·다른 항목의 이름만 수정하는 저장에서도 미저장 크기를 보존한다. 비이미지 크기 동작은 유지한다.
 - 공용라벨 저장 성공은 실제 제출 imageColumnSizes snapshot만 기준값으로 승격하고 저장 중 새 로컬 크기·다른 라벨/항목·원본 객체는 보존한다. required-check 기준값 승격과 함께 연결했다. 다음 항목편집original31/updated33 검증. 항목편집 성공은 기존 DAO reload로 새 DB 기준값 확보.
 - 실제 CommonLabelManage 이미지 폭30→31 입력/적용(비율유지 높이31)→동일 TColumn으로 항목편집 폭32→적용/확인/저장 command·XML original30/30, updated32/31 및 EXCEPT/THROW51113 유지 검증. 모든 SQL/스키마/잠금/rollback/실제 동시 수정 차단은 변경하지 않았다. SQL Server2017·호환성100 계약 유지.
