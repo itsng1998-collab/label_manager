@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 작업: GoDEX 외 프린터의 검정 배경 누락
-- 구현·검증 완료(1.8.9), 관련 파일 분리 커밋 예정. 제출 두 이미지에서 G500은 검정 제목행/흰 글자, D420·ZM410은 흰 제목행/검정 글자로 반전됨.
+- **구현·검증·커밋 완료(1.8.9): `23f40a8`**. push 없음. 제출 두 이미지에서 G500은 검정 제목행/흰 글자, D420·ZM410은 흰 제목행/검정 글자로 반전됨.
 - 제출1.6.0 로그의 D420은 `inverseRowFallbackDescriptors=2 bands=1 clearedPixels=19809`, Zebra(ZDesigner ZT410-300dpi ZPL)는 2/1/41580. 둘 다 `inversePolarity=boxedHeaderBlackOnWhite`. G500은 원래 극성 유지 및 GoDEX 전용 PRN 전송.
 - 원인: Windows native `PrepareInverseRowFallback`가 GoDEX 외 프린터에서 흰 글자를 검정으로 바꾸고 검정 행 전체를 흰색으로 덮음. 레거시 PrintManager::PrintRichEdit는 BIXOLON의 매수 처리만 분기하고 같은 RichEdit 서식을 출력하며 이런 배경 반전은 하지 않음.
 - 구현: PrepareInverseRowFallback 삭제. non-GoDEX의 기존1bpp 메모리 DIB에 원래 배경/흰 native 글자를 유지. PrepareDriverTextDescriptors로 기존 GoDEX 흰글자 제외/일반글자 native 선택만 공유한다. GoDEX의 inverse bitmap/geometry/PRN 전송과 프린터 기본설정/배율/단색 전송은 유지. 진단은 originalWhiteOnBlack/nativeTextMonoDib/inverseRowFallback=disabled.
