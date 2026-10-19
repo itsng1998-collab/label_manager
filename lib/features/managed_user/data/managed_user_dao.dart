@@ -78,8 +78,7 @@ class ManagedUserDAO extends DAO {
       '$selectSql $whereUserIdSql',
       {'userId': userId},
     );
-    final row = DAO.getRowMapFromResult(result);
-    return row == null ? null : ManagedUser.fromMap(row);
+    return managedUserFromLookupResult(result);
   }
 
   static Future<void> insert(ManagedUser user) async {
@@ -118,4 +117,9 @@ class ManagedUserDAO extends DAO {
     'password': user.password,
     'grade': user.grade.code,
   };
+}
+
+ManagedUser? managedUserFromLookupResult(Object result) {
+  final row = DAO.getRowMapFromResult(result, throwIfNoRows: false);
+  return row == null ? null : ManagedUser.fromMap(row);
 }

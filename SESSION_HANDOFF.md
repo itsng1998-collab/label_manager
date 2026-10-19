@@ -1,5 +1,15 @@
 # SESSION HANDOFF
 
+## 현재 작업: 사용자 추가 시 빈 조회 결과 예외
+- **완료**. 제출 1.6.0 로그는 사용자 입력 overlay의 적용/닫힘까지 기록했다. 첨부 디버거와 동일한 `No rows in result`를 테스트로 재현했다. 신규 ID 중복 조회의 정상 0건을 `ManagedUserDAO.selectByUserId`가 예외 처리한 것이 원인이다.
+- 사용자 조회 결과 파싱만 `throwIfNoRows:false`로 변경했다. 공용 DAO 기본 예외 계약/SQL/스키마는 유지한다. 추가/수정 중복 조회를 기존 저장 오류 처리·busy 범위에 포함하여 조회 오류 안내, 중복 쓰기 차단, 작업 종료 후 버튼 복구를 보장한다.
+- 수정 전 새 회귀 **6건 실패/3건 통과**→수정 후 **9/9 통과**, 추가 ID 유지/중복 변경 회귀 포함 새 테스트 **11건 통과**. Map/JSON 빈 조회와 기존 사용자 복원, 잘못된 응답 예외, 책임자 추가/ID 변경 후 목록 반영, 조회 실패 시 쓰기0회·busy 복구, 기존 ID 유지 허용/다른 기존 ID 거절 검증.
+- 최종 관련 회귀 **38/38 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/managed_user_dao_test.dart test/user_manager_dialog_test.dart test/managed_user_test.dart test/dao_result_helper_test.dart --name '^(?!.*LoginLogDAO SQL does not truncate IP expressions before insert)' --timeout 30s`.
+- 전체 첫 실행은 **38통과/1실패**. 제외한 기존 `LoginLogDAO SQL does not truncate IP expressions before insert`는 테스트가 `@loginIP` 변환을 기대하지만 현재 SQL은 서버 `CONNECTIONPROPERTY`를 쓰는 불일치다. 해당 production/test 모두 HEAD와 변경 없음을 확인했으며 이번 사용자관리 수정 범위 밖이라 보존했다. Flutter CLI에 `--exclude-name`이 없어 정규식 selector로 분리했다.
+- analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/managed_user/data/managed_user_dao.dart lib/features/managed_user/presentation/user_manager_dialog.dart test/managed_user_dao_test.dart test/user_manager_dialog_test.dart`. 변경 Dart/pubspec IDE 오류0건, `git diff --check` 통과.
+- 버전 **1.6.1→1.6.2 PATCH**(사용자 중복 확인 버그 수정, SQL/스키마 변경 없음). DTD 탐색/연결 확인 및 hot reload 시도: 활성 앱 없음. 운영 DB 접속/등록, 실제 인쇄, 배포/설치파일 생성 없음. 다음 확인은 사용자 환경 1.6.2의 신규 책임자 추가/목록 반영 재시험이다.
+- 기존 사용자 변경 `lib/core/app.dart`는 보존·제외한다. 요청 관련 6개 파일만 분리 커밋하며 확정 해시는 후속 문서 커밋으로 기록한다(버전 재증가 없음).
+
 ## 현재 작업: 품목관리 연결 바코드 미리보기 로딩 고착
 - **완료**. 제출 1.6.0 로그에서 `#BARCODE`/`8812345678912`의 `renderCompleted`를 확인했다. PNG 생성 실패가 아니라 완료된 Future의 정상 `hintText=null`을 로딩 안내로 대체하여 `LabelOutputPreview`가 시트를 숨기는 상태 표시 오류다.
 - `ConnectionState.done` 기준으로 로딩 안내를 분리하고 완료 시 정상 null hint를 유지한다. 저장된 시트/바코드 데이터/renderer 기본값/인쇄 경로는 변경하지 않았다.

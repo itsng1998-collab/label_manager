@@ -286,11 +286,11 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
     if (!_canAdd) return;
     final draft = await _showInputDialog();
     if (draft == null || !mounted) return;
-    if (await widget.lookupUser(draft.userId) != null) {
-      if (mounted) await _showDuplicateMessage(draft.userId);
-      return;
-    }
-    await _writeThenReload(() => widget.insert(draft), '추가가 완료되었습니다!');
+    await _writeThenReload(
+      () => widget.insert(draft),
+      '추가가 완료되었습니다!',
+      validate: () => _validateUserId(draft.userId),
+    );
   }
 
   Future<void> _edit(ManagedUser selected, int index) async {
@@ -298,15 +298,25 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
     setState(() => _selectedIndex = index);
     final draft = await _showInputDialog(initial: selected);
     if (draft == null || !mounted) return;
-    final duplicate = await widget.lookupUser(draft.userId);
-    if (duplicate != null && draft.userId != selected.userId) {
-      if (mounted) await _showDuplicateMessage(draft.userId);
-      return;
-    }
     await _writeThenReload(
       () => widget.update(selected.userId, draft),
       '수정이 완료되었습니다!',
+      validate: () => _validateUserId(
+        draft.userId,
+        originalUserId: selected.userId,
+      ),
     );
+  }
+
+  Future<bool> _validateUserId(
+    String userId, {
+    String? originalUserId,
+  }) async {
+    final duplicate = await widget.lookupUser(userId);
+    if (!mounted) return false;
+    if (duplicate == null || userId == originalUserId) return true;
+    await _showDuplicateMessage(userId);
+    return false;
   }
 
   Future<void> _deleteSelected() async {
@@ -396,13 +406,15 @@ class _UserManagerDialogContentState extends State<UserManagerDialogContent> {
 
   Future<void> _writeThenReload(
     Future<void> Function() write,
-    String message,
-  ) async {
+    String message, {
+    Future<bool> Function()? validate,
+  }) async {
     widget.controller.setWriteBusy(true);
     if (mounted) setState(() {});
     var committed = false;
     var closeAfterWrite = false;
     try {
+      if (validate != null && !await validate()) return;
       await write();
       committed = true;
       await _reload();

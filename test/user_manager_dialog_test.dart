@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/features/cooperator/domain/cooperator.dart';
 import 'package:label_manager/features/customer/domain/customer.dart';
 import 'package:label_manager/features/managed_user/domain/managed_user.dart';
+import 'package:label_manager/features/managed_user/data/managed_user_dao.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/core/user.dart';
 import 'package:label_manager/features/managed_user/presentation/user_manager_dialog.dart';
@@ -332,6 +335,131 @@ void main() {
     },
   );
 
+  for (final editing in [false, true]) {
+    testWidgets(
+      'missing user lookup allows ${editing ? 'renaming' : 'adding'} a manager',
+      (tester) async {
+        final saved = <ManagedUser>[];
+        final originals = <String>[];
+        final rows = [_user('one', '김하나')];
+        await _pumpManager(
+          tester,
+          loadUsers: (_) async => List.of(rows),
+          lookupUser: (_) async => managedUserFromLookupResult({
+            'columns': <String>[],
+            'rows': <Map<String, dynamic>>[],
+            'affected': 0,
+          }),
+          insert: (user) async {
+            saved.add(user);
+            rows.add(user);
+          },
+          update: (original, user) async {
+            originals.add(original);
+            saved.add(user);
+            rows[0] = user;
+          },
+        );
+        await _openUserDraft(tester, editing: editing);
+        await _applyManagerDraft(tester);
+        await tester.pumpAndSettle();
+
+        expect(saved, hasLength(1));
+        expect(saved.single.userId, 'new-manager');
+        expect(saved.single.marketId, 1);
+        expect(saved.single.name, '새 책임자');
+        expect(saved.single.grade, UserGrade.MANAGER_USER);
+        expect(originals, editing ? ['one'] : isEmpty);
+        expect(
+          find.text(editing ? '수정이 완료되었습니다!' : '추가가 완료되었습니다!'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('확인'));
+        await tester.pumpAndSettle();
+        expect(find.text('새 책임자'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'user ${editing ? 'edit' : 'add'} lookup blocks writes and reports errors',
+      (tester) async {
+        final controller = UserManagerController();
+        addTearDown(controller.dispose);
+        final pending = Completer<ManagedUser?>();
+        var writes = 0;
+        await _pumpManager(
+          tester,
+          controller: controller,
+          lookupUser: (_) => pending.future,
+          insert: (_) async => writes += 1,
+          update: (_, _) async => writes += 1,
+        );
+        await _openUserDraft(tester, editing: editing);
+        await _applyManagerDraft(tester);
+        await tester.pump();
+        final busyDuringLookup = controller.writeBusy;
+        final canAddDuringLookup = tester.widget<IconButton>(
+          find.byKey(const ValueKey('userAddButton')),
+        ).onPressed != null;
+        pending.completeError(StateError('lookup failed'));
+        await tester.pumpAndSettle();
+
+        expect(busyDuringLookup, isTrue);
+        expect(canAddDuringLookup, isFalse);
+        expect(writes, 0);
+        expect(find.textContaining('lookup failed'), findsOneWidget);
+        await tester.tap(find.text('확인'));
+        await tester.pumpAndSettle();
+        expect(controller.writeBusy, isFalse);
+        expect(controller.activeEditing, isFalse);
+        expect(
+          tester.widget<IconButton>(
+            find.byKey(const ValueKey('userAddButton')),
+          ).onPressed,
+          isNotNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final unchangedId in [false, true]) {
+    testWidgets(
+      'user edit ${unchangedId ? 'keeps its existing ID' : 'rejects another existing ID'}',
+      (tester) async {
+        var updates = 0;
+        await _pumpManager(
+          tester,
+          lookupUser: (id) async => _user(id, '기존 사용자'),
+          update: (_, _) async => updates += 1,
+        );
+        await _openUserDraft(tester, editing: true);
+        await _applyManagerDraft(
+          tester,
+          userId: unchangedId ? 'one' : 'two',
+        );
+        await tester.pumpAndSettle();
+
+        expect(updates, unchangedId ? 1 : 0);
+        if (unchangedId) {
+          expect(find.text('수정이 완료되었습니다!'), findsOneWidget);
+        } else {
+          expect(find.textContaining('이미 존재하는 ID입니다'), findsOneWidget);
+        }
+        await tester.tap(find.text('확인'));
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<IconButton>(
+            find.byKey(const ValueKey('userAddButton')),
+          ).onPressed,
+          isNotNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('committed delete closes after reload failure', (tester) async {
     var loads = 0;
     var closes = 0;
@@ -361,6 +489,7 @@ void main() {
 
 Future<void> _pumpManager(
   WidgetTester tester, {
+  UserManagerController? controller,
   bool showCredentials = true,
   bool cooperatorSelectionEnabled = true,
   Future<List<Cooperator>> Function()? loadCooperators,
@@ -368,13 +497,14 @@ Future<void> _pumpManager(
   Future<List<ManagedUser>> Function(int)? loadUsers,
   Future<ManagedUser?> Function(String)? lookupUser,
   Future<void> Function(ManagedUser)? insert,
+  Future<void> Function(String, ManagedUser)? update,
   Future<void> Function(String)? delete,
   bool canConnect = false,
   Future<void> Function(ManagedUser)? connect,
   VoidCallback? onClose,
 }) async {
-  final controller = UserManagerController();
-  addTearDown(controller.dispose);
+  final effectiveController = controller ?? UserManagerController();
+  if (controller == null) addTearDown(effectiveController.dispose);
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -382,7 +512,7 @@ Future<void> _pumpManager(
           width: 1180,
           height: 720,
           child: UserManagerDialogContent(
-            controller: controller,
+            controller: effectiveController,
             onClose: onClose ?? () {},
             initialCooperator: const Cooperator(id: 'A', name: 'A 업체'),
             initialCustomer: const Customer(
@@ -428,7 +558,7 @@ Future<void> _pumpManager(
                 initialUsers ?? [_user('all', '전체')],
             lookupUser: lookupUser ?? (_) async => null,
             insert: insert ?? (_) async {},
-            update: (_, _) async {},
+            update: update ?? (_, _) async {},
             delete: delete ?? (_) async {},
             canConnect: canConnect,
             connect: connect,
@@ -438,6 +568,39 @@ Future<void> _pumpManager(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+Future<void> _openUserDraft(
+  WidgetTester tester, {
+  required bool editing,
+}) async {
+  if (editing) {
+    await tester.tap(find.text('김하나'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('김하나'));
+  } else {
+    await tester.tap(find.byKey(const ValueKey('userAddButton')));
+  }
+  await tester.pumpAndSettle();
+}
+
+Future<void> _applyManagerDraft(
+  WidgetTester tester, {
+  String userId = 'new-manager',
+}) async {
+  for (final entry in {
+    'managedUserIdField': userId,
+    'managedUserPasswordField': 'pw',
+    'managedUserPasswordCheckField': 'pw',
+    'managedUserNameField': '새 책임자',
+  }.entries) {
+    await tester.enterText(find.byKey(ValueKey(entry.key)), entry.value);
+  }
+  await tester.tap(find.byKey(const ValueKey('managedUserGradeField')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('책임자').last);
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('managedUserApplyButton')));
 }
 
 ManagedUser _user(String id, String name) => ManagedUser(
