@@ -226,6 +226,98 @@ class LabelSheetPrintOptions {
 
 enum LabelSheetPrintOrientation { horizontal, vertical }
 
+FortuneSheet labelSheetWithOutputLineSpacing({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required int? percent,
+}) {
+  if (percent == null || percent == 0) return sheet;
+  if (percent < 30 || percent > 300) {
+    throw ArgumentError.value(percent, 'percent', 'Expected 30..300 or none');
+  }
+  final source = sheet.copyWith(zoomRatio: 1);
+  final metrics = source.metrics(settings);
+  final rows = <int, List<MapEntry<FortuneCellCoord, FortuneCell>>>{};
+  final tableRows = FortuneBorderCompute.compute(source)
+      .keys
+      .map((coord) => coord.row)
+      .toSet();
+  for (final entry in source.cells.entries) {
+    if (source.hiddenRows.contains(entry.key.row) ||
+        source.hiddenColumns.contains(entry.key.column)) {
+      continue;
+    }
+    final merge = entry.value.merge;
+    if (entry.value.extraFields['labelRtfTableCell'] == true ||
+        (merge?.rowSpan ?? 1) > 1) {
+      for (
+        var row = entry.key.row;
+        row < entry.key.row + (merge?.rowSpan ?? 1);
+        row++
+      ) {
+        tableRows.add(row);
+      }
+    }
+    if (entry.value.renderedText.isEmpty) continue;
+    rows.putIfAbsent(entry.key.row, () => []).add(entry);
+  }
+  final heights = Map<int, double>.from(sheet.rowHeights);
+  final cells = Map<FortuneCellCoord, FortuneCell>.from(sheet.cells);
+  final deltas = <int, double>{};
+  for (final row in rows.entries) {
+    // RichEdit applies 115% inside tables, independent of automatic spacing.
+    final table = tableRows.contains(row.key) || row.value.length > 1;
+    final multiplier = table ? 1.15 : percent / 100;
+    var height = 0.0;
+    for (final entry in row.value) {
+      final cell = entry.value.copyWith(
+        extraFields: {...entry.value.extraFields, 'lineHeight': multiplier},
+        inlineRuns: entry.value.inlineRuns
+            ?.map((run) => run.copyWith(
+              extraFields: {...run.extraFields, 'lineHeight': multiplier},
+            ))
+            .toList(),
+      );
+      cells[entry.key] = cell;
+      if (table) continue;
+      final columnEnd = math.min(
+        entry.key.column + (cell.merge?.columnSpan ?? 1) - 1,
+        metrics.visibleDataColumns.length - 1,
+      );
+      final width = metrics.columnEnd(columnEnd) -
+          metrics.columnStart(entry.key.column);
+      final layout = fortuneLayoutCellText(
+        settings: settings,
+        cell: cell,
+        logicalBounds: ui.Rect.fromLTWH(0, 0, width, double.maxFinite),
+        textSpan: _labelSheetCellTextSpan(cell, settings),
+      );
+      if (layout != null) height = math.max(height, layout.painter.height);
+    }
+    if (table || height <= 0) continue;
+    final previous = metrics.rowEnd(row.key) - metrics.rowStart(row.key) - 1;
+    heights[row.key] = math.max(1, height);
+    deltas[row.key] = heights[row.key]! - previous;
+  }
+  double anchoredTop(double top) =>
+      top +
+      deltas.entries
+          .where((entry) => metrics.rowEnd(entry.key) <= top)
+          .fold<double>(0, (sum, entry) => sum + entry.value);
+  return sheet.copyWith(
+    cells: cells,
+    rowHeights: heights,
+    images: sheet.images
+        .map((image) =>
+          image.extraFields['rtfPicture'] == true ||
+                  image.extraFields['rtfBarcodeDecoded'] == true
+              ? image.copyWith(top: anchoredTop(image.top))
+              : image,
+        )
+        .toList(),
+  );
+}
+
 LabelSheetPrintOptions labelSheetPrintOptionsFromInput({
   required String copies,
   required String leftMarginMm,
@@ -405,7 +497,11 @@ LabelSheetEzplPrintPreparation prepareLabelSheetEzplPrint({
   int? lineSpacingPercent,
 }) {
   final materializedSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
-  final printSheet = materializedSheet.copyWith(
+  final printSheet = labelSheetWithOutputLineSpacing(
+    sheet: materializedSheet,
+    settings: settings,
+    percent: lineSpacingPercent,
+  ).copyWith(
     zoomRatio: 1,
     rawZoomRatio: null,
     hasRawZoomRatio: false,
@@ -434,7 +530,7 @@ LabelSheetEzplPrintPreparation prepareLabelSheetEzplPrint({
     settings: settings,
     transform: geometry.transform,
     candidates: candidates,
-    lineSpacingPercent: lineSpacingPercent,
+    lineSpacingPercent: null,
     textRejectionCounts: textRejectionCounts,
   );
   final plan = fortuneFinalizeHybridRenderPlan(
@@ -719,7 +815,11 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   required LabelSheetPrintOptions options,
   required int? lineSpacingPercent,
 }) {
-  final printSheet = sheet.copyWith(
+  final printSheet = labelSheetWithOutputLineSpacing(
+    sheet: sheet,
+    settings: settings,
+    percent: lineSpacingPercent,
+  ).copyWith(
     zoomRatio: 1,
     rawZoomRatio: null,
     hasRawZoomRatio: false,
@@ -798,13 +898,7 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
         textSpan: _labelSheetCellTextSpan(
           cell,
           settings,
-          outputLineHeightMultiplier: lineSpacingPercent == null
-              ? null
-              : lineSpacingPercent / 100,
         ),
-        outputLineHeightMultiplier: lineSpacingPercent == null
-            ? null
-            : lineSpacingPercent / 100,
       );
       if (layout == null || layout.painter.didExceedMaxLines) continue;
       final fragments = _labelSheetTextFragments(cell, layout, settings);

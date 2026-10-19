@@ -1,5 +1,17 @@
 # SESSION HANDOFF
 
+## 현재 작업: 라벨출력 자동줄간격 80%/300% 결과 동일
+- **구현·검증 완료(1.8.8), 관련 파일 분리 커밋 진행 중.**
+- 제출 `라벨출력_프린터설정_자동줄간격오류.log`는1.6.0. G500/windowsDriver/203.2dpi/80×60, 두 발행의 PNG5367bytes·ink27737·native34개·border63개 모두 동일. 설정값 자체는 이 구버전 로그에 없어 추정하지 않는다.
+- 수정 전 신규회귀에서80% 기대 행높이8/실제20으로 실패 확인. 현재 코드도 lineSpacingPercent를 capture/native text layout에 전달하지만 셀 내부 TextStyle.height만 바꾸고 셀 행 높이/다음 문단 위치는 고정되어 있던 것이 원인.
+- 사용자 추가 지시: 애매하면 레거시 참고. 실제 CRTFLineSpacer::LineSpacingAuto는 일반문단의 최대 글꼴 높이×선택%, 표 내부는 선택값과 관계없이115%. 줄간격0은 원본서식 유지. 전체 라벨 이미지/영양성분표/글자크기를 비례 확대하는 방식은 사용하지 않는다.
+- 구현: 공통 labelSheetWithOutputLineSpacing으로 출력 복사본의 일반문단 행 높이·inline lineHeight를 계산. 테두리/다중셀/세로병합 및 명시RTF table cell은 표로 취급해115%, 표 행높이는 보존. RTF parser가 borderless 단일셀 표도 marker로 보존한다. RTF anchor 이미지 위치만 flow에 맞추고 일반 절대좌표 이미지/선/도형은 그대로 둔다.
+- Windows/EZPL preparation과 PDF/bitmap capture 모두 같은 복사본 사용. captureRangeAsPng에 sheetOverride를 추가해 원본controller를 바꾸지 않는다. preview는 동일 helper + 줄간격별 Workbench key로 갱신하고 external zoom/capture owner는 유지. Workbench initialWorkbook은 초기화 전용이므로 key 갱신이 필요함을 UI 회귀로 확인했다.
+- 최종102/102 통과: focused6건 포함8파일88건 + RTF import/기존 paragraph 관련14건.80/300 행8/30, table18 유지/115%, native text 위치·font 유지, 줄바꿈/혼합폰트, none/0 원본보존, borderless RTF marker save roundtrip, 반복적용 idempotence/RTF anchoring, G500 native+bitmap PNG차이/PDF·EZPL 동일행/preview80→300→80→none/zoom150 유지. 표 내부native descriptor 높이/폰트 동일 및 표 위치만 문단flow에 따라93dots가량 이동하는 assertion도 통과.
+- 변경6 Dart analyzer/IDE는 기존 print_job2+canvas10 unused 경고뿐 오류/신규 진단 없음; 나머지4파일 analyzer `No issues found`. DTD발견·이미 연결 상태 확인 후 hot reload 시도했으나 실행 중 앱 없음.
+- 버전1.8.7→1.8.8 PATCH: 기존 자동줄간격이 문단 위치에 반영되지 않는 버그 수정. README에 legacy115% 표 규칙/원본서식/잘림/출력준비 계약 기록. 기존 row 설정 우선순위 및 raw 저장값/DB/실제 인쇄 금지 유지. 사용자 app.dart만 기존 dirty.
+- 다음 사용자 확인:1.8.8 실행→해당 브랜드/80×60 라벨→첫 품목 발행체크→프린터 설정80%/300% 적용→미리보기 문단 간격 변화와 표 크기 유지 확인 후 승인된 환경에서 G500 실인쇄 비교.300%에서 라벨 영역을 넘는 내용은 레거시처럼 잘릴 수 있다. 원본서식을 원하면 설정 안 함 선택. 단, 품목 고정 줄간격/목록 직접 수정 값이 있으면 그 값이 프린터 기본값보다 우선한다.
+
 ## 최근 완료: 라벨출력 미리보기 프린터 밀기 설정 미반영
 - **구현·검증·커밋 완료: `34fb0bd` (1.8.7). push하지 않음.**
 - 제출 `라벨출력_미리보기_프린터설정미적용.log`는1.6.0. 사용자 추가 요청: 왼쪽 한정이 아닌 모든 밀기(왼쪽/위쪽, 양수/음수)를 공통 확인.

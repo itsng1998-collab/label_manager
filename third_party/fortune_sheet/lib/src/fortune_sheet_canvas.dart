@@ -3073,6 +3073,7 @@ class FortuneSheetController extends ChangeNotifier {
     double? outputLineHeightMultiplier,
     Size? logicalClipSize,
     bool normalizeZoom = false,
+    FortuneSheet? sheetOverride,
   }) {
     return _state?._captureRangeAsPng(
           range,
@@ -3084,6 +3085,7 @@ class FortuneSheetController extends ChangeNotifier {
           outputLineHeightMultiplier: outputLineHeightMultiplier,
           logicalClipSize: logicalClipSize,
           normalizeZoom: normalizeZoom,
+          sheetOverride: sheetOverride,
         ) ??
         Future<FortuneSheetCapture?>.value();
   }
@@ -16577,6 +16579,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     double? outputLineHeightMultiplier,
     Size? logicalClipSize,
     bool normalizeZoom = false,
+    FortuneSheet? sheetOverride,
   }) async {
     if (!(widget.controller?.finalizeActiveObjectPropertyDraft() ?? true)) {
       return null;
@@ -16591,8 +16594,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       outputLineHeightMultiplier: outputLineHeightMultiplier,
       logicalClipSize: logicalClipSize,
       sheetOverride: normalizeZoom
-          ? _workbook.activeSheet.copyWith(zoomRatio: 1)
-          : null,
+          ? (sheetOverride ?? _workbook.activeSheet).copyWith(zoomRatio: 1)
+          : sheetOverride,
     );
     if (capture == null) {
       return null;

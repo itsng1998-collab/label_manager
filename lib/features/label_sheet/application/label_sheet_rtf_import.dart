@@ -1601,7 +1601,7 @@ class _RtfCellBuilder {
     }
   }
 
-  _RtfCell build(_RtfCellFormat format) {
+  _RtfCell build(_RtfCellFormat format, {bool tableCell = false}) {
     return _RtfCell(
       text: _text.toString(),
       bold: bold,
@@ -1623,14 +1623,17 @@ class _RtfCellBuilder {
       verticalMergeStart: format.verticalMergeStart,
       verticalMergeContinuation: format.verticalMergeContinuation,
       borderSides: format.borderSides,
-      extraFields: _rtfInlineExtraFields(
-        fontScale: fontScale,
-        letterSpacing: letterSpacing,
-        lineHeight: lineHeight,
-        script: script,
-        rtfProperties: rtfProperties,
-        unmappedControls: unmappedControls,
-      ),
+      extraFields: {
+        if (tableCell) 'labelRtfTableCell': true,
+        ..._rtfInlineExtraFields(
+          fontScale: fontScale,
+          letterSpacing: letterSpacing,
+          lineHeight: lineHeight,
+          script: script,
+          rtfProperties: rtfProperties,
+          unmappedControls: unmappedControls,
+        ),
+      },
       inlineRuns: _inlineRuns(),
     );
   }
@@ -2529,7 +2532,7 @@ class _RtfDocumentReader {
     final format = _currentRow.length < _currentCellFormats.length
         ? _currentCellFormats[_currentRow.length]
         : const _RtfCellFormat();
-    _currentRow.add(_currentCell.build(format));
+    _currentRow.add(_currentCell.build(format, tableCell: _inTableRow));
     _rtfLog('cell flushed force=$force currentRow=${_currentRow.length}');
     _currentCell = _RtfCellBuilder();
   }

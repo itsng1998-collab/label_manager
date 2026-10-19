@@ -106,10 +106,18 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
     }
     final hint = widget.hintText;
     if (hint != null) return _LabelOutputPreviewHint(hint);
-    final value = widget.workbook;
-    if (value == null) {
+    final source = widget.workbook;
+    if (source == null) {
       return const _LabelOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
+    final percent = widget.printOptions?.autoSpacingPercent;
+    final value = percent == null
+        ? source
+        : source.copyWith(
+            sheets: source.sheets.map((sheet) => labelSheetWithOutputLineSpacing(
+              sheet: sheet, settings: source.settings, percent: percent,
+            )).toList(),
+          );
     final messages = labelOutputPreviewMessages(value);
     final physicalSize = fs.fortuneSheetGridClientPhysicalSize(value.activeSheet);
     final printOptions = widget.printOptions;
@@ -139,7 +147,9 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
               _LabelOutputPreviewMessages(messages: messages),
             Expanded(
               child: LabelSheetWorkbench(
-                key: ValueKey(widget.identityKey),
+                key: ValueKey(percent == null
+                    ? widget.identityKey
+                    : '${widget.identityKey}:line-spacing:$percent'),
                 initialWorkbook: value,
                 labelSize: widget.labelSize,
                 imageObjectIds: widget.imageObjectIds,

@@ -2176,10 +2176,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     final sheet = _controller.getSheet();
+    final sheetSettings = _controller.settingsSnapshot;
     final physicalSize = sheet == null
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
-    if (sheet == null || physicalSize == null) {
+    if (sheet == null || sheetSettings == null || physicalSize == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('라벨 출력 영역을 찾을 수 없습니다.')));
@@ -2232,18 +2233,21 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             lineSpacingPercent: options.autoSpacingPercent,
           )
         : null;
+    final outputSheet = labelSheetWithOutputLineSpacing(
+      sheet: sheet,
+      settings: sheetSettings,
+      percent: options.autoSpacingPercent,
+    );
     final capture = backend == LabelPrintBackend.pdf ||
         backend == LabelPrintBackend.ezplBandCoolingRows
         ? await _controller.captureRangeAsPng(
-            labelSheetPrintRange(sheet, physicalSize),
+            labelSheetPrintRange(outputSheet, physicalSize),
             pixelRatio: renderDpi / fortuneSheetLogicalPixelsPerInch,
             includeGridLines: false,
             includeCellBorders: true,
             includeRulerGuides: false,
             includeLabelAreaBoundary: false,
-            outputLineHeightMultiplier: options.autoSpacingPercent == null
-                ? null
-                : options.autoSpacingPercent! / 100,
+            sheetOverride: outputSheet,
             logicalClipSize: physicalSize.logicalSize,
             normalizeZoom: true,
           )
@@ -2422,11 +2426,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }) async {
     if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
     final sheet = _controller.getSheet();
+    final settings = _controller.settingsSnapshot;
     final physicalSize = sheet == null
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
-    if (sheet == null || physicalSize == null) return null;
-    final range = labelSheetPrintRange(sheet, physicalSize);
+    if (sheet == null || settings == null || physicalSize == null) return null;
+    final outputSheet = labelSheetWithOutputLineSpacing(
+      sheet: sheet,
+      settings: settings,
+      percent: lineSpacingPercent,
+    );
+    final range = labelSheetPrintRange(outputSheet, physicalSize);
     RegressionDebugLog.event('labelSheetOutputCapture', 'started', fields: {
       'sheetId': sheet.id,
       'previewZoom': sheet.zoomRatio,
@@ -2443,9 +2453,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       includeCellBorders: true,
       includeRulerGuides: false,
       includeLabelAreaBoundary: false,
-      outputLineHeightMultiplier: lineSpacingPercent == null
-          ? null
-          : lineSpacingPercent / 100,
+      sheetOverride: outputSheet,
       logicalClipSize: physicalSize.logicalSize,
       normalizeZoom: true,
     );
@@ -2495,6 +2503,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (sheet == null || settings == null || physicalSize == null) return null;
     RegressionDebugLog.event('labelSheetHybridCapture', 'started', fields: {
       'backend': 'windowsDriver',
+      'lineSpacingPercent': lineSpacingPercent,
       'sheetId': sheet.id,
       'rows': sheet.rowCount ?? settings.row,
       'columns': sheet.columnCount ?? settings.column,
@@ -2524,9 +2533,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           preparation.geometry.metrics.dpi /
           fortuneSheetLogicalPixelsPerInch,
       includeCellBorders: true,
-      outputLineHeightMultiplier: lineSpacingPercent == null
-          ? null
-          : lineSpacingPercent / 100,
     );
     if (capture == null) return null;
     return LabelSheetWindowsDriverCapture(
@@ -2556,6 +2562,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (sheet == null || settings == null || physicalSize == null) return null;
     RegressionDebugLog.event('labelSheetHybridCapture', 'started', fields: {
       'backend': 'ezplRaw',
+      'lineSpacingPercent': lineSpacingPercent,
       'sheetId': sheet.id,
       'rows': sheet.rowCount ?? settings.row,
       'columns': sheet.columnCount ?? settings.column,
@@ -2585,9 +2592,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           preparation.geometry.metrics.dpi * 2 /
           fortuneSheetLogicalPixelsPerInch,
       includeCellBorders: true,
-      outputLineHeightMultiplier: lineSpacingPercent == null
-          ? null
-          : lineSpacingPercent / 100,
     );
     if (capture == null) return null;
     return LabelSheetEzplCapture(
