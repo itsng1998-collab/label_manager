@@ -8,7 +8,7 @@
 - analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/home_page_manager.dart test/label_sheet_toolbar_test.dart`. 변경 Dart/pubspec IDE 오류0건, `git diff --check` 통과.
 - 버전 **1.6.0→1.6.1 PATCH**(기존 미리보기 상태 표시 버그 수정, 저장/DB/인쇄 계약 변경 없음). DTD 탐색/연결 및 hot reload 시도: 활성 앱 없음으로 적용 대상 없음.
 - 다음 확인: 1.6.1 실행 후 사용자 제공 test/testflutter의 공용라벨 저장→품목관리 미리보기 재시험. 운영 DB 접속/변경, 실제 인쇄, Windows 배포/설치파일 생성은 실행하지 않았다. 실물 발행 결과/바코드 판독 품질은 미검증이다.
-- 기존 사용자 변경 `lib/core/app.dart`는 수정/stage/commit에서 제외한다. 요청 관련 4개 파일만 분리 커밋하며 확정 해시 기록은 후속 문서 커밋으로 남긴다(버전 재증가 없음).
+- 기능 커밋 `23473f2` (`품목관리 연결 바코드 미리보기 로딩 고착 수정`): 요청 관련 4개 파일, `git diff --cached --check` 통과. 기존 사용자 변경 `lib/core/app.dart` 보존·제외, push 없음. 확정 해시 기록 후속 문서 커밋은 버전 재증가 없음.
 
 ## 현재 작업: 프린터 드라이버 환경값 미적용
 - **완료**. 제출 1.4.47의 Godex G500 LAN/windowsDriver 두 발행 모두 darkness=8/restoreDarkness=8. 역상 보정의 ^H08 강제 삽입/복원이 드라이버 어두움14를 덮어쓴 것이 원인. 고정 명령 제거, 기존 역상 raster/font 보정 유지.
