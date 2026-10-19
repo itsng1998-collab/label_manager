@@ -1,6 +1,17 @@
 # SESSION HANDOFF
 
-## 현재 작업: 라벨출력 자동줄간격 80%/300% 결과 동일
+## 현재 작업: GoDEX 외 프린터의 검정 배경 누락
+- 구현·검증 완료(1.8.9), 관련 파일 분리 커밋 예정. 제출 두 이미지에서 G500은 검정 제목행/흰 글자, D420·ZM410은 흰 제목행/검정 글자로 반전됨.
+- 제출1.6.0 로그의 D420은 `inverseRowFallbackDescriptors=2 bands=1 clearedPixels=19809`, Zebra(ZDesigner ZT410-300dpi ZPL)는 2/1/41580. 둘 다 `inversePolarity=boxedHeaderBlackOnWhite`. G500은 원래 극성 유지 및 GoDEX 전용 PRN 전송.
+- 원인: Windows native `PrepareInverseRowFallback`가 GoDEX 외 프린터에서 흰 글자를 검정으로 바꾸고 검정 행 전체를 흰색으로 덮음. 레거시 PrintManager::PrintRichEdit는 BIXOLON의 매수 처리만 분기하고 같은 RichEdit 서식을 출력하며 이런 배경 반전은 하지 않음.
+- 구현: PrepareInverseRowFallback 삭제. non-GoDEX의 기존1bpp 메모리 DIB에 원래 배경/흰 native 글자를 유지. PrepareDriverTextDescriptors로 기존 GoDEX 흰글자 제외/일반글자 native 선택만 공유한다. GoDEX의 inverse bitmap/geometry/PRN 전송과 프린터 기본설정/배율/단색 전송은 유지. 진단은 originalWhiteOnBlack/nativeTextMonoDib/inverseRowFallback=disabled.
+- production cpp를 포함하는 native 회귀 추가: 실제 장치bitmap/텍스트선택/GDI함수 사용, 프린터DC/StartDoc/DB 없이1bpp memory pixel 검사. 수정 전 `Black header background was cleared` 실패, 수정 후4시나리오 통과:203dpi639×480 제목행18887/19936검정,300dpi945×709는42061/44208검정,2배 원본재샘플/다른드라이버640×480. 전체·부분검정배경에 흰 글자/일반 검정 글자/무관 흰배경/원본/GoDEX분리계약 확인.
+- 사용자 `lib/core/app.dart` 변경 보존/stage 제외. 버전1.8.8→1.8.9 PATCH: 기존 Windows 프린터 배경 극성 변경 버그 수정. README 및 native probe 문서에 동작/회귀/실물 미검증 한계 기록.
+- 검증: native CTest4/4(기존 device layout/RichEdit inverse/font reference + 새 background4시나리오), Flutter7파일77/77(전체 non-GoDEX 벤더 GDI 제출/GoDEX PRN/배경·흰글자 descriptor·raster/줄간격 포함), 변경 Dart test analyzer `No issues found`. MSVC /W4 /WX native test 및 `flutter build windows --debug --no-pub` 성공. 생성 Debug exe ProductVersion/FileVersion 모두1.8.9 확인.
+- 실제 프린터 전송/DB 변경 없음. 다음 확인: 새1.8.9 Windows 실행 파일로 앱을 다시 실행해 동일 품목을 G500/D420/Zebra로 비교. 제목행 검정 배경·흰 글자와 일반 본문/테두리/배치 유지 확인. C++ 변경은 hot reload로 반영되지 않아 새 실행 파일 재시작이 필요함.
+- DTD발견 및 기존 연결 상태 확인 후 hot reload 시도했으나 실행 중 앱이 없어 미적용. 임의로 앱을 실행하거나 DB에 연결하지 않음.
+
+## 최근 완료: 라벨출력 자동줄간격 80%/300% 결과 동일
 - **구현·검증·커밋 완료(1.8.8): `11cb6c9`**. push 없음. 범위 밖 사용자 `lib/core/app.dart` 변경만 유지.
 - 제출 `라벨출력_프린터설정_자동줄간격오류.log`는1.6.0. G500/windowsDriver/203.2dpi/80×60, 두 발행의 PNG5367bytes·ink27737·native34개·border63개 모두 동일. 설정값 자체는 이 구버전 로그에 없어 추정하지 않는다.
 - 수정 전 신규회귀에서80% 기대 행높이8/실제20으로 실패 확인. 현재 코드도 lineSpacingPercent를 capture/native text layout에 전달하지만 셀 내부 TextStyle.height만 바꾸고 셀 행 높이/다음 문단 위치는 고정되어 있던 것이 원인.

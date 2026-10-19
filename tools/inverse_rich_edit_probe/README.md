@@ -5,6 +5,29 @@ Windows, Visual Studio C++/Windows SDK, CMake와 설치된 `Godex G500` 프린�
 별도 `--driver-file` 계열과 `--comparison-label` 계열은 출력 파일을 명시한 `StartDoc`를 호출한다.
 프린터 설정과 DB는 변경하지 않는다.
 
+## GoDEX 외 프린터의 검정 배경 회귀 (1.8.9)
+
+`printer_background_test`는 실제 앱의 native 구현을 포함하여 동일한 장치 비트맵 합성,
+텍스트 선택 및 GDI 렌더 함수를 검사한다. 논리를 테스트용으로 복제하지 않는다.
+1bpp 메모리 DC만 사용하므로 설치된 프린터 큐도 필요 없고 `StartDoc`를 호출하지 않는다.
+앱의 Windows 빌드에 사용하는 생성된 Flutter Windows wrapper/엔진과 로컬 FreeType
+헤더가 있어야 이 추가 타깃이 생성된다. 없으면 기존 독립 probe만 생성하고 이유를 표시한다.
+
+```powershell
+cmake -S tools\inverse_rich_edit_probe -B .tmp\inverse_background_build -G "Visual Studio 17 2022" -A x64
+cmake --build .tmp\inverse_background_build --config Debug --target printer_background_test
+ctest --test-dir .tmp\inverse_background_build -C Debug -R printer_background_polarity --output-on-failure
+```
+
+D420/203dpi 상당639×480, Zebra/300dpi 상당945×709, 2배 원본 재샘플링,
+일반 드라이버640×480의 네 시나리오를 검증한다. 검정 제목행의75% 이상이 검정으로
+남고 각 흰 글자 영역에는 실제 흰 픽셀이 생기는지, 부분 검정 배경/일반 검정 글자/
+관계없는 흰 배경/원본 입력이 보존되는지 검사한다. GoDEX의 흰 글자는 기존 별도
+역상 합성에 남고 일반 글자만 native 단계로 전달되는 계약도 유지한다.
+실제 D420/Zebra 드라이버나 종이 출력 품질까지 검증하는 테스트는 아니다.
+새 로그는 `nativeTextWhiteRender=nativeTextMonoDib`,
+`inversePolarity=originalWhiteOnBlack`, `inverseRowFallback=disabled`로 구분한다.
+
 ## 정확한 레거시 RTF 캡처 (실물 출력 없음)
 
 레거시 공용 RTF와 UTF-8 TSV(`plain|rtf`, 토큰, 값/경로)를 받아 실제

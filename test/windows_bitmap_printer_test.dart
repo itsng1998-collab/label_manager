@@ -200,12 +200,16 @@ void main() {
     await expectLater(printSample(), throwsStateError);
   }, skip: !Platform.isWindows);
 
-  test('other vendors retain direct GDI submission', () async {
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      expect(call.method, 'printBitmap');
-      return <String, Object>{'ok': true, 'diagnostics': 'direct'};
-    });
-    expect((await printSample(type: LegacyPrinterType.bixolon)).accepted, isTrue);
-    expect(rawCalls, 0);
-  }, skip: !Platform.isWindows);
+  for (final type in LegacyPrinterType.values) {
+    if (type == LegacyPrinterType.godex) continue;
+    test('${type.name} retains direct GDI submission', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'printBitmap');
+        expect((call.arguments as Map)['legacyPrinterType'], type.name);
+        return <String, Object>{'ok': true, 'diagnostics': 'direct'};
+      });
+      expect((await printSample(type: type)).accepted, isTrue);
+      expect(rawCalls, 0);
+    }, skip: !Platform.isWindows);
+  }
 }

@@ -248,62 +248,6 @@ std::vector<NativeTextDescriptor> PrepareInverseReadabilityDescriptors(
 }
 #endif
 
-struct InverseRowFallbackStats {
-  int descriptors = 0;
-  int bands = 0;
-  size_t cleared_pixels = 0;
-};
-
-std::vector<NativeTextDescriptor> PrepareInverseRowFallback(
-    HDC page_dc, const std::vector<uint8_t>& bitmap, int target_width,
-    int target_height, int source_width, int source_height,
-    const std::vector<NativeTextDescriptor>& text_descriptors,
-    InverseRowFallbackStats& stats) {
-  auto fallback_descriptors = text_descriptors;
-  std::vector<RECT> cleared_bands;
-  const auto row_is_black_band = [&](int y) {
-    int dark_pixels = 0;
-    for (int x = 0; x < target_width; ++x) {
-      const size_t offset =
-          (static_cast<size_t>(y) * target_width + x) * 4;
-      if (bitmap[offset] < 128 && bitmap[offset + 1] < 128 &&
-          bitmap[offset + 2] < 128) {
-        ++dark_pixels;
-      }
-    }
-    return dark_pixels * 5 >= target_width * 3;
-  };
-  for (auto& descriptor : fallback_descriptors) {
-    if (descriptor.color != RGB(255, 255, 255)) continue;
-    ++stats.descriptors;
-    descriptor.color = RGB(0, 0, 0);
-    const int center_y = std::clamp(
-        MulDiv((descriptor.rect.top + descriptor.rect.bottom) / 2,
-               target_height, source_height),
-        0, target_height - 1);
-    const bool already_cleared = std::any_of(
-        cleared_bands.begin(), cleared_bands.end(),
-        [center_y](const RECT& band) {
-          return center_y >= band.top && center_y < band.bottom;
-        });
-    if (already_cleared || !row_is_black_band(center_y)) continue;
-    int top = center_y;
-    int bottom = center_y + 1;
-    while (top > 0 && row_is_black_band(top - 1)) --top;
-    while (bottom < target_height && row_is_black_band(bottom)) ++bottom;
-    RECT band{0, top, target_width, bottom};
-    FillRect(page_dc, &band,
-             reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
-    FrameRect(page_dc, &band,
-              reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
-    cleared_bands.push_back(band);
-    ++stats.bands;
-    stats.cleared_pixels +=
-        static_cast<size_t>(target_width) * (bottom - top);
-  }
-  return fallback_descriptors;
-}
-
 std::vector<uint8_t> ComposeFinalDeviceBitmap(
     const std::vector<uint8_t>& source, int source_width, int source_height,
     int target_width, int target_height,
@@ -1883,6 +1827,20 @@ bool RenderNativeTextToPrinterDc(
 #endif
 }
 
+std::vector<NativeTextDescriptor> PrepareDriverTextDescriptors(
+    const std::vector<NativeTextDescriptor>& text_descriptors,
+    bool driver_direct) {
+  if (!driver_direct) return text_descriptors;
+  auto result = text_descriptors;
+  result.erase(
+      std::remove_if(result.begin(), result.end(),
+                     [](const NativeTextDescriptor& descriptor) {
+                       return descriptor.color == RGB(255, 255, 255);
+                     }),
+      result.end());
+  return result;
+}
+
 bool DrawPrintTestWatermark(HDC printer_dc, int destination_x,
                             int destination_y, int target_width,
                             int target_height, std::string& error) {
@@ -2186,14 +2144,14 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
                     << " outputMode="
                     << (godex_v1358_driver_direct
                       ? "driverDirect32V1358+richEditInverseGeometry"
-                      : "monoDibBoxedHeader")
+                      : "monoDibOriginalPolarity")
                     << " nativeTextRaster="
                     << (godex_v1358_driver_direct
                       ? "printerDcDirect32+inverseBitmap"
-                      : "boxedHeaderBlackOnWhite")
+                      : "monoDibWhiteOnBlack")
                     << " nativeTextWhiteRender="
                     << (godex_v1358_driver_direct ? "richEditDirectMonoComposite"
-                           : "fullRowPolarityFallback")
+                           : "nativeTextMonoDib")
                     << " printWatermark=v1.3.107"
               << " nativeTextFonts=";
   for (size_t index = 0; index < native_text_fonts.size(); ++index) {
@@ -2321,21 +2279,8 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
                                           destination_x, destination_y)) {
       error = "RenderInverseTextGeometry failed: " + std::to_string(GetLastError());
     } else {
-      InverseRowFallbackStats inverse_row_fallback_stats;
-      auto render_text_descriptors = text_descriptors;
-      if (!godex_v1358_driver_direct) {
-        render_text_descriptors = PrepareInverseRowFallback(
-            page_dc, composed_bitmap, target_width, target_height, source_width,
-            source_height, text_descriptors, inverse_row_fallback_stats);
-      } else {
-        render_text_descriptors.erase(
-            std::remove_if(
-                render_text_descriptors.begin(), render_text_descriptors.end(),
-                [](const NativeTextDescriptor& descriptor) {
-                  return descriptor.color == RGB(255, 255, 255);
-                }),
-            render_text_descriptors.end());
-      }
+      const auto render_text_descriptors = PrepareDriverTextDescriptors(
+          text_descriptors, godex_v1358_driver_direct);
         if (!RenderNativeTextToPrinterDc(
               composed_bitmap, target_width, target_height, source_width,
               source_height, render_text_descriptors, page_dc,
@@ -2463,13 +2408,8 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
                   << " nativeTextComposite="
                   << (godex_v1358_driver_direct
                           ? "inverseBlackRegionThenBlackPrinterDc"
-                          : "boxedHeaderMonoDib")
-                  << " inverseRowFallbackDescriptors="
-                  << inverse_row_fallback_stats.descriptors
-                  << " inverseRowFallbackBands="
-                  << inverse_row_fallback_stats.bands
-                  << " inverseRowClearedPixels="
-                  << inverse_row_fallback_stats.cleared_pixels
+                          : "whiteOnBlackMonoDib")
+                  << " inverseRowFallback=disabled"
                   << " inverseDriverGray=disabledAfterPhysicalFailure"
                   << " nativeBorderMapping=devicePixels"
                   << " nativeBorderThickness=oneDeviceDot"
@@ -2504,8 +2444,7 @@ EncodableValue PrintBitmap(const EncodableMap& args, bool file_only,
                 << " monoScanLines=" << mono_scan_lines
                 << " monoPalette=zeroWhiteOneBlack"
                 << " inversePolarity="
-                << (godex_v1358_driver_direct ? "originalWhiteOnBlack"
-                                               : "boxedHeaderBlackOnWhite")
+                << "originalWhiteOnBlack"
                 << " coolingPattern=disabledAfterPhysicalFailure";
     if (!godex_v1358_driver_direct) {
       SelectObject(page_dc, previous_page_bitmap);
