@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:label_manager/features/label_column/application/special_columns.dart';
+import 'package:label_manager/features/label_size/domain/label_size.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/features/label_column/data/label_column_save.dart';
@@ -77,7 +82,7 @@ Future<void> _dragRowTo(
   await gesture.up();
 }
 
-TColumn _column(int id, String keyword, {int order = 1}) {
+TColumn _column(int id, String keyword, {int order = 1, int width = 0, int height = 0}) {
   return TColumn(
     columnType: baseType,
     keyword: keyword,
@@ -87,8 +92,8 @@ TColumn _column(int id, String keyword, {int order = 1}) {
     columnId: id,
     labelSizeId: 10,
     order: order,
-    width: 0,
-    height: 0,
+    width: width,
+    height: height,
     barcodeType: BarcodeType.Code128,
     useBarcodeCheckDigit: true,
     showBarcodeNum: true,
@@ -243,6 +248,99 @@ class _OverlayHostState extends State<_OverlayHost> {
 }
 
 void main() {
+  testWidgets('image property 30 to 31 then column width 32 saves against stored 30', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({});
+    final previousColumns = TColumn.datas;
+    final previousSpecials = TColumnSpecial.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      TColumnSpecial.datas = previousSpecials;
+    });
+    const imageType = TColumnType(code: TColumnType.TYPE_IMAGE, name: '이미지', order: 1);
+    TColumnType.datas = [baseType, imageType];
+    TColumn.datas = [_column(1, 'PARTMARK', width: 30, height: 30).copyWith(
+      columnType: imageType,
+    )];
+    TColumnSpecial.datas = [];
+    final form = labelSheetEncodeWorkbookSave(FortuneWorkbook(sheets: [
+      FortuneSheet(id: 'label', name: 'Label', images: [
+        FortuneImage(
+          id: 'image_1', src: '', left: 20, top: 20,
+          width: fortuneMillimetersToLogicalPixels(30),
+          height: fortuneMillimetersToLogicalPixels(30),
+          extraFields: {
+            fortuneImageObjectIdExtraKey: '#PARTMARK',
+            'widthMm': 30.0, 'heightMm': 30.0,
+          },
+        ),
+      ]),
+    ]));
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: CommonLabelManage(
+      title: '공용라벨관리',
+      labelSize: LabelSize(
+        labelSizeId: 10, brandId: 1, labelSizeName: 'test',
+        labelSizeCommon: LabelSizeCommon(width: 100, height: 100, rtf: form),
+      ),
+    ))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('이미지 1'));
+    await tester.pumpAndSettle();
+    final imageWidth = find.byKey(const ValueKey('fortune-object-property-width'));
+    await _tapVisible(tester, imageWidth);
+    await tester.enterText(imageWidth, '31');
+    await tester.drag(find.descendant(
+      of: find.byType(FortuneObjectLayerPanel), matching: find.byType(ListView),
+    ).last, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const ValueKey('fortune-object-property-apply')));
+    await tester.pumpAndSettle();
+    expect((TColumn.datas!.single.width, TColumn.datas!.single.height), (31, 31));
+    expect(TColumn.datas!.single.persistedWidth, 30);
+
+    LabelColumnSaveCommand? saved;
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    await _pumpDialog(tester, columns: TColumn.datas, onSave: (command) async => saved = command);
+    final widthField = find.widgetWithText(TextFormField, '폭');
+    await _tapVisible(tester, widthField);
+    await tester.enterText(widthField, '32');
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(
+      find.byKey(const Key('label-column-property-apply')),
+    ).onPressed, isNotNull);
+    await _tapVisible(tester, find.byKey(const Key('label-column-property-apply')));
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+    expect(saved, isNotNull);
+    expect((saved!.originalColumnsById[1]!.column.width,
+        saved!.originalColumnsById[1]!.column.height), (30, 30));
+    expect((saved!.updatedColumns.single.column.width,
+        saved!.updatedColumns.single.column.height), (32, 31));
+    expect(saved!.changedKeysByColumnId[1], {'width', 'height'});
+    final statement = LabelColumnSaveDao.buildSaveStatement(saved!,
+      const LabelColumnSchemaCapabilities(
+        hasCoreSchema: true, hasMainMissingKeywordCheck: true,
+        hasContentEditable: false, hasUpdateContent: false, hasStatusData: false,
+      ),
+    );
+    final xml = statement.params['commandXml'] as String;
+    expect(RegExp(r'<originalColumns>(.*?)</originalColumns>', dotAll: true)
+        .firstMatch(xml)!.group(1), contains('<width>30</width><height>30</height>'));
+    expect(RegExp(r'<updatedColumns>(.*?)</updatedColumns>', dotAll: true)
+        .firstMatch(xml)!.group(1), contains('<width>32</width><height>31</height>'));
+    expect(statement.sql, contains('THROW 51113,'));
+    expect(statement.sql, contains('EXCEPT'));
+    expect(find.text('라벨 항목 저장 실패'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   test('time barcode options match legacy values', () {
     expect(labelColumnTimeBarcodeOptions, const {
       0: '사용안함',

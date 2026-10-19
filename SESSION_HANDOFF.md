@@ -1,5 +1,14 @@
 # SESSION HANDOFF
 
+## 현재 작업: 이미지 속성 적용 후 항목편집 저장51113
+- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_이미지속성_항목편집저장오류.log`는1.6.0, 실제오류 `Label columns changed after editing started.`/51113. 이미지 속성30→31 적용은 commonLabelColumnsWithImageObjectSizes에서 TColumn.width/height만 로컬31로 바꾸고 DB는30. 항목편집이31을 DB original로 전송해 동시 수정으로 오인한다.
+- 수정 전 domain회귀3건에서original.width 기대30/실제31 실패 확인. TColumn.persistedWidth/Height는 DB load 시의 값으로 초기화하고 copyWith로 유지. 이미지 column의 original snapshot에만 DB 기준값을 사용하며, 로컬 원본/DB 기준값 어느 쪽과든 다른 폭·높이는 updated keys에 포함한다. 31→32뿐 아니라31→30 복귀·다른 항목의 이름만 수정하는 저장에서도 미저장 크기를 보존한다. 비이미지 크기 동작은 유지한다.
+- 공용라벨 저장 성공은 실제 제출 imageColumnSizes snapshot만 기준값으로 승격하고 저장 중 새 로컬 크기·다른 라벨/항목·원본 객체는 보존한다. required-check 기준값 승격과 함께 연결했다. 다음 항목편집original31/updated33 검증. 항목편집 성공은 기존 DAO reload로 새 DB 기준값 확보.
+- 실제 CommonLabelManage 이미지 폭30→31 입력/적용(비율유지 높이31)→동일 TColumn으로 항목편집 폭32→적용/확인/저장 command·XML original30/30, updated32/31 및 EXCEPT/THROW51113 유지 검증. 모든 SQL/스키마/잠금/rollback/실제 동시 수정 차단은 변경하지 않았다. SQL Server2017·호환성100 계약 유지.
+- 최종 회귀: label_column_edit/dialog/save·common_label_manage 4파일92건 + column_mapping·label_size_dao/cache·label_column_candidates·special_column_dao 5파일16건, 총108건(신규6건) 통과. 변경 Dart7파일 analyzer/IDE 및 pubspec 진단 정상. DB row에서의 기준값 초기화/일반 copyWith 보존 mapping 검증도 보강·재실행4/4 통과.
+- 버전1.8.2→1.8.3 PATCH: 이미지 크기 로컬 변경을 DB 동시 수정으로 오인하는 저장 오류 수정. README 갱신. 운영DB 변경·실제 인쇄 없이 검증, 사용자 lib/core/app.dart 보존·제외.
+- DTD 발견/연결 확인 및 hot reload 시도했으나 실행 중 앱 없음. 다음 사용자 확인:1.8.3 실행→제출 순서 이미지30→31 적용→항목편집32 저장 시51113 없는지 확인. 공용라벨을 먼저 저장한 후 항목편집을 여는 순서도 확인.
+
 ## 현재 작업: 이미지 연결 ID 변경 시 공용라벨 표시 불일치
 - **구현·검증·커밋 완료: `a7d9415` (1.8.2)**. 제출 `공용라벨_이미지속성_연결ID표시오류.log`는1.6.0. 복제 이미지 연결을 #PARTMARK로 변경하면 metadata는 바뀌지만 공용 편집 canvas는 기존 src(PVC)를 그대로 그린다. 품목 미리보기만 itemBmpPreview resolver로 PP를 치환한다.
 - 사용자 확인 완료: 공용라벨의 연결 이미지는 **품목관리에서 현재 선택한 품목 기준**으로 표시. 기준 품목/이미지가 없으면 이전 파일을 남기지 않고 연결 안내 표시. 품목 원본 및 다른 품목의 발행 결과는 변경하지 않는다.

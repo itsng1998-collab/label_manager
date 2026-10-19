@@ -14,6 +14,7 @@ import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_base.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_column/domain/label_column_edit.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
@@ -97,6 +98,8 @@ TColumn _storedColumn(
   String? columnName,
   BarcodeType barcodeType = BarcodeType.Code128,
   bool showBarcodeNum = false,
+  int width = 0,
+  int height = 0,
 }) {
   return TColumn(
     columnType: TColumnType(code: typeCode, name: '항목', order: 0),
@@ -107,8 +110,8 @@ TColumn _storedColumn(
     columnId: 1,
     labelSizeId: 10,
     order: 1,
-    width: 0,
-    height: 0,
+    width: width,
+    height: height,
     barcodeType: barcodeType,
     useBarcodeCheckDigit: false,
     showBarcodeNum: showBarcodeNum,
@@ -460,6 +463,66 @@ void main() {
 
     expect(TColumnSpecial.datas!.single.useMissingKeywordCheck, isFalse);
     expect(dirtyChanges, contains(true));
+  });
+
+  test('saved image size snapshot advances only matching baselines and preserves new edits', () {
+    final loaded = _storedColumn(
+      'PARTMARK', typeCode: TColumnType.TYPE_IMAGE, width: 30, height: 30,
+    );
+    final local = loaded.copyWith(width: 32, height: 33);
+    final other = loaded.copyWith(columnId: 2);
+    final foreign = loaded.copyWith(labelSizeId: 99);
+    final updated = commonLabelColumnsWithSavedImageSizes(
+      labelSizeId: 10, columns: [local, other, foreign],
+      savedSizes: [(columnId: 1, width: 31, height: 31)],
+    );
+    expect((updated.first.persistedWidth, updated.first.persistedHeight), (31, 31));
+    expect((updated.first.width, updated.first.height), (32, 33));
+    expect((loaded.persistedWidth, loaded.persistedHeight), (30, 30));
+    expect(updated[1], same(other));
+    expect(updated[2], same(foreign));
+    expect(updated.first.copyWith(columnName: '수정').persistedWidth, 31);
+  });
+
+  testWidgets('common label save advances captured image size without replacing newer draft', (
+    tester,
+  ) async {
+    final previousColumns = TColumn.datas;
+    final previousSpecial = TColumnSpecial.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      TColumnSpecial.datas = previousSpecial;
+    });
+    final loaded = _storedColumn(
+      'PARTMARK', typeCode: TColumnType.TYPE_IMAGE, width: 30, height: 30,
+    );
+    TColumn.datas = [loaded.copyWith(width: 31, height: 31)];
+    TColumnSpecial.datas = [];
+    const label = LabelSize(labelSizeId: 10, brandId: 1, labelSizeName: 'test');
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: CommonLabelManage(
+      title: '공용라벨관리', labelSize: label,
+    ))));
+    await tester.pumpAndSettle();
+    final page = tester.widget<LabelSheetPage>(find.byType(LabelSheetPage));
+    expect(page.imageColumnSizes.single, (columnId: 1, width: 31, height: 31));
+    expect(TColumn.datas!.single.persistedWidth, 30);
+    TColumn.datas = [TColumn.datas!.single.copyWith(width: 32)];
+    page.onSaved!(label);
+    expect(TColumn.datas!.single.width, 32);
+    expect(TColumn.datas!.single.persistedWidth, 31);
+    expect(TColumn.datas!.single.persistedHeight, 31);
+    var session = LabelColumnEditSession.fromColumns(
+      labelSizeId: 10, columns: TColumn.datas!,
+    ).beginPropertyEdit();
+    session = session.updatePropertyDraft(session.propertyDraft!.copyWith(
+      column: session.propertyDraft!.column.copyWith(width: 33),
+    )).applyProperty();
+    final command = session.toSaveCommand();
+    expect(command.originalColumnsById[1]!.column.width, 31);
+    expect(command.updatedColumns.single.column.width, 33);
+    expect(command.changedKeysByColumnId[1], {'width'});
   });
 
   test('successful required-check snapshot advances only matching DB baselines', () {

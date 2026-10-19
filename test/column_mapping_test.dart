@@ -78,6 +78,9 @@ void main() {
       expect(column.qrTextAlignment, QRTextAlignment.ALIGN_LEFT);
       expect(column.qrCodeCreateType, QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT);
       expect(column.columnType.code, TColumnType.TYPE_BASE);
+      expect((column.persistedWidth, column.persistedHeight), (80, 20));
+      final draft = column.copyWith(width: 31, height: 32);
+      expect((draft.persistedWidth, draft.persistedHeight), (80, 20));
     });
 
     test('SQL BIT false를 라벨 항목 숨김으로 복원한다', () {

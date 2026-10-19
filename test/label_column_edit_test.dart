@@ -16,7 +16,9 @@ const makeDateType = TColumnType(
   order: 3,
 );
 
-TColumn column(int id, String keyword, {int order = 1, bool checked = false}) {
+TColumn column(int id, String keyword, {
+  int order = 1, bool checked = false, int width = 0, int height = 0,
+}) {
   return TColumn(
     columnType: baseType,
     keyword: keyword,
@@ -26,8 +28,8 @@ TColumn column(int id, String keyword, {int order = 1, bool checked = false}) {
     columnId: id,
     labelSizeId: 10,
     order: order,
-    width: 0,
-    height: 0,
+    width: width,
+    height: height,
     barcodeType: BarcodeType.Code128,
     useBarcodeCheckDigit: true,
     showBarcodeNum: true,
@@ -68,6 +70,52 @@ TColumn column(int id, String keyword, {int order = 1, bool checked = false}) {
 
 void main() {
   group('LabelColumnEditSession', () {
+    for (final nextWidth in [32, 30]) {
+      test('image command compares stored 30 size after draft 31 and edit $nextWidth', () {
+        final loaded = column(1, 'PARTMARK', width: 30, height: 30).copyWith(
+          columnType: const TColumnType(
+            code: TColumnType.TYPE_IMAGE, name: '이미지', order: 1,
+          ),
+        );
+        final local = loaded.copyWith(width: 31, height: 31);
+        var session = LabelColumnEditSession.fromColumns(
+          labelSizeId: 10, columns: [local],
+        ).beginPropertyEdit();
+        session = session.updatePropertyDraft(session.propertyDraft!.copyWith(
+          column: session.propertyDraft!.column.copyWith(width: nextWidth),
+        )).applyProperty();
+        final command = session.toSaveCommand();
+        expect(command.originalColumnsById[1]!.column.width, 30);
+        expect(command.originalColumnsById[1]!.column.height, 30);
+        expect(command.updatedColumns.single.column.width, nextWidth);
+        expect(command.updatedColumns.single.column.height, 31);
+        expect(command.changedKeysByColumnId[1], {'width', 'height'});
+        expect(loaded.width, 30);
+        expect(local.width, 31);
+      });
+    }
+
+    test('unrelated property save includes pending image size changes', () {
+      final image = column(1, 'PARTMARK', width: 30, height: 30).copyWith(
+        columnType: const TColumnType(
+          code: TColumnType.TYPE_IMAGE, name: '이미지', order: 1,
+        ),
+        width: 31, height: 31,
+      );
+      var session = LabelColumnEditSession.fromColumns(
+        labelSizeId: 10,
+        columns: [image, column(2, 'OTHER', order: 2)],
+      ).select('column:2').beginPropertyEdit();
+      session = session.updatePropertyDraft(session.propertyDraft!.copyWith(
+        column: session.propertyDraft!.column.copyWith(columnName: '수정'),
+      )).applyProperty();
+      final command = session.toSaveCommand();
+      expect(command.originalColumnsById[1]!.column.width, 30);
+      expect(command.changedKeysByColumnId[1], {'width', 'height'});
+      expect(command.changedKeysByColumnId[2], {'name'});
+      expect(command.updatedColumns.first.column.width, 31);
+    });
+
     for (final stored in [false, true]) {
       test('required-check command keeps stored $stored baseline after local toggle', () {
         final loaded = column(1, 'TEST', checked: stored);

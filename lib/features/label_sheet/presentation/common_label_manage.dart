@@ -75,6 +75,28 @@ List<TColumn> commonLabelColumnsWithSavedRequiredChecks({
 }
 
 @visibleForTesting
+List<TColumn> commonLabelColumnsWithSavedImageSizes({
+  required int labelSizeId,
+  required List<TColumn> columns,
+  required Iterable<LabelImageColumnSizeSave> savedSizes,
+}) {
+  final sizesById = {for (final size in savedSizes) size.columnId: size};
+  return [
+    for (final column in columns)
+      if (column.labelSizeId != labelSizeId ||
+          sizesById[column.columnId] == null ||
+          (column.persistedWidth == sizesById[column.columnId]!.width &&
+              column.persistedHeight == sizesById[column.columnId]!.height))
+        column
+      else
+        column.copyWith(
+          persistedWidth: sizesById[column.columnId]!.width,
+          persistedHeight: sizesById[column.columnId]!.height,
+        ),
+  ];
+}
+
+@visibleForTesting
 List<double> commonLabelColumnWidthsForViewport(double viewportWidth) {
   final remainingWidth =
       viewportWidth - commonLabelRowNumberWidth - commonLabelRequiredColumnWidth;
@@ -329,6 +351,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           specialColumns,
           columns,
         );
+        final imageColumnSizes = commonLabelImageColumnSizeSaves(columns);
         // 우측 폭 계산 및 하한선 적용
         final double rightWidth;
         if (_rightWidthChangedByUser) {
@@ -364,7 +387,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     barcodeObjectOptions: barcodeObjectOptions,
                     requiredKeywords: requiredKeywords,
                     requiredChecks: requiredChecks,
-                    imageColumnSizes: commonLabelImageColumnSizeSaves(columns),
+                    imageColumnSizes: imageColumnSizes,
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,
@@ -392,10 +415,14 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     onSaved: (saved) {
                       final current = TColumn.datas;
                       if (current != null) {
-                        TColumn.datas = commonLabelColumnsWithSavedRequiredChecks(
+                        TColumn.datas = commonLabelColumnsWithSavedImageSizes(
                           labelSizeId: saved.labelSizeId,
-                          columns: current,
-                          savedChecks: requiredChecks,
+                          columns: commonLabelColumnsWithSavedRequiredChecks(
+                            labelSizeId: saved.labelSizeId,
+                            columns: current,
+                            savedChecks: requiredChecks,
+                          ),
+                          savedSizes: imageColumnSizes,
                         );
                       }
                       widget.onLabelSaved?.call(saved);

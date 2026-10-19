@@ -514,16 +514,28 @@ class LabelColumnEditSession {
       }
     }
     final originals = {for (final row in originalColumns) row.key: row};
+    final databaseOriginals = {
+      for (final row in originalColumns)
+        row.key: row.copyWith(column: row.column.copyWith(
+          useMissingKeywordCheck: row.column.persistedMissingKeywordCheck,
+          width: row.column.columnType.code == TColumnType.TYPE_IMAGE
+              ? row.column.persistedWidth : row.column.width,
+          height: row.column.columnType.code == TColumnType.TYPE_IMAGE
+              ? row.column.persistedHeight : row.column.height,
+        )),
+    };
     final changedKeysByColumnId = <int, Set<String>>{};
     final updatedColumns = <LabelColumnDraft>[];
     for (final row in workingColumns.where((row) => !row.isNew)) {
       final original = originals[row.key];
-      if (original == null) continue;
+      final databaseOriginal = databaseOriginals[row.key];
+      if (original == null || databaseOriginal == null) continue;
+      final originalValues = original.persistedValues;
+      final databaseValues = databaseOriginal.persistedValues;
       final changedKeys = <String>{
         for (final entry in row.persistedValues.entries)
-          if (original.persistedValues[entry.key] != entry.value ||
-              (entry.key == 'check' &&
-                  original.column.persistedMissingKeywordCheck != entry.value))
+          if (originalValues[entry.key] != entry.value ||
+              databaseValues[entry.key] != entry.value)
             entry.key,
       };
       if (changedKeys.isEmpty) continue;
@@ -533,12 +545,7 @@ class LabelColumnEditSession {
     return LabelColumnSaveCommand(
       labelSizeId: labelSizeId,
       originalColumnsById: Map.unmodifiable({
-        for (final row in originalColumns)
-          row.column.columnId: row.copyWith(
-            column: row.column.copyWith(
-              useMissingKeywordCheck: row.column.persistedMissingKeywordCheck,
-            ),
-          ),
+        for (final row in databaseOriginals.values) row.column.columnId: row,
       }),
       newColumns: List.unmodifiable(workingColumns.where((row) => row.isNew)),
       updatedColumns: List.unmodifiable(updatedColumns),
