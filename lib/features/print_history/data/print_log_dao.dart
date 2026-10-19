@@ -2,6 +2,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/features/print_history/domain/print_log.dart';
 import 'package:label_manager/database/dao.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/regression_debug_log.dart';
 
 class PrintLogQuerySpec {
   const PrintLogQuerySpec({required this.sql, required this.params});
@@ -11,6 +12,92 @@ class PrintLogQuerySpec {
 }
 
 class PrintLogDAO extends DAO {
+  static const String queryIndexCheckSql = '''
+    SELECT CASE WHEN EXISTS (
+      SELECT 1 FROM sys.indexes i
+      WHERE i.object_id=OBJECT_ID(N'BM_RICH_PRINT_LOG', N'U')
+        AND i.name=N'IX_BM_RICH_PRINT_LOG_CustomerDate'
+        AND i.is_disabled=0 AND i.is_hypothetical=0 AND i.has_filter=0
+        AND EXISTS (
+          SELECT 1 FROM sys.index_columns ic
+          JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
+          WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id
+            AND ic.key_ordinal=1 AND c.name=N'RICH_CUSTOMER_ID'
+        )
+        AND EXISTS (
+          SELECT 1 FROM sys.index_columns ic
+          JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
+          WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id
+            AND ic.key_ordinal=2 AND c.name=N'RICH_DATE_YYYYMMDD'
+        )
+        AND EXISTS (
+          SELECT 1 FROM sys.index_columns ic
+          JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
+          WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id
+            AND c.name=N'RICH_DATETIME'
+        )
+    ) THEN 1 ELSE 0 END AS INDEX_READY;
+  ''';
+
+  static const String createQueryIndexSql = '''
+    SET NOCOUNT ON;
+    DECLARE @objectId INT=OBJECT_ID(N'BM_RICH_PRINT_LOG', N'U');
+    IF @objectId IS NULL
+    BEGIN
+      RAISERROR(N'발행내역 테이블을 찾을 수 없습니다.', 16, 1);
+      RETURN;
+    END;
+    BEGIN TRY
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id=@objectId AND name=N'IX_BM_RICH_PRINT_LOG_CustomerDate'
+      )
+      BEGIN
+        DECLARE @sql NVARCHAR(MAX)=
+          N'CREATE NONCLUSTERED INDEX [IX_BM_RICH_PRINT_LOG_CustomerDate] ON ' +
+          QUOTENAME(OBJECT_SCHEMA_NAME(@objectId)) + N'.' +
+          QUOTENAME(OBJECT_NAME(@objectId)) +
+          N' ([RICH_CUSTOMER_ID], [RICH_DATE_YYYYMMDD]) INCLUDE ([RICH_DATETIME]);';
+        EXEC sys.sp_executesql @sql;
+      END;
+    END TRY
+    BEGIN CATCH
+      -- Another session may have created the index; verify its state afterwards.
+      IF ERROR_NUMBER()<>1913
+        THROW;
+    END CATCH;
+  ''';
+
+  static Future<void> ensureQueryIndex({
+    void Function()? onCreating,
+    Future<Object> Function(String sql)? read,
+    Future<Object> Function(String sql)? write,
+  }) async {
+    final readData = read ?? DbClient.instance.getData;
+    final writeData = write ?? DbClient.instance.writeData;
+    final watch = Stopwatch()..start();
+    RegressionDebugLog.event('printHistoryQuery', 'indexCheckStarted');
+    if (printHistoryQueryIndexReady(await readData(queryIndexCheckSql))) {
+      RegressionDebugLog.event(
+        'printHistoryQuery',
+        'indexReady',
+        fields: {'created': false, 'elapsedMs': watch.elapsedMilliseconds},
+      );
+      return;
+    }
+    onCreating?.call();
+    RegressionDebugLog.event('printHistoryQuery', 'indexCreating');
+    await writeData(createQueryIndexSql);
+    if (!printHistoryQueryIndexReady(await readData(queryIndexCheckSql))) {
+      throw StateError('발행내역 조회 인덱스가 준비되지 않았습니다. 인덱스 상태와 권한을 확인해주세요.');
+    }
+    RegressionDebugLog.event(
+      'printHistoryQuery',
+      'indexReady',
+      fields: {'created': true, 'elapsedMs': watch.elapsedMilliseconds},
+    );
+  }
+
   static const String selectSql =
       '''
     SELECT
@@ -249,4 +336,13 @@ class PrintLogDAO extends DAO {
       params: params,
     );
   }
+}
+
+bool printHistoryQueryIndexReady(Object result) {
+  final row = DAO.getRowMapFromResult(result)!;
+  return switch (row['INDEX_READY']) {
+    1 || '1' || true => true,
+    0 || '0' || false => false,
+    _ => throw FormatException('발행내역 인덱스 확인 결과가 올바르지 않습니다.'),
+  };
 }

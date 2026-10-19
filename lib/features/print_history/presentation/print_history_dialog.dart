@@ -33,6 +33,8 @@ typedef PrintHistorySummaryQuery =
     });
 
 typedef PrintHistoryDetailQuery = Future<PrintLogDetail?> Function(int logId);
+typedef PrintHistoryIndexEnsurer =
+    Future<void> Function({VoidCallback? onCreating});
 
 typedef PrintHistoryCooperatorLoader = Future<List<Cooperator>> Function();
 typedef PrintHistoryCustomerLoader =
@@ -85,6 +87,7 @@ class PrintHistoryDialogContent extends StatefulWidget {
     this.query = PrintLogDAO.select,
     this.querySummary = PrintLogDAO.selectSummary,
     this.queryDetail = PrintLogDAO.selectDetail,
+    this.ensureQueryIndex = PrintLogDAO.ensureQueryIndex,
     this.loadCooperators = CooperatorDAO.selectAll,
     this.loadCustomers = CustomerDAO.selectByCooperatorId,
   });
@@ -95,6 +98,7 @@ class PrintHistoryDialogContent extends StatefulWidget {
   final PrintHistoryQuery query;
   final PrintHistorySummaryQuery querySummary;
   final PrintHistoryDetailQuery queryDetail;
+  final PrintHistoryIndexEnsurer ensureQueryIndex;
   final PrintHistoryCooperatorLoader loadCooperators;
   final PrintHistoryCustomerLoader loadCustomers;
 
@@ -121,6 +125,7 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
   List<PrintHistoryTableRow> _rows = const [];
   bool _initializing = true;
   bool _querying = false;
+  bool _creatingIndex = false;
 
   bool get _isSystemAdmin => widget.userGrade == UserGrade.SYSTEM_ADMIN_USER;
   bool get _isCoopAdmin => widget.userGrade == UserGrade.COOP_ADMIN_USER;
@@ -263,6 +268,13 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
               _searchType == PrintLogSearchType.itemName && searchText.isEmpty,
         },
       );
+      await widget.ensureQueryIndex(
+        onCreating: () {
+          if (mounted) setState(() => _creatingIndex = true);
+        },
+      );
+      if (!mounted) return;
+      setState(() => _creatingIndex = false);
       final detailWatch = Stopwatch()..start();
       final logs = await widget.query(
         startDate: startDate,
@@ -369,9 +381,20 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
         'queryFailed',
         fields: {'elapsedMs': queryWatch.elapsedMilliseconds, 'error': error},
       );
-      if (mounted) await _showMessage(error.toString());
+      if (mounted) {
+        setState(() {
+          _creatingIndex = false;
+          _querying = false;
+        });
+        await _showMessage(error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _querying = false);
+      if (mounted) {
+        setState(() {
+          _querying = false;
+          _creatingIndex = false;
+        });
+      }
     }
   }
 
@@ -635,10 +658,21 @@ class _PrintHistoryDialogContentState extends State<PrintHistoryDialogContent> {
                       ),
                     ),
                     if (_initializing || _querying)
-                      const Positioned.fill(
+                      Positioned.fill(
                         child: ColoredBox(
-                          color: Color(0x55FFFFFF),
-                          child: Center(child: CircularProgressIndicator()),
+                          color: const Color(0x55FFFFFF),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(),
+                                if (_creatingIndex) ...[
+                                  const SizedBox(height: 12),
+                                  const Text('인덱스 생성 중입니다.'),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                   ],

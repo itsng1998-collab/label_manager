@@ -12,6 +12,13 @@ Flutter 기반 레이블 관리 도구입니다. Windows 환경에서 실행되�
 - mssql_connection 모듈은 ODBC 연결을 열고 닫으며, 파라미터 바인딩과 레코드 변환을 담당합니다.
 - DbClient 구현체는 외부에서 동일한 인터페이스로 사용할 수 있도록 설계되어, 다른 데이터 소스로의 교체가 용이합니다.
 
+### 발행내역 조회 인덱스 자동 준비
+- 발행내역 조회 전에 현재 연결된 DB의 `IX_BM_RICH_PRINT_LOG_CustomerDate` 인덱스를 확인합니다. 다른 DB로 전환해도 이전 DB의 확인 결과를 재사용하지 않습니다.
+- 인덱스가 없으면 테이블의 실제 스키마에 `(RICH_CUSTOMER_ID, RICH_DATE_YYYYMMDD) INCLUDE (RICH_DATETIME)` 비클러스터형 인덱스를 자동 생성합니다. 기존 데이터나 인덱스를 삭제하거나 조회 건수를 제한하지 않습니다.
+- 생성 중에는 `인덱스 생성 중입니다.`와 대기 표시를 띄우고 조회 조건/버튼을 비활성화합니다. 생성과 상태 재확인이 끝난 뒤 목록과 합계를 조회합니다. 이미 준비된 인덱스는 다시 생성하지 않습니다.
+- 최초 생성에는 테이블 크기에 따라 시간이 걸리고, DB IO/디스크 사용과 쓰기 대기가 발생할 수 있습니다. DB 계정에는 해당 테이블의 인덱스 생성 권한(`ALTER`)이 필요합니다. 권한 부족, 생성 실패 또는 사용할 수 없는 인덱스 상태는 오류로 안내하며 조회를 중단합니다.
+- SQL Server 2017 및 DB 호환성 수준 100에서 동작하며, 진단 로그는 `printHistoryQuery`의 `indexCheckStarted`, `indexCreating`, `indexReady`, `queryFailed` 이벤트를 확인합니다.
+
 ## 시작하기
 1. Windows 10/11 환경에서 PowerShell 5.1 이상과 winget 사용 가능 여부를 확인합니다.
 2. Windows ODBC Driver를 설치합니다.

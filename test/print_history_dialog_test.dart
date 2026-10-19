@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +54,7 @@ void main() {
     required PrintHistoryQuery query,
     required PrintHistorySummaryQuery querySummary,
     PrintHistoryDetailQuery? queryDetail,
+    PrintHistoryIndexEnsurer? ensureQueryIndex,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -65,6 +68,7 @@ void main() {
               initialCustomer: initialCustomer,
               query: query,
               querySummary: querySummary,
+              ensureQueryIndex: ensureQueryIndex ?? ({onCreating}) async {},
               queryDetail:
                   queryDetail ??
                   (_) async => const PrintLogDetail(
@@ -164,6 +168,79 @@ void main() {
       );
     }
   });
+
+  for (final fails in [false, true]) {
+    testWidgets(
+      'history waits for index creation and ${fails ? 'reports failure' : 'then queries'}',
+      (tester) async {
+        final pending = Completer<void>();
+        var queryCount = 0;
+        var summaryCount = 0;
+        await pumpContent(
+          tester,
+          grade: UserGrade.CLIENT_USER,
+          ensureQueryIndex: ({onCreating}) {
+            onCreating?.call();
+            return pending.future;
+          },
+          query: ({
+            required startDate,
+            required endDate,
+            required searchType,
+            required searchText,
+            customerId,
+          }) async {
+            queryCount += 1;
+            return [printLog()];
+          },
+          querySummary: ({
+            required startDate,
+            required endDate,
+            customerName,
+          }) async {
+            summaryCount += 1;
+            return const <PrintLogSummary>[];
+          },
+        );
+        await tester.tap(find.text('조회'));
+        await tester.pump();
+        expect(find.text('인덱스 생성 중입니다.'), findsOneWidget);
+        expect(queryCount, 0);
+        expect(summaryCount, 0);
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(queryCount, 0);
+
+        if (fails) {
+          pending.completeError(StateError('index permission denied'));
+        } else {
+          pending.complete();
+        }
+        await tester.pumpAndSettle();
+        expect(find.text('인덱스 생성 중입니다.'), findsNothing);
+        if (fails) {
+          expect(queryCount, 0);
+          expect(summaryCount, 0);
+          expect(find.textContaining('index permission denied'), findsOneWidget);
+          await tester.tap(find.text('확인'));
+          await tester.pumpAndSettle();
+        } else {
+          expect(queryCount, 1);
+          expect(summaryCount, 1);
+          expect(find.text('상품 1'), findsOneWidget);
+        }
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNotNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('client hides selectors and Enter queries current customer', (
     tester,

@@ -1,5 +1,20 @@
 # SESSION HANDOFF
 
+## 현재 작업: 발행내역 조회 약 100초 지연 재발
+- **완료**. 제출 `.tmp/1.6.0로그/조회이력_발행내역_조회느림현상.log`는 버전1.6.0, 20261014 당일/customerId=2/빈 품목 검색이다. 목록 SQL **97,872ms/0행**, 합계 **1,970ms**, 전체 **99,844ms**. UI 렌더나 상세 payload가 아니라 목록 DB 요청 구간이 지연됐다.
+- 기존 `5063439`의 빈 LIKE 제거/상세 payload 지연 조회/통합 합계가 이미 적용된 실행이다. 같은 최적화를 반복하거나 TOP 제한/NOLOCK/타임아웃 변경으로 정상 결과를 바꾸지 않는다.
+- SQL Server 2017 호환 규칙과 인접 테스트/이력 확인. 로컬 레거시 PrintLog.cpp는 날짜 VARCHAR(8) 비교·거래처 INT·발행일시 정렬 계약을 사용한다. 구버전 스키마는 현재 운영 인덱스/통계/잠금을 입증하지 않는다.
+- 사용자 승인: 읽기 전용 메타데이터/실행계획 및 동일 SELECT 1회(30초 제한). SQL Server **14.0.1000.169/호환100**, 실제 `its_labelmanager.BM_RICH_PRINT_LOG` **10,148,423행**. 인덱스는 PK(logId)와 userId만 있고 날짜/거래처 인덱스가 없다.
+- 예상 계획은 PK **Clustered Index Scan/예상 읽기10,148,400행**, 누락 인덱스 `(RICH_CUSTOMER_ID,RICH_DATE_YYYYMMDD)`를 제안한다. 승인된 동일 날짜/거래처 SELECT 1회는 현재 **977ms/0행**이었다. 제출의100초는 현시점 그대로 재현되지 않았으며 캐시/서버 부하를 포함한 당시 추가 대기 원인은 확정하지 않는다. 전체 스캔 구조는 확정했다.
+- 사용자 추가 승인: 현재 연결 DB에 해당 인덱스 없으면 **자동 생성·대기 문구 표시·실제 테스트**, 운영 생성 후 동일 SELECT 재검증 허용. 조회마다 메타데이터 확인(다른 DB 전환 시 캐시 재사용 없음)→없을 때 `인덱스 생성 중입니다.`→스키마 인식 CREATE→상태 재확인→목록/합계 조회 흐름을 구현했다.
+- 생성은 좁은 `(RICH_CUSTOMER_ID,RICH_DATE_YYYYMMDD) INCLUDE(RICH_DATETIME)`만 추가하며 데이터/기존 인덱스/통계 명시 변경 없음. 같은 이름의 동시 생성1913은 생성 후 상태 확인으로 처리하고 다른 실패/권한 오류는 화면 안내·조회 중단한다. 버전 **1.6.2→1.7.0 MINOR**(자동 인덱스 준비/진행 UI 신규 흐름). 기존 `lib/core/app.dart` 사용자 변경 보존.
+- **현재 DB 실제 자동 생성/대기 위젯 검증 통과**: 임시 Flutter 위젯 테스트에서 실제 DbClient/PrintLogDAO를 연결했다. 최초 INDEX_READY=0→`인덱스 생성 중입니다.` 및 조회 버튼 비활성 확인→실제 생성 **81,146ms**→상태 재확인→당일 목록 **117ms**, 합계2,062ms. 생성 포함 최초83,452ms는 정상 1회 준비 시간이다.
+- 같은 위젯 재조회: 재생성/생성 문구 없음, 인덱스 확인26ms/목록30ms/합계2,107ms/전체 **2,165ms**. 임시 live 테스트 **1/1 통과**(운영 데이터값/사용자/발행이력 변경 없이 인덱스만 생성).
+- 생성 후 제출 조건 20261014/customerId=2 동일 SELECT **26ms/0행**. 예상 계획은 전체 PK스캔10,148,400행→`IX_BM_RICH_PRINT_LOG_CustomerDate` **Index Seek/예상 읽기1행**으로 변경 확인. 현재 상태의 생성 전977ms와 비교하며, 제출 당시97.9초를 동일 부하로 전후 재현했다고 주장하지 않는다.
+- 로컬 회귀 **18/18 통과**: `C:/Flutter/bin/flutter.bat test --no-pub test/print_history_index_test.dart test/print_log_test.dart test/print_history_dialog_test.dart --timeout 30s`. analyzer **No issues found**: `C:/Flutter/bin/flutter.bat analyze --no-pub lib/features/print_history/data/print_log_dao.dart lib/features/print_history/presentation/print_history_dialog.dart test/print_history_index_test.dart test/print_history_dialog_test.dart`. IDE 변경 Dart/pubspec 오류0건. 생성 실패 시 모달 아래 spinner가 남는 문제도 오류 안내 전에 대기를 끝내도록 보정했다.
+- README에 자동 DDL/권한/일회성 대기/실패 동작 문서화. DTD 탐색/연결 확인 및 hot reload 시도: 활성 앱 없음(실제 DB 검증은 종료된 Flutter 위젯 테스트 프로세스). 운영 DB의 새 인덱스는 생성 완료 상태로 유지한다. 실제 인쇄/배포 파일 생성 없음.
+- 최종 회귀18/18 재통과, `git diff --check` 통과. 임시 live 위젯 테스트/진단 스크립트/실행계획/캡처/로그 정리 완료. 요청 관련7개 파일만 분리 커밋하며 확정 해시는 후속 문서 커밋으로 기록한다(버전 재증가 없음). 기존 사용자 `lib/core/app.dart`는 보존·제외한다.
+
 ## 현재 작업: 사용자 추가 시 빈 조회 결과 예외
 - **완료**. 제출 1.6.0 로그는 사용자 입력 overlay의 적용/닫힘까지 기록했다. 첨부 디버거와 동일한 `No rows in result`를 테스트로 재현했다. 신규 ID 중복 조회의 정상 0건을 `ManagedUserDAO.selectByUserId`가 예외 처리한 것이 원인이다.
 - 사용자 조회 결과 파싱만 `throwIfNoRows:false`로 변경했다. 공용 DAO 기본 예외 계약/SQL/스키마는 유지한다. 추가/수정 중복 조회를 기존 저장 오류 처리·busy 범위에 포함하여 조회 오류 안내, 중복 쓰기 차단, 작업 종료 후 버튼 복구를 보장한다.
