@@ -23,6 +23,23 @@ FortuneSheetPainter fortuneSheetPainter(WidgetTester tester) {
       .single;
 }
 
+Future<void> revealObjectProperty(WidgetTester tester, Finder field) async {
+  final list = find.descendant(
+    of: find.byType(FortuneObjectLayerPanel),
+    matching: find.byType(ListView),
+  ).last;
+  await tester.drag(list, const Offset(0, 1200));
+  await tester.pump();
+  await tester.scrollUntilVisible(
+    field,
+    100,
+    scrollable: find.descendant(
+      of: list, matching: find.byType(Scrollable),
+    ).first,
+  );
+  await tester.pump();
+}
+
 void main() {
   test('barcode input filter follows ZXing writer character sets', () {
     expect(fortuneFilterBarcodeInput('EAN-13', '12A한34'), '1234');
@@ -2729,14 +2746,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('EAN13').last);
       await tester.pumpAndSettle();
+      await revealObjectProperty(tester, barcodeTextField);
       expect(
         tester.widget<TextField>(barcodeTextField).controller?.text,
         isEmpty,
       );
+      await revealObjectProperty(tester, formatField);
       await tester.tap(formatField);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Code 128').last);
       await tester.pumpAndSettle();
+      await revealObjectProperty(tester, barcodeTextField);
       await tester.enterText(
         barcodeTextField,
         'DRAFT-A한',
@@ -2777,6 +2797,7 @@ void main() {
 
       await tester.drag(propertyList, const Offset(0, 900));
       await tester.pump();
+      await revealObjectProperty(tester, barcodeTextField);
 
       expect(
         tester
@@ -2795,6 +2816,7 @@ void main() {
 
       await tester.drag(propertyList, const Offset(0, 900));
       await tester.pump();
+      await revealObjectProperty(tester, barcodeTextField);
       await tester.enterText(
         find.byKey(const ValueKey('fortune-object-property-barcodeText')),
         'DRAFT-A-REVISED',
@@ -2879,6 +2901,9 @@ void main() {
         ),
       );
       await tester.pump();
+      await revealObjectProperty(tester, find.byKey(
+        const ValueKey('fortune-object-property-barcodeText'),
+      ));
       await tester.enterText(
         find.byKey(const ValueKey('fortune-object-property-barcodeText')),
         'DISCARDED',
@@ -2905,6 +2930,9 @@ void main() {
       await tester.pump();
       await tester.drag(propertyList, const Offset(0, 900));
       await tester.pump();
+      await revealObjectProperty(tester, find.byKey(
+        const ValueKey('fortune-object-property-barcodeText'),
+      ));
 
       expect(
         tester

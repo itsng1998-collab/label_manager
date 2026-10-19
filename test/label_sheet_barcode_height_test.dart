@@ -176,7 +176,111 @@ int _inkHeight(FortuneImage barcode) {
   return rows;
 }
 
+Future<void> _revealProperty(WidgetTester tester, Finder field) async {
+  final list = find.descendant(
+    of: find.byType(FortuneObjectLayerPanel),
+    matching: find.byType(ListView),
+  ).last;
+  await tester.drag(list, const Offset(0, 1200));
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    field, 100,
+    scrollable: find.descendant(
+      of: list, matching: find.byType(Scrollable),
+    ).first,
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _applyProperties(WidgetTester tester, FortuneSheetController controller) async {
+  final apply = find.byKey(const ValueKey('fortune-object-property-apply'));
+  await _revealProperty(tester, apply);
+  await tester.runAsync(() async {
+    await tester.tap(apply);
+    final timer = Stopwatch()..start();
+    while (controller.barcodePropertyRenderPending) {
+      if (timer.elapsed > const Duration(seconds: 5)) {
+        fail('Barcode property render did not finish.');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  });
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
+}
+
 void main() {
+  for (final format in ['code128', 'qrCode']) {
+    for (final millimeters in [true, false]) {
+      testWidgets('barcode property aspect lock supports $format in ${millimeters ? 'mm' : 'px'}', (tester) async {
+        final requests = <FortuneBarcodeRequest>[];
+        final controller = await _pumpCanvas(
+          tester, requests, format: format, millimeters: millimeters, withPanel: true,
+        );
+        await _openDialog(tester);
+        await _tapDialog(tester, fortuneBarcodeLinkButtonRect);
+        await _enter(tester, 'width', '20');
+        await _enter(tester, 'height', '10');
+        await _confirm(tester);
+        final original = _painter(tester).workbook.activeSheet.images.single;
+        controller.selectObject(FortuneSheetObjectKey(
+          FortuneSheetObjectKind.barcode, original.id,
+        ));
+        await tester.pumpAndSettle();
+        final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
+        await _revealProperty(tester, lock);
+        expect(tester.widget<CheckboxListTile>(lock).value, isTrue);
+        expect(tester.widget<CheckboxListTile>(lock).onChanged, isNotNull);
+
+        Future<void> change(String name, String value, double width, double height) async {
+          final field = find.byKey(ValueKey('fortune-object-property-$name'));
+          await _revealProperty(tester, field);
+          await tester.enterText(field, value);
+          await tester.pumpAndSettle();
+          await _applyProperties(tester, controller);
+          double pixels(double size) => millimeters
+              ? fortuneMillimetersToLogicalPixels(size) : size;
+          final updated = controller.objectSelection.activeImage!;
+          expect(updated.width, closeTo(pixels(width), 0.005));
+          expect(updated.height, closeTo(pixels(height), 0.005));
+          expect(requests.last.width, closeTo(pixels(width), 0.005));
+          expect(requests.last.height, closeTo(pixels(height), 0.005));
+          expect(updated.extraFields['barcodeBarHeight'], 10);
+          expect(updated.extraFields['barcodeFormatId'], format);
+        }
+
+        await change('width', '40', 40, 20);
+        await change('height', '15', 30, 15);
+        await _revealProperty(tester, lock);
+        final rendersBeforeToggle = requests.length;
+        await tester.tap(lock);
+        await tester.pumpAndSettle();
+        expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+        expect(requests.length, rendersBeforeToggle);
+        await change('width', '50', 50, 15);
+        await _revealProperty(tester, lock);
+        expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+        await change('height', '25', 50, 25);
+        await _revealProperty(tester, lock);
+        await tester.tap(lock);
+        await tester.pumpAndSettle();
+        await change('width', '60', 60, 30);
+        await change('rotation', '1', 60, 30);
+        final payload = labelSheetBuildSavePayload(_painter(tester).workbook);
+        final saved = labelSheetDecodeWorkbookSave(payload.encodedWorkbook).activeSheet.images.single;
+        expect(saved.width, closeTo(requests.last.width, 0.005));
+        expect(saved.height, closeTo(requests.last.height, 0.005));
+        expect(saved.extraFields['rotation'], 1);
+        controller.handleUndo();
+        await tester.pumpAndSettle();
+        expect(controller.objectSelection.activeImage!.extraFields['rotation'], 0);
+        controller.handleRedo();
+        await tester.pumpAndSettle();
+        expect(controller.objectSelection.activeImage!.extraFields['rotation'], 1);
+      });
+    }
+  }
+
   for (final imported in [false, true]) {
     test('barcode height units match preview and native print${imported ? ' for RTF import' : ''}', () async {
       final height = fortuneMillimetersToLogicalPixels(10);

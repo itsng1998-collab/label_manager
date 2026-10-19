@@ -1564,8 +1564,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           suffix: unit,
           onChanged: (_) => _lastImageSizeField = 'height',
         ),
-        if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
-          CheckboxListTile(
+        CheckboxListTile(
             key: const ValueKey('fortune-object-property-aspect-lock'),
             contentPadding: EdgeInsets.zero,
             dense: true,
