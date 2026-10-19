@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
-## 현재 작업: 라벨출력 미리보기 프린터 밀기 설정 미반영
-- **구현·검증 완료(1.8.7), 관련 파일 분리 커밋 진행 중.**
+## 최근 완료: 라벨출력 미리보기 프린터 밀기 설정 미반영
+- **구현·검증·커밋 완료: `34fb0bd` (1.8.7). push하지 않음.**
 - 제출 `라벨출력_미리보기_프린터설정미적용.log`는1.6.0. 사용자 추가 요청: 왼쪽 한정이 아닌 모든 밀기(왼쪽/위쪽, 양수/음수)를 공통 확인.
 - 원인: 설정 적용은 session rows를 갱신하지만 `_buildLabelPrintPreview`는 row의 위치조정값을 `_ItemOutputPreviewTab`에 전달하지 않는다. 실제 발행은 `_labelPrintOptions`의 row.leftPushMm/topPushMm를 layout에 적용한다.
 - 구현: Home→ItemOutputPreviewTab→LabelOutputPreview→Workbench→FortuneSheetApp/Canvas/Painter에 display-only outputPreviewOffset 전달. actual print/validation/preview는 추출한 labelPrintOptionsForRow와 기존 LabelSheetPrintLayout 위치 계산을 재사용. 셀·이미지/바코드·선·도형·raw shape overlay의 표시좌표만 조정하며 ruler/페이지경계/원본workbook/capture는 유지한다.
