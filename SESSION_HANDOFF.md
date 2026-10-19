@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
 ## 현재 완료: 기본 항목 사용자 정의 text 출력·키워드 삽입·참조 색상
-- **구현·검증 완료, 커밋 준비**. 제출 `공용라벨_사용자정의_미적용.log`는 1.6.0. 기본 항목의 사용자 정의 text가 RICH_USER_DEFINE_BARCODE_TEXT에 저장되지만 출력 replacement는 품목의 raw/projected 값만 사용하던 원인을 수정했다.
+- **구현·검증·커밋 완료: `379b3b2` (1.8.0)**. 제출 `공용라벨_사용자정의_미적용.log`는 1.6.0. 기본 항목의 사용자 정의 text가 RICH_USER_DEFINE_BARCODE_TEXT에 저장되지만 출력 replacement는 품목의 raw/projected 값만 사용하던 원인을 수정했다.
 - 레거시 ColumnSetupBasic.cpp/TableRowRTFMaker.cpp는 TYPE_BASE+USER_DEFINE의 QRData 템플릿에 현재 품목 raw 값을 치환하며 self 참조도 해당 품목 원래 값을 쓴다. 사용자 예시도 그리드 값17은 유지하고 출력만 대체하므로 DB 품목 원본은 수정하지 않는다. `= 6` 등 일반 문자는 계산하지 않고 그대로 출력한다.
 - 현재 필드에 저장된 text를 우선 적용하고, 기존 legacy 기본 사용자 정의 데이터도 지원한다. 실제 미리보기/발행/저울출력의 공통 _itemOutputPreview 경로에서 적용하며 자동증가 DB writeback에 템플릿 결과를 섞지 않는다. 자기/상호 참조는 재귀 확장하지 않고 원래 품목값을 1회 치환한다.
 - 기본 text 편집기에 사용 항목·품명 키워드 목록과 더블클릭/드래그 삽입을 추가하고, 현재 편집 행의 연한하늘색과 참조 행의 연한보라색을 구분한다. 적용/취소/저장 기존 흐름 유지. 운영DB/실제인쇄 없이 회귀 검증. 사용자 lib/core/app.dart 보존·제외.
