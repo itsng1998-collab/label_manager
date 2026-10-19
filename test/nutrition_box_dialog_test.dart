@@ -19,6 +19,20 @@ import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+String _nutritionSheetData(String text) => labelSheetEncodeWorkbookSave(
+  FortuneWorkbook(
+    sheets: [
+      FortuneSheet(
+        id: 'shared-nutrition',
+        name: 'Nutrition',
+        cells: {
+          const FortuneCellCoord(0, 0): FortuneCell(value: text),
+        },
+      ),
+    ],
+  ),
+);
+
 void main() {
   testWidgets('nutrition selection mode inserts chosen row without editing', (tester) async {
     final controller = NutritionBoxDialogController();
@@ -88,6 +102,106 @@ void main() {
     );
 
     expect(workbook.activeSheet.cells.values.single.renderedText, '열량');
+  });
+
+  testWidgets('nutrition preview never initializes a new selection with stale data', (
+    tester,
+  ) async {
+    final entries = [
+      (data: _nutritionSheetData('11111'), text: '11111', width: 80),
+      (data: _nutritionSheetData('22222'), text: '22222', width: 80),
+      (data: _nutritionSheetData('33333'), text: '33333', width: 70),
+      (data: _nutritionSheetData('11111'), text: '11111', width: 80),
+    ];
+    Widget preview(String data, int width) => MaterialApp(
+      home: Scaffold(
+        body: NutritionBoxSheetPreview(data: data, widthMm: width),
+      ),
+    );
+
+    for (final entry in entries) {
+      await tester.pumpWidget(preview(entry.data, entry.width));
+      expect(find.text('미리보기를 불러오는 중입니다.'), findsOneWidget);
+      expect(find.byType(FortuneSheetApp), findsNothing);
+      await tester.pumpAndSettle();
+      final app = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+      expect(
+        app.controller!.getSheet()!.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+        entry.text,
+      );
+      expect(find.text('미리보기를 불러오는 중입니다.'), findsNothing);
+      final controller = app.controller;
+      await tester.pumpWidget(preview(entry.data, entry.width));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp)).controller,
+        same(controller),
+      );
+    }
+  });
+
+  testWidgets('TEST1 preview and editor agree after selecting TEST2 then TEST1', (
+    tester,
+  ) async {
+    final controller = NutritionBoxDialogController();
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final firstData = _nutritionSheetData('11111');
+    final secondData = _nutritionSheetData('22222');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NutritionBoxDialogContent(
+            controller: controller,
+            onCommitOutcomeUnknown: () {},
+            loadBoxes: () async => [
+              NutritionBox(
+                id: 124, typeId: 2, typeName: '영양성분TEST수정',
+                name: 'TEST1', rtf: firstData, width: 80,
+              ),
+              NutritionBox(
+                id: 126, typeId: 2, typeName: '영양성분TEST수정',
+                name: 'TEST2', rtf: secondData, width: 80,
+              ),
+            ],
+            loadTypes: () async => const [
+              NutritionType(id: 2, name: '영양성분TEST수정'),
+            ],
+            loadColumns: (_) async => const [],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TEST2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TEST1'));
+    await tester.pumpAndSettle();
+
+    final previewText = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    ).controller!.getSheet()!.cells[const FortuneCellCoord(0, 0)]?.renderedText;
+    await tester.tap(find.text('TEST1'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('TEST1'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(
+        find.byKey(const ValueKey('nutritionBoxNameField')),
+      ).controller!.text,
+      'TEST1',
+    );
+    final editorText = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    ).controller!.getSheet()!.cells[const FortuneCellCoord(0, 0)]?.renderedText;
+    expect(editorText, '11111');
+    expect(previewText, editorText);
+    expect(labelSheetTryDecodeWorkbookSave(firstData)!.activeSheet
+        .cells[const FortuneCellCoord(0, 0)]?.renderedText, '11111');
+    expect(labelSheetTryDecodeWorkbookSave(secondData)!.activeSheet
+        .cells[const FortuneCellCoord(0, 0)]?.renderedText, '22222');
+    expect(tester.takeException(), isNull);
   });
 
   test('legacy RTF data is converted to a nutrition workbook', () async {

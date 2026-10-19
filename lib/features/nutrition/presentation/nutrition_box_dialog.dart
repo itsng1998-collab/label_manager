@@ -1072,12 +1072,14 @@ class _NutritionBoxSheetPreviewState extends State<NutritionBoxSheetPreview> {
   Widget build(BuildContext context) => FutureBuilder<FortuneWorkbook>(
     future: _workbook,
     builder: (context, snapshot) => LabelOutputPreview(
-      workbook: snapshot.data,
-      hintText: snapshot.hasError
+      workbook: snapshot.connectionState == ConnectionState.done
+          ? snapshot.data
+          : null,
+      hintText: snapshot.connectionState != ConnectionState.done
+          ? '미리보기를 불러오는 중입니다.'
+          : snapshot.hasError
           ? '미리보기를 불러올 수 없습니다.'
-          : snapshot.hasData
-          ? null
-          : '미리보기를 불러오는 중입니다.',
+          : null,
       identityKey:
           'nutrition-box:${widget.widthMm}:${widget.data.length}:${widget.data.hashCode}',
       labelSize: _nutritionBoxLabelSize(widget.data, widget.widthMm),

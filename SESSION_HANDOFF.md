@@ -1,5 +1,15 @@
 # SESSION HANDOFF
 
+## 최근 완료: 영양성분표 선택 후 다른 표 내용이 미리보기에 남음
+- **구현·검증 완료, 기능 커밋 기록 예정**. 제출1.6.0 로그는 TEST1(id124)/TEST2(id126)의 선택 전환을 기록하고, 첨부는 TEST1 편집 A1=11111과 목록 미리보기 A1=22222 불일치다.
+- `NutritionBoxSheetPreview`가 Future 교체 중 유지된 이전 snapshot.data를 새 identity의 `LabelSheetWorkbench`에 전달할 수 있다. workbench 초기 workbook은 State 수명 동안 고정되어, 정상 완료 후 widget 입력만 바뀌어도 이전 표가 남을 수 있다.
+- 추가 회귀 2건을 수정 전 실행: 2/2 실패. 실제 행 클릭 TEST2→TEST1→더블클릭 편집에서 editor A1=11111 통과 후 preview A1=22222 불일치를 정확히 재현했다.
+- `ConnectionState.done` 전에는 이전 snapshot.data 대신 null과 로딩 안내를 전달하도록 영양성분표 미리보기만 국소 수정했다. 공용 workbench/저장 데이터/DB는 변경하지 않는다. 기존 사용자 `lib/core/app.dart` 보존·제외.
+- 버전 1.7.0→1.7.1 PATCH: 데이터/API 호환성을 유지하는 미리보기 버그 수정.
+- 검증: 새 회귀 2/2 통과. 영양성분표/형식 dialog·DAO 4파일 전체 30/30 통과(RTF 변환·선택·크기 조절·편집·저장 포함). 변경 Dart 2파일 analyzer 및 IDE diagnostics/pubspec 진단 정상.
+- 새 회귀는 snapshot 입력만 보지 않고 실제 FortuneSheetApp controller의 A1을 확인한다. 내용/너비 변경 직후 이전 시트 미노출, 로딩 종료 후 올바른 내용, 동일 입력 재빌드 시 controller 유지, TEST2→TEST1→더블클릭 편집 일치, 두 원본 데이터 보존을 검증한다.
+- DTD 발견·연결 확인 및 hot reload 시도했으나 active app 없음. 운영 DB 조회·수정/실제 인쇄는 하지 않음. 다음 사용자 확인: 1.7.1 실행 후 TEST2→TEST1 선택 및 TEST1 더블클릭 시 미리보기/편집기 A1 모두 11111인지 확인.
+
 ## 현재 작업: 발행내역 조회 약 100초 지연 재발
 - **완료**. 제출 `.tmp/1.6.0로그/조회이력_발행내역_조회느림현상.log`는 버전1.6.0, 20261014 당일/customerId=2/빈 품목 검색이다. 목록 SQL **97,872ms/0행**, 합계 **1,970ms**, 전체 **99,844ms**. UI 렌더나 상세 payload가 아니라 목록 DB 요청 구간이 지연됐다.
 - 기존 `5063439`의 빈 LIKE 제거/상세 payload 지연 조회/통합 합계가 이미 적용된 실행이다. 같은 최적화를 반복하거나 TOP 제한/NOLOCK/타임아웃 변경으로 정상 결과를 바꾸지 않는다.
