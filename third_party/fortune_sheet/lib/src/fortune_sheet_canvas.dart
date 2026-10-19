@@ -3272,6 +3272,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectSources,
+    this.outputPreviewOffset,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectConnectionMode,
     this.barcodeObjectConnectionMode,
@@ -3298,6 +3299,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final List<FortuneObjectConnectionOption> imageObjectOptions;
   /// Display-only sources: null keeps embedded files; missing entries show a placeholder.
   final Map<String, String>? imageObjectSources;
+  final Offset? outputPreviewOffset;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final FortuneObjectConnectionMode? imageObjectConnectionMode;
   final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
@@ -48990,6 +48992,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               );
               final sheetPainter = FortuneSheetPainter(
                 workbook: _workbook,
+                outputPreviewOffset: widget.outputPreviewOffset,
                 imageObjectSources: widget.imageObjectSources,
                 gridSize: sheetPaintSize,
                 toolbarRightInset: widget.toolbarRightInset,

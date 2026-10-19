@@ -7,6 +7,25 @@ import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
+LabelSheetPrintOptions labelPrintOptionsForRow(
+  LabelPrintRowDraft row,
+  LabelPrintSettingsSnapshot settings, {
+  int copies = 1,
+}) => LabelSheetPrintOptions(
+  copies: copies,
+  leftMarginMm: row.leftMarginMm,
+  rightMarginMm: row.rightMarginMm,
+  topMarginMm: row.topMarginMm,
+  leftPushMm: row.leftPushMm,
+  topPushMm: row.topPushMm,
+  extraAreaMm: settings.extraAreaMm,
+  widthAppendMm: settings.widthAppendMm,
+  autoSpacingPercent: row.lineSpacingPercent,
+  orientation: settings.orientation == LabelPrintOrientation.vertical
+      ? LabelSheetPrintOrientation.vertical
+      : LabelSheetPrintOrientation.horizontal,
+);
+
 @immutable
 class LabelPhysicalPageSpec {
   const LabelPhysicalPageSpec({
@@ -109,19 +128,7 @@ String? validateLabelPrintRows({
       sourceHeightMm: sourceHeightMm,
       dpi: dpi,
     );
-    final options = LabelSheetPrintOptions(
-      copies: row.copies,
-      leftMarginMm: row.leftMarginMm,
-      rightMarginMm: row.rightMarginMm,
-      topMarginMm: row.topMarginMm,
-      leftPushMm: row.leftPushMm,
-      topPushMm: row.topPushMm,
-      extraAreaMm: settings.extraAreaMm,
-      autoSpacingPercent: row.lineSpacingPercent,
-      orientation: settings.orientation == LabelPrintOrientation.vertical
-          ? LabelSheetPrintOrientation.vertical
-          : LabelSheetPrintOrientation.horizontal,
-    );
+    final options = labelPrintOptionsForRow(row, settings, copies: row.copies);
     if (!LabelSheetPrintLayout.resolve(
       metrics: metrics,
       options: options,

@@ -13,6 +13,7 @@ class FortuneSheetApp extends StatefulWidget {
     this.showFormulaBar,
     this.showSheetTabs,
     this.gridClientSize,
+    this.outputPreviewOffset,
     this.toolbarRightInset = 0,
     this.controller,
     this.imagePicker,
@@ -39,6 +40,7 @@ class FortuneSheetApp extends StatefulWidget {
   final bool? showFormulaBar;
   final bool? showSheetTabs;
   final FortuneSheetGridClientPhysicalSize? gridClientSize;
+  final Offset? outputPreviewOffset;
   final double toolbarRightInset;
   final FortuneSheetController? controller;
   final FortuneImagePicker? imagePicker;
@@ -159,6 +161,7 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: FortuneSheetCanvas(
+        outputPreviewOffset: widget.outputPreviewOffset,
         workbook: _workbookWithInitialGridClientSize(
           widget.workbook ?? _fallbackWorkbook,
         ),

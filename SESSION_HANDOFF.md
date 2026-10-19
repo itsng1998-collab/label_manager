@@ -1,6 +1,18 @@
 # SESSION HANDOFF
 
-## 현재 작업: 바코드 속성의 비율 유지 선택 옵션
+## 현재 작업: 라벨출력 미리보기 프린터 밀기 설정 미반영
+- **구현·검증 완료(1.8.7), 관련 파일 분리 커밋 진행 중.**
+- 제출 `라벨출력_미리보기_프린터설정미적용.log`는1.6.0. 사용자 추가 요청: 왼쪽 한정이 아닌 모든 밀기(왼쪽/위쪽, 양수/음수)를 공통 확인.
+- 원인: 설정 적용은 session rows를 갱신하지만 `_buildLabelPrintPreview`는 row의 위치조정값을 `_ItemOutputPreviewTab`에 전달하지 않는다. 실제 발행은 `_labelPrintOptions`의 row.leftPushMm/topPushMm를 layout에 적용한다.
+- 구현: Home→ItemOutputPreviewTab→LabelOutputPreview→Workbench→FortuneSheetApp/Canvas/Painter에 display-only outputPreviewOffset 전달. actual print/validation/preview는 추출한 labelPrintOptionsForRow와 기존 LabelSheetPrintLayout 위치 계산을 재사용. 셀·이미지/바코드·선·도형·raw shape overlay의 표시좌표만 조정하며 ruler/페이지경계/원본workbook/capture는 유지한다.
+- 새 focused UI·pixel 회귀1건 통과: 실제 프린터 설정창 왼쪽+5/위쪽-5 적용, 양쪽축±5/조합/0 복원, 모든 typed content의 위치 실측, 눈금자pixel 동일, raw capture bytes 동일, Windows driver 준비에서+5mm=19dots@96dpi를 한 번만 적용, itemOverride와 sessionEdited 두축 우선순위/zoom 유지. 초기 fixture의 SharedPreferences mock/자동fit 예상값만 보강했으며 제품 로직 추가 수정 없음.
+- 최종 관련7파일131/131 통과(신규3건): preview/session/settings/pipeline/print job/barcode14/object controller50. 실제 native barcode encoder 모드 사용. 추가 clipping/100·200% zoom/shouldRepaint 회귀 완료. 새 standalone fixture에 labelSize를 명시해 Workbench 기본100×100이 아닌80×60을 검증하도록 보강했으며 제품 로직 수정은 추가하지 않았다.
+- 변경7 Dart analyzer `No issues found`; canvas 포함8파일은 알려진 기존 unused10건만 있고 오류/신규 진단 없음. 변경8 Dart+pubspec IDE diagnostics 정상. 새 테스트 파일만 formatter 실행.
+- 레거시 PrintManager.cpp336~337도 margin+push, ZoomPreviewView는 양축push를 공통preview에 전달. 메뉴얼은 프린터 여백/줄간격 및 라벨초과 잘림을 안내하고 별도 밀기 세부 설명은 없다.
+- 버전1.8.6→1.8.7 PATCH: 기존 라벨출력 미리보기 밀기 연결 누락 수정. README에 양축·부호·잘림·원본capture 분리 및 테스트 안내 기록. DB/실제 인쇄 금지, 사용자 app.dart 제외. DTD발견·이미 연결 상태 확인 후 hot reload 시도했으나 실행 중 앱 없음.
+- 다음 사용자 확인:1.8.7 실행→해당 품목 발행체크→라벨출력→프린터 설정 왼쪽/위쪽 각각0→5→-5→0 및 조합 적용→내용만 이동하고 눈금자/라벨크기/확대가 유지되는지 확인. 품목별 여백 사용 또는 목록 직접 수정 시 그 값이 기본 프린터 설정보다 우선하는 기존 동작은 유지된다. 실제 인쇄는 미수행.
+
+## 최근 완료: 바코드 속성의 비율 유지 선택 옵션
 - **구현·검증·커밋 완료: `85e50c3` (1.8.6). push하지 않음.**
 - 첨부 화면 확인. 삽입창에는 비율유지 토글이 있지만 속성에는 이미지 kind에만 체크박스를 표시한다. 실제 속성의 폭/높이 비율 적용 로직·동일 개체 적용 후 체크상태 보존 로직은 바코드에도 이미 공통 적용된다.
 - 이미지와 같은 체크박스를 바코드에도 노출하고 기존 기본값ON/선택 개체의 현재 비율 기준/마지막 수정 치수 기준 적용/해제 시 독립 치수/바 높이 별도 설정 계약을 유지한다. 로컬 편집 옵션이며 저장 포맷·DB 변경 없음.

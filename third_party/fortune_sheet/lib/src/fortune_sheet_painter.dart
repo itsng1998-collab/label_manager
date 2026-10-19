@@ -62558,6 +62558,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.locale = const FortuneSheetLocale(),
     required this.selection,
     required this.scrollOffset,
+    this.outputPreviewOffset,
     required this.sheetTabScrollOffset,
     required this.textDirection,
     this.sheetTabDragInsertX,
@@ -62785,6 +62786,15 @@ class FortuneSheetPainter extends CustomPainter {
   final FortuneSheetLocale locale;
   final FortuneSelection selection;
   final Offset scrollOffset;
+  // Logical-pixel display translation; screenshot/export keeps canonical data.
+  final Offset? outputPreviewOffset;
+
+  Offset get _contentScrollOffset {
+    final offset = outputPreviewOffset;
+    return offset == null
+        ? scrollOffset
+        : scrollOffset - offset * workbook.activeSheet.zoomRatio;
+  }
   final double sheetTabScrollOffset;
   final double? sheetTabDragInsertX;
   final double? freezeDragLineX;
@@ -63971,11 +63981,15 @@ class FortuneSheetPainter extends CustomPainter {
       canvas,
     );
     _drawSheetPrintAreaBoundary(canvas, size, settings, metrics);
+    _clipOutputPreviewContent(canvas, settings);
     _drawCells(canvas, size, settings, metrics);
     _drawFrozenCells(canvas, size, settings, metrics);
+    canvas.restore();
     _drawSheetScrollbars(canvas, size, settings, metrics);
+    _clipOutputPreviewContent(canvas, settings);
     _drawTypedObjects(canvas, size, settings);
     _drawRawShapeOverlays(canvas, size, settings);
+    canvas.restore();
     final draft = lineInsertionDraft;
     final shapeDraft = shapeInsertionDraft;
     if (draft != null || shapeDraft != null) {
@@ -64009,6 +64023,24 @@ class FortuneSheetPainter extends CustomPainter {
     _drawFreezeDragLine(canvas, size);
     _drawResizeDragLine(canvas, size);
     _drawPreviewBoundaryFinalOverlay(canvas, size, settings);
+  }
+
+  void _clipOutputPreviewContent(Canvas canvas, FortuneSettings settings) {
+    canvas.save();
+    if (outputPreviewOffset == null) return;
+    final physicalSize = fortuneSheetGridClientPhysicalSize(
+      workbook.activeSheet,
+    );
+    if (physicalSize == null) return;
+    canvas.clipRect(
+      Rect.fromLTWH(
+        _sheetDataLeft(settings) - scrollOffset.dx,
+        _sheetDataTop(settings) - scrollOffset.dy,
+        _sheetRulerMillimetersToLogicalPixels(physicalSize.widthMm),
+        _sheetRulerMillimetersToLogicalPixels(physicalSize.heightMm),
+      ),
+      doAntiAlias: false,
+    );
   }
 
   void _drawSheetRulerTooltip(Canvas canvas, Size size) {
@@ -64856,9 +64888,11 @@ class FortuneSheetPainter extends CustomPainter {
     final view = _frozenView(settings, metrics);
     final start = metrics.columnStart(column);
     if (view.columnFocus != null && column <= view.columnFocus!) {
-      return _sheetDataLeft(settings) + start;
+      return _sheetDataLeft(settings) +
+          start +
+          (outputPreviewOffset?.dx ?? 0) * workbook.activeSheet.zoomRatio;
     }
-    return _sheetDataLeft(settings) + start - scrollOffset.dx;
+    return _sheetDataLeft(settings) + start - _contentScrollOffset.dx;
   }
 
   double _visualCellTop(
@@ -64869,9 +64903,11 @@ class FortuneSheetPainter extends CustomPainter {
     final view = _frozenView(settings, metrics);
     final start = metrics.rowStart(row);
     if (view.rowFocus != null && row <= view.rowFocus!) {
-      return _sheetDataTop(settings) + start;
+      return _sheetDataTop(settings) +
+          start +
+          (outputPreviewOffset?.dy ?? 0) * workbook.activeSheet.zoomRatio;
     }
-    return _sheetDataTop(settings) + start - scrollOffset.dy;
+    return _sheetDataTop(settings) + start - _contentScrollOffset.dy;
   }
 
   void _drawHeaders(
@@ -65513,9 +65549,12 @@ class FortuneSheetPainter extends CustomPainter {
     final alternateForegrounds = _alternateFormatForegrounds(sheet);
     final showGridLines = sheet.showGridLines;
     final viewport = _sheetViewportGeometry(size, settings, metrics);
-    final rowRange = metrics.visibleRows(scrollOffset.dy, viewport.dataHeight);
+    final rowRange = metrics.visibleRows(
+      _contentScrollOffset.dy,
+      viewport.dataHeight,
+    );
     final columnRange = metrics.visibleColumns(
-      scrollOffset.dx,
+      _contentScrollOffset.dx,
       viewport.dataWidth,
     );
     final cellClip = Rect.fromLTWH(
@@ -65955,8 +65994,11 @@ class FortuneSheetPainter extends CustomPainter {
     final viewport = _sheetViewportGeometry(size, settings, metrics);
     final rowViewport = viewport.dataHeight;
     final columnViewport = viewport.dataWidth;
-    final rowRange = metrics.visibleRows(scrollOffset.dy, rowViewport);
-    final columnRange = metrics.visibleColumns(scrollOffset.dx, columnViewport);
+    final rowRange = metrics.visibleRows(_contentScrollOffset.dy, rowViewport);
+    final columnRange = metrics.visibleColumns(
+      _contentScrollOffset.dx,
+      columnViewport,
+    );
     final frozenRowEnd = view.rowFocus;
     final frozenColumnEnd = view.columnFocus;
 
@@ -77445,8 +77487,12 @@ class FortuneSheetPainter extends CustomPainter {
           ? objectGestureImageDraft!
           : canonicalImage;
       final rect = Rect.fromLTWH(
-        _sheetDataLeft(settings) + image.left * zoomRatio - scrollOffset.dx,
-        _sheetDataTop(settings) + image.top * zoomRatio - scrollOffset.dy,
+        _sheetDataLeft(settings) +
+            image.left * zoomRatio -
+            _contentScrollOffset.dx,
+        _sheetDataTop(settings) +
+            image.top * zoomRatio -
+            _contentScrollOffset.dy,
         image.width * zoomRatio,
         image.height * zoomRatio,
       );
@@ -77511,8 +77557,8 @@ class FortuneSheetPainter extends CustomPainter {
       line,
       clip,
       offset: Offset(
-        _sheetDataLeft(settings) - scrollOffset.dx,
-        _sheetDataTop(settings) - scrollOffset.dy,
+        _sheetDataLeft(settings) - _contentScrollOffset.dx,
+        _sheetDataTop(settings) - _contentScrollOffset.dy,
       ),
       scale: zoomRatio,
     );
@@ -77530,8 +77576,8 @@ class FortuneSheetPainter extends CustomPainter {
       shape,
       clip,
       offset: Offset(
-        _sheetDataLeft(settings) - scrollOffset.dx,
-        _sheetDataTop(settings) - scrollOffset.dy,
+        _sheetDataLeft(settings) - _contentScrollOffset.dx,
+        _sheetDataTop(settings) - _contentScrollOffset.dy,
       ),
       scale: zoomRatio,
     );
@@ -77675,7 +77721,7 @@ class FortuneSheetPainter extends CustomPainter {
       final rect = fortuneRawShapeOverlayScreenRect(
         overlay,
         settings,
-        scrollOffset,
+        _contentScrollOffset,
         sheet.zoomRatio,
       );
       if (_rectTouchesPreviewBoundary(rect, settings)) {
@@ -78425,6 +78471,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.locale != locale ||
         oldDelegate.selection != selection ||
         oldDelegate.scrollOffset != scrollOffset ||
+        oldDelegate.outputPreviewOffset != outputPreviewOffset ||
         oldDelegate.sheetTabScrollOffset != sheetTabScrollOffset ||
         oldDelegate.sheetTabDragInsertX != sheetTabDragInsertX ||
         oldDelegate.freezeDragLineX != freezeDragLineX ||

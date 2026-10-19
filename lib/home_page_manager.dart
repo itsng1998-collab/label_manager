@@ -6077,6 +6077,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         ...columns,
       ]),
       outputCaptureController: _labelPrintCaptureController,
+      printOptions: _labelPrintOptions(row, _labelPrintSessionController.settings),
       referenceAt: referenceAt,
       projectedColumnValues: projectedColumnValues,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
@@ -7631,20 +7632,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   LabelSheetPrintOptions _labelPrintOptions(
     LabelPrintRowDraft row,
     LabelPrintSettingsSnapshot settings,
-  ) => LabelSheetPrintOptions(
-    copies: 1,
-    leftMarginMm: row.leftMarginMm,
-    rightMarginMm: row.rightMarginMm,
-    topMarginMm: row.topMarginMm,
-    leftPushMm: row.leftPushMm,
-    topPushMm: row.topPushMm,
-    extraAreaMm: settings.extraAreaMm,
-    widthAppendMm: settings.widthAppendMm,
-    autoSpacingPercent: row.lineSpacingPercent,
-    orientation: settings.orientation == LabelPrintOrientation.vertical
-        ? LabelSheetPrintOrientation.vertical
-        : LabelSheetPrintOrientation.horizontal,
-  );
+  ) => labelPrintOptionsForRow(row, settings);
 
   LabelSheetPrintOptions _scaleOutputPrintOptions(
     ScaleOutputRowDraft row,
@@ -9467,6 +9455,7 @@ class _ItemOutputPreviewTab extends StatefulWidget {
         LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomController,
     this.barcodeRenderer = labelSheetBarcodeRenderer,
+    this.printOptions,
   });
 
   final ItemOfMarket item;
@@ -9481,6 +9470,7 @@ class _ItemOutputPreviewTab extends StatefulWidget {
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final LabelSheetZoomController? zoomController;
   final fs.FortuneBarcodeRenderer barcodeRenderer;
+  final LabelSheetPrintOptions? printOptions;
 
   @override
   State<_ItemOutputPreviewTab> createState() =>
@@ -9564,6 +9554,7 @@ class _ItemOutputPreviewTabState extends State<_ItemOutputPreviewTab> {
     imageObjectIds: widget.imageObjectIds,
     barcodeObjectIds: widget.barcodeObjectIds,
     outputCaptureController: widget.outputCaptureController,
+    printOptions: widget.printOptions,
     zoomToolbarPlacement: widget.zoomToolbarPlacement,
     zoomController: widget.zoomController,
     autoFitWidth: true,
@@ -9603,6 +9594,9 @@ Widget debugItemOutputPreviewTabForTesting({
   required fs.FortuneWorkbook elementWorkbook,
   required fs.FortuneBarcodeRenderer renderer,
   Map<int, String>? projectedColumnValues,
+  LabelSheetPrintOptions? printOptions,
+  LabelSheetOutputCaptureController? outputCaptureController,
+  LabelSheetZoomController? zoomController,
 }) => _ItemOutputPreviewTab(
   item: item,
   labelSize: labelSize,
@@ -9612,6 +9606,9 @@ Widget debugItemOutputPreviewTabForTesting({
   barcodeObjectIds: const [],
   projectedColumnValues: projectedColumnValues,
   barcodeRenderer: renderer,
+  printOptions: printOptions,
+  outputCaptureController: outputCaptureController,
+  zoomController: zoomController,
 );
 
 @visibleForTesting

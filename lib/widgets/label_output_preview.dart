@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
 
 int labelOutputPreviewValuesFingerprint(Map<int, String>? values) {
@@ -25,6 +26,7 @@ class LabelOutputPreview extends StatefulWidget {
     required this.barcodeObjectIds,
     this.labelSize,
     this.outputCaptureController,
+    this.printOptions,
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomToolbarBackgroundColor,
@@ -40,6 +42,7 @@ class LabelOutputPreview extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final LabelSheetOutputCaptureController? outputCaptureController;
+  final LabelSheetPrintOptions? printOptions;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final Color? zoomToolbarBackgroundColor;
   final bool zoomToolbarUseIcons;
@@ -108,6 +111,18 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
       return const _LabelOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
     final messages = labelOutputPreviewMessages(value);
+    final physicalSize = fs.fortuneSheetGridClientPhysicalSize(value.activeSheet);
+    final printOptions = widget.printOptions;
+    final layout = printOptions == null || physicalSize == null
+        ? null
+        : LabelSheetPrintLayout.resolve(
+            metrics: LabelSheetPrintPageMetrics(
+              labelWidthMm: physicalSize.widthMm.round(),
+              labelHeightMm: physicalSize.heightMm.round(),
+              dpi: fs.fortuneSheetLogicalPixelsPerInch,
+            ),
+            options: printOptions,
+          );
     return LayoutBuilder(
       builder: (context, constraints) {
         if (widget.autoFitWidth && constraints.maxWidth.isFinite) {
@@ -130,6 +145,16 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
                 imageObjectIds: widget.imageObjectIds,
                 barcodeObjectIds: widget.barcodeObjectIds,
                 outputCaptureController: widget.outputCaptureController,
+                outputPreviewOffset: layout == null
+                    ? null
+                    : Offset(
+                        fs.fortuneMillimetersToLogicalPixels(
+                          layout.contentLeftMm,
+                        ),
+                        fs.fortuneMillimetersToLogicalPixels(
+                          layout.contentTopMm,
+                        ),
+                      ),
                 outputCaptureOwnerToken: widget.identityKey,
                 hideToolbar: true,
                 hideRowColumnHeaderLabels: true,
