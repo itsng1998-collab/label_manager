@@ -6951,31 +6951,29 @@ class _HomePageManagerState extends State<HomePageManager> {
               onLayout: (_) async => payload,
             ),
             LabelPrintBackend.windowsDriver => await (() async {
-              for (final unit in group.units) {
-                final page = driverPages[unit]!;
-                final result = await WindowsBitmapPrinter.print(
-                  printer: printer,
-                  portName: portName,
-                  documentName:
-                      'ITSnG_Label_${requestedAt.millisecondsSinceEpoch}',
-                  bgraBytes: page.bgraBytes,
-                  sourceWidth: page.width,
-                  sourceHeight: page.height,
-                  pageWidthMm: group.pageSpec.widthMm.toDouble(),
-                  pageHeightMm:
-                      group.pageSpec.heightMm + settings.extraAreaMm,
-                  copies: 1,
-                  widthAppendMm: settings.widthAppendMm,
-                  legacyPrinterType: profile.legacyType,
-                    textDescriptors:
-                      driverTextDescriptors[unit] ?? const [],
-                    borderDescriptors:
-                      driverBorderDescriptors[unit] ?? const [],
-                );
-                debugLog(
-                  'labelPrintQuality gdiDispatch ${result.diagnostics}',
-                );
-              }
+              final unit = group.units.first;
+              final page = driverPages[unit]!;
+              final result = await WindowsBitmapPrinter.print(
+                printer: printer,
+                portName: portName,
+                documentName:
+                    'ITSnG_Label_${requestedAt.millisecondsSinceEpoch}',
+                bgraBytes: page.bgraBytes,
+                sourceWidth: page.width,
+                sourceHeight: page.height,
+                pageWidthMm: group.pageSpec.widthMm.toDouble(),
+                pageHeightMm:
+                    group.pageSpec.heightMm + settings.extraAreaMm,
+                copies: group.units.length,
+                widthAppendMm: settings.widthAppendMm,
+                legacyPrinterType: profile.legacyType,
+                textDescriptors: driverTextDescriptors[unit] ?? const [],
+                borderDescriptors: driverBorderDescriptors[unit] ?? const [],
+              );
+              debugLog(
+                'labelPrintQuality gdiDispatch units=${group.units.length} '
+                '${result.diagnostics}',
+              );
               return true;
             })(),
             LabelPrintBackend.ezplRaw => await (() async {

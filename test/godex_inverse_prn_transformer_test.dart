@@ -38,7 +38,7 @@ void main() {
     ],
   );
 
-  Uint8List samplePrn() {
+  Uint8List samplePrn({int copies = 1}) {
     final payload = Uint8List(4 * 20);
     for (var row = 2; row < 19; row += 1) {
       payload[row * 4] = 0x3f;
@@ -50,7 +50,7 @@ void main() {
     payload[10 * 4] &= 0xdf;
     payload[18 * 4 + 3] &= 0xf7;
     return Uint8List.fromList(<int>[
-      ...ascii.encode('^P1\r\n^L\r\nQ0,0,4,20\r'),
+      ...ascii.encode('^P$copies\r\n^L\r\nQ0,0,4,20\r'),
       ...payload,
       ...ascii.encode('\r\nE\r\n'),
     ]);
@@ -82,6 +82,24 @@ void main() {
       raster: raster,
     );
   }
+
+  test('inverse composition preserves driver three-copy print command', () async {
+    final result = await transformGodexInverseDriverPrn(
+      prnBytes: samplePrn(copies: 3),
+      sourceWidth: 32,
+      sourceHeight: 20,
+      targetWidth: 32,
+      targetHeight: 20,
+      textDescriptors: [descriptor()],
+      glyphRasterizer: rasterize,
+    );
+    final payload = latin1.decode(result.bytes);
+    expect(payload, contains('^P3\r\n^L\r\n'));
+    expect(RegExp(r'\^P\d+').allMatches(payload), hasLength(1));
+    expect(payload, endsWith('E\r\n'));
+    expect(result.inverseDescriptors, 1);
+    expect(result.nativeRuns, 2);
+  });
 
   for (final driverHeat in ['', '^H08\r\n', '^H14\r\n']) {
     test('preserves driver heat and speed commands ${driverHeat.trim()}', () async {

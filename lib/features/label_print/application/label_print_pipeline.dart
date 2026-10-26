@@ -147,20 +147,20 @@ List<LabelPrintJobGroup> groupAdjacentLabelPrintUnits(
   for (final unit in units) {
     final spec = specFor(unit);
     if (groups.isNotEmpty && groups.last.pageSpec == spec) {
-      final previous = groups.removeLast();
-      groups.add(
-        LabelPrintJobGroup(
-          pageSpec: spec,
-          units: List.unmodifiable([...previous.units, unit]),
-        ),
-      );
+      groups.last.units.add(unit);
     } else {
       groups.add(
-        LabelPrintJobGroup(pageSpec: spec, units: List.unmodifiable([unit])),
+        LabelPrintJobGroup(pageSpec: spec, units: [unit]),
       );
     }
   }
-  return List.unmodifiable(groups);
+  return List.unmodifiable([
+    for (final group in groups)
+      LabelPrintJobGroup(
+        pageSpec: group.pageSpec,
+        units: List.unmodifiable(group.units),
+      ),
+  ]);
 }
 
 List<LabelPrintJobGroup> groupLabelPrintUnitsForDispatch(
@@ -168,11 +168,39 @@ List<LabelPrintJobGroup> groupLabelPrintUnitsForDispatch(
   LabelPhysicalPageSpec Function(LabelPrintUnit unit) specFor, {
   required bool pdfSingleFile,
 }) {
-  final groups = groupAdjacentLabelPrintUnits(units, specFor);
+  // DEVMODEW.dmCopies is a signed 16-bit value.
+  const maxWindowsDriverCopies = 32767;
+  final groups = <LabelPrintJobGroup>[];
+  for (final group in groupAdjacentLabelPrintUnits(units, specFor)) {
+    if (group.pageSpec.backend != LabelPrintBackend.windowsDriver) {
+      groups.add(group);
+      continue;
+    }
+    var start = 0;
+    while (start < group.units.length) {
+      var end = start + 1;
+      while (end < group.units.length &&
+          end - start < maxWindowsDriverCopies &&
+          group.units[start].rowIndex == group.units[end].rowIndex &&
+          mapEquals(
+            group.units[start].projectedColumnValues,
+            group.units[end].projectedColumnValues,
+          )) {
+        end++;
+      }
+      groups.add(
+        LabelPrintJobGroup(
+          pageSpec: group.pageSpec,
+          units: List.unmodifiable(group.units.getRange(start, end)),
+        ),
+      );
+      start = end;
+    }
+  }
   if (!pdfSingleFile ||
       groups.isEmpty ||
       groups.any((group) => group.pageSpec.backend != LabelPrintBackend.pdf)) {
-    return groups;
+    return List.unmodifiable(groups);
   }
   return [
     LabelPrintJobGroup(

@@ -115,6 +115,134 @@ void main() {
     expect(groups.map((group) => group.units.length), [1, 1]);
   });
 
+  const windowsSpec = LabelPhysicalPageSpec(
+    widthMm: 60,
+    heightMm: 40,
+    sourceWidthMm: 60,
+    sourceHeightMm: 40,
+    dpi: 203.2,
+    backend: LabelPrintBackend.windowsDriver,
+  );
+  const historyContext = LabelPrintHistoryContext(
+    userId: '1',
+    userName: 'Tester',
+    userGradeCode: 1,
+    userGradeLabel: 'Tester',
+    marketId: 1,
+    marketName: 'Market',
+    customerId: 1,
+    customerName: 'Customer',
+    brandId: 1,
+    brandName: 'Brand',
+    labelSizeId: 1,
+    labelSizeName: 'Label',
+    printerName: 'Printer',
+    extraAreaMm: 0,
+  );
+  List<LabelPrintJobGroup> windowsGroups(List<LabelPrintUnit> units) =>
+      groupLabelPrintUnitsForDispatch(
+        units,
+        (_) => windowsSpec,
+        pdfSingleFile: true,
+      );
+
+  test('three identical copies share one Windows driver request', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 3)],
+      referenceAt: _referenceAt,
+    );
+    final groups = windowsGroups(units);
+    expect(groups, hasLength(1));
+    expect(groups.single.units, orderedEquals(units));
+    expect(groups.single.units.length, 3);
+    expect(groups.single.units.first.copyIndex, 0);
+    final history = buildLabelPrintHistoryParents(
+      acceptedUnits: groups.single.units,
+      columns: const [],
+      columnContents: const {},
+      context: historyContext,
+    );
+    expect(history, hasLength(1));
+    expect(history.single['printCount'], 3);
+  });
+
+  test('Windows copies keep different rows and projected values separate', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 3), _row(20, 2)],
+      referenceAt: _referenceAt,
+      columns: [_column(1, autoIncSave: true, autoIncUpdate: true)],
+      columnContents: {
+        const ColumnItemKey(columnId: 1, itemId: 10): _content(1, '001'),
+      },
+    );
+    final groups = windowsGroups(units);
+    expect(groups.map((group) => group.units.length), [1, 1, 1, 2]);
+    expect(
+      groupAdjacentLabelPrintUnits(units, (_) => windowsSpec).single.units,
+      orderedEquals(units),
+    );
+    expect(
+      groups.take(3).map(
+        (group) => group.units.single.projectedColumnValues[1],
+      ),
+      ['001', '002', '003'],
+    );
+    expect(
+      groups.expand((group) => group.units),
+      orderedEquals(units),
+    );
+    final identicalRows = windowsGroups(
+      expandLabelPrintUnits(
+        [_row(10, 3), _row(20, 2)],
+        referenceAt: _referenceAt,
+      ),
+    );
+    expect(identicalRows.map((group) => group.units.length), [3, 2]);
+    final history = buildLabelPrintHistoryParents(
+      acceptedUnits: groups.expand((group) => group.units).toList(),
+      columns: [_column(1, autoIncSave: true, autoIncUpdate: true)],
+      columnContents: {
+        const ColumnItemKey(columnId: 1, itemId: 10): _content(1, '001'),
+      },
+      context: historyContext,
+    );
+    expect(history.map((parent) => parent['printCount']), [1, 1, 1, 1, 1]);
+  });
+
+  test('Windows grouping compares map content but preserves adjacent order', () {
+    final row = _row(10, 5);
+    final units = [
+      for (final entry in [
+        {1: 'A', 2: 'B'},
+        {2: 'B', 1: 'A'},
+        {1: 'C', 2: 'B'},
+        {1: 'A', 2: 'B'},
+        {1: 'A', 2: 'B'},
+      ].indexed)
+        LabelPrintUnit(
+          row: row,
+          rowIndex: 0,
+          copyIndex: entry.$1,
+          projectedColumnValues: entry.$2,
+        ),
+    ];
+    final groups = windowsGroups(units);
+    expect(groups.map((group) => group.units.length), [2, 1, 2]);
+    expect(groups.expand((group) => group.units), orderedEquals(units));
+    expect(() => groups.add(groups.first), throwsUnsupportedError);
+    expect(() => groups.first.units.add(units.first), throwsUnsupportedError);
+  });
+
+  test('Windows driver batches stay within signed DEVMODE copy limit', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 32768)],
+      referenceAt: _referenceAt,
+    );
+    final groups = windowsGroups(units);
+    expect(groups.map((group) => group.units.length), [32767, 1]);
+    expect(groups.expand((group) => group.units), orderedEquals(units));
+  });
+
   test('auto increment separates draft and immediate persistence values', () {
     final row = _row(10, 2);
     final columns = [

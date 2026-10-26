@@ -1,5 +1,15 @@
 # SESSION HANDOFF
 
+## 최근 완료: 라벨출력 다수 발행 시 단일 출력 (1.8.20)
+- 제출1.8.9 로그/이미지 확인: item722776 발행3매, capture1/3·2/3·3/3 및 GoDEX G500 USB036에 copies=1인 PRN RAW작업3개(job77/79/81) 접수. UI입력 누락 아님. 스풀접수만으로 실물1장 원인을 확정할 수 없음.
+- 레거시 매뉴얼v2의 품목별 발행매수와 PrintManager 실제코드 대조: GoDEX 등 dmCopies=요청매수, BIXOLON은dmCopies1/StartPage반복. 현재 Flutter는 모든unit마다 copies1 요청.
+- 구현: Windows 출력은 같은행/같은투영값의 연속unit만 묶어 한 드라이버요청에 실제매수 전달. 자동증가/다른품목/크기/순서 보존, DEVMODE signed short 32767매 초과는분할. 그룹 구성은 내부list에append후immutable반환하여대량매수분할시반복전체복사방지. PDF/RAW/저울출력 별도흐름은 유지. 기존 캡처/역상PRN변환 및 드라이버환경설정 변경 없음.
+- 회귀작성후 수정전2건 실패(투영값/품목구분 없이5개한그룹), 수정후pipeline/bitmap테스트 통과. 3매동일라벨/장별자동증가/다른행/동일map별도인스턴스/연속순서/32768→32767+1분할 및 드라이버요청copies3·GoDEX단일RAW전달 검사.
+- 공유groupAdjacent는 저울도 사용하므로 기존 물리크기그룹 계약 유지, 라벨발행 전용groupLabelPrintUnitsForDispatch에서만 동일내용 다매수분할 적용. README갱신, 버전1.8.19→1.8.20 PATCH(기존Windows 다매수전달/배치수정, 저장형식·스키마변경없음).
+- 검증 완료, 기능커밋 예정: pipeline/bitmap/autoIncrement/persistence/session/dispatcher/GoDEX inverse/scale 8파일101/101 통과. 다매수PRN(^P3) 역상변환 후에도매수보존, GoDEX한RAW제출 및 BIXOLON/일반드라이버copies3 전달, 동일라벨이력count3/자동증가이력개별count1, immutable그룹과저울기존그룹계약 확인. 변경5 Dart analyzer No issues found, diff --check통과.
+- DTD발견·기존연결확인/앱목록/hot reload시도했으나 실행앱없음. DB접속 방지를 위해 앱자동실행하지않음. 운영DB/실제발행 없음, lib/core/app.dart 사용자변경 보존.
+- 다음 사용자확인: 1.8.20에서 같은첫품목3매→GoDEX gdiDispatch units=3/copies=3 및실물3장확인. 기존로그의별도3작업이실물1장이된하드웨어원인은확정불가, 변경후에도발생하면새로그와같이생성된bitmap_print_requests의 .bin/.prn을확인(실제출력전송기록/명령수량대조). 자동증가설정있는품목은장별값순서별도확인.
+
 ## 최근 완료: 프린터 설정 자동줄간격 적용 (1.8.19)
 - 제출1.8.9 로그에는 적용 당시 품목별 useLinefeed/linefeed 결과값이 없어 해당 화면의100% 유지 원인은 미확정. 기존 spacing/settings/session36건 통과.
 - 사용자 지시: 레거시 동작 우선, 없으면 기존 우선순위 유지. 매뉴얼v2의 발행목록/프린터설정/품목별 줄간격 설명과 실제 LabelPrintModel::ChangePrintSetup 대조: !bUseLinefeed 행은 목록 직접편집 여부와 무관하게 설정 적용 시 새 기본값으로 갱신. 현재 sessionEdited 보존은 이 부분과 다름.

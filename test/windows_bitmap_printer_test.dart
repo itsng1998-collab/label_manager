@@ -36,6 +36,7 @@ void main() {
 
   Future<WindowsBitmapPrintResult> printSample({
     LegacyPrinterType type = LegacyPrinterType.godex,
+    int copies = 1,
   }) => WindowsBitmapPrinter.print(
     printer: const Printer(url: 'test', name: 'Godex G500'),
     portName: 'USB001',
@@ -45,7 +46,7 @@ void main() {
     sourceHeight: 1,
     pageWidthMm: 80,
     pageHeightMm: 60,
-    copies: 1,
+    copies: copies,
     widthAppendMm: 0,
     legacyPrinterType: type,
   );
@@ -108,6 +109,45 @@ void main() {
     expect(files, hasLength(1));
     expect(await File(files.single.path).readAsBytes(), driverBytes);
   }, skip: !Platform.isWindows);
+
+  for (final type in [
+    LegacyPrinterType.godex,
+    LegacyPrinterType.bixolon,
+    LegacyPrinterType.other,
+  ]) {
+    test('three copies use one driver request for ${type.name}', () async {
+      var channelCalls = 0;
+      final threeCopyPrn = Uint8List.fromList([94, 80, 51, 13, 69, 13]);
+      WindowsBitmapPrinter.rawSender = (printer, bytes) async {
+        rawCalls++;
+        expect(bytes, threeCopyPrn);
+        return RawPrinterWriteResult(
+          jobId: 1,
+          requestedBytes: bytes.length,
+          writtenBytes: bytes.length,
+        );
+      };
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        channelCalls++;
+        expect(
+          call.method,
+          type == LegacyPrinterType.godex ? 'renderBitmapToPrn' : 'printBitmap',
+        );
+        final arguments = call.arguments as Map;
+        expect(arguments['copies'], 3);
+        expect(arguments['legacyPrinterType'], type.name);
+        return <String, Object>{
+          'ok': true,
+          'diagnostics': 'three-copy-request',
+          if (type == LegacyPrinterType.godex) 'prnBytes': threeCopyPrn,
+        };
+      });
+      final result = await printSample(type: type, copies: 3);
+      expect(result.accepted, isTrue);
+      expect(channelCalls, 1);
+      expect(rawCalls, type == LegacyPrinterType.godex ? 1 : 0);
+    }, skip: !Platform.isWindows);
+  }
 
   test('capture preserves the exact channel request before dispatch', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
