@@ -1,13 +1,13 @@
 # SESSION HANDOFF
 
-## 현재 진행: 삽입 바코드 비율 유지 상태 미전달
+## 최근 완료: 삽입 바코드 비율 유지 상태 미전달
 - 제출 로그1.8.9/첨부에서 삽입OFF→속성ON 확인. 삽입 _barcodeAspectLocked와 속성 _imageAspectLocked가 독립 기본true이며 개체 metadata에 상태가 없음.
 - 사용자 확정 persist-per-object: 개체별 상태 저장, 선택전환/복제/저장재읽기 유지. 기존문서의 비저장 정책은 이번 요청으로 변경. metadata 없는 기존 개체는 기본ON 유지.
 - 레거시 Barcode 속성코드와 매뉴얼v2 검토에서는 이번 Flutter 삽입/속성 사이 상태 전달에 대응하는 계약 없음. boolean barcodeAspectLocked metadata를 삽입/속성/기존편집dialog/codec에 연결, typed draft와 dirty판정·undo복원에 반영. 일반image의 기존 비저장 동작은 유지.
 - 수정전OFF→속성ON 회귀실패 확인, 수정후통과. 변경3파일 집중analyzer No issues found, canvas는 기존 unused10건만 유지. height/object controller/codec3파일82/82 통과. width30을 기대한 과거tests2건은 삽입OFF 유지 계약에 맞게 폭20유지로 갱신. 새 회귀는1D/QR·mm/px·ON/OFF8조합·선택전환·복제·저장재읽기·undo/redo·기존metadata없음·aspect-only적용실패/재시도 검증.
 - 실패후aspect-only 재시도가 finalized로 차단되는 결합문제도 수정: 실패한 속성 draft를 다시 등록해 입력유지/수정없는 재시도/저장차단 유지. toolbar barcode회귀13/13 및 native encoder로 height/aspect 전체27/27 추가통과. 최종 관련회귀95건 + native27건 통과.
 - 운영DB/실제인쇄 없음. 사용자 lib/core/app.dart 보존, 버전1.8.14→1.8.15 PATCH: 삽입옵션 전달 누락 수정 및 사용자확정한 개체별 저장 유지. README의 기존 비저장정책 갱신.
-- 구현·검증 완료/커밋 예정. 최종panel/codec/test analyzer No issues found, diff --check통과. DTD발견·기존연결확인/hot reload 시도했으나 실행 앱 없음으로 미적용.
+- **구현·검증·커밋 완료(1.8.15): `c18f819`**, push 없음. 최종panel/codec/test analyzer No issues found, diff --check통과. DTD발견·기존연결확인/hot reload 시도했으나 실행 앱 없음으로 미적용.
 - 다음 사용자확인:1.8.15→바코드 삽입에서 비율유지OFF→속성OFF 확인→폭/높이 독립변경→적용→라벨저장→다시열어OFF 확인. ON개체와 선택전환·복제도 각각의 상태 유지. 기존1.8.9 저장본에는OFF정보가 없어 기본ON이며 새버전에서 설정후저장 필요.
 
 ## 최근 완료: 바코드 사용자 정의 text 및 키워드 미리보기
