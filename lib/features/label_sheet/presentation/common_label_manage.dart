@@ -18,6 +18,8 @@ import 'package:label_manager/features/label_sheet/presentation/label_sheet_page
 import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/regression_debug_log.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
+import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
 
 const double commonLabelRightPaneInitialWidth = 350.0;
 const double commonLabelRightPaneMinWidth = 350.0;
@@ -286,6 +288,8 @@ class CommonLabelManage extends StatefulWidget {
   final ValueChanged<bool>? onSheetDirtyChanged;
   final ValueChanged<LabelSize>? onLabelSaved;
   final VoidCallback? onColumnEditRequested;
+  final NutritionBoxListLoader? nutritionBoxListLoader;
+  final Future<void> Function(NutritionBox box)? onPrepareNutritionTableInsert;
   const CommonLabelManage({
     super.key,
     required this.title,
@@ -300,6 +304,8 @@ class CommonLabelManage extends StatefulWidget {
     this.onSheetDirtyChanged,
     this.onLabelSaved,
     this.onColumnEditRequested,
+    this.nutritionBoxListLoader,
+    this.onPrepareNutritionTableInsert,
   });
 
   @override
@@ -377,6 +383,15 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 child: ClipRect(
                   child: LabelSheetPage(
                     labelSize: widget.labelSize,
+                    nutritionBoxListLoader: widget.nutritionBoxListLoader,
+                    onPrepareNutritionTableInsert: (box) async {
+                      final prepare = widget.onPrepareNutritionTableInsert;
+                      if (prepare == null) {
+                        throw StateError('영양성분 항목 등록을 사용할 수 없습니다.');
+                      }
+                      await prepare(box);
+                      if (mounted) setState(() {});
+                    },
                     imageObjectIds: imageObjectIds,
                     barcodeObjectIds: barcodeObjectIds,
                     imageObjectOptions: imageObjectOptions,

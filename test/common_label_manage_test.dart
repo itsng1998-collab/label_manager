@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as image;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +22,10 @@ import 'package:label_manager/features/label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/features/label_sheet/presentation/common_label_manage.dart';
 import 'package:label_manager/features/label_sheet/presentation/label_sheet_page.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
+import 'package:label_manager/features/label_sheet/presentation/label_sheet_settings.dart';
+import 'package:label_manager/features/nutrition/application/nutrition_table_columns.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_type.dart';
 
 class _RecordingKeywordInsertController
     extends LabelSheetKeywordInsertController {
@@ -151,6 +157,143 @@ TColumn _storedColumn(
 }
 
 void main() {
+  for (final outcome in ['success', 'duplicate', 'save-error']) {
+    testWidgets('nutrition insertion updates common label keywords: $outcome', (tester) async {
+      final oldColumns = TColumn.datas;
+      final oldSpecials = TColumnSpecial.datas;
+      final oldTypes = TColumnType.datas;
+      addTearDown(() {
+        TColumn.datas = oldColumns;
+        TColumnSpecial.datas = oldSpecials;
+        TColumnType.datas = oldTypes;
+      });
+      TColumn.datas = outcome == 'duplicate'
+          ? [_storedColumn('N01', typeCode: TColumnType.TYPE_NUT)]
+          : [];
+      TColumnSpecial.datas = [];
+      TColumnType.datas = const [
+        TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 0),
+        TColumnType(code: TColumnType.TYPE_NUT, name: '영양성분', order: 8),
+      ];
+      SharedPreferences.setMockInitialValues({});
+      await tester.binding.setSurfaceSize(const Size(1400, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final template = labelSheetEncodeWorkbookSave(FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'nutrition', name: 'Nutrition', cells: {
+          const FortuneCellCoord(0, 0): const FortuneCell(value: '영양정보 #N16 #N17'),
+          for (var index = 1; index <= 15; index++)
+            FortuneCellCoord(index, 0):
+                FortuneCell(value: '#N${index.toString().padLeft(2, '0')}'),
+        }),
+      ]));
+      final initial = labelSheetEncodeWorkbookSave(FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'label', name: 'Label', cells: {
+          const FortuneCellCoord(0, 0): const FortuneCell(value: '기존 라벨'),
+        }),
+      ]));
+      var registrations = 0;
+      int? registeredTypeId;
+      bool? tableAbsentBeforeRegistration;
+      var dirty = false;
+      final release = Completer<void>();
+      late FortuneSheetController controller;
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: CommonLabelManage(
+        title: '공용라벨관리',
+        labelSize: LabelSize(
+          labelSizeId: 10,
+          brandId: 1,
+          labelSizeName: 'TEST',
+          labelSizeCommon: LabelSizeCommon(width: 100, height: 100, rtf: initial),
+        ),
+        nutritionBoxListLoader: () async => [
+          NutritionBox(id: 117, typeId: 2, typeName: '총 내용량',
+            name: '80*100(플러터)', rtf: template, width: 80),
+        ],
+        onPrepareNutritionTableInsert: (box) async {
+          registeredTypeId = box.typeId;
+          tableAbsentBeforeRegistration =
+              controller.getSheet()!.cells[const FortuneCellCoord(1, 1)] == null;
+          final command = nutritionTableColumnSaveCommand(
+            labelSizeId: 10,
+            columns: TColumn.datas!,
+            nutritionColumns: [
+              for (var index = 1; index <= 17; index++)
+                NutritionTypeColumn(id: index,
+                  keyword: 'N${index.toString().padLeft(2, '0')}', name: '영양 $index'),
+            ],
+          );
+          registrations++;
+          await release.future;
+          if (outcome == 'save-error') throw StateError('키워드 저장 실패');
+          TColumn.datas = [
+            for (final row in command.newColumns)
+              row.column.copyWith(columnId: 100 + row.column.order),
+          ];
+        },
+        onSheetDirtyChanged: (value) => dirty = value,
+      ))));
+      await tester.pumpAndSettle();
+      final app = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+      controller = app.controller!;
+      controller.focusCanvas();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(controller.getFlattenRange()!.first, const FortuneCellCoord(1, 1));
+      final dirtyBeforeInsertion = dirty;
+      final insertion = app.settings!.onContextMenuCommand!(
+        labelSheetInsertNutritionTableCommand,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('nutritionBoxInsertButton')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(registeredTypeId, 2);
+      expect(tableAbsentBeforeRegistration, isTrue);
+      if (outcome != 'duplicate') {
+        expect(registrations, 1);
+        expect(find.text('영양성분 항목을 등록 중입니다...'), findsOneWidget);
+        expect(controller.getSheet()!.cells[const FortuneCellCoord(1, 1)], isNull);
+        release.complete();
+      }
+      await tester.pumpAndSettle();
+      if (outcome != 'success') {
+        expect(find.text('영양성분표 삽입 실패'), findsOneWidget);
+        expect(controller.getSheet()!.cells[const FortuneCellCoord(1, 1)], isNull);
+        expect(TColumn.datas, hasLength(outcome == 'duplicate' ? 1 : 0));
+        expect(dirty, dirtyBeforeInsertion);
+        await tester.tap(find.widgetWithText(TextButton, '확인').last);
+        await tester.pumpAndSettle();
+      } else {
+        expect(TColumn.datas, hasLength(17));
+        expect(find.text('N01'), findsOneWidget);
+        expect(controller.getSheet()!.cells[const FortuneCellCoord(1, 1)]?.renderedText,
+            '영양정보 #N16 #N17');
+        expect(controller.getSheet()!.cells[const FortuneCellCoord(16, 1)]?.renderedText,
+            '#N15');
+        expect(dirty, isTrue);
+        final saved = labelSheetDecodeWorkbookSave(
+          labelSheetBuildSavePayload(_sheetPainter(tester).workbook).encodedWorkbook,
+        );
+        expect(saved.activeSheet.cells[const FortuneCellCoord(1, 1)]?.renderedText,
+            '영양정보 #N16 #N17');
+        controller.handleUndo();
+        await tester.pumpAndSettle();
+        expect(controller.getSheet()!.cells[const FortuneCellCoord(1, 1)], isNull);
+        expect(TColumn.datas, hasLength(17));
+        controller.handleRedo();
+        await tester.pumpAndSettle();
+        expect(controller.getSheet()!.cells[const FortuneCellCoord(1, 1)]?.renderedText,
+            '영양정보 #N16 #N17');
+      }
+      await insertion;
+      expect(controller.getSheet()!.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+          '기존 라벨');
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('duplicated image connection displays selected item without changing saved source', (
     tester,
   ) async {

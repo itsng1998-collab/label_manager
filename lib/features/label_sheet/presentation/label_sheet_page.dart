@@ -11,6 +11,8 @@ import 'package:fortune_sheet/fortune_sheet.dart'
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/features/label_sheet/domain/label_sheet_required_keyword.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
+import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
 import 'package:label_manager/features/label_size/data/label_size_dao.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_rtf_import.dart';
@@ -125,9 +127,13 @@ class LabelSheetPage extends StatelessWidget {
     this.onWorkbookChanged,
     this.onSaved,
     this.persistLabelSheet,
+    this.nutritionBoxListLoader,
+    this.onPrepareNutritionTableInsert,
   });
 
   final LabelSize? labelSize;
+  final NutritionBoxListLoader? nutritionBoxListLoader;
+  final Future<void> Function(NutritionBox box)? onPrepareNutritionTableInsert;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
@@ -194,6 +200,8 @@ class LabelSheetPage extends StatelessWidget {
         keywordInsertController: keywordInsertController,
         onDirtyChanged: onDirtyChanged,
         onWorkbookChanged: onWorkbookChanged,
+        nutritionBoxListLoader: nutritionBoxListLoader,
+        onPrepareNutritionTableInsert: onPrepareNutritionTableInsert,
         hideStatisticBar: true,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),

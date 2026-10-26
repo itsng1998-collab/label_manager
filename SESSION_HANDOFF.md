@@ -1,6 +1,15 @@
 # SESSION HANDOFF
 
-## 현재 작업: 복제 바코드 속성 높이10→15가 막대 높이에 미반영
+## 현재 진행: 자동 영양성분표 삽입 시 사용 키워드 미등록
+- 제출 `.tmp\1.8.9로그\공용라벨_영양성분표삽입_키워드오류.log` 버전1.8.9. box117/type의 양식 선택 후 B2에 셀158개 삽입 성공, 항목 등록 경로 없음.
+- 레거시 매뉴얼v2 자동성분표 절은 표와 영양 항목 자동 추가 명시. CommonLabelModel::InsertNutBox는 BM_RICH_NUTCOLUMN의 type별 키워드/이름→중복 검사→TYPE_NUT 항목과 기존/자동갱신 품목의 빈내용 등록→목록갱신. 하나라도 중복이면 삽입 거부.
+- 구현·검증 완료/커밋 예정: Workbench→Page→CommonLabelManage→Home의 등록callback 연결. 양식파싱 후 선택type의 정의를 TYPE_NUT로 기존saveDialog 트랜잭션에 등록하고, 항목만 재조회/기존draft보존 후 표삽입. DB등록중 blocking overlay와 Home busy/권한/미저장 품목 guard 사용. duplicate/empty/실제저장오류는 표미삽입, 커밋불명·저장후reload실패는 기존 명시적오류 유지.
+- 관련6파일 회귀84/84 통과(순수command, CommonLabelManage 전체, nutrition type DAO/box dialog, label column save/edit). 신규 full UI3건은 성공/B2·17항목·저장재읽기·undo/redo, 중복거부, 저장실패 시 표·항목·dirty 유지 검증. 기존 toolbar 자동삽입3건도 통과. 변경7 Dart analyzer No issues found, git diff --check 통과.
+- 버전1.8.12→1.8.13 PATCH: 기존자동삽입의 항목등록 누락 수정. SQL추가 없이 기존2017/호환성100 save경로 재사용. README에 삽입시항목DB등록/중복거부/시트undo시항목유지/라벨별도저장/오류계약 기록.
+- 운영DB 접속·변경/실제인쇄 없음. 사용자 `lib/core/app.dart` 변경 보존.
+- DTD 발견·연결 후 hot reload 시도했으나 실행 앱 없음으로 미적용. 실제 운영DB 등록은 미검증. 다음 사용자확인:1.8.13 실행→복사테스트/TEST→B2 자동성분표 삽입→우측 사용 항목 N01~N17 확인→라벨 저장. 항목은 삽입 시 DB 등록, 표는 라벨 저장 필요. 기존항목 중복 시 레거시처럼 삽입 거부.
+
+## 최근 완료: 복제 바코드 속성 높이10→15가 막대 높이에 미반영
 - 제출 `.tmp\1.8.9로그\공용라벨_바코드속성_높이제한오류.log` 버전1.8.9 확인. 첨부는 선택영역/속성20×10→30×15지만 실제 막대 높이는 동일.
 - 원인: 속성 폭/높이는 geometry만 변경하고 barcodeBarHeight는10으로 유지. 이전 삽입창 sync-height 수정은 속성 패널에 적용되지 않았으며 기존 속성 회귀도 별도 바 높이 유지로 고정돼 있음.
 - 사용자 선택 확정: sync-height. 1D 속성 높이 변경 시 바 높이도 같은 값, 비율유지 폭변경으로 바뀐 높이도 동기화. 이후 바 높이 직접입력은 우선. 회전만 변경/비율해제 폭만변경/2D 모듈·바 높이/RTF 단위는 유지.

@@ -722,6 +722,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.editingLifecycleController,
     this.keywordInsertController,
     this.nutritionBoxListLoader,
+    this.onPrepareNutritionTableInsert,
     this.outputCaptureController,
     this.outputCaptureOwnerToken,
     this.onWorkbookChanged,
@@ -774,6 +775,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final LabelSheetEditingLifecycleController? editingLifecycleController;
   final LabelSheetKeywordInsertController? keywordInsertController;
   final NutritionBoxListLoader? nutritionBoxListLoader;
+  final Future<void> Function(NutritionBox box)? onPrepareNutritionTableInsert;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final Object? outputCaptureOwnerToken;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
@@ -2839,6 +2841,31 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       });
       final source = await nutritionBoxWorkbookFromData(box.rtf, widthMm: box.width);
       if (!mounted) return;
+      final prepare = widget.onPrepareNutritionTableInsert;
+      if (prepare != null) {
+        final progress = OverlayEntry(
+          builder: (_) => const BlockingModelessDialog(
+            child: AlertDialog(
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Text('영양성분 항목을 등록 중입니다...'),
+                ],
+              ),
+            ),
+          ),
+        );
+        Overlay.of(context).insert(progress);
+        try {
+          await prepare(box);
+        } finally {
+          progress.remove();
+          progress.dispose();
+        }
+        if (!mounted) return;
+      }
       if (!_controller.insertSheetContent(source.activeSheet, origin: origin, id: sheet.id)) {
         throw StateError('선택한 셀에 영양성분표를 삽입할 수 없습니다.');
       }

@@ -116,6 +116,9 @@ import 'package:label_manager/features/search_and_replace/domain/search_and_repl
 import 'package:label_manager/features/search_and_replace/presentation/search_and_replace_dialog.dart';
 import 'package:label_manager/features/item/presentation/item_info_dialog.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_type_dialog.dart';
+import 'package:label_manager/features/nutrition/application/nutrition_table_columns.dart';
+import 'package:label_manager/features/nutrition/data/nutrition_type_dao.dart';
+import 'package:label_manager/features/nutrition/domain/nutrition_box.dart';
 import 'package:label_manager/features/nutrition/presentation/nutrition_box_dialog.dart';
 import 'package:label_manager/features/update_notice/presentation/update_notice_dialog.dart';
 import 'package:label_manager/features/label_column/presentation/label_column_edit_dialog.dart';
@@ -3349,6 +3352,68 @@ class _HomePageManagerState extends State<HomePageManager> {
     return true;
   }
 
+  Future<void> _prepareNutritionTableInsert(NutritionBox box) async {
+    final labelSizeId = _effectiveLabelSize?.labelSizeId;
+    final customerId = Customer.instance?.customerId;
+    if (!labelColumnEditAllowed(
+      hasLabelSize: labelSizeId != null,
+      hasCustomer: customerId != null,
+      canEdit: User.instance?.canEdit == true,
+      itemDraftCommandBusy: _itemDraftCommandBusy,
+      labelColumnEditCommandBusy: _labelColumnEditCommandBusy,
+      itemDraftDirty: _itemDraftController?.isDirty == true,
+    ) || _labelColumnEditOverlayEntry != null) {
+      throw StateError('미저장 작업을 저장하거나 취소한 뒤 영양성분표를 삽입하세요.');
+    }
+    setState(() => _labelColumnEditCommandBusy = true);
+    try {
+      final nutritionColumns = await NutritionTypeDAO.selectColumns(box.typeId);
+      if (!mounted || _effectiveLabelSize?.labelSizeId != labelSizeId) {
+        throw StateError('현재 라벨이 변경되어 영양성분 항목을 등록할 수 없습니다.');
+      }
+      final columns = List<TColumn>.of(TColumn.datas ?? const []);
+      final command = nutritionTableColumnSaveCommand(
+        labelSizeId: labelSizeId!,
+        columns: columns,
+        nutritionColumns: nutritionColumns,
+      );
+      RegressionDebugLog.event('nutritionTableInsert', 'columnsRegistering', fields: {
+        'boxId': box.id,
+        'typeId': box.typeId,
+        'labelSizeId': labelSizeId,
+        'columnCount': command.newColumns.length,
+      });
+      await executeLabelColumnSaveAndReload(
+        LabelColumnDialogSaveCommand(
+          labelSizeId: labelSizeId,
+          customerId: customerId!,
+          labelColumns: command,
+          customerColumns: null,
+        ),
+        reload: () async {
+          final saved = await TColumnDAO.selectByLabelSizeId(labelSizeId);
+          if (saved == null || !mounted ||
+              _effectiveLabelSize?.labelSizeId != labelSizeId) {
+            return false;
+          }
+          final draftsById = {for (final column in columns) column.columnId: column};
+          TColumn.datas = [
+            for (final column in saved) draftsById[column.columnId] ?? column,
+          ];
+          setState(() {});
+          return true;
+        },
+      );
+      RegressionDebugLog.event('nutritionTableInsert', 'columnsRegistered', fields: {
+        'boxId': box.id,
+        'labelSizeId': labelSizeId,
+        'columnCount': command.newColumns.length,
+      });
+    } finally {
+      if (mounted) setState(() => _labelColumnEditCommandBusy = false);
+    }
+  }
+
   bool _handleTabShortcutKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) {
       return false;
@@ -4911,6 +4976,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                     _commonLabelSheetDirty = dirty;
                   },
                   onColumnEditRequested: _openLabelColumnEditDialog,
+                  onPrepareNutritionTableInsert: _prepareNutritionTableInsert,
                 )
               : const SizedBox.shrink(),
           closable: false,
