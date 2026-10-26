@@ -28,7 +28,7 @@ class LabelOutputPreview extends StatefulWidget {
     this.outputCaptureController,
     this.printOptions,
     this.zoomToolbarPlacement =
-      LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomToolbarBackgroundColor,
     this.zoomToolbarUseIcons = false,
     this.zoomController,
@@ -57,6 +57,9 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
   bool _initialAutoFitScheduled = false;
   int? _pendingInitialAutoFitPercent;
   LabelSheetZoomController? _pendingInitialAutoFitController;
+  fs.FortuneWorkbook? _formatSource;
+  fs.FortuneWorkbook? _formattedWorkbook;
+  String? _formatKey;
 
   void _scheduleInitialAutoFit(int percent) {
     final controller = widget.zoomController;
@@ -111,24 +114,84 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
       return const _LabelOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
     final percent = widget.printOptions?.autoSpacingPercent;
-    final value = percent == null
+    final common = widget.labelSize?.labelSizeCommon;
+    final physicalSize =
+        fs.fortuneSheetGridClientPhysicalSize(source.activeSheet) ??
+        (common != null && common.width > 0 && common.height > 0
+            ? fs.FortuneSheetGridClientPhysicalSize(
+                widthMm: common.width,
+                heightMm: common.height,
+              )
+            : null);
+    final captureSource =
+        physicalSize == null ||
+            fs.fortuneSheetGridClientPhysicalSize(source.activeSheet) != null
         ? source
         : source.copyWith(
-            sheets: source.sheets.map((sheet) => labelSheetWithOutputLineSpacing(
-              sheet: sheet, settings: source.settings, percent: percent,
-            )).toList(),
+            sheets: [
+              for (final sheet in source.sheets)
+                sheet.copyWith(
+                  extraFields: {
+                    ...sheet.extraFields,
+                    fs.fortuneSheetGridClientWidthMmKey: physicalSize.widthMm,
+                    fs.fortuneSheetGridClientHeightMmKey: physicalSize.heightMm,
+                  },
+                ),
+            ],
           );
-    final messages = labelOutputPreviewMessages(value);
-    final physicalSize = fs.fortuneSheetGridClientPhysicalSize(value.activeSheet);
     final printOptions = widget.printOptions;
+    final reflowsWidth =
+        printOptions != null &&
+        (printOptions.rotateQuarterTurns
+            ? printOptions.topMarginMm > 0
+            : printOptions.leftMarginMm + printOptions.rightMarginMm > 0);
+    final needsFormatting = reflowsWidth || (percent != null && percent != 0);
+    final formatKey =
+        '$percent:${printOptions?.leftMarginMm}:'
+        '${printOptions?.rightMarginMm}:${printOptions?.topMarginMm}:'
+        '${printOptions?.orientation.name}:'
+        '${physicalSize?.widthMm}x${physicalSize?.heightMm}';
+    final metrics = physicalSize == null
+        ? null
+        : LabelSheetPrintPageMetrics(
+            labelWidthMm: physicalSize.widthMm.round(),
+            labelHeightMm: physicalSize.heightMm.round(),
+            dpi: fs.fortuneSheetLogicalPixelsPerInch,
+          );
+    final fs.FortuneWorkbook value;
+    try {
+      if (!identical(source, _formatSource) || formatKey != _formatKey) {
+        _formattedWorkbook = captureSource.copyWith(
+          sheets: captureSource.sheets
+              .map(
+                (sheet) => printOptions == null || metrics == null
+                    ? labelSheetWithOutputLineSpacing(
+                        sheet: sheet,
+                        settings: source.settings,
+                        percent: percent,
+                      )
+                    : labelSheetWithOutputFormatting(
+                        sheet: sheet,
+                        settings: source.settings,
+                        metrics: metrics,
+                        options: printOptions,
+                        lineSpacingPercent: percent,
+                      ),
+              )
+              .toList(),
+        );
+        _formatSource = source;
+        _formatKey = formatKey;
+      }
+      value = _formattedWorkbook!;
+    } on FormatException catch (error) {
+      return _LabelOutputPreviewHint(error.message);
+    }
+    final messages = labelOutputPreviewMessages(value);
     final layout = printOptions == null || physicalSize == null
         ? null
         : LabelSheetPrintLayout.resolve(
-            metrics: LabelSheetPrintPageMetrics(
-              labelWidthMm: physicalSize.widthMm.round(),
-              labelHeightMm: physicalSize.heightMm.round(),
-              dpi: fs.fortuneSheetLogicalPixelsPerInch,
-            ),
+            metrics: metrics!,
             options: printOptions,
           );
     return LayoutBuilder(
@@ -147,14 +210,30 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
               _LabelOutputPreviewMessages(messages: messages),
             Expanded(
               child: LabelSheetWorkbench(
-                key: ValueKey(percent == null
-                    ? widget.identityKey
-                    : '${widget.identityKey}:line-spacing:$percent'),
+                key: ValueKey(
+                  !needsFormatting
+                      ? widget.identityKey
+                      : '${widget.identityKey}:output:$formatKey',
+                ),
                 initialWorkbook: value,
                 labelSize: widget.labelSize,
                 imageObjectIds: widget.imageObjectIds,
                 barcodeObjectIds: widget.barcodeObjectIds,
                 outputCaptureController: widget.outputCaptureController,
+                outputCaptureSourceWorkbook: captureSource,
+                outputPrintOptions: printOptions,
+                outputPreviewClipRect: layout == null
+                    ? null
+                    : Rect.fromLTWH(
+                        0,
+                        0,
+                        fs.fortuneMillimetersToLogicalPixels(
+                          layout.clipRightMm,
+                        ),
+                        fs.fortuneMillimetersToLogicalPixels(
+                          layout.clipBottomMm,
+                        ),
+                      ),
                 outputPreviewOffset: layout == null
                     ? null
                     : Offset(

@@ -688,6 +688,9 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectSources,
     this.outputPreviewOffset,
+    this.outputPreviewClipRect,
+    this.outputCaptureSourceWorkbook,
+    this.outputPrintOptions,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.toolbarItems,
     this.hideToolbar = false,
@@ -741,6 +744,9 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<FortuneObjectConnectionOption> imageObjectOptions;
   final Map<String, String>? imageObjectSources;
   final Offset? outputPreviewOffset;
+  final ui.Rect? outputPreviewClipRect;
+  final FortuneWorkbook? outputCaptureSourceWorkbook;
+  final LabelSheetPrintOptions? outputPrintOptions;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String>? toolbarItems;
   final bool hideToolbar;
@@ -965,10 +971,12 @@ class LabelSheetOutputCaptureController {
   Future<LabelSheetOutputCapture?> capture({
     required double dpi,
     required int? lineSpacingPercent,
+    LabelSheetPrintOptions? options,
   }) =>
       _state?._captureOutput(
         dpi: dpi,
         lineSpacingPercent: lineSpacingPercent,
+        options: options,
       ) ??
       Future<LabelSheetOutputCapture?>.value();
 
@@ -2235,10 +2243,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             lineSpacingPercent: options.autoSpacingPercent,
           )
         : null;
-    final outputSheet = labelSheetWithOutputLineSpacing(
+    final outputSheet = labelSheetWithOutputFormatting(
       sheet: sheet,
       settings: sheetSettings,
-      percent: options.autoSpacingPercent,
+      metrics: metrics,
+      options: options,
+      lineSpacingPercent: options.autoSpacingPercent,
     );
     final capture = backend == LabelPrintBackend.pdf ||
         backend == LabelPrintBackend.ezplBandCoolingRows
@@ -2251,6 +2261,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             includeLabelAreaBoundary: false,
             sheetOverride: outputSheet,
             logicalClipSize: physicalSize.logicalSize,
+            padToLogicalClipSize: options.leftMarginMm > 0 ||
+                options.rightMarginMm > 0 || options.topMarginMm > 0,
             normalizeZoom: true,
           )
         : null;
@@ -2422,22 +2434,53 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
   }
 
+  FortuneSheet? _outputCaptureSourceSheet() {
+    final current = _controller.getSheet();
+    final source = widget.outputCaptureSourceWorkbook?.activeSheet;
+    if (source == null) return current;
+    if (fortuneSheetGridClientPhysicalSize(source) != null) return source;
+    final size = current == null
+        ? null
+        : fortuneSheetGridClientPhysicalSize(current);
+    if (size == null) return source;
+    return source.copyWith(extraFields: {
+      ...source.extraFields,
+      fortuneSheetGridClientWidthMmKey: size.widthMm,
+      fortuneSheetGridClientHeightMmKey: size.heightMm,
+    });
+  }
+
   Future<LabelSheetOutputCapture?> _captureOutput({
     required double dpi,
     required int? lineSpacingPercent,
+    LabelSheetPrintOptions? options,
   }) async {
     if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
-    final sheet = _controller.getSheet();
-    final settings = _controller.settingsSnapshot;
+    final source = widget.outputCaptureSourceWorkbook;
+    final sheet = _outputCaptureSourceSheet();
+    final settings = source?.settings ?? _controller.settingsSnapshot;
     final physicalSize = sheet == null
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || settings == null || physicalSize == null) return null;
-    final outputSheet = labelSheetWithOutputLineSpacing(
-      sheet: sheet,
-      settings: settings,
-      percent: lineSpacingPercent,
-    );
+    final printOptions = options ?? widget.outputPrintOptions;
+    final outputSheet = printOptions == null
+        ? labelSheetWithOutputLineSpacing(
+            sheet: sheet,
+            settings: settings,
+            percent: lineSpacingPercent,
+          )
+        : labelSheetWithOutputFormatting(
+            sheet: sheet,
+            settings: settings,
+            metrics: LabelSheetPrintPageMetrics(
+              labelWidthMm: physicalSize.widthMm.round(),
+              labelHeightMm: physicalSize.heightMm.round(),
+              dpi: dpi,
+            ),
+            options: printOptions,
+            lineSpacingPercent: lineSpacingPercent,
+          );
     final range = labelSheetPrintRange(outputSheet, physicalSize);
     RegressionDebugLog.event('labelSheetOutputCapture', 'started', fields: {
       'sheetId': sheet.id,
@@ -2457,6 +2500,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       includeLabelAreaBoundary: false,
       sheetOverride: outputSheet,
       logicalClipSize: physicalSize.logicalSize,
+      padToLogicalClipSize: printOptions != null &&
+          (printOptions.leftMarginMm > 0 ||
+              printOptions.rightMarginMm > 0 || printOptions.topMarginMm > 0),
       normalizeZoom: true,
     );
     if (capture == null) {
@@ -2497,8 +2543,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required int? lineSpacingPercent,
   }) async {
     if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
-    final sheet = _controller.getSheet();
-    final settings = _controller.settingsSnapshot;
+    final source = widget.outputCaptureSourceWorkbook;
+    final sheet = _outputCaptureSourceSheet();
+    final settings = source?.settings ?? _controller.settingsSnapshot;
     final physicalSize = sheet == null
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
@@ -2556,8 +2603,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required int? lineSpacingPercent,
   }) async {
     if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
-    final sheet = _controller.getSheet();
-    final settings = _controller.settingsSnapshot;
+    final source = widget.outputCaptureSourceWorkbook;
+    final sheet = _outputCaptureSourceSheet();
+    final settings = source?.settings ?? _controller.settingsSnapshot;
     final physicalSize = sheet == null
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
@@ -3351,6 +3399,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectOptions: widget.imageObjectOptions,
               imageObjectSources: widget.imageObjectSources,
               outputPreviewOffset: widget.outputPreviewOffset,
+              outputPreviewClipRect: widget.outputPreviewClipRect,
               barcodeObjectOptions: widget.barcodeObjectOptions,
               imageObjectConnectionMode: FortuneObjectConnectionMode.structured,
               barcodeObjectConnectionMode:

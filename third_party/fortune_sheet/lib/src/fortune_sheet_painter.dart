@@ -62559,6 +62559,7 @@ class FortuneSheetPainter extends CustomPainter {
     required this.selection,
     required this.scrollOffset,
     this.outputPreviewOffset,
+    this.outputPreviewClipRect,
     required this.sheetTabScrollOffset,
     required this.textDirection,
     this.sheetTabDragInsertX,
@@ -62788,6 +62789,7 @@ class FortuneSheetPainter extends CustomPainter {
   final Offset scrollOffset;
   // Logical-pixel display translation; screenshot/export keeps canonical data.
   final Offset? outputPreviewOffset;
+  final Rect? outputPreviewClipRect;
 
   Offset get _contentScrollOffset {
     final offset = outputPreviewOffset;
@@ -64041,6 +64043,19 @@ class FortuneSheetPainter extends CustomPainter {
       ),
       doAntiAlias: false,
     );
+    final clip = outputPreviewClipRect;
+    if (clip != null) {
+      final zoom = workbook.activeSheet.zoomRatio;
+      canvas.clipRect(
+        Rect.fromLTRB(
+          _sheetDataLeft(settings) - scrollOffset.dx + clip.left * zoom,
+          _sheetDataTop(settings) - scrollOffset.dy + clip.top * zoom,
+          _sheetDataLeft(settings) - scrollOffset.dx + clip.right * zoom,
+          _sheetDataTop(settings) - scrollOffset.dy + clip.bottom * zoom,
+        ),
+        doAntiAlias: false,
+      );
+    }
   }
 
   void _drawSheetRulerTooltip(Canvas canvas, Size size) {
@@ -78461,6 +78476,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.selection != selection ||
         oldDelegate.scrollOffset != scrollOffset ||
         oldDelegate.outputPreviewOffset != outputPreviewOffset ||
+        oldDelegate.outputPreviewClipRect != outputPreviewClipRect ||
         oldDelegate.sheetTabScrollOffset != sheetTabScrollOffset ||
         oldDelegate.sheetTabDragInsertX != sheetTabDragInsertX ||
         oldDelegate.freezeDragLineX != freezeDragLineX ||

@@ -230,9 +230,70 @@ FortuneSheet labelSheetWithOutputLineSpacing({
   required FortuneSheet sheet,
   required FortuneSettings settings,
   required int? percent,
+}) => _labelSheetWithOutputTextLayout(
+  sheet: sheet,
+  settings: settings,
+  percent: percent,
+);
+
+FortuneSheet labelSheetWithOutputFormatting({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  required int? lineSpacingPercent,
 }) {
-  if (percent == null || percent == 0) return sheet;
-  if (percent < 30 || percent > 300) {
+  if (![options.leftMarginMm, options.rightMarginMm, options.topMarginMm]
+      .every((value) => value.isFinite && value >= 0)) {
+    throw const FormatException('여백은 0 이상의 유효한 숫자여야 합니다.');
+  }
+  final width = metrics.pageWidthMm(options) -
+      options.leftMarginMm - options.rightMarginMm;
+  final height = metrics.pageHeightMm(options) -
+      math.max(0, options.extraAreaMm) - options.topMarginMm;
+  if (width <= 0 || height <= 0) {
+    throw const FormatException('여백을 제외한 인쇄 영역이 없습니다.');
+  }
+  final reduction = options.rotateQuarterTurns
+      ? options.topMarginMm
+      : options.leftMarginMm + options.rightMarginMm;
+  if (reduction == 0) {
+    return labelSheetWithOutputLineSpacing(
+      sheet: sheet,
+      settings: settings,
+      percent: lineSpacingPercent,
+    );
+  }
+  final availableWidth = metrics.labelWidthMm - reduction;
+  if (!metrics.effectiveSourceWidthMm.isFinite ||
+      metrics.effectiveSourceWidthMm <= 0) {
+    throw const FormatException('원본 라벨 폭이 올바르지 않습니다.');
+  }
+  final scale = availableWidth / metrics.effectiveSourceWidthMm;
+  double columnWidth(double width) => math.max(0.01, (width + 1) * scale - 1);
+  return _labelSheetWithOutputTextLayout(
+    sheet: sheet.copyWith(
+      defaultColWidth: columnWidth(sheet.defaultColWidth ?? 73),
+      columnWidths: {
+        for (final entry in sheet.columnWidths.entries)
+          entry.key: columnWidth(entry.value),
+      },
+    ),
+    settings: settings,
+    percent: lineSpacingPercent,
+    reflowParagraphs: true,
+  );
+}
+
+FortuneSheet _labelSheetWithOutputTextLayout({
+  required FortuneSheet sheet,
+  required FortuneSettings settings,
+  required int? percent,
+  bool reflowParagraphs = false,
+}) {
+  final useSpacing = percent != null && percent != 0;
+  if (!useSpacing && !reflowParagraphs) return sheet;
+  if (useSpacing && (percent < 30 || percent > 300)) {
     throw ArgumentError.value(percent, 'percent', 'Expected 30..300 or none');
   }
   final source = sheet.copyWith(zoomRatio: 1);
@@ -267,10 +328,10 @@ FortuneSheet labelSheetWithOutputLineSpacing({
   for (final row in rows.entries) {
     // RichEdit applies 115% inside tables, independent of automatic spacing.
     final table = tableRows.contains(row.key) || row.value.length > 1;
-    final multiplier = table ? 1.15 : percent / 100;
+    final multiplier = table ? 1.15 : (percent ?? 100) / 100;
     var height = 0.0;
     for (final entry in row.value) {
-      final cell = entry.value.copyWith(
+      final cell = !useSpacing ? entry.value : entry.value.copyWith(
         extraFields: {...entry.value.extraFields, 'lineHeight': multiplier},
         inlineRuns: entry.value.inlineRuns
             ?.map((run) => run.copyWith(
@@ -296,7 +357,7 @@ FortuneSheet labelSheetWithOutputLineSpacing({
     }
     if (table || height <= 0) continue;
     final previous = metrics.rowEnd(row.key) - metrics.rowStart(row.key) - 1;
-    heights[row.key] = math.max(1, height);
+    heights[row.key] = math.max(useSpacing ? 1 : previous, height);
     deltas[row.key] = heights[row.key]! - previous;
   }
   double anchoredTop(double top) =>
@@ -497,10 +558,12 @@ LabelSheetEzplPrintPreparation prepareLabelSheetEzplPrint({
   int? lineSpacingPercent,
 }) {
   final materializedSheet = fortuneSheetMaterializeDynamicComputedText(sheet);
-  final printSheet = labelSheetWithOutputLineSpacing(
+  final printSheet = labelSheetWithOutputFormatting(
     sheet: materializedSheet,
     settings: settings,
-    percent: lineSpacingPercent,
+    metrics: metrics,
+    options: options,
+    lineSpacingPercent: lineSpacingPercent,
   ).copyWith(
     zoomRatio: 1,
     rawZoomRatio: null,
@@ -568,11 +631,15 @@ LabelSheetHybridPrintGeometry resolveLabelSheetHybridPrintGeometry({
   final rowEnd = math.max(range.rowStart, range.rowEnd);
   final columnStart = math.min(range.columnStart, range.columnEnd);
   final columnEnd = math.max(range.columnStart, range.columnEnd);
+  final padMarginArea = options.leftMarginMm > 0 ||
+      options.rightMarginMm > 0 || options.topMarginMm > 0;
   final sourceBounds = ui.Rect.fromLTRB(
     sheetMetrics.columnStart(columnStart),
     sheetMetrics.rowStart(rowStart),
-    math.min(sheetMetrics.columnEnd(columnEnd), physicalSize.logicalSize.width),
-    math.min(sheetMetrics.rowEnd(rowEnd), physicalSize.logicalSize.height),
+    padMarginArea ? physicalSize.logicalSize.width
+        : math.min(sheetMetrics.columnEnd(columnEnd), physicalSize.logicalSize.width),
+    padMarginArea ? physicalSize.logicalSize.height
+        : math.min(sheetMetrics.rowEnd(rowEnd), physicalSize.logicalSize.height),
   );
   final resolvedMetrics = LabelSheetPrintPageMetrics(
     labelWidthMm: metrics.labelWidthMm,
@@ -815,10 +882,12 @@ LabelSheetWindowsHybridPreparation prepareLabelSheetWindowsHybridPrint({
   required LabelSheetPrintOptions options,
   required int? lineSpacingPercent,
 }) {
-  final printSheet = labelSheetWithOutputLineSpacing(
+  final printSheet = labelSheetWithOutputFormatting(
     sheet: sheet,
     settings: settings,
-    percent: lineSpacingPercent,
+    metrics: metrics,
+    options: options,
+    lineSpacingPercent: lineSpacingPercent,
   ).copyWith(
     zoomRatio: 1,
     rawZoomRatio: null,

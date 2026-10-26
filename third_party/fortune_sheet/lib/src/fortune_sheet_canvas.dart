@@ -3085,6 +3085,7 @@ class FortuneSheetController extends ChangeNotifier {
     bool includeLabelAreaBoundary = true,
     double? outputLineHeightMultiplier,
     Size? logicalClipSize,
+    bool padToLogicalClipSize = false,
     bool normalizeZoom = false,
     FortuneSheet? sheetOverride,
   }) {
@@ -3097,6 +3098,7 @@ class FortuneSheetController extends ChangeNotifier {
           includeLabelAreaBoundary: includeLabelAreaBoundary,
           outputLineHeightMultiplier: outputLineHeightMultiplier,
           logicalClipSize: logicalClipSize,
+          padToLogicalClipSize: padToLogicalClipSize,
           normalizeZoom: normalizeZoom,
           sheetOverride: sheetOverride,
         ) ??
@@ -3288,6 +3290,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectSources,
     this.outputPreviewOffset,
+    this.outputPreviewClipRect,
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectConnectionMode,
     this.barcodeObjectConnectionMode,
@@ -3315,6 +3318,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   /// Display-only sources: null keeps embedded files; missing entries show a placeholder.
   final Map<String, String>? imageObjectSources;
   final Offset? outputPreviewOffset;
+  final ui.Rect? outputPreviewClipRect;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final FortuneObjectConnectionMode? imageObjectConnectionMode;
   final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
@@ -16214,6 +16218,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     bool pixelAlignCellBackgrounds = false,
     Set<FortuneCellCoord> omittedCellTextCoords = const {},
     Size? logicalClipSize,
+    bool padToLogicalClipSize = false,
   }) async {
     final sheet = sheetOverride ?? _workbook.activeSheet;
     final settings = settingsOverride ?? _workbook.settings;
@@ -16239,11 +16244,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       final rangeHeight = rowBottom(range.rowEnd) - originY;
       final captureWidth = math.max(
         1.0,
-        math.min(rangeWidth, logicalClipSize?.width ?? rangeWidth),
+        padToLogicalClipSize && logicalClipSize != null
+            ? logicalClipSize.width
+            : math.min(rangeWidth, logicalClipSize?.width ?? rangeWidth),
       );
       final captureHeight = math.max(
         1.0,
-        math.min(rangeHeight, logicalClipSize?.height ?? rangeHeight),
+        padToLogicalClipSize && logicalClipSize != null
+            ? logicalClipSize.height
+            : math.min(rangeHeight, logicalClipSize?.height ?? rangeHeight),
       );
       final devicePixelRatio =
           pixelRatio ??
@@ -16591,6 +16600,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required bool includeLabelAreaBoundary,
     double? outputLineHeightMultiplier,
     Size? logicalClipSize,
+    bool padToLogicalClipSize = false,
     bool normalizeZoom = false,
     FortuneSheet? sheetOverride,
   }) async {
@@ -16606,6 +16616,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       includeLabelAreaBoundary: includeLabelAreaBoundary,
       outputLineHeightMultiplier: outputLineHeightMultiplier,
       logicalClipSize: logicalClipSize,
+      padToLogicalClipSize: padToLogicalClipSize,
       sheetOverride: normalizeZoom
           ? (sheetOverride ?? _workbook.activeSheet).copyWith(zoomRatio: 1)
           : sheetOverride,
@@ -16646,6 +16657,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           plan.approvedCellBorderEdgeKeys.isNotEmpty,
       omittedCellTextCoords: plan.approvedCellTextCoords,
       logicalClipSize: plan.transform.sourceLogicalBounds.size,
+      padToLogicalClipSize: true,
     );
     if (capture == null) return null;
     capture.image.dispose();
@@ -49009,6 +49021,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               final sheetPainter = FortuneSheetPainter(
                 workbook: _workbook,
                 outputPreviewOffset: widget.outputPreviewOffset,
+                outputPreviewClipRect: widget.outputPreviewClipRect,
                 imageObjectSources: widget.imageObjectSources,
                 gridSize: sheetPaintSize,
                 toolbarRightInset: widget.toolbarRightInset,

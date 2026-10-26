@@ -240,13 +240,14 @@ void main() {
   test('changing only a preview offset requests repaint', () {
     final workbook = _workbook();
     const selection = FortuneSelection(row: 0, column: 0);
-    FortuneSheetPainter painter(Offset? offset) => FortuneSheetPainter(
+    FortuneSheetPainter painter(Offset? offset, {Rect? clip}) => FortuneSheetPainter(
       workbook: workbook,
       selection: selection,
       scrollOffset: Offset.zero,
       sheetTabScrollOffset: 0,
       textDirection: TextDirection.ltr,
       outputPreviewOffset: offset,
+      outputPreviewClipRect: clip,
     );
     expect(
       painter(const Offset(5, -5)).shouldRepaint(painter(Offset.zero)),
@@ -254,6 +255,13 @@ void main() {
     );
     expect(painter(Offset.zero).shouldRepaint(painter(Offset.zero)), isFalse);
     expect(painter(null).shouldRepaint(painter(Offset.zero)), isTrue);
+    expect(
+      painter(Offset.zero, clip: const Rect.fromLTWH(0, 0, 70, 60))
+          .shouldRepaint(
+            painter(Offset.zero, clip: const Rect.fromLTWH(0, 0, 80, 60)),
+          ),
+      isTrue,
+    );
   });
 
   testWidgets('pushes scale with zoom and clip only print preview content', (
@@ -340,9 +348,11 @@ void main() {
       await tester.pumpAndSettle();
       final baseline = await _raster(tester);
       final clippedWidth = _colorBounds(baseline, _colors[1]).width;
+      expect(_painter(tester).workbook.activeSheet.zoomRatio, percent / 100);
       await tester.pumpWidget(preview(options(5, 5)));
       await tester.pumpAndSettle();
       final shifted = await _raster(tester);
+      expect(_painter(tester).workbook.activeSheet.zoomRatio, percent / 100);
       final pixels = fortuneMillimetersToLogicalPixels(5) * percent / 100;
       _expectTranslation(
         _colorBounds(baseline, _colors[0]),

@@ -6729,6 +6729,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               ? await _labelPrintCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
+                  options: options,
                 )
               : null;
           if (capture == null && windowsCapture == null && ezplCapture == null) {
@@ -7285,6 +7286,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               ? await _scaleOutputCaptureController.capture(
                   dpi: renderDpi,
                   lineSpacingPercent: unit.row.lineSpacingPercent,
+                  options: options,
                 )
               : null;
           if (capture == null && windowsCapture == null && ezplCapture == null) {

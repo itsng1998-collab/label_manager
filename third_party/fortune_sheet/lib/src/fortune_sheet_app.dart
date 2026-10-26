@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'fortune_sheet_canvas.dart';
@@ -14,6 +15,7 @@ class FortuneSheetApp extends StatefulWidget {
     this.showSheetTabs,
     this.gridClientSize,
     this.outputPreviewOffset,
+    this.outputPreviewClipRect,
     this.toolbarRightInset = 0,
     this.controller,
     this.imagePicker,
@@ -41,6 +43,7 @@ class FortuneSheetApp extends StatefulWidget {
   final bool? showSheetTabs;
   final FortuneSheetGridClientPhysicalSize? gridClientSize;
   final Offset? outputPreviewOffset;
+  final ui.Rect? outputPreviewClipRect;
   final double toolbarRightInset;
   final FortuneSheetController? controller;
   final FortuneImagePicker? imagePicker;
@@ -162,6 +165,7 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
       textDirection: TextDirection.ltr,
       child: FortuneSheetCanvas(
         outputPreviewOffset: widget.outputPreviewOffset,
+        outputPreviewClipRect: widget.outputPreviewClipRect,
         workbook: _workbookWithInitialGridClientSize(
           widget.workbook ?? _fallbackWorkbook,
         ),
