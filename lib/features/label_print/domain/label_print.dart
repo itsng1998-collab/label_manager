@@ -504,10 +504,12 @@ class LabelPrintSessionController extends ChangeNotifier {
               row.topPushSource == LabelPrintValueSource.preferenceFallback
               ? value.topPushMm
               : row.topPushMm,
-          lineSpacingPercent:
-              row.lineSpacingSource == LabelPrintValueSource.preferenceFallback
-              ? value.lineSpacingPercent
-              : row.lineSpacingPercent,
+          lineSpacingPercent: row.item.useLinefeed
+              ? row.lineSpacingPercent
+              : value.lineSpacingPercent,
+          lineSpacingSource: row.item.useLinefeed
+              ? row.lineSpacingSource
+              : LabelPrintValueSource.preferenceFallback,
         ),
     ];
     notifyListeners();

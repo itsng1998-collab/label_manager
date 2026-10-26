@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:label_manager/features/label_print/application/label_print_pipeline.dart';
 import 'package:image/image.dart' as img;
 import 'package:label_manager/features/item/domain/additional_item.dart';
 import 'package:label_manager/features/item/domain/item.dart';
@@ -317,6 +318,219 @@ void main() {
     expect(controller.rows[1].leftMarginMm, 1.5);
     expect(controller.rows[1].lineSpacingPercent, isNull);
     expect(controller.settings.printerName, 'Godex G500');
+  });
+
+  test('settings replace edited spacing only without item override', () {
+    final items = [
+      _item(10, '기본', copies: 1),
+      _item(20, '개별', copies: 1, useOverrides: true)
+          .copyWith(linefeed: 115),
+      _item(30, '설정 안 함', copies: 1, useOverrides: true),
+      _item(40, '개별 고정', copies: 1, useOverrides: true)
+          .copyWith(linefeed: 115),
+      _item(50, '기본 미편집', copies: 1),
+    ];
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    void syncRows() => controller.syncCheckedItems(
+      baselineItems: items,
+      checkedItemIds: const {10, 20, 30, 40, 50},
+      createRow: (item) => LabelPrintRowDraft.fromBaseline(
+        item: item,
+        labelSize: labelSize,
+        copies: 1,
+        settings: controller.settings,
+      ),
+    );
+    syncRows();
+    for (final id in [10, 20]) {
+      controller.updateRow(
+        id,
+        (row) => row.copyWith(
+          lineSpacingPercent: 100,
+          lineSpacingSource: LabelPrintValueSource.sessionEdited,
+        ),
+      );
+    }
+    for (final percent in [300, null, 80]) {
+      controller.applySettings(
+        LabelPrintSettingsSnapshot(
+          printerName: 'Test printer',
+          leftMarginMm: 0,
+          rightMarginMm: 0,
+          topMarginMm: 0,
+          leftPushMm: 0,
+          topPushMm: 0,
+          lineSpacingPercent: percent,
+          extraAreaMm: 0,
+          orientation: LabelPrintOrientation.horizontal,
+        ),
+      );
+      for (var check = 0; check < 2; check++) {
+        expect(controller.rows[0].lineSpacingPercent, percent);
+        expect(
+          controller.rows[0].lineSpacingSource,
+          LabelPrintValueSource.preferenceFallback,
+        );
+        expect(controller.rows[1].lineSpacingPercent, 100);
+        expect(
+          controller.rows[1].lineSpacingSource,
+          LabelPrintValueSource.sessionEdited,
+        );
+        expect(controller.rows[2].lineSpacingPercent, isNull);
+        expect(
+          controller.rows[2].lineSpacingSource,
+          LabelPrintValueSource.itemOverride,
+        );
+        expect(controller.rows[3].lineSpacingPercent, 115);
+        expect(
+          controller.rows[3].lineSpacingSource,
+          LabelPrintValueSource.itemOverride,
+        );
+        expect(controller.rows[4].lineSpacingPercent, percent);
+        syncRows();
+      }
+    }
+    expect(items[0].useLinefeed, isFalse);
+    expect(items[1].linefeed, 115);
+  });
+
+  testWidgets('printer spacing apply refreshes edited row and output preview', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    const initial = LabelPrintSettingsSnapshot(
+      printerName: 'Test printer',
+      leftMarginMm: 0,
+      rightMarginMm: 0,
+      topMarginMm: 0,
+      leftPushMm: 0,
+      topPushMm: 0,
+      lineSpacingPercent: 100,
+      extraAreaMm: 0,
+      orientation: LabelPrintOrientation.horizontal,
+    );
+    final controller = LabelPrintSessionController(settings: initial);
+    addTearDown(controller.dispose);
+    final item = _item(10, '기본', copies: 1);
+    controller.syncCheckedItems(
+      baselineItems: [item],
+      checkedItemIds: const {10},
+      createRow: (item) => LabelPrintRowDraft.fromBaseline(
+        item: item,
+        labelSize: labelSize,
+        copies: 1,
+        settings: initial,
+      ),
+    );
+    controller.updateRow(
+      10,
+      (row) => row.copyWith(
+        lineSpacingPercent: 100,
+        lineSpacingSource: LabelPrintValueSource.sessionEdited,
+      ),
+    );
+    final sheet = FortuneSheet(
+      id: 'spacing',
+      name: 'Spacing',
+      rowCount: 5,
+      columnCount: 1,
+      defaultRowHeight: 20,
+      defaultColWidth: 180,
+      cells: {
+        for (final row in [0, 1])
+          FortuneCellCoord(row, 0): FortuneCell(
+            value: 'Paragraph $row',
+            fontSize: 10,
+            textWrap: '2',
+          ),
+      },
+    );
+    final workbook = FortuneWorkbook(sheets: [sheet]);
+    final capture = LabelSheetOutputCaptureController();
+    LabelSheetZoomController? previewZoom;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => LabelPrintPage(
+              controller: controller,
+              previewBuilder: (row, zoom) {
+                previewZoom = zoom;
+                return LabelOutputPreview(
+                  workbook: workbook,
+                  hintText: null,
+                  identityKey: 'settings-spacing',
+                  imageObjectIds: const [],
+                  barcodeObjectIds: const [],
+                  labelSize: labelSize,
+                  outputCaptureController: capture,
+                  zoomController: zoom,
+                  printOptions: labelPrintOptionsForRow(
+                    row,
+                    controller.settings,
+                  ),
+                );
+              },
+              onPrinterSettings: () async {
+                final result = await showLabelPrintSettingsDialog(
+                  context: context,
+                  initial: controller.settings,
+                  showPdfSingleFileOption: false,
+                );
+                if (result != null) controller.applySettings(result);
+              },
+              onIssue: () {},
+              onCancelIssue: () {},
+              busy: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(capture.debugActiveSheet!.rowHeights[0], closeTo(10, 0.01));
+    final initialZoom = previewZoom!.value;
+    await tester.tap(find.text('프린터 설정'));
+    await tester.pumpAndSettle();
+    final panel = tester.widget<LabelPrintSettingsPanel>(
+      find.byType(LabelPrintSettingsPanel),
+    );
+    panel.onAutoSpacingChanged('300');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<LabelPrintSettingsPanel>(
+        find.byType(LabelPrintSettingsPanel),
+      ).autoSpacing,
+      '300',
+    );
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+    expect(controller.settings.lineSpacingPercent, 300);
+    expect(controller.rows.single.lineSpacingPercent, 300);
+    expect(capture.debugActiveSheet!.rowHeights[0], closeTo(30, 0.01));
+    expect(previewZoom!.value, initialZoom);
+    final row = controller.rows.single;
+    final printed = await tester.runAsync(
+      () => capture.captureWindowsDriver(
+        metrics: const LabelSheetPrintPageMetrics(
+          labelWidthMm: 60,
+          labelHeightMm: 40,
+          dpi: 203.2,
+        ),
+        options: labelPrintOptionsForRow(row, controller.settings),
+        lineSpacingPercent: row.lineSpacingPercent,
+      ),
+    );
+    expect(printed, isNotNull);
+    expect(printed!.sheet.rowHeights[0], closeTo(30, 0.01));
+    expect(sheet.rowHeights[0], isNull);
+    expect(sheet.defaultRowHeight, 20);
+    expect(item.useLinefeed, isFalse);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('issue command stays left and splitter resizes panes', (
