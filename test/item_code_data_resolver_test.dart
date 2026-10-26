@@ -334,7 +334,7 @@ void main() {
       );
     });
 
-    test('normalizes EAN-8 and falls back without lossy padding', () {
+    test('normalizes valid EAN-8 but never changes invalid data to CODE128', () {
       final column = _column(
         id: 1,
         keyword: 'BARCODE',
@@ -353,10 +353,13 @@ void main() {
       expect(resolver.resolve(column).barcodeFormatId, 'ean8');
 
       value = '123456';
-      final fallback = resolver.resolve(column);
-      expect(fallback.data, '123456');
-      expect(fallback.barcodeFormatId, 'code128');
-      expect(fallback.warning, isNotNull);
+      for (final preserve in [true, false]) {
+        final invalid = resolver.resolve(column, preserveTemplateBarcodeFormat: preserve);
+        expect(invalid.data, '123456');
+        expect(invalid.barcodeFormatId, 'ean8');
+        expect(invalid.warning, isNull);
+        expect(invalid.error, isNotNull);
+      }
     });
 
     test('preserves template format instead of applying fallback', () {
@@ -515,6 +518,49 @@ void main() {
       expect(result.data, '10LOT-A${String.fromCharCode(29)}011233102250101');
       expect(result.displayText, result.data);
     });
+
+    for (final showCode in [true, false]) {
+      test('SSCC uses raw 18 digits with display code $showCode and legacy GS1 disabled', () {
+        final source = _column(
+          id: 1, keyword: 'GS1AI', name: 'GS1AI',
+          type: TColumnType.TYPE_GS1_AI, gs1Ai: '00', showGs1: showCode,
+        );
+        final gs1 = _column(
+          id: 2, keyword: 'GS1BARCODE', name: 'GS1바코드',
+          type: TColumnType.TYPE_GS1_BARCODE,
+          containIds: const [1], useGs1: false,
+        );
+        final columns = [source, gs1];
+        var value = '123412341234123412';
+        final resolver = ItemCodeDataResolver(
+          itemName: 'TEST', columns: columns, columnValue: (_) => value,
+          tokenColumnValue: (column) => itemCodeTokenColumnValue(
+            column: column, columns: columns, columnValue: (_) => value,
+            referenceAt: DateTime(2026, 10, 26),
+          ),
+          gs1Definitions: const {
+            '00': Gs1AiDefinition(
+              code: '00', name: 'SSCC', content: '', dataFormat: '00+N18',
+              dataFormatType: 0, needsFnc1: false,
+            ),
+          },
+        );
+        final result = resolver.resolveObject('#GS1BARCODE')!;
+        expect(result.error, isNull);
+        expect(result.data, '00$value');
+        expect(itemCodeTokenColumnValue(
+          column: source, columns: columns, columnValue: (_) => value,
+          referenceAt: DateTime(2026, 10, 26),
+        ), showCode ? '(00)$value' : value);
+        for (final invalid in ['12341234123412341', '1234123412341234123', '(00)123412341234123412']) {
+          value = invalid;
+          expect(resolver.resolve(gs1).error, contains('GS1 AI 00 형식'));
+        }
+        for (final format in ['code39', 'microQRCode', 'code93']) {
+          expect(resolver.resolve(gs1, templateFormatId: format).error, contains('지원하지 않습니다'));
+        }
+      });
+    }
 
     test('reports missing GS1 AI definitions without fallback', () {
       final gs1 = _column(

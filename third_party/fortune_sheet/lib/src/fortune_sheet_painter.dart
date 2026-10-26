@@ -70306,17 +70306,6 @@ class FortuneSheetPainter extends CustomPainter {
       );
       _drawInputShell(canvas, trailingInput);
     }
-    if (barcodeLinked) {
-      final preserveCheckbox = fortuneBarcodePreserveFormatCheckboxRect(rect);
-      _drawCheckbox(canvas, preserveCheckbox, barcodePreserveTemplateFormat);
-      _drawText(
-        canvas,
-        '이 라벨에서 형식 고정',
-        fortuneBarcodePreserveFormatLabelRect(rect),
-        fontSize: 12,
-        color: const Color(0xff333333),
-      );
-    }
     if (barcodeErrorText != null && barcodeErrorText!.isNotEmpty) {
       _drawText(
         canvas,

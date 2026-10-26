@@ -140,6 +140,8 @@ List<FortuneObjectConnectionOption> commonLabelBarcodeObjectOptionsFromColumns(
         formatId: formatId,
         formatLabel: formatLabel ?? formatId,
         showHumanReadableText: column.showBarcodeNum,
+        excludedFormatIds: typeCode == TColumnType.TYPE_GS1_BARCODE
+            ? const {'code39', 'microQRCode', 'code93'} : const {},
       ),
     );
   }

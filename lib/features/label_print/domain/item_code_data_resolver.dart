@@ -41,7 +41,9 @@ class ItemCodeColumnSpec {
     showQrText: column.showQRCodeText,
     gs1Ai: column.gs1ai,
     gs1FormatOption: column.formatOption,
-    useGs1Code: column.useGS1Code,
+    useGs1Code:
+        column.columnType.code == TColumnType.TYPE_GS1_BARCODE ||
+        column.useGS1Code,
     containColumnIds: _parseColumnIds(column.containColumns),
     showGs1Code: column.showGS1Code,
     barcodeCaption: column.userDefineBarcodeText,
@@ -151,7 +153,7 @@ class ItemCodeDataResolver {
   ItemCodeDataResult? resolveObject(
     String objectId, {
     String? templateFormatId,
-    bool preserveTemplateBarcodeFormat = false,
+    bool preserveTemplateBarcodeFormat = true,
   }) {
     final normalized = objectId.trim().toLowerCase();
     for (final column in columns) {
@@ -172,7 +174,7 @@ class ItemCodeDataResolver {
   ItemCodeDataResult resolve(
     ItemCodeColumnSpec column, {
     String? templateFormatId,
-    bool preserveTemplateBarcodeFormat = false,
+    bool preserveTemplateBarcodeFormat = true,
   }) {
     if (column.typeCode == TColumnType.TYPE_GS1_BARCODE) {
       return _resolveGs1(column, templateFormatId: templateFormatId);
@@ -197,8 +199,8 @@ class ItemCodeDataResolver {
     final sourceError = missingConfiguration != null && raw.isEmpty
         ? '${column.columnName}의 $missingConfiguration과 품목의 2D 바코드 값이 모두 비어 있습니다.'
         : null;
-    final requestedFormat = preserveTemplateBarcodeFormat
-        ? templateFormatId ?? _formatId(column)
+    final requestedFormat = templateFormatId?.isNotEmpty == true
+        ? templateFormatId!
         : _formatId(column);
     final normalized = _normalize(requestedFormat, payload.data);
     if (normalized != null) {
@@ -210,37 +212,15 @@ class ItemCodeDataResolver {
         warning: sourceWarning,
       );
     }
-    if (preserveTemplateBarcodeFormat ||
-        column.typeCode == TColumnType.TYPE_GS1_BARCODE) {
-      return _result(
-        column,
-        data: payload.data,
-        displayText: payload.text,
-        formatId: requestedFormat,
-        warning: sourceWarning,
-        error:
-            sourceError ??
-            '${column.columnName} 데이터를 $requestedFormat 형식으로 표시할 수 없습니다.',
-      );
-    }
-    final fallback = _isQrColumn(column) ? 'qrCode' : 'code128';
-    final fallbackValue = _normalize(fallback, payload.data);
-    final warnings = [
-      ?sourceWarning,
-      if (fallbackValue != null)
-        '${column.columnName}은 선택 형식에 맞지 않아 $fallback 형식을 사용합니다.',
-    ];
     return _result(
       column,
-      data: fallbackValue ?? payload.data,
+      data: payload.data,
       displayText: payload.text,
-      formatId: fallback,
-      warning: warnings.isEmpty ? null : warnings.join('\n'),
+      formatId: requestedFormat,
+      warning: sourceWarning,
       error:
           sourceError ??
-          (fallbackValue == null
-              ? '${column.columnName} 바코드 데이터가 비어 있습니다.'
-              : null),
+          '${column.columnName} 데이터를 $requestedFormat 형식으로 표시할 수 없습니다.',
     );
   }
 
@@ -251,7 +231,16 @@ class ItemCodeDataResolver {
     final formatId = templateFormatId?.isNotEmpty == true
         ? templateFormatId!
         : _formatId(column);
-    if (!column.useGs1Code || column.containColumnIds.isEmpty) {
+    if (const {'code39', 'microQRCode', 'code93'}.contains(formatId)) {
+      return _result(
+        column,
+        data: '',
+        displayText: '',
+        formatId: formatId,
+        error: '${column.columnName}의 $formatId 형식은 GS1 바코드에서 지원하지 않습니다.',
+      );
+    }
+    if (column.containColumnIds.isEmpty) {
       return _result(
         column,
         data: '',
@@ -295,8 +284,9 @@ class ItemCodeDataResolver {
           error: 'GS1 AI $definitionCode 정의를 찾을 수 없습니다.',
         );
       }
-      final sourceValue =
-          tokenColumnValue?.call(source) ?? columnValue(source.columnId);
+      final sourceValue = source.typeCode == TColumnType.TYPE_GS1_AI
+          ? columnValue(source.columnId)
+          : tokenColumnValue?.call(source) ?? columnValue(source.columnId);
       if (!definition.accepts(sourceValue)) {
         return _result(
           column,
@@ -445,6 +435,7 @@ Map<String, Object?> itemCodeBarcodeMetadata(
   required bool preserveTemplateBarcodeFormat,
 }) {
   final next = Map<String, Object?>.from(current)
+    ..['preserveTemplateBarcodeFormat'] = true
     ..['barcodeText'] = result.data;
   if (result.column.typeCode == TColumnType.TYPE_BARCODE &&
       result.column.barcodeCaption.isNotEmpty) {

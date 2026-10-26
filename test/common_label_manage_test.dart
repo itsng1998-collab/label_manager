@@ -505,6 +505,15 @@ void main() {
     expect(options.single.label, '품목 이미지 (#ITEM_IMAGE)');
   });
 
+  test('GS1 connection options restrict unsupported barcode formats', () {
+    final options = commonLabelBarcodeObjectOptionsFromColumns([
+      _storedColumn('GS1', typeCode: TColumnType.TYPE_GS1_BARCODE),
+      _storedColumn('BARCODE', typeCode: TColumnType.TYPE_BARCODE),
+    ]);
+    expect(options.first.excludedFormatIds, {'code39', 'microQRCode', 'code93'});
+    expect(options.last.excludedFormatIds, isEmpty);
+  });
+
   test('required keywords include only missing-keyword checked columns', () {
     final required = commonLabelRequiredKeywordsFromColumns([
       _column(

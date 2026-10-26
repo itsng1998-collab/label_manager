@@ -889,7 +889,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   bool _imagePickerPending = false;
   bool _barcodeRenderPending = false;
   bool _barcodeShowText = false;
-  bool _barcodePreserveTemplateFormat = false;
+  bool _barcodePreserveTemplateFormat = true;
   String? _error;
   bool _draftFinalized = false;
   int _consumedFocusGeneration = 0;
@@ -932,7 +932,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     _noFill = false;
     _barcodeRenderPending = false;
     _barcodeShowText = false;
-    _barcodePreserveTemplateFormat = false;
+    _barcodePreserveTemplateFormat = true;
     _error = null;
     _initializeFields();
     if (preserveImageAspect) {
@@ -1179,8 +1179,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         _setField('fontFamily', extra['barcodeHumanReadableFontFamily'] ?? '');
         _setField('fontSize', extra['barcodeHumanReadableFontSize'] ?? 14.0);
         _barcodeShowText = extra['barcodeShowText'] == true;
-        _barcodePreserveTemplateFormat =
-            extra['preserveTemplateBarcodeFormat'] == true;
+        _barcodePreserveTemplateFormat = true;
         final draft = widget.barcodeDraft;
         if (draft != null) {
           for (final entry in draft.fields.entries) {
@@ -1191,7 +1190,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           }
           _barcodeShowText = draft.showText;
           _imageAspectLocked = draft.aspectLocked;
-          _barcodePreserveTemplateFormat = draft.preserveTemplateFormat;
+          _barcodePreserveTemplateFormat = true;
           _barcodeRenderPending = draft.pending;
           _error = draft.error;
         }
@@ -1261,9 +1260,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     }
     final extra = widget.snapshot.activeImage!.extraFields;
     return _imageAspectLocked == (extra['barcodeAspectLocked'] != false) &&
-        _barcodeShowText == (extra['barcodeShowText'] == true) &&
-        _barcodePreserveTemplateFormat ==
-            (extra['preserveTemplateBarcodeFormat'] == true);
+        _barcodeShowText == (extra['barcodeShowText'] == true);
   }
 
   double? _number(String name, {bool geometry = false}) {
@@ -1352,6 +1349,13 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         final fontSize = _number('fontSize');
         final text = _fields['barcodeText']?.text ?? '';
         final formatId = _fields['barcodeFormatId']?.text ?? '';
+        final excluded = widget.barcodeObjectOptions
+            .where((option) => option.value.toLowerCase() == connectionId.toLowerCase())
+            .firstOrNull?.excludedFormatIds ?? const <String>{};
+        if (excluded.contains(formatId)) {
+          setState(() => _error = '연결 항목에서 지원하는 바코드 형식을 선택하세요.');
+          return false;
+        }
         if (moduleScale == null ||
             barHeight == null ||
             fontSize == null ||
@@ -1581,6 +1585,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;
     final canMutate = widget.controller.objectMutationEnabled;
+    final linkedBarcode = widget.barcodeObjectOptions.where((option) =>
+      option.value.toLowerCase() == _fields['connectionId']?.text.trim().toLowerCase()).firstOrNull;
     if (image == null && line == null && shape == null) {
       return const SizedBox.shrink();
     }
@@ -1668,7 +1674,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
               ),
             ],
           ),
-          _field('모듈 배율', 'moduleScale'),
+          _field('모듈 배율', 'moduleScale', enabled:
+              fortuneBarcodeIsTwoDimensional(_fields['barcodeFormatId']?.text) &&
+              (linkedBarcode == null || fortuneBarcodeIsTwoDimensional(linkedBarcode.formatId))),
           _field('바 높이', 'barHeight', suffix: unit),
           _field('앞쪽 텍스트', 'leadingText'),
           _field('뒤쪽 텍스트', 'trailingText'),
@@ -1687,23 +1695,6 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           ),
           _barcodeFontField(),
           _field('텍스트 크기', 'fontSize'),
-          CheckboxListTile(
-            key: const ValueKey(
-              'fortune-object-property-barcode-preserve-template',
-            ),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: const Text('템플릿 바코드 형식 유지', style: TextStyle(fontSize: 13)),
-            value: _barcodePreserveTemplateFormat,
-            onChanged: canMutate
-                ? (value) {
-                    setState(() {
-                      _barcodePreserveTemplateFormat = value ?? false;
-                    });
-                    _markPropertyDraft();
-                  }
-                : null,
-          ),
         ],
       ]);
     } else if (line != null) {
@@ -1815,6 +1806,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     String? suffix,
     ValueChanged<String>? onChanged,
     List<TextInputFormatter>? inputFormatters,
+    bool enabled = true,
   }) {
     return TextField(
       key: ValueKey('fortune-object-property-$name'),
@@ -1826,6 +1818,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       decoration: InputDecoration(labelText: label, suffixText: suffix),
       style: const TextStyle(fontSize: 13),
       inputFormatters: inputFormatters,
+      enabled: enabled,
       readOnly: !widget.controller.objectMutationEnabled,
       onChanged: onChanged,
       onSubmitted: widget.controller.objectMutationEnabled
@@ -1836,14 +1829,22 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
 
   Widget _barcodeFormatField() {
     final currentFormatId = _fields['barcodeFormatId']?.text ?? '';
-    final formats = [...widget.barcodeFormats];
+    final connection = _fields['connectionId']?.text.trim().toLowerCase();
+    final excluded = widget.barcodeObjectOptions
+        .where((option) => option.value.toLowerCase() == connection)
+        .firstOrNull?.excludedFormatIds ?? const <String>{};
+    final formats = [
+      for (final format in widget.barcodeFormats)
+        if (!excluded.contains(format.id)) format,
+    ];
     if (currentFormatId.isNotEmpty &&
         !formats.any((format) => format.id == currentFormatId)) {
       final metadataLabel = widget.snapshot.activeImage
           ?.extraFields['barcodeFormatLabel']
           ?.toString()
           .trim();
-      formats.add(
+      if (!excluded.contains(currentFormatId)) {
+        formats.add(
         FortuneBarcodeFormatOption(
           id: currentFormatId,
           label: metadataLabel?.isNotEmpty == true
@@ -1851,10 +1852,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
               : currentFormatId,
         ),
       );
+      }
     }
     return DropdownButtonFormField<String>(
       key: const ValueKey('fortune-object-property-barcodeFormatId'),
-      initialValue: currentFormatId.isEmpty ? null : currentFormatId,
+      initialValue: formats.any((format) => format.id == currentFormatId)
+          ? currentFormatId : null,
       isExpanded: true,
       focusNode: _fieldFocusNodes.putIfAbsent(
         'barcodeFormatId',

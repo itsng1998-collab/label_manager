@@ -254,7 +254,7 @@ class _OverlayHostState extends State<_OverlayHost> {
 }
 
 void main() {
-  testWidgets('image property 30 to 31 then column width 32 saves against stored 30', (
+  testWidgets('image property 30 to 31 then column name edit saves geometry against stored 30', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1600, 900));
@@ -310,9 +310,8 @@ void main() {
     LabelColumnSaveCommand? saved;
     await tester.binding.setSurfaceSize(const Size(1300, 800));
     await _pumpDialog(tester, columns: TColumn.datas, onSave: (command) async => saved = command);
-    final widthField = find.widgetWithText(TextFormField, '폭');
-    await _tapVisible(tester, widthField);
-    await tester.enterText(widthField, '32');
+    expect(find.widgetWithText(TextFormField, '폭'), findsNothing);
+    await tester.enterText(find.byKey(const Key('label-column-name')), '이미지 변경');
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(
       find.byKey(const Key('label-column-property-apply')),
@@ -328,8 +327,8 @@ void main() {
     expect((saved!.originalColumnsById[1]!.column.width,
         saved!.originalColumnsById[1]!.column.height), (30, 30));
     expect((saved!.updatedColumns.single.column.width,
-        saved!.updatedColumns.single.column.height), (32, 31));
-    expect(saved!.changedKeysByColumnId[1], {'width', 'height'});
+        saved!.updatedColumns.single.column.height), (31, 31));
+    expect(saved!.changedKeysByColumnId[1], {'width', 'height', 'name'});
     final statement = LabelColumnSaveDao.buildSaveStatement(saved!,
       const LabelColumnSchemaCapabilities(
         hasCoreSchema: true, hasMainMissingKeywordCheck: true,
@@ -340,7 +339,7 @@ void main() {
     expect(RegExp(r'<originalColumns>(.*?)</originalColumns>', dotAll: true)
         .firstMatch(xml)!.group(1), contains('<width>30</width><height>30</height>'));
     expect(RegExp(r'<updatedColumns>(.*?)</updatedColumns>', dotAll: true)
-        .firstMatch(xml)!.group(1), contains('<width>32</width><height>31</height>'));
+        .firstMatch(xml)!.group(1), contains('<width>31</width><height>31</height>'));
     expect(statement.sql, contains('THROW 51113,'));
     expect(statement.sql, contains('EXCEPT'));
     expect(find.text('라벨 항목 저장 실패'), findsNothing);
@@ -395,7 +394,9 @@ void main() {
           'EAN13', 'CODE128', 'I2OF5', 'CODE39', 'UPC-A', 'CODE93', 'EAN8',
         ],
         TColumnType.TYPE_QR_CODE => const ['DataMatrix', 'QRCode', 'MicroQRCode'],
-        _ => BarcodeType.values.map((value) => value.dbName).toList(),
+        _ => BarcodeType.values
+            .where((type) => !const [BarcodeType.Code39, BarcodeType.MicroQrCode, BarcodeType.Code93].contains(type))
+            .map((value) => value.dbName).toList(),
       };
       expect(menu.dropdownMenuEntries.map((entry) => entry.label), expected);
       expect(menu.initialSelection, BarcodeType.Code128);
@@ -1185,6 +1186,42 @@ void main() {
     expect(saved?.updatedColumns.single.column.formatOption, 2);
   });
 
+  for (final type in [
+    const TColumnType(code: TColumnType.TYPE_IMAGE, name: '이미지', order: 10),
+    barcodeColumnType,
+    gs1BarcodeColumnType,
+  ]) {
+    testWidgets('${type.name} hides redundant fields without changing saved geometry', (tester) async {
+      LabelColumnSaveCommand? saved;
+      TColumnType.datas = [baseType, type];
+      await tester.binding.setSurfaceSize(const Size(1300, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpDialog(tester, columns: [
+        _column(1, 'HIDDEN', width: 31, height: 17).copyWith(
+          columnType: type, lineCheck: 4, lineSize: 3, rotate: 2,
+        ),
+      ], onSave: (command) async => saved = command);
+      for (final label in ['폭', '높이', 'Line check', 'Line size', '회전', 'GS1 code 사용']) {
+        expect(find.byWidgetPredicate((widget) =>
+          widget is TextField && widget.decoration?.labelText == label), findsNothing);
+        expect(find.widgetWithText(CheckboxListTile, label), findsNothing);
+      }
+      await tester.enterText(find.byKey(const Key('label-column-name')), '변경');
+      await tester.pumpAndSettle();
+      await _tapVisible(tester, find.byKey(const Key('label-column-property-apply')));
+      await tester.tap(find.byKey(const Key('label-column-main-save')));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+      await tester.pump();
+      await tester.pump();
+      final column = saved!.updatedColumns.single.column;
+      expect((column.width, column.height, column.lineCheck, column.lineSize, column.rotate),
+        (31, 17, 4, 3, 2));
+      if (type.code == TColumnType.TYPE_GS1_BARCODE) expect(column.useGS1Code, isTrue);
+    });
+  }
+
   testWidgets('GS1 barcode shows contain column IDs as keywords', (
     tester,
   ) async {
@@ -1220,10 +1257,16 @@ void main() {
     );
 
     await tester.enterText(containKeywords, '#GS1AI');
-    await _tapVisible(
-      tester,
-      find.widgetWithText(CheckboxListTile, 'GS1 code 사용'),
-    );
+    expect(find.widgetWithText(CheckboxListTile, 'GS1 code 사용'), findsNothing);
+    final formats = tester.widget<DropdownMenu<BarcodeType>>(
+      find.byType(DropdownMenu<BarcodeType>),
+    ).dropdownMenuEntries.map((entry) => entry.value).toList();
+    expect(formats, isNot(contains(BarcodeType.Code39)));
+    expect(formats, isNot(contains(BarcodeType.MicroQrCode)));
+    expect(formats, isNot(contains(BarcodeType.Code93)));
+    expect(formats, containsAll([
+      BarcodeType.Code128, BarcodeType.QrCode, BarcodeType.DataMatrix,
+    ]));
     await _tapVisible(
       tester,
       find.byKey(const Key('label-column-property-apply')),
@@ -1236,6 +1279,7 @@ void main() {
     await tester.pump();
 
     expect(saved?.updatedColumns.single.column.containColumns, '140792|');
+    expect(saved?.updatedColumns.single.column.useGS1Code, isTrue);
     expect(saved?.changedKeysByColumnId[140793], {'useGs1'});
     expect(
       () => LabelColumnSaveDao.buildSaveStatement(

@@ -162,12 +162,14 @@ Map<int, String> projectLabelPrintColumnValues({
   final projected = <int, String>{};
   for (var index = 0; index < sortedColumns.length; index += 1) {
     final column = sortedColumns[index];
-    var value = itemCodeTokenColumnValue(
-      column: specs[index],
-      columns: specs,
-      columnValue: baseline,
-      referenceAt: referenceAt,
-    );
+    var value = column.columnType.code == TColumnType.TYPE_GS1_AI
+        ? baseline(column.columnId)
+        : itemCodeTokenColumnValue(
+            column: specs[index],
+            columns: specs,
+            columnValue: baseline,
+            referenceAt: referenceAt,
+          );
     if (column.autoInc) {
       value = projectLabelAutoIncrement(
         original: baseline(column.columnId),

@@ -10085,7 +10085,8 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
         tokenColumnValue: (column) => itemCodeTokenColumnValue(
           column: column,
           columns: columns,
-          columnValue: rawColumnValue,
+          columnValue: column.typeCode == TColumnType.TYPE_GS1_AI
+              ? columnValue : rawColumnValue,
           referenceAt: referenceAt,
         ),
         gs1Definitions: Gs1AiDefinitions.values,
@@ -10463,9 +10464,10 @@ Map<String, String> _itemOutputPreviewReplacements({
     for (final column in TColumn.datas ?? const <TColumn>[])
       if (column.keyword != 'ITEMNAME' && column.keyword != '품목')
       '#${column.keyword}':
-          columnValue?.call(column.columnId) ??
-          TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
-          '',
+          '${column.columnType.code == TColumnType.TYPE_GS1_AI &&
+              column.showGS1Code && column.gs1ai.isNotEmpty ? '(${column.gs1ai})' : ''}'
+          '${columnValue?.call(column.columnId) ??
+              TColumnContent.get(column.columnId, item.item.itemId)?.dataString ?? ''}',
     for (final special in TColumnSpecial.datas ?? const <TColumnBase>[])
       if (special.keyword.trim().toUpperCase() != 'ITEMNAME' &&
           special.keyword.trim() != '품목')
@@ -11677,8 +11679,7 @@ fs.FortuneImage? _replaceImageKeywords(
     final objectId = '${extraFields[fs.fortuneBarcodeObjectIdExtraKey] ?? ''}'
         .trim()
         .toLowerCase();
-    final preserveTemplateFormat =
-        extraFields['preserveTemplateBarcodeFormat'] == true;
+    const preserveTemplateFormat = true;
     final resolved = codeDataResolver?.resolveObject(
       objectId,
       templateFormatId: '${extraFields['barcodeFormatId'] ?? ''}',
@@ -11689,7 +11690,9 @@ fs.FortuneImage? _replaceImageKeywords(
         extraFields,
         resolved,
         preserveTemplateBarcodeFormat: preserveTemplateFormat,
-      )..['itemCodePreviewResolved'] = true;
+      )
+        ..['preserveTemplateBarcodeFormat'] = true
+        ..['itemCodePreviewResolved'] = true;
       return image.copyWith(
         src: resolved.error == null
             ? image.src

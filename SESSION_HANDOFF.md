@@ -1,5 +1,14 @@
 # SESSION HANDOFF
 
+## 최근 완료: GS1 AI 표시값 혼입 및 항목/바코드 속성 정리
+- 제출 로그1.8.9 및 첨부5장 확인. GS1 AI showGS1Code가 tokenColumnValue에서 (00)을 붙인 표시값을 _resolveGs1 검증/조합에 전달하는 것이 원인. 레거시 GetGS1CodeData는 원본값(날짜는 DATE_FORMAT_NONE)만 조합, TYPE_GS1_AI 텍스트치환에서만 괄호표시.
+- 구현: GS1_AI 원본과 표시분리, 발행projector의 (AI)첨가 제거/출력텍스트에서만첨가(라벨·저울·자동갱신 모두 공유), 원본에괄호붙은잘못된값은 그대로검사실패. 이미지/1D/GS1바코드 열편집 크기·1D line/rotate 숨김(기존값유지), GS1 code사용 출력강제ON/적용시ON저장/숨김, CODE39/MicroQR/CODE93 제외(열편집/연결개체형식목록/해석기차단).
+- 바코드 형식유지 강제ON/속성·삽입선택기숨김, 형식오류 CODE128대체금지(기존OFF도 새정책적용), 1D모듈배율 비활성화. 개체연결만바꾸면 기존개체형식유지, 신규삽입연결은 열설정형식초기선택. 기존불가형식은 임의변환금지/선택안내. 날짜token callback은 기존원본기준계산유지.
+- 구현·검증 완료, 관련변경만 커밋예정. resolver/editor/height/commonLabel/autoIncrement/pipeline/persistence/scale/objectController/objectCodec10파일225/225, toolbar GS1/2D/barcode22/22(native GS1 PNG/Windows 인쇄이미지준비 포함), native height/property/GS1삽입전체33/33 통과. 최종247건 + native재검증33건. SSCC표시ON/OFF·18자리/잘못된자리수/선행0·원본괄호오류·포맷불일치·기존OFF무시·새옵션목록·숨김값보존·연결1D모듈불가·형식유지선택기hit제거·저장재읽기/undo/redo 검증.
+- 변경13 Dart analyzer에서 canvas의 기존unused10건만 유지, 나머지11파일 No issues found. diff --check통과. 레거시매뉴얼v2 GS1상세설명없음(XML문단검색), 실제코드대조 완료. DTD발견·기존연결확인/앱목록/hot reload시도했으나 실행 앱 없음으로 미적용, 운영DB접속 방지를 위해 앱자동실행안함.
+- 운영DB/실제인쇄 없음. lib/core/app.dart 사용자변경 보존. 버전1.8.17→1.8.18 PATCH: 기존GS1 표시혼입오류수정과 중복/미지원옵션정리, 저장포맷·스키마변경없음. README갱신.
+- 다음 사용자확인:1.8.18→GS1AI AI00/표시ON→GS1바코드 포함#GS1AI 적용/저장→code128개체연결/저장→4번째품목(원본18자리) 텍스트(00)표시와바코드정상확인. 표시OFF에서도동일스캔값. 기존개체의형식이열설정과달라도자동변경하지않으므로 개체속성에서올바른형식을직접선택. Micro QR 네이티브생성미지원은직전handoff참조, 이번GS1에서는선택제외.
+
 ## 최근 완료: 2D 연결 바코드 품목 미리보기/발행 실패
 - 제출1.8.9 로그/이미지: #2DBARCODE 품목값1234567891이 존재하나 생성data가 비어 출력차단. 같은라벨8243의 제출XML 로그에서 column141679의 qrCreateType=1(10/22)/2(10/26 11:03), userQrData/natrium 모두빈값 확인. 현재로그10/26 10:57에는 열설정 실제행이 없어 직전/직후 로그로 대조.
 - 레거시 TableRowRTFMaker::GetQRCodeData는 기본=품목값, 사용자정의=조합, 나트륨=URL이며 빈조합 대체처리 없음. 사용자 지시: 레거시대조, 없으면 제시1번(raw-with-warning). 따라서 QR 사용자정의/나트륨의 조합설정 자체가 빈경우만 품목값 사용+명시적경고, DB설정 변경없음으로 보완.

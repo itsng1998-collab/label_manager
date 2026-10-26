@@ -225,6 +225,7 @@ class FortuneObjectConnectionOption {
     this.formatId,
     this.formatLabel,
     this.showHumanReadableText,
+    this.excludedFormatIds = const {},
   });
 
   final String value;
@@ -232,6 +233,7 @@ class FortuneObjectConnectionOption {
   final String? formatId;
   final String? formatLabel;
   final bool? showHumanReadableText;
+  final Set<String> excludedFormatIds;
 }
 
 String fortuneFilterBarcodeInput(String formatId, String input) {
@@ -3944,7 +3946,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   int? _barcodeFormatMenuHoveredIndex;
   double _barcodeFormatMenuScrollOffset = 0;
   bool _barcodeShowHumanReadableText = false;
-  bool _barcodePreserveTemplateFormat = false;
+  bool _barcodePreserveTemplateFormat = true;
   String? _barcodeHumanReadableFontFamily;
   double _barcodeHumanReadableFontSize = 14;
   bool _barcodeTextFontMenuOpen = false;
@@ -25049,11 +25051,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   List<FortuneBarcodeFormatOption> get _effectiveBarcodeFormats {
-    return widget.barcodeFormats.isEmpty
+    final formats = widget.barcodeFormats.isEmpty
         ? const <FortuneBarcodeFormatOption>[
             FortuneBarcodeFormatOption(id: 'qrCode', label: 'QR Code'),
           ]
         : widget.barcodeFormats;
+    final excluded = _selectedBarcodeObjectOption?.excludedFormatIds ?? const <String>{};
+    return formats.where((format) => !excluded.contains(format.id)).toList();
   }
 
   bool get _barcodeInsertUsesStructuredDialogChoices =>
@@ -25144,6 +25148,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _barcodeEditingFormatId,
         _barcodeEditingFormatLabel,
       );
+    }
+    final linked = _selectedBarcodeObjectOption;
+    if (!_barcodeFormatChanged && linked != null &&
+        linked.excludedFormatIds.contains(linked.formatId)) {
+      return _barcodeFormatOptionForMetadata(linked.formatId, linked.formatLabel);
     }
     final formats = _effectiveBarcodeFormats;
     final index = _barcodeFormatIndex.clamp(0, formats.length - 1);
@@ -25516,7 +25525,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeTextFontSizeMenuHoveredIndex = null;
       _barcodeTextFontSizeMenuScrollOffset = 0;
       _barcodeShowHumanReadableText = false;
-      _barcodePreserveTemplateFormat = false;
+      _barcodePreserveTemplateFormat = true;
       _barcodeHoveredControl = null;
       _barcodePressedControl = null;
       _barcodeErrorText = null;
@@ -25600,8 +25609,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeTextFontSizeMenuHoveredIndex = null;
       _barcodeTextFontSizeMenuScrollOffset = 0;
       _barcodeShowHumanReadableText = extra['barcodeShowText'] == true;
-      _barcodePreserveTemplateFormat =
-          extra['preserveTemplateBarcodeFormat'] == true;
+      _barcodePreserveTemplateFormat = true;
       _barcodeHoveredControl = null;
       _barcodePressedControl = null;
       _barcodeErrorText = null;
@@ -25718,6 +25726,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             linkedOption.formatLabel,
           )
         : _selectedBarcodeFormat;
+    if (linkedOption?.excludedFormatIds.contains(format.id) == true) {
+      setState(() => _barcodeErrorText = '연결 항목에서 지원하는 바코드 형식을 선택하세요.');
+      return;
+    }
     final showHumanReadableText =
         linkedOption?.showHumanReadableText ?? _barcodeShowHumanReadableText;
     fortuneSheetDebugLog(
@@ -25794,9 +25806,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'barcodeShowText': showHumanReadableText,
       'barcodeHumanReadableFontFamily': _selectedBarcodeTextFontFamily,
       'barcodeHumanReadableFontSize': _barcodeHumanReadableFontSize,
-      'preserveTemplateBarcodeFormat': linkedOption != null
-          ? _barcodePreserveTemplateFormat
-          : editingImage?.extraFields['preserveTemplateBarcodeFormat'] == true,
+      'preserveTemplateBarcodeFormat': true,
       fortuneBarcodeBodyTopExtraKey: renderedBodyTop,
       fortuneBarcodeBodyHeightExtraKey: renderedBodyHeight,
       fortuneBarcodeBodyRatioExtraKey: imageHeight <= 0
@@ -26315,7 +26325,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
       final selected = _selectedBarcodeObjectOption;
       if (selected != null) {
-        _barcodePreserveTemplateFormat = false;
+        _barcodePreserveTemplateFormat = true;
+        _barcodeFormatChanged = false;
         _barcodeFormatIndex = _barcodeFormatIndexForMetadata(
           selected.formatId,
           selected.formatLabel,
@@ -28148,7 +28159,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'barcodeShowText': showHumanReadableText,
       'barcodeHumanReadableFontFamily': humanReadableFontFamily,
       'barcodeHumanReadableFontSize': humanReadableFontSize,
-      'preserveTemplateBarcodeFormat': preserveTemplateFormat,
+      'preserveTemplateBarcodeFormat': true,
       fortuneBarcodeBodyTopExtraKey: (result.bodyTop ?? 0).toDouble(),
       fortuneBarcodeBodyHeightExtraKey:
           (result.bodyHeight ?? result.pixelHeight ?? imageHeight).toDouble(),
@@ -41116,9 +41127,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         fortuneBarcodeShowTextCheckboxRect(rect).contains(local)) {
       return 'show-text';
     }
-    if (fortuneBarcodePreserveFormatCheckboxRect(rect).contains(local)) {
-      return 'preserve-format';
-    }
     if (!_barcodeIsTwoDimensional &&
         fortuneBarcodeTextFontComboRect(rect).contains(local)) {
       return 'text-font';
@@ -41389,16 +41397,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       setState(() {
         _barcodeShowHumanReadableText = !_barcodeShowHumanReadableText;
-      });
-      return;
-    }
-    if (command == 'preserve-format') {
-      if (!_barcodeUsesLinkedObject) {
-        return;
-      }
-      setState(() {
-        _barcodePreserveTemplateFormat = !_barcodePreserveTemplateFormat;
-        _barcodeFormatMenuOpen = false;
       });
       return;
     }

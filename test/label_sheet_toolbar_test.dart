@@ -51,6 +51,7 @@ import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
+import 'package:label_manager/features/label_print/domain/label_print_auto_increment.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
@@ -807,6 +808,126 @@ void main() {
     expect(labelSheetDecodeWorkbookSave(encoded).activeSheet.images.single.extraFields['barcodeText'], 'template');
   });
 
+  for (final showCode in [true, false]) {
+    test('GS1 SSCC display $showCode keeps raw data through preview and print projection', () async {
+      final previousColumns = TColumn.datas;
+      final previousDefinitions = Gs1AiDefinitions.values;
+      addTearDown(() {
+        TColumn.datas = previousColumns;
+        Gs1AiDefinitions.values = previousDefinitions;
+      });
+      final source = _testColumn(1, 'GS1AI').copyWith(
+        columnType: const TColumnType(code: TColumnType.TYPE_GS1_AI, name: 'GS1AI', order: 1),
+        gs1ai: '00', showGS1Code: showCode,
+      );
+      final barcode = _testColumn(2, 'GS1BARCODE').copyWith(
+        columnType: const TColumnType(code: TColumnType.TYPE_GS1_BARCODE, name: 'GS1바코드', order: 2),
+        containColumns: '1|', useGS1Code: false, showGS1Code: true,
+      );
+      TColumn.datas = [source, barcode];
+      Gs1AiDefinitions.set(const [
+        Gs1AiDefinition(code: '00', name: 'SSCC', content: '', dataFormat: '00+N18',
+          dataFormatType: 0, needsFnc1: false),
+      ]);
+      final workbook = FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'label', name: 'Label',
+          cells: {const FortuneCellCoord(0, 0): FortuneCell(value: '#GS1AI')},
+          images: const [
+            FortuneImage(id: 'barcode', src: 'data:image/png;base64,OLD=',
+              left: 10, top: 10, width: 240, height: 120,
+              extraFields: {
+                'fortuneBarcode': true, fortuneBarcodeObjectIdExtraKey: '#GS1BARCODE',
+                'barcodeText': 'template', 'barcodeFormatId': 'code128',
+                'barcodeShowText': false, 'preserveTemplateBarcodeFormat': false,
+              }),
+          ]),
+      ]);
+      final saved = labelSheetEncodeWorkbookSave(workbook);
+      for (final value in ['123412341234123412', '001234123412341234']) {
+        final contents = {
+          const ColumnItemKey(columnId: 1, itemId: 10): TColumnContent(
+            colContentId: 1, columnId: 1, itemId: 10, editable: true, dataString: value),
+        };
+        final projected = projectLabelPrintColumnValues(
+          itemId: 10, copyIndex: 0, columns: [source, barcode],
+          columnContents: contents, referenceAt: DateTime(2026, 10, 26),
+        );
+        expect(projected[1], value);
+        final preview = debugItemOutputPreviewForTesting(
+          labelSize: _testLabelSizeWithFormData(saved), item: _testItemOfMarket(),
+          elementText: '', projectedColumnValues: projected,
+        ).workbook!;
+        expect(preview.activeSheet.cells[const FortuneCellCoord(0, 0)]!.renderedText,
+          showCode ? '(00)$value' : value);
+        expect(preview.activeSheet.images.single.extraFields['barcodeText'], '00$value');
+        expect(preview.activeSheet.images.single.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+        expect(debugItemCodePreviewMessagesForTesting(preview), isEmpty);
+        FortuneBarcodeRequest? request;
+        final rendered = await debugRenderItemOutputPreviewBarcodesForTesting(preview,
+          renderer: (input) async {
+            request = input;
+            if (const bool.fromEnvironment('BARCODE_GS1_NATIVE')) {
+              return labelSheetBarcodeRenderer(input);
+            }
+            return FortuneBarcodeRenderResult(bytes: Uint8List.fromList([1, 2, 3]));
+          });
+        expect(request!.text, '00$value');
+        expect(request!.formatId, 'code128');
+        expect(rendered.activeSheet.images.single.extraFields['itemCodeError'], isNull);
+        if (const bool.fromEnvironment('BARCODE_GS1_NATIVE')) {
+          final bytes = base64Decode(rendered.activeSheet.images.single.src.split(',').last);
+          final page = prepareLabelSheetWindowsDriverPage(
+            pngBytes: bytes,
+            metrics: const LabelSheetPrintPageMetrics(labelWidthMm: 60, labelHeightMm: 30, dpi: 203.2),
+            options: const LabelSheetPrintOptions(
+              copies: 1, leftMarginMm: 0, topMarginMm: 0, extraAreaMm: 0,
+              autoSpacingPercent: null, orientation: LabelSheetPrintOrientation.horizontal,
+            ),
+          );
+          expect(page.inkPixels, greaterThan(0));
+        }
+      }
+      final invalid = debugItemOutputPreviewForTesting(
+        labelSize: _testLabelSizeWithFormData(saved), item: _testItemOfMarket(),
+        elementText: '', projectedColumnValues: const {1: '1234'},
+      ).workbook!;
+      expect(debugItemCodePreviewMessagesForTesting(invalid).single.error, isTrue);
+      expect(barcode.useGS1Code, isFalse);
+      expect(labelSheetDecodeWorkbookSave(saved).activeSheet.images.single.extraFields['barcodeText'], 'template');
+    });
+  }
+
+  test('barcode template format never falls back for legacy disabled flag', () {
+    final previousColumns = TColumn.datas;
+    addTearDown(() => TColumn.datas = previousColumns);
+    TColumn.datas = [
+      _testColumn(1, 'BARCODE').copyWith(
+        columnType: const TColumnType(code: TColumnType.TYPE_BARCODE, name: '바코드', order: 1),
+      ),
+    ];
+    for (final preserve in [null, false, true]) {
+      final saved = labelSheetEncodeWorkbookSave(FortuneWorkbook(sheets: [
+        FortuneSheet(id: 'label', name: 'Label', images: [
+          FortuneImage(id: 'barcode', src: 'data:image/png;base64,OLD=',
+            left: 0, top: 0, width: 120, height: 60, extraFields: {
+              'fortuneBarcode': true, fortuneBarcodeObjectIdExtraKey: '#BARCODE',
+              'barcodeFormatId': 'ean8',
+              'preserveTemplateBarcodeFormat': ?preserve,
+            }),
+        ]),
+      ]));
+      final preview = debugItemOutputPreviewForTesting(
+        labelSize: _testLabelSizeWithFormData(saved), item: _testItemOfMarket(),
+        elementText: '', projectedColumnValues: const {1: '123456'},
+      ).workbook!;
+      final metadata = preview.activeSheet.images.single.extraFields;
+      expect(metadata['barcodeFormatId'], 'ean8');
+      expect(metadata['preserveTemplateBarcodeFormat'], isTrue);
+      expect(metadata['itemCodeError'], isNotNull);
+      expect(metadata['barcodeText'], '123456');
+    }
+  });
+
   for (final format in [BarcodeType.QrCode, BarcodeType.MicroQrCode, BarcodeType.DataMatrix]) {
     for (final mode in [
       QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
@@ -822,13 +943,18 @@ void main() {
           userDefineQRData: '', userDefineQRText: '', natriumJoinString: '',
         );
         TColumn.datas = [column];
+        final formatId = switch (format) {
+          BarcodeType.QrCode => 'qrCode',
+          BarcodeType.MicroQrCode => 'microQRCode',
+          _ => 'dataMatrix',
+        };
         final inserted = FortuneImage(
           id: 'insert-linked', src: 'data:image/png;base64,OLD=',
           left: 10, top: 10, width: 120, height: 120,
           extraFields: {
             'fortuneBarcode': true,
             fortuneBarcodeObjectIdExtraKey: '#2DBARCODE',
-            'barcodeText': '1234', 'barcodeFormatId': 'qrCode',
+            'barcodeText': '1234', 'barcodeFormatId': formatId,
             'barcodeShowText': false,
           },
         );
@@ -836,16 +962,11 @@ void main() {
           FortuneSheet(id: 'label', name: 'Label', images: [
             inserted,
             inserted.copyWith(id: 'property-relinked', left: 140, extraFields: {
-              ...inserted.extraFields, 'barcodeFormatId': 'code128',
+              ...inserted.extraFields, 'preserveTemplateBarcodeFormat': false,
             }),
           ]),
         ]);
         final saved = labelSheetEncodeWorkbookSave(source);
-        final formatId = switch (format) {
-          BarcodeType.QrCode => 'qrCode',
-          BarcodeType.MicroQrCode => 'microQRCode',
-          _ => 'dataMatrix',
-        };
         for (final data in ['1234567891', '001234567891']) {
           final preview = debugItemOutputPreviewForTesting(
             labelSize: _testLabelSizeWithFormData(saved),
@@ -914,7 +1035,7 @@ void main() {
         expect(column.natriumJoinString, isEmpty);
         expect(column.qrCodeCreateType, mode);
         expect(labelSheetDecodeWorkbookSave(saved).activeSheet.images.first.extraFields['barcodeText'], '1234');
-        expect(labelSheetDecodeWorkbookSave(saved).activeSheet.images.last.extraFields['barcodeFormatId'], 'code128');
+        expect(labelSheetDecodeWorkbookSave(saved).activeSheet.images.last.extraFields['barcodeFormatId'], formatId);
       });
     }
   }
@@ -1049,7 +1170,7 @@ void main() {
                   value: '#GS1AI',
                 ),
               },
-              images: const [
+              images: [
                 FortuneImage(
                   id: 'barcode',
                   src: 'data:image/png;base64,OLD=',
@@ -1061,7 +1182,8 @@ void main() {
                     'fortuneBarcode': true,
                     fortuneBarcodeObjectIdExtraKey: '#BARCODE',
                     'barcodeText': 'template',
-                    'barcodeFormatId': 'code128',
+                    'barcodeFormatId': scenario.type == TColumnType.TYPE_QR_CODE
+                        ? 'qrCode' : 'code128',
                   },
                 ),
               ],

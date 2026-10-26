@@ -75,6 +75,8 @@ Future<FortuneSheetController> _pumpCanvas(
   List<FortuneImage> initialImages = const [],
   FortuneBarcodeRenderer renderer = _renderBarcode,
   List<String>? fontFamilies,
+  List<FortuneObjectConnectionOption> connectionOptions = const [],
+  List<FortuneBarcodeFormatOption>? formats,
 }) async {
   await tester.binding.setSurfaceSize(Size(withPanel ? 1200 : 900, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -103,7 +105,8 @@ Future<FortuneSheetController> _pumpCanvas(
           ],
         ),
         barcodeObjectConnectionMode: FortuneObjectConnectionMode.structured,
-        barcodeFormats: [
+        barcodeObjectOptions: connectionOptions,
+        barcodeFormats: formats ?? [
           FortuneBarcodeFormatOption(
             id: format,
             label: format,
@@ -116,7 +119,10 @@ Future<FortuneSheetController> _pumpCanvas(
         },
       )),
       if (withPanel)
-        SizedBox(width: 300, child: FortuneObjectLayerPanel(controller: controller)),
+        SizedBox(width: 300, child: FortuneObjectLayerPanel(
+          controller: controller, barcodeObjectOptions: connectionOptions,
+          barcodeFormats: formats ?? const [],
+        )),
       ]),
     ),
   ));
@@ -278,9 +284,105 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('GS1 insertion filters formats and cannot toggle hidden format preservation', (tester) async {
+    final requests = <FortuneBarcodeRequest>[];
+    final controller = await _pumpCanvas(tester, requests,
+      formats: labelSheetBarcodeFormats,
+      connectionOptions: const [
+        FortuneObjectConnectionOption(value: '#GS1', label: 'GS1', formatId: 'code128',
+          excludedFormatIds: {'code39', 'microQRCode', 'code93'}),
+      ]);
+    await _openDialog(tester);
+    await _tapDialog(tester, fortuneBarcodeObjectIdInputRect);
+    await _tapDialog(tester, (rect) {
+      final menu = fortuneBarcodeObjectIdMenuRect(rect, 2);
+      return Rect.fromLTWH(menu.left, menu.top + fortuneContextMenuRowHeight,
+        menu.width, fortuneContextMenuRowHeight);
+    });
+    final expected = labelSheetBarcodeFormats
+        .where((format) => !const {'code39', 'microQRCode', 'code93'}.contains(format.id))
+        .map((format) => format.label).toList();
+    expect(_painter(tester).barcodeFormatOptions, expected);
+    expect(_painter(tester).barcodePreserveTemplateFormat, isTrue);
+    await _tapDialog(tester, fortuneBarcodePreserveFormatCheckboxRect);
+    expect(_painter(tester).barcodePreserveTemplateFormat, isTrue);
+    await _confirm(tester);
+    final barcode = controller.getSheet(id: 'label')!.images.single;
+    expect(barcode.extraFields[fortuneBarcodeObjectIdExtraKey], '#GS1');
+    expect(barcode.extraFields['barcodeFormatId'], 'code128');
+    expect(barcode.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+  });
+
+  testWidgets('linked GS1 controls exclude unsupported formats and keep 1D module disabled', (tester) async {
+    final requests = <FortuneBarcodeRequest>[];
+    final controller = await _pumpCanvas(tester, requests, withPanel: true,
+      formats: labelSheetBarcodeFormats,
+      connectionOptions: const [
+        FortuneObjectConnectionOption(value: '#GS1', label: 'GS1', formatId: 'code128',
+          excludedFormatIds: {'code39', 'microQRCode', 'code93'}),
+      ],
+      initialImages: const [
+        FortuneImage(id: 'legacy', src: '', left: 10, top: 10, width: 120, height: 60,
+          extraFields: {
+            'fortuneBarcode': true, fortuneBarcodeObjectIdExtraKey: '#GS1',
+            'barcodeText': '00123412341234123412', 'barcodeFormatId': 'code128',
+            'preserveTemplateBarcodeFormat': false,
+          }),
+      ]);
+    controller.selectObject(const FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, 'legacy'));
+    await tester.pumpAndSettle();
+    final format = find.byKey(const ValueKey('fortune-object-property-barcodeFormatId'));
+    await _revealProperty(tester, format);
+    final items = tester.widget<DropdownButton<String>>(
+      find.descendant(of: format, matching: find.byType(DropdownButton<String>)),
+    ).items!.map((item) => item.value);
+    expect(items, isNot(contains('code39')));
+    expect(items, isNot(contains('microQRCode')));
+    expect(items, isNot(contains('code93')));
+    final module = find.byKey(const ValueKey('fortune-object-property-moduleScale'));
+    await _revealProperty(tester, module);
+    expect(tester.widget<TextField>(module).enabled, isFalse);
+    final left = find.byKey(const ValueKey('fortune-object-property-left'));
+    await _revealProperty(tester, left);
+    await tester.enterText(left, '11');
+    await _applyProperties(tester, controller);
+    expect(controller.objectSelection.activeImage!.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+    expect(requests.last.formatId, 'code128');
+    controller.handleUndo();
+    await tester.pumpAndSettle();
+    expect(controller.objectSelection.activeImage!.extraFields['barcodeFormatId'], 'code128');
+    controller.handleRedo();
+    await tester.pumpAndSettle();
+    expect(controller.objectSelection.activeImage!.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+  });
+
+  for (final format in ['code128', 'qrCode']) {
+    testWidgets('barcode $format module controls and forced hidden format preservation', (tester) async {
+      final requests = <FortuneBarcodeRequest>[];
+      final controller = await _pumpCanvas(tester, requests,
+        format: format, withPanel: true);
+      await _openDialog(tester);
+      await _confirm(tester);
+      final original = controller.getSheet(id: 'label')!.images.single;
+      expect(original.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+      controller.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, original.id));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('fortune-object-property-barcode-preserve-template')), findsNothing);
+      final module = find.byKey(const ValueKey('fortune-object-property-moduleScale'));
+      await _revealProperty(tester, module);
+      expect(tester.widget<TextField>(module).enabled, format == 'qrCode');
+      if (format == 'qrCode') await tester.enterText(module, '4');
+      await _applyProperties(tester, controller);
+      final saved = labelSheetDecodeWorkbookSave(
+        labelSheetBuildSavePayload(_painter(tester).workbook).encodedWorkbook,
+      );
+      expect(saved.activeSheet.images.single.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+      expect(saved.activeSheet.images.single.extraFields['barcodeFormatId'], format);
+    });
+  }
+
   for (final option in [
     (name: 'show-text', field: 'barcode-show-text', metadata: 'barcodeShowText'),
-    (name: 'preserve-format', field: 'barcode-preserve-template', metadata: 'preserveTemplateBarcodeFormat'),
   ]) {
     testWidgets('barcode ${option.name} checkbox-only change applies and saves', (tester) async {
       final requests = <FortuneBarcodeRequest>[];

@@ -311,6 +311,12 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   TColumn _normalizeGs1ContainColumns(TColumn column) {
     if (column.columnType.code != TColumnType.TYPE_GS1_BARCODE) return column;
+    if (const [BarcodeType.Code39, BarcodeType.MicroQrCode, BarcodeType.Code93]
+        .contains(column.barcodeType)) {
+      throw const LabelColumnValidationException(
+        'GS1 바코드에서 지원하는 바코드 종류를 선택하세요.',
+      );
+    }
     final gs1Columns = _session.workingColumns
         .where(
           (draft) =>
@@ -345,6 +351,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     }
     final normalized = values.toSet().join('|');
     return column.copyWith(
+      useGS1Code: true,
       containColumns: normalized.isEmpty ? '' : '$normalized|',
     );
   }
@@ -1394,7 +1401,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 const SizedBox(width: 6),
                 FilledButton(
                   key: const Key('label-column-property-apply'),
-                  onPressed: enabled && propertyInputValid && (_session.propertyDirty || _session.pendingInitialApplyColumnKeys.contains(draft.key))
+                  onPressed: enabled && propertyInputValid && (_session.propertyDirty ||
+                          (draft.column.columnType.code == TColumnType.TYPE_GS1_BARCODE &&
+                              !draft.column.useGS1Code) ||
+                          _session.pendingInitialApplyColumnKeys.contains(draft.key))
                       ? _applyProperty
                       : null,
                   child: const Text('적용'),
@@ -1922,8 +1932,6 @@ class _PropertyFields extends StatelessWidget {
       case TColumnType.TYPE_BARCODE:
         return [
           _barcodeDropdown(),
-          _integer('폭', column.width, (value) => onChanged(column.copyWith(width: value))),
-          _integer('높이', column.height, (value) => onChanged(column.copyWith(height: value))),
           _check('체크디지트 사용', column.useBarcodeCheckDigit, (value) => onChanged(column.copyWith(useBarcodeCheckDigit: value))),
           _check('번호 표시', column.showBarcodeNum, (value) => onChanged(column.copyWith(showBarcodeNum: value))),
           _check('비율 조절', column.showQRCodeText, (value) => onChanged(column.copyWith(showQRCodeText: value))),
@@ -1939,15 +1947,9 @@ class _PropertyFields extends StatelessWidget {
             previewItems: barcodePreviewItems,
             previewRenderer: barcodePreviewRenderer,
           ),
-          _integer('Line check', column.lineCheck, (value) => onChanged(column.copyWith(lineCheck: value))),
-          _integer('Line size', column.lineSize, (value) => onChanged(column.copyWith(lineSize: value))),
-          _integer('회전', column.rotate, (value) => onChanged(column.copyWith(rotate: value))),
         ];
       case TColumnType.TYPE_IMAGE:
-        return [
-          _integer('폭', column.width, (value) => onChanged(column.copyWith(width: value))),
-          _integer('높이', column.height, (value) => onChanged(column.copyWith(height: value))),
-        ];
+        return [];
       case TColumnType.TYPE_QR_CODE:
         return [
           _barcodeDropdown(),
@@ -2012,15 +2014,12 @@ class _PropertyFields extends StatelessWidget {
       case TColumnType.TYPE_GS1_BARCODE:
         return [
           _barcodeDropdown(),
-          _integer('폭', column.width, (value) => onChanged(column.copyWith(width: value))),
-          _integer('높이', column.height, (value) => onChanged(column.copyWith(height: value))),
           _text(
             '포함 GS1 AI 키워드',
             gs1ContainKeywords,
             (value) => onChanged(column.copyWith(containColumns: value)),
             key: const Key('label-column-gs1-contain-keywords'),
           ),
-          _check('GS1 code 사용', column.useGS1Code, (value) => onChanged(column.copyWith(useGS1Code: value))),
         ];
       case TColumnType.TYPE_VALIDDATE:
       case TColumnType.TYPE_MAKEDATE:
@@ -2187,6 +2186,12 @@ class _PropertyFields extends StatelessWidget {
         BarcodeType.QrCode,
         BarcodeType.MicroQrCode,
       ],
+      TColumnType.TYPE_GS1_BARCODE => [
+        for (final type in BarcodeType.values)
+          if (type != BarcodeType.Code39 &&
+              type != BarcodeType.MicroQrCode &&
+              type != BarcodeType.Code93) type,
+      ],
       _ => BarcodeType.values,
     };
     return _field(
@@ -2272,6 +2277,9 @@ class _PropertyFields extends StatelessWidget {
   }
 
   static TColumn _changeType(TColumn column, TColumnType type) {
+    if (type.code == TColumnType.TYPE_GS1_BARCODE) {
+      return column.copyWith(columnType: type, useGS1Code: true);
+    }
     final crossesQrBoundary = (column.columnType.code == TColumnType.TYPE_BASE) !=
         (type.code == TColumnType.TYPE_BASE) &&
         (column.columnType.code == TColumnType.TYPE_QR_CODE || type.code == TColumnType.TYPE_QR_CODE);
