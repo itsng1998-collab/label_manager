@@ -1250,11 +1250,21 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     _fields[name] = TextEditingController(text: text);
   }
 
-  bool _fieldsMatchInitialText() => _fields.entries.every(
-    (entry) => _initialFieldText[entry.key] == entry.value.text,
-  ) && (widget.snapshot.activeKey?.kind != FortuneSheetObjectKind.barcode ||
-      _imageAspectLocked ==
-          (widget.snapshot.activeImage?.extraFields['barcodeAspectLocked'] != false));
+  bool _fieldsMatchInitialText() {
+    if (!_fields.entries.every(
+      (entry) => _initialFieldText[entry.key] == entry.value.text,
+    )) {
+      return false;
+    }
+    if (widget.snapshot.activeKey?.kind != FortuneSheetObjectKind.barcode) {
+      return true;
+    }
+    final extra = widget.snapshot.activeImage!.extraFields;
+    return _imageAspectLocked == (extra['barcodeAspectLocked'] != false) &&
+        _barcodeShowText == (extra['barcodeShowText'] == true) &&
+        _barcodePreserveTemplateFormat ==
+            (extra['preserveTemplateBarcodeFormat'] == true);
+  }
 
   double? _number(String name, {bool geometry = false}) {
     final value = double.tryParse(_fields[name]?.text.trim() ?? '');
@@ -1675,7 +1685,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                   }
                 : null,
           ),
-          _field('텍스트 글꼴', 'fontFamily'),
+          _barcodeFontField(),
           _field('텍스트 크기', 'fontSize'),
           CheckboxListTile(
             key: const ValueKey(
@@ -1865,6 +1875,39 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       onChanged: widget.controller.objectMutationEnabled
           ? _handleBarcodeFormatChanged
           : null,
+    );
+  }
+
+  Widget _barcodeFontField() {
+    final available = widget.controller.settingsSnapshot?.fontFamilies;
+    final current = _fields['fontFamily']!.text.trim();
+    final families = {
+      if (current.isNotEmpty) current,
+      for (final family in available == null || available.isEmpty
+          ? fortuneFontArray : available)
+        if (family.trim().isNotEmpty) family,
+    };
+    return LayoutBuilder(
+      builder: (context, constraints) => DropdownMenu<String>(
+        key: const ValueKey('fortune-object-property-fontFamily'),
+        width: constraints.maxWidth,
+        menuHeight: 240,
+        controller: _fields['fontFamily'],
+        focusNode: _fieldFocusNodes.putIfAbsent(
+          'fontFamily',
+          () => FocusNode(debugLabel: 'Fortune object property fontFamily'),
+        ),
+        label: const Text('텍스트 글꼴'),
+        hintText: '기본 글꼴',
+        textStyle: const TextStyle(fontSize: 13),
+        enabled: widget.controller.objectMutationEnabled,
+        enableFilter: true,
+        enableSearch: true,
+        dropdownMenuEntries: [
+          for (final family in families)
+            DropdownMenuEntry(value: family, label: family),
+        ],
+      ),
     );
   }
 

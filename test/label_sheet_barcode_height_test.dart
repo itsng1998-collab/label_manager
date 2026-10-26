@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:image/image.dart' as image;
@@ -73,6 +74,7 @@ Future<FortuneSheetController> _pumpCanvas(
   bool withPanel = false,
   List<FortuneImage> initialImages = const [],
   FortuneBarcodeRenderer renderer = _renderBarcode,
+  List<String>? fontFamilies,
 }) async {
   await tester.binding.setSurfaceSize(Size(withPanel ? 1200 : 900, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -83,8 +85,10 @@ Future<FortuneSheetController> _pumpCanvas(
       SizedBox(width: 900, child: FortuneSheetCanvas(
         controller: controller,
         workbook: FortuneWorkbook(
-          settings: const FortuneSettings(
-            toolbarItems: [fortuneToolbarBarcodeCommand],
+          settings: FortuneSettings(
+            toolbarItems: const [fortuneToolbarBarcodeCommand],
+            fontFamilies: fontFamilies ?? fortuneFontArray,
+            fontProvider: fontFamilies == null ? null : () async => fontFamilies,
           ),
           sheets: [
             FortuneSheet(
@@ -211,6 +215,119 @@ Future<void> _applyProperties(WidgetTester tester, FortuneSheetController contro
 }
 
 void main() {
+  testWidgets('barcode font combo selects installed fonts and preserves typed legacy font', (tester) async {
+    final requests = <FortuneBarcodeRequest>[];
+    final controller = await _pumpCanvas(tester, requests, withPanel: true,
+      fontFamilies: ['Arial', 'Courier New']);
+    await _openDialog(tester);
+    await _confirm(tester);
+    final original = controller.getSheet(id: 'label')!.images.single;
+    controller.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, original.id));
+    await tester.pumpAndSettle();
+    final font = find.byKey(const ValueKey('fortune-object-property-fontFamily'));
+    await _revealProperty(tester, font);
+    final combo = tester.widget<DropdownMenu<String>>(font);
+    expect(combo.dropdownMenuEntries.map((entry) => entry.value),
+      containsAll(['Arial', 'Courier New']));
+    await tester.tap(font);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Courier New').last);
+    await tester.pumpAndSettle();
+    await _applyProperties(tester, controller);
+    expect(requests.last.humanReadableFontFamily, 'Courier New');
+    expect(controller.objectSelection.activeImage!.extraFields['barcodeHumanReadableFontFamily'], 'Courier New');
+    final show = find.byKey(const ValueKey('fortune-object-property-barcode-show-text'));
+    await _revealProperty(tester, show);
+    await tester.tap(show);
+    await tester.pumpAndSettle();
+    final aspect = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
+    await _revealProperty(tester, aspect);
+    await tester.tap(aspect);
+    await tester.pumpAndSettle();
+    await _revealProperty(tester, font);
+    await tester.enterText(font, 'Legacy custom font');
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await _applyProperties(tester, controller);
+    expect(requests.last.humanReadableFontFamily, 'Legacy custom font');
+    expect(requests.last.showHumanReadableText, isTrue);
+    final updated = controller.objectSelection.activeImage!;
+    expect(updated.extraFields['barcodeAspectLocked'], isFalse);
+    expect(updated.extraFields['barcodeShowText'], isTrue);
+    final restored = labelSheetDecodeWorkbookSave(
+      labelSheetBuildSavePayload(_painter(tester).workbook).encodedWorkbook,
+    );
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    final reloaded = await _pumpCanvas(tester, requests, withPanel: true,
+      fontFamilies: ['Arial', 'Courier New'],
+      initialImages: restored.activeSheet.images);
+    reloaded.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, original.id));
+    await tester.pumpAndSettle();
+    await _revealProperty(tester, font);
+    final reopened = tester.widget<DropdownMenu<String>>(font);
+    expect(reopened.controller!.text, 'Legacy custom font');
+    expect(reopened.dropdownMenuEntries.map((entry) => entry.value), contains('Legacy custom font'));
+    await tester.enterText(font, '');
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await _applyProperties(tester, reloaded);
+    expect(requests.last.humanReadableFontFamily, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final option in [
+    (name: 'show-text', field: 'barcode-show-text', metadata: 'barcodeShowText'),
+    (name: 'preserve-format', field: 'barcode-preserve-template', metadata: 'preserveTemplateBarcodeFormat'),
+  ]) {
+    testWidgets('barcode ${option.name} checkbox-only change applies and saves', (tester) async {
+      final requests = <FortuneBarcodeRequest>[];
+      final controller = await _pumpCanvas(tester, requests, withPanel: true);
+      await _openDialog(tester);
+      await _confirm(tester);
+      final original = controller.getSheet(id: 'label')!.images.single;
+      controller.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, original.id));
+      await tester.pumpAndSettle();
+      final checkbox = find.byKey(ValueKey('fortune-object-property-${option.field}'));
+      await _revealProperty(tester, checkbox);
+      expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);
+      await tester.tap(checkbox);
+      await tester.pumpAndSettle();
+      final before = requests.length;
+      await _applyProperties(tester, controller);
+      expect(requests.length, before + 1);
+      final updated = controller.objectSelection.activeImage!;
+      expect(updated.extraFields[option.metadata], isTrue);
+      if (option.name == 'show-text') {
+        expect(requests.last.showHumanReadableText, isTrue);
+        expect(updated.src, isNot(original.src));
+      }
+      expect(updated.extraFields['barcodeText'], '1234');
+      expect((updated.width, updated.height), (original.width, original.height));
+      final saved = labelSheetDecodeWorkbookSave(
+        labelSheetBuildSavePayload(_painter(tester).workbook).encodedWorkbook,
+      );
+      expect(saved.activeSheet.images.single.extraFields[option.metadata], isTrue);
+      controller.handleUndo();
+      await tester.pumpAndSettle();
+      await _revealProperty(tester, checkbox);
+      expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);
+      controller.handleRedo();
+      await tester.pumpAndSettle();
+      await _revealProperty(tester, checkbox);
+      expect(tester.widget<CheckboxListTile>(checkbox).value, isTrue);
+      await tester.tap(checkbox);
+      await tester.pumpAndSettle();
+      await _applyProperties(tester, controller);
+      expect(controller.objectSelection.activeImage!.extraFields[option.metadata], isFalse);
+      if (option.name == 'show-text') {
+        expect(requests.last.showHumanReadableText, isFalse);
+      }
+    });
+  }
+
   testWidgets('failed aspect-only apply keeps original metadata and retryable checkbox draft', (tester) async {
     final requests = <FortuneBarcodeRequest>[];
     var failRender = false;
