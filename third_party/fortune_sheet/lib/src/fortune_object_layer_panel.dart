@@ -18,6 +18,7 @@ class _BarcodePropertyDraftState {
     required this.showText,
     required this.preserveTemplateFormat,
     required this.pending,
+    required this.aspectLocked,
     this.error,
   });
 
@@ -25,6 +26,7 @@ class _BarcodePropertyDraftState {
   final bool showText;
   final bool preserveTemplateFormat;
   final bool pending;
+  final bool aspectLocked;
   final String? error;
 
   _BarcodePropertyDraftState copyWith({
@@ -41,6 +43,7 @@ class _BarcodePropertyDraftState {
       preserveTemplateFormat:
           preserveTemplateFormat ?? this.preserveTemplateFormat,
       pending: pending ?? this.pending,
+      aspectLocked: aspectLocked,
       error: clearError ? null : error ?? this.error,
     );
   }
@@ -774,7 +777,7 @@ String _propertySnapshotIdentity(FortuneObjectSelectionSnapshot snapshot) {
   final image = snapshot.activeImage;
   if (image != null) {
     final fields = image.extraFields;
-    return '${snapshot.sheetId}|${image.id}|${image.src}|${image.left}|${image.top}|${image.width}|${image.height}|${fields['rotation']}|${fields[fortuneImageObjectIdExtraKey]}|${fields[fortuneBarcodeObjectIdExtraKey]}|${fields['barcodeText']}|${fields['barcodeFormatId']}|${fields['barcodeFormatLabel']}|${fields['barcodeModuleScale']}|${fields['barcodeBarHeight']}|${fields['barcodeLeadingText']}|${fields['barcodeTrailingText']}|${fields['barcodeShowText']}|${fields['barcodeHumanReadableFontFamily']}|${fields['barcodeHumanReadableFontSize']}|${fields['preserveTemplateBarcodeFormat']}';
+    return '${snapshot.sheetId}|${image.id}|${image.src}|${image.left}|${image.top}|${image.width}|${image.height}|${fields['rotation']}|${fields[fortuneImageObjectIdExtraKey]}|${fields[fortuneBarcodeObjectIdExtraKey]}|${fields['barcodeText']}|${fields['barcodeFormatId']}|${fields['barcodeFormatLabel']}|${fields['barcodeModuleScale']}|${fields['barcodeBarHeight']}|${fields['barcodeLeadingText']}|${fields['barcodeTrailingText']}|${fields['barcodeShowText']}|${fields['barcodeHumanReadableFontFamily']}|${fields['barcodeHumanReadableFontSize']}|${fields['preserveTemplateBarcodeFormat']}|${fields['barcodeAspectLocked']}';
   }
   final line = snapshot.activeLine;
   if (line != null) {
@@ -909,6 +912,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       return;
     }
     final preserveImageAspect =
+        widget.snapshot.activeKey?.kind == FortuneSheetObjectKind.image &&
         oldWidget.snapshot.activeKey == widget.snapshot.activeKey &&
         oldWidget.snapshot.activeImage != null &&
         widget.snapshot.activeImage != null;
@@ -1001,6 +1005,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       }
       _storeBarcodeDraft(clearError: true);
     }
+    _registerPropertyDraft();
+  }
+
+  void _registerPropertyDraft() {
     widget.controller.registerActiveObjectPropertyDraft(
       owner: _draftOwner,
       key: widget.snapshot.activeKey!,
@@ -1156,6 +1164,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _setField('connectionId', image.extraFields[metadataKey] ?? '');
       if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
         final extra = image.extraFields;
+        _imageAspectLocked = extra['barcodeAspectLocked'] != false;
         _setField('barcodeText', extra['barcodeText'] ?? '');
         final metadataFormatId = '${extra['barcodeFormatId'] ?? ''}';
         final matchedFormatId = _matchingBarcodeFormatId(metadataFormatId);
@@ -1181,6 +1190,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             }
           }
           _barcodeShowText = draft.showText;
+          _imageAspectLocked = draft.aspectLocked;
           _barcodePreserveTemplateFormat = draft.preserveTemplateFormat;
           _barcodeRenderPending = draft.pending;
           _error = draft.error;
@@ -1242,7 +1252,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
 
   bool _fieldsMatchInitialText() => _fields.entries.every(
     (entry) => _initialFieldText[entry.key] == entry.value.text,
-  );
+  ) && (widget.snapshot.activeKey?.kind != FortuneSheetObjectKind.barcode ||
+      _imageAspectLocked ==
+          (widget.snapshot.activeImage?.extraFields['barcodeAspectLocked'] != false));
 
   double? _number(String name, {bool geometry = false}) {
     final value = double.tryParse(_fields[name]?.text.trim() ?? '');
@@ -1470,6 +1482,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       humanReadableFontSize: fontSize,
       connectionId: connectionId,
       preserveTemplateFormat: _barcodePreserveTemplateFormat,
+      aspectLocked: _imageAspectLocked,
     );
     if (outcome == FortuneBarcodePropertyRenderOutcome.success) {
       onDraftRemoved();
@@ -1484,12 +1497,18 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     if (mounted) {
       setState(() {
         _barcodeRenderPending = false;
+        if (outcome == FortuneBarcodePropertyRenderOutcome.failure) {
+          _draftFinalized = false;
+        }
         if (outcome != FortuneBarcodePropertyRenderOutcome.stale) {
           _error = outcome == FortuneBarcodePropertyRenderOutcome.success
               ? null
               : '바코드를 생성하지 못했습니다.';
         }
       });
+      if (outcome == FortuneBarcodePropertyRenderOutcome.failure) {
+        _registerPropertyDraft();
+      }
     }
   }
 
@@ -1522,6 +1541,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       showText: _barcodeShowText,
       preserveTemplateFormat: _barcodePreserveTemplateFormat,
       pending: pending ?? _barcodeRenderPending,
+      aspectLocked: _imageAspectLocked,
       error: clearError ? null : error ?? _error,
     );
   }
@@ -1600,6 +1620,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                     setState(() => _imageAspectLocked = value ?? true);
                     if (_lastImageSizeField == 'width') {
                       _syncBarcodeBarHeight();
+                    }
+                    if (widget.snapshot.activeKey?.kind ==
+                        FortuneSheetObjectKind.barcode) {
+                      _markPropertyDraft();
                     }
                   }
                 : null,

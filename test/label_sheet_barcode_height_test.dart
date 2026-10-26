@@ -72,6 +72,7 @@ Future<FortuneSheetController> _pumpCanvas(
   String format = 'code128',
   bool withPanel = false,
   List<FortuneImage> initialImages = const [],
+  FortuneBarcodeRenderer renderer = _renderBarcode,
 }) async {
   await tester.binding.setSurfaceSize(Size(withPanel ? 1200 : 900, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -107,7 +108,7 @@ Future<FortuneSheetController> _pumpCanvas(
         ],
         barcodeRenderer: (request) {
           requests.add(request);
-          return _renderBarcode(request);
+          return renderer(request);
         },
       )),
       if (withPanel)
@@ -210,6 +211,137 @@ Future<void> _applyProperties(WidgetTester tester, FortuneSheetController contro
 }
 
 void main() {
+  testWidgets('failed aspect-only apply keeps original metadata and retryable checkbox draft', (tester) async {
+    final requests = <FortuneBarcodeRequest>[];
+    var failRender = false;
+    final controller = await _pumpCanvas(tester, requests, withPanel: true,
+      renderer: (request) async => failRender ? null : await _renderBarcode(request));
+    await _openDialog(tester);
+    await _confirm(tester);
+    final original = controller.getSheet(id: 'label')!.images.single;
+    expect(original.extraFields['barcodeAspectLocked'], isTrue);
+    controller.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, original.id));
+    await tester.pumpAndSettle();
+    final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
+    await _revealProperty(tester, lock);
+    await tester.tap(lock);
+    await tester.pumpAndSettle();
+    failRender = true;
+    await _applyProperties(tester, controller);
+    expect(find.text('바코드를 생성하지 못했습니다.'), findsOneWidget);
+    expect(controller.objectSelection.activeImage!.extraFields['barcodeAspectLocked'], isTrue);
+    await _revealProperty(tester, lock);
+    expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+    failRender = false;
+    await _applyProperties(tester, controller);
+    expect(controller.objectSelection.activeImage!.extraFields['barcodeAspectLocked'], isFalse);
+    expect(controller.objectSelection.activeImage!.width, original.width);
+    expect(controller.objectSelection.activeImage!.height, original.height);
+  });
+
+  for (final format in ['code128', 'qrCode']) {
+    for (final millimeters in [true, false]) {
+      for (final locked in [true, false]) {
+        testWidgets('insertion aspect=$locked persists for $format in ${millimeters ? 'mm' : 'px'}', (tester) async {
+          final requests = <FortuneBarcodeRequest>[];
+          final controller = await _pumpCanvas(tester, requests,
+            format: format, millimeters: millimeters, withPanel: true);
+          await _openDialog(tester);
+          if (!locked) await _tapDialog(tester, fortuneBarcodeLinkButtonRect);
+          await _enter(tester, 'width', '20');
+          await _enter(tester, 'height', '10');
+          await _confirm(tester);
+          final original = controller.getSheet(id: 'label')!.images.single;
+          controller.selectObject(FortuneSheetObjectKey(
+            FortuneSheetObjectKind.barcode, original.id));
+          await tester.pumpAndSettle();
+          final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
+          await _revealProperty(tester, lock);
+          expect(tester.widget<CheckboxListTile>(lock).value, locked);
+          final width = find.byKey(const ValueKey('fortune-object-property-width'));
+          await _revealProperty(tester, width);
+          await tester.enterText(width, '40');
+          await tester.pump();
+          await _applyProperties(tester, controller);
+          final updated = controller.objectSelection.activeImage!;
+          final expectedWidth = millimeters ? fortuneMillimetersToLogicalPixels(40) : 40.0;
+          expect(updated.width, closeTo(expectedWidth, 0.005));
+          expect(updated.height, closeTo(locked
+              ? expectedWidth * original.height / original.width
+              : original.height, 0.005));
+          final restored = labelSheetDecodeWorkbookSave(
+            labelSheetBuildSavePayload(_painter(tester).workbook).encodedWorkbook,
+          ).activeSheet.images.single;
+          expect(restored.extraFields['barcodeAspectLocked'], locked);
+          expect(restored.extraFields['barcodeBarHeight'], updated.extraFields['barcodeBarHeight']);
+        });
+      }
+    }
+  }
+
+  testWidgets('inserted unlocked barcode keeps aspect state in properties and saved workbook', (tester) async {
+    final requests = <FortuneBarcodeRequest>[];
+    final controller = await _pumpCanvas(tester, requests, withPanel: true);
+    await _openDialog(tester);
+    await _tapDialog(tester, fortuneBarcodeLinkButtonRect);
+    await _enter(tester, 'width', '20');
+    await _enter(tester, 'height', '10');
+    await _confirm(tester);
+    final barcode = controller.getSheet(id: 'label')!.images.single;
+    controller.selectObject(FortuneSheetObjectKey(
+      FortuneSheetObjectKind.barcode, barcode.id,
+    ));
+    await tester.pumpAndSettle();
+    final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
+    await _revealProperty(tester, lock);
+    expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+    expect(barcode.extraFields['barcodeAspectLocked'], isFalse);
+    await tester.tap(find.byTooltip('선택한 개체 복제'));
+    await tester.pumpAndSettle();
+    final duplicate = controller.objectSelection.activeImage!;
+    expect(duplicate.id, isNot(barcode.id));
+    expect(duplicate.extraFields['barcodeAspectLocked'], isFalse);
+    controller.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, barcode.id));
+    await tester.pumpAndSettle();
+    controller.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, duplicate.id));
+    await tester.pumpAndSettle();
+    await _revealProperty(tester, lock);
+    expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+    await tester.tap(lock);
+    await tester.pumpAndSettle();
+    expect(controller.objectSelection.activeImage!.extraFields['barcodeAspectLocked'], isFalse);
+    await _applyProperties(tester, controller);
+    expect(controller.objectSelection.activeImage!.extraFields['barcodeAspectLocked'], isTrue);
+    expect(controller.getSheet(id: 'label')!.images.first.extraFields['barcodeAspectLocked'], isFalse);
+    controller.handleUndo();
+    await tester.pumpAndSettle();
+    await _revealProperty(tester, lock);
+    expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+    controller.handleRedo();
+    await tester.pumpAndSettle();
+    await _revealProperty(tester, lock);
+    expect(tester.widget<CheckboxListTile>(lock).value, isTrue);
+    final restored = labelSheetDecodeWorkbookSave(
+      labelSheetBuildSavePayload(_painter(tester).workbook).encodedWorkbook,
+    );
+    expect(restored.activeSheet.images.first.extraFields['barcodeAspectLocked'], isFalse);
+    expect(restored.activeSheet.images.last.extraFields['barcodeAspectLocked'], isTrue);
+    final legacy = barcode.copyWith(
+      id: 'legacy',
+      extraFields: Map<String, Object?>.from(barcode.extraFields)..remove('barcodeAspectLocked'),
+    );
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    final reloaded = await _pumpCanvas(tester, requests, withPanel: true,
+      initialImages: [...restored.activeSheet.images, legacy]);
+    for (final entry in {barcode.id: false, duplicate.id: true, 'legacy': true}.entries) {
+      reloaded.selectObject(FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, entry.key));
+      await tester.pumpAndSettle();
+      await _revealProperty(tester, lock);
+      expect(tester.widget<CheckboxListTile>(lock).value, entry.value);
+    }
+  });
+
   testWidgets('custom caption changes PNG text but not barcode ink or payload', (tester) async {
     FortuneBarcodeRequest request(String? caption) => FortuneBarcodeRequest(
       text: '12345679123', formatId: 'code128',
@@ -260,8 +392,7 @@ void main() {
       await tester.pumpAndSettle();
       final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
       await _revealProperty(tester, lock);
-      await tester.tap(lock);
-      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
 
       Finder field(String name) => find.byKey(
         ValueKey('fortune-object-property-$name'),
@@ -346,6 +477,9 @@ void main() {
         await tester.pumpAndSettle();
         final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
         await _revealProperty(tester, lock);
+        expect(tester.widget<CheckboxListTile>(lock).value, isFalse);
+        await tester.tap(lock);
+        await tester.pumpAndSettle();
         expect(tester.widget<CheckboxListTile>(lock).value, isTrue);
         expect(tester.widget<CheckboxListTile>(lock).onChanged, isNotNull);
 
@@ -557,7 +691,9 @@ void main() {
           ? fortuneMillimetersToLogicalPixels(15) : 15.0;
       expect(requests.last.barHeight, closeTo(expectedHeight, 0.005));
       expect(resized.height, closeTo(expectedHeight, 0.005));
-      expect(resized.width, closeTo(expectedHeight * 2, 0.005));
+      expect(resized.width, closeTo(
+        original.extraFields['barcodeAspectLocked'] == false
+            ? original.width : expectedHeight * 2, 0.005));
       expect(resized.extraFields['barcodeBarHeight'],
           closeTo(mode == 'rtf' ? expectedHeight : 15, 0.005));
       final unrotated = image.decodePng(base64Decode(resized.src.split(',').last))!;

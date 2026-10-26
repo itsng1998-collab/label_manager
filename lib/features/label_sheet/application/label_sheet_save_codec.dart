@@ -204,6 +204,7 @@ const Set<String> _supportedImageKeys = {
   'fortuneBarcode',
   'barcodeText',
   'barcodeDisplayText',
+  'barcodeAspectLocked',
   'barcodeFormatId',
   'barcodeFormatLabel',
   'barcodeModuleScale',

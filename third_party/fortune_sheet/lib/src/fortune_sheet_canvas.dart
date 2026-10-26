@@ -1680,6 +1680,7 @@ class FortuneSheetController extends ChangeNotifier {
     required double humanReadableFontSize,
     required String connectionId,
     required bool preserveTemplateFormat,
+    bool? aspectLocked,
   }) async {
     return await renderSelectedBarcodeOutcome(
           text: text,
@@ -1698,6 +1699,7 @@ class FortuneSheetController extends ChangeNotifier {
           humanReadableFontSize: humanReadableFontSize,
           connectionId: connectionId,
           preserveTemplateFormat: preserveTemplateFormat,
+          aspectLocked: aspectLocked,
         ) ==
           FortuneBarcodePropertyRenderOutcome.success;
   }
@@ -1719,6 +1721,7 @@ class FortuneSheetController extends ChangeNotifier {
     required double humanReadableFontSize,
     required String connectionId,
     required bool preserveTemplateFormat,
+    bool? aspectLocked,
   }) async {
     return await _state?._renderSelectedBarcodeFromController(
           text: text,
@@ -1737,6 +1740,7 @@ class FortuneSheetController extends ChangeNotifier {
           humanReadableFontSize: humanReadableFontSize,
           connectionId: connectionId,
           preserveTemplateFormat: preserveTemplateFormat,
+          aspectLocked: aspectLocked,
         ) ??
         FortuneBarcodePropertyRenderOutcome.stale;
   }
@@ -25581,7 +25585,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeObjectIdMenuHoveredIndex = null;
       _barcodeObjectIdMenuScrollOffset = 0;
       _barcodeFormatIndex = fallbackFormatIndex;
-      _barcodeAspectLocked = true;
+      _barcodeAspectLocked = extra['barcodeAspectLocked'] != false;
       _barcodeFormatMenuOpen = false;
       _barcodeFormatMenuHoveredIndex = null;
       _barcodeFormatMenuScrollOffset = 0;
@@ -25777,6 +25781,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? insertionPlan!.zOrders.single
           : (editingImage?.extraFields[fortuneSheetObjectZOrderExtraKey] ?? 0),
       'barcodeText': text,
+      'barcodeAspectLocked': _barcodeAspectLocked,
       'barcodeFormatId': format.id,
       'barcodeFormatLabel': format.label,
       'originWidth': result.pixelWidth ?? imageWidth,
@@ -28004,6 +28009,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required double humanReadableFontSize,
     required String connectionId,
     required bool preserveTemplateFormat,
+    bool? aspectLocked,
   }) async {
     if (_panelBarcodeRequestTokens.isNotEmpty) {
       return FortuneBarcodePropertyRenderOutcome.stale;
@@ -28122,6 +28128,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       ...source.extraFields,
       'fortuneBarcode': true,
       'barcodeText': text.trim(),
+      'barcodeAspectLocked':
+          aspectLocked ?? (source.extraFields['barcodeAspectLocked'] != false),
       'barcodeFormatId': formatId.trim(),
       'barcodeFormatLabel':
           format?.label ??
