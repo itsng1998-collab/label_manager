@@ -1,9 +1,9 @@
 # SESSION HANDOFF
 
-## 현재 진행: 자동 영양성분표 삽입 시 사용 키워드 미등록
+## 최근 완료: 자동 영양성분표 삽입 시 사용 키워드 미등록
 - 제출 `.tmp\1.8.9로그\공용라벨_영양성분표삽입_키워드오류.log` 버전1.8.9. box117/type의 양식 선택 후 B2에 셀158개 삽입 성공, 항목 등록 경로 없음.
 - 레거시 매뉴얼v2 자동성분표 절은 표와 영양 항목 자동 추가 명시. CommonLabelModel::InsertNutBox는 BM_RICH_NUTCOLUMN의 type별 키워드/이름→중복 검사→TYPE_NUT 항목과 기존/자동갱신 품목의 빈내용 등록→목록갱신. 하나라도 중복이면 삽입 거부.
-- 구현·검증 완료/커밋 예정: Workbench→Page→CommonLabelManage→Home의 등록callback 연결. 양식파싱 후 선택type의 정의를 TYPE_NUT로 기존saveDialog 트랜잭션에 등록하고, 항목만 재조회/기존draft보존 후 표삽입. DB등록중 blocking overlay와 Home busy/권한/미저장 품목 guard 사용. duplicate/empty/실제저장오류는 표미삽입, 커밋불명·저장후reload실패는 기존 명시적오류 유지.
+- **구현·검증·커밋 완료(1.8.13): `3dca159`**, push 없음. Workbench→Page→CommonLabelManage→Home의 등록callback 연결. 양식파싱 후 선택type의 정의를 TYPE_NUT로 기존saveDialog 트랜잭션에 등록하고, 항목만 재조회/기존draft보존 후 표삽입. DB등록중 blocking overlay와 Home busy/권한/미저장 품목 guard 사용. duplicate/empty/실제저장오류는 표미삽입, 커밋불명·저장후reload실패는 기존 명시적오류 유지.
 - 관련6파일 회귀84/84 통과(순수command, CommonLabelManage 전체, nutrition type DAO/box dialog, label column save/edit). 신규 full UI3건은 성공/B2·17항목·저장재읽기·undo/redo, 중복거부, 저장실패 시 표·항목·dirty 유지 검증. 기존 toolbar 자동삽입3건도 통과. 변경7 Dart analyzer No issues found, git diff --check 통과.
 - 버전1.8.12→1.8.13 PATCH: 기존자동삽입의 항목등록 누락 수정. SQL추가 없이 기존2017/호환성100 save경로 재사용. README에 삽입시항목DB등록/중복거부/시트undo시항목유지/라벨별도저장/오류계약 기록.
 - 운영DB 접속·변경/실제인쇄 없음. 사용자 `lib/core/app.dart` 변경 보존.
