@@ -12,6 +12,7 @@ import 'package:label_manager/features/login/application/user_access_service.dar
 import 'package:label_manager/features/login/presentation/startup_dialog.dart';
 import 'package:label_manager/features/market/domain/market.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
+import 'package:label_manager/features/update_notice/data/notice_dao.dart';
 import 'package:label_manager/widgets/notice_display.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,6 +21,117 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
+  testWidgets('new user without notice can log in with leading-zero password', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() {
+      User.setInstance(null);
+      Market.setInstance(null);
+      Customer.setInstance(null);
+      Cooperator.setInstance(null);
+      AdminConnectSession.instance.resetForLogout();
+    });
+    const user = User(
+      userId: 'new-user',
+      marketId: 10,
+      name: 'New user',
+      pwd: '0000',
+      grade: UserGrade.MANAGER_USER,
+      marketName: 'Test market',
+      customerName: 'Test customer',
+    );
+    var loggedIn = false;
+    var accessSaved = false;
+    var historyWritten = false;
+    late BuildContext hostContext;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(builder: (context) {
+        hostContext = context;
+        return const Scaffold(body: SizedBox());
+      }),
+    ));
+    final closed = showDialog<void>(
+      context: hostContext,
+      builder: (_) => StartupDialog(
+        onLogin: () => loggedIn = true,
+        loginService: StartupLoginService(
+          loadNotice: (id) => NoticeDAO.selectNoticeByUserId(
+            id,
+            read: (_, _) async => <String, dynamic>{'rows': []},
+          ),
+          loadUser: (id) async => id == user.userId ? user : null,
+          loadMarket: (_) async =>
+              const Market(marketId: 10, customerId: 20, name: 'Test market'),
+          loadCustomer: (_) async => const Customer(
+            customerId: 20, cooperatorId: 'C30', customerName: 'Test customer',
+          ),
+          loadCooperator: (_) async =>
+              const Cooperator(id: 'C30', name: 'Test cooperator'),
+          writeLoginLog: (_, _) async => historyWritten = true,
+        ),
+        userAccessService: UserAccessService(
+          loadAccessData: (_) async => null,
+          readLocalValue: () async => '',
+          saveAccessData: (_, _) async {
+            accessSaved = true;
+            return '1234567812345678';
+          },
+          writeLocalValue: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final idField = find.byKey(const ValueKey('startup-login-user-id'));
+    await tester.enterText(idField, 'unknown-user');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('잘못된 ID입니다!'), findsOneWidget);
+    expect(loggedIn, isFalse);
+
+    await tester.enterText(idField, user.userId);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('잘못된 ID입니다!'), findsNothing);
+    expect(find.byType(NoticeDisplayPanel), findsNothing);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(1)).controller!.text,
+      user.customerName,
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(2)).controller!.text,
+      user.marketName,
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(3)).controller!.text,
+      user.name,
+    );
+
+    await tester.enterText(find.byType(TextField).at(4), 'incorrect');
+    final loginButton = find.widgetWithText(ElevatedButton, '로그인');
+    await tester.ensureVisible(loginButton);
+    await tester.tap(loginButton);
+    await tester.pumpAndSettle();
+    expect(find.text('패스워드가 올바르지 않습니다!'), findsOneWidget);
+    expect(loggedIn, isFalse);
+    expect(accessSaved, isFalse);
+
+    await tester.enterText(find.byType(TextField).at(4), user.pwd);
+    await tester.tap(loginButton);
+    await tester.pumpAndSettle();
+    await closed;
+    expect(loggedIn, isTrue);
+    expect(accessSaved, isTrue);
+    expect(historyWritten, isTrue);
+    expect(User.instance, same(user));
+    expect(AdminConnectSession.instance.isMasterKeyLogin, isFalse);
+    expect(find.byType(StartupDialog), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('startup dialog coalesces concurrent show requests', (

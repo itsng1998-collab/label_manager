@@ -3,7 +3,6 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/features/update_notice/domain/notice.dart';
 import 'package:label_manager/database/dao.dart';
-import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/regression_debug_log.dart';
 
 class NoticeDAO extends DAO {
@@ -71,7 +70,10 @@ class NoticeDAO extends DAO {
      WHERE UN_USER_ID=@userId;
   ''';
 
-  static Future<Notice> selectNoticeByUserId(String userId) async {
+  static Future<Notice> selectNoticeByUserId(
+    String userId, {
+    Future<Object> Function(String sql, Map<String, dynamic> params)? read,
+  }) async {
     final watch = Stopwatch()..start();
     RegressionDebugLog.event(
       'updateNotice',
@@ -79,17 +81,19 @@ class NoticeDAO extends DAO {
       fields: {'userId': userId},
     );
     try {
-      final result = await DbClient.instance.getDataWithParams(selectSql, {
+      final result = await (read ?? DbClient.instance.getDataWithParams)(selectSql, {
         'userId': userId,
       });
-      final map = DAO.getRowMapFromResult(result);
-      if (map == null) throw StateError('업데이트 메시지를 찾을 수 없습니다.');
-      final notice = Notice.fromMap(map);
+      final map = DAO.getRowMapFromResult(result, throwIfNoRows: false);
+      final notice = map == null
+          ? const Notice(message: '', state: 1)
+          : Notice.fromMap(map);
       RegressionDebugLog.event(
         'updateNotice',
         'lookupCompleted',
         fields: {
           'userId': userId,
+          'found': map != null,
           'messageLength': notice.message.length,
           'state': notice.state,
           'elapsedMs': watch.elapsedMilliseconds,
@@ -110,23 +114,10 @@ class NoticeDAO extends DAO {
     }
   }
 
-  static Future<String> selectByUserId(String userId) async {
-    debugLog('$START, userId:$userId');
-
-    try {
-      final res = await DbClient.instance.getDataWithParams(selectSql, {
-        'userId': userId,
-      });
-
-      final map = DAO.getRowMapFromResult(res);
-
-      debugLog(END);
-      return Notice.fromMap(map!).message;
-    } catch (e) {
-      debugLog('$END, $e');
-      throw Exception('${runtimeLogTag()} $e');
-    }
-  }
+  static Future<String> selectByUserId(
+    String userId, {
+    Future<Object> Function(String sql, Map<String, dynamic> params)? read,
+  }) async => (await selectNoticeByUserId(userId, read: read)).message;
 
   static Future<List<NoticeTargetUser>> selectTargetUsers(
     String cooperatorId,
