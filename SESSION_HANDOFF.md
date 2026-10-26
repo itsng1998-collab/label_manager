@@ -1,11 +1,11 @@
 # SESSION HANDOFF
 
-## 현재 진행: 바코드 체크박스만 변경 시 미적용/글꼴 콤보
+## 최근 완료: 바코드 체크박스만 변경 시 미적용/글꼴 콤보
 - 제출1.8.9 로그/이미지 확인. 비율유지는 직전1.8.15에 개체별저장 수정 완료, 이번 요청에서 조합 회귀 유지.
 - 원인: 속성 _fieldsMatchInitialText가 텍스트/비율만 비교해 showText와 preserveTemplateFormat만 바꾸면 무변경으로 처리. 두 boolean을 동일 baseline판정에 포함 완료. 수정전 checkbox-only2회귀 모두 renderer미호출로 실패, 수정후통과.
 - 글꼴은 controller.settingsSnapshot.fontFamilies(삽입창과 같은 로드목록)를 재사용한 검색/직접입력 가능 콤보로 교체 완료. 기존목록밖저장값도 유지, 빈입력은 기존 null/default. mutation불가시 disabled 유지.
 - 레거시 Barcode 화면코드는 굴림 미리보기 설정, 매뉴얼v2에는 해당Flutter property패널 상세계약 없음. 현재 삽입창의 글꼴목록/저장필드 재사용.
-- 검증완료/커밋예정: height/property+object controller+codec85/85, toolbar barcode13/13, native encoder height/property전체30/30 통과. 글꼴목록선택·직접입력·목록밖저장값·재로드·빈값/default·show/aspect조합, 두checkbox ON/OFF단독변경·metadata·request·PNG변경·undo/redo 검증. 변경2 Dart analyzer No issues found, diff --check통과.
+- **구현·검증·커밋 완료(1.8.16): `e8f0655`**, push 없음. height/property+object controller+codec85/85, toolbar barcode13/13, native encoder height/property전체30/30 통과. 글꼴목록선택·직접입력·목록밖저장값·재로드·빈값/default·show/aspect조합, 두checkbox ON/OFF단독변경·metadata·request·PNG변경·undo/redo 검증. 변경2 Dart analyzer No issues found, diff --check통과.
 - 운영DB/실제인쇄 없음, 사용자 lib/core/app.dart 보존. 버전1.8.15→1.8.16 PATCH: 기존 checkbox dirty판정 누락 수정과 글꼴필드 선택기 보완. README갱신.
 - DTD발견·기존연결확인 후 hot reload시도했으나 실행 앱 없음으로 미적용. 다음확인:1.8.16→바코드삽입→속성에서 비율유지OFF/텍스트표시ON만변경→적용→글꼴콤보선택→적용→라벨저장→재로드/품목출력 미리보기 확인. 실제 운영 발행은 사용자확인 필요.
 
