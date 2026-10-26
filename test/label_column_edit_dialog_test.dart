@@ -1345,12 +1345,15 @@ void main() {
     );
   });
 
-  testWidgets('required check toggle then property uncheck saves against DB baseline', (
+  for (final mainChecked in [false, true]) {
+  testWidgets('required toggle then property uncheck keeps main=$mainChecked baseline', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1300, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final loaded = _column(1, 'TEST');
+    final loaded = _column(1, 'TEST').copyWith(
+      persistedMainMissingKeywordCheck: mainChecked,
+    );
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -1391,6 +1394,10 @@ void main() {
 
     expect(saved, isNotNull);
     expect(saved!.originalColumnsById[1]!.column.useMissingKeywordCheck, isFalse);
+    expect(
+      saved!.originalColumnsById[1]!.column.persistedMainMissingKeywordCheck,
+      mainChecked,
+    );
     expect(saved!.updatedColumns.single.column.useMissingKeywordCheck, isFalse);
     expect(saved!.changedKeysByColumnId[1], {'check'});
     final statement = LabelColumnSaveDao.buildSaveStatement(
@@ -1416,8 +1423,11 @@ void main() {
     );
     expect(statement.sql, contains("THROW 51115,"));
     expect(statement.sql, contains("THROW 51116,"));
+    expect(xml, contains('<mainCheck>${mainChecked ? 1 : 0}</mainCheck>'));
+    expect(statement.sql, contains('COALESCE(O.MAIN_CHECK_YN, 0)'));
     expect(tester.takeException(), isNull);
   });
+  }
 
   testWidgets('property cancel restores baseline and apply reaches save command', (
     tester,

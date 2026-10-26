@@ -46,6 +46,8 @@ TColumn tColumnFromRow(Map<String, dynamic> row) {
     keyword: s('RICH_KEYWORD'),
     columnName: s('RICH_COLUMN_NAME'),
     useMissingKeywordCheck: columnBoolValue(v('RICH_CHECK_YN')),
+    persistedMainMissingKeywordCheck:
+        columnBoolValue(v('MAIN_MISSING_KEYWORD_CHECK')),
     useMinColumnCheck: columnBoolValue(v('RICH_MIN_CHECK')),
     timeBarcodeType: v('RICH_TIMEBARCODE_TYPE'),
     autoInc: columnBoolValue(v('RICH_AUTO_INC')),
@@ -88,9 +90,23 @@ QRCodeCreateType _qrCodeCreateTypeFromCode(Object? code) {
 }
 
 class TColumnDAO extends DAO {
-  static const String selectSql =
+  static const String mainCheckCapabilitySql = '''
+SELECT CASE WHEN COL_LENGTH('BM_RICH_COLUMN', 'RICH_USE_MISSING_KEYWORD_CHECK')
+  IS NOT NULL THEN 1 ELSE 0 END AS HAS_MAIN_MISSING_KEYWORD_CHECK;
+''';
+
+  static const String selectSql = 'SELECT $_selectColumnsSql';
+
+  static String buildSelectSql({required bool hasMainMissingKeywordCheck}) {
+    final mainCheck = hasMainMissingKeywordCheck
+        ? 'COALESCE(BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK, 0)'
+        : 'CAST(0 AS BIT)';
+    return 'SELECT $mainCheck AS MAIN_MISSING_KEYWORD_CHECK, '
+        '$_selectColumnsSql $whereSqlByLabelSizeId $orderByColumnOrder';
+  }
+
+  static const String _selectColumnsSql =
       '''
-		SELECT 
 			BM_RICH_COLUMN.RICH_COLUMN_ID AS RICH_COLUMN_ID,
 			BM_RICH_COLUMN.RICH_LABELSIZE_ID AS RICH_LABELSIZE_ID,
 			BM_RICH_COLUMN.RICH_COLUMN_ORDER AS RICH_COLUMN_ORDER,
@@ -161,8 +177,15 @@ class TColumnDAO extends DAO {
     debugLog('$START, labelSizeId:$labelSizeId');
 
     try {
+      final capabilityResult = await DbClient.instance.getData(
+        mainCheckCapabilitySql,
+      );
+      final capability = DAO.getRowMapFromResult(capabilityResult)!;
+      final hasMainCheck = columnBoolValue(
+        capability['HAS_MAIN_MISSING_KEYWORD_CHECK'],
+      );
       final res = await DbClient.instance.getDataWithParams(
-        '$selectSql $whereSqlByLabelSizeId $orderByColumnOrder',
+        buildSelectSql(hasMainMissingKeywordCheck: hasMainCheck),
         {'labelSizeId': labelSizeId},
       );
 

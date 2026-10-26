@@ -27,7 +27,7 @@ void main() {
     });
 
     test('falls back when database enum values are unknown', () {
-      final column = tColumnFromRow({
+      final row = {
         'RICH_COLUMN_ID': 1,
         'RICH_LABELSIZE_ID': 4935,
         'RICH_COLUMN_ORDER': 1,
@@ -53,6 +53,7 @@ void main() {
         'RICH_KEYWORD': 'ITEMNAME',
         'RICH_COLUMN_NAME': '품명',
         'RICH_CHECK_YN': 0,
+        'MAIN_MISSING_KEYWORD_CHECK': 1,
         'RICH_TIMEBARCODE_TYPE': 0,
         'RICH_AUTO_INC': 0,
         'RICH_AUTO_INC_SIZE': 0,
@@ -72,7 +73,8 @@ void main() {
         'USE_GS1_CODE': 0,
         'CONTAIN_COLUMNS_ID': '',
         'COLUMN_SHOW_GS1CODE': 0,
-      });
+      };
+      final column = tColumnFromRow(row);
 
       expect(column.barcodeType, BarcodeType.Code128);
       expect(column.qrTextAlignment, QRTextAlignment.ALIGN_LEFT);
@@ -81,6 +83,20 @@ void main() {
       expect((column.persistedWidth, column.persistedHeight), (80, 20));
       final draft = column.copyWith(width: 31, height: 32);
       expect((draft.persistedWidth, draft.persistedHeight), (80, 20));
+      for (final main in [false, true]) {
+        for (final auxiliary in [false, true]) {
+          final loaded = tColumnFromRow({
+            ...row,
+            'RICH_CHECK_YN': auxiliary ? 1 : 0,
+            'MAIN_MISSING_KEYWORD_CHECK': main ? 1 : 0,
+          });
+          loaded.useMissingKeywordCheck = !auxiliary;
+          final edited = loaded.copyWith(columnName: '수정');
+          expect(edited.useMissingKeywordCheck, !auxiliary);
+          expect(edited.persistedMissingKeywordCheck, auxiliary);
+          expect(edited.persistedMainMissingKeywordCheck, main);
+        }
+      }
     });
 
     test('SQL BIT false를 라벨 항목 숨김으로 복원한다', () {
@@ -102,6 +118,22 @@ void main() {
         contains('BM_RICH_COLUMN.RICH_LABELSIZE_ID=@labelSizeId'),
       );
       expect(TColumnDAO.orderByColumnOrder, contains('RICH_COLUMN_ORDER'));
+    });
+
+    test('main check projection respects optional SQL Server schema', () {
+      expect(TColumnDAO.mainCheckCapabilitySql, contains("COL_LENGTH("));
+      final present = TColumnDAO.buildSelectSql(hasMainMissingKeywordCheck: true);
+      final absent = TColumnDAO.buildSelectSql(hasMainMissingKeywordCheck: false);
+      expect(present, contains(
+        'COALESCE(BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK, 0) AS MAIN_MISSING_KEYWORD_CHECK',
+      ));
+      expect(absent, contains('CAST(0 AS BIT) AS MAIN_MISSING_KEYWORD_CHECK'));
+      expect(absent, isNot(contains('RICH_USE_MISSING_KEYWORD_CHECK')));
+      for (final sql in [present, absent]) {
+        expect(sql, contains(TColumnDAO.whereSqlByLabelSizeId));
+        expect(sql, contains(TColumnDAO.orderByColumnOrder));
+        expect(sql, contains('AS RICH_CHECK_YN'));
+      }
     });
   });
 }

@@ -538,6 +538,7 @@ void main() {
       savedChecks: snapshot,
     );
     expect(updated.first.persistedMissingKeywordCheck, isTrue);
+    expect(updated.first.persistedMainMissingKeywordCheck, isFalse);
     expect(updated.first.useMissingKeywordCheck, isFalse);
     expect(loaded.persistedMissingKeywordCheck, isFalse);
     expect(updated[1], same(other));
@@ -583,6 +584,7 @@ void main() {
     loaded.useMissingKeywordCheck = false;
     page.onSaved!(labelSize);
     expect(TColumn.datas!.single.persistedMissingKeywordCheck, isTrue);
+    expect(TColumn.datas!.single.persistedMainMissingKeywordCheck, isFalse);
     expect(TColumn.datas!.single.useMissingKeywordCheck, isFalse);
     expect(notified, same(labelSize));
   });

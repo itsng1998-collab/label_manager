@@ -27,6 +27,7 @@ enum QRCodeCreateType {
 class TColumn extends TColumnBase {
   // Keep DB baselines separate from unsaved common-label edits.
   final bool persistedMissingKeywordCheck;
+  final bool persistedMainMissingKeywordCheck;
   final int persistedWidth;
   final int persistedHeight;
   final int columnId;
@@ -87,6 +88,7 @@ class TColumn extends TColumnBase {
     required super.columnName,
     required super.useMissingKeywordCheck,
     bool? persistedMissingKeywordCheck,
+    bool? persistedMainMissingKeywordCheck,
     int? persistedWidth,
     int? persistedHeight,
     required super.useMinColumnCheck,
@@ -132,6 +134,8 @@ class TColumn extends TColumnBase {
     required this.dateRange,
   }) : persistedMissingKeywordCheck =
            persistedMissingKeywordCheck ?? useMissingKeywordCheck,
+       persistedMainMissingKeywordCheck =
+           persistedMainMissingKeywordCheck ?? useMissingKeywordCheck,
        persistedWidth = persistedWidth ?? width,
        persistedHeight = persistedHeight ?? height;
 
@@ -141,6 +145,7 @@ class TColumn extends TColumnBase {
     String? columnName,
     bool? useMissingKeywordCheck,
     bool? persistedMissingKeywordCheck,
+    bool? persistedMainMissingKeywordCheck,
     int? persistedWidth,
     int? persistedHeight,
     bool? useMinColumnCheck,
@@ -192,6 +197,8 @@ class TColumn extends TColumnBase {
       useMissingKeywordCheck: useMissingKeywordCheck ?? this.useMissingKeywordCheck,
       persistedMissingKeywordCheck:
           persistedMissingKeywordCheck ?? this.persistedMissingKeywordCheck,
+      persistedMainMissingKeywordCheck:
+          persistedMainMissingKeywordCheck ?? this.persistedMainMissingKeywordCheck,
       persistedWidth: persistedWidth ?? this.persistedWidth,
       persistedHeight: persistedHeight ?? this.persistedHeight,
       useMinColumnCheck: useMinColumnCheck ?? this.useMinColumnCheck,

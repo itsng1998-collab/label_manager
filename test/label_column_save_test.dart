@@ -128,6 +128,75 @@ const _none = LabelColumnSchemaCapabilities(
 
 void main() {
   group('LabelColumnSaveDao', () {
+    for (final main in [false, true]) {
+      for (final auxiliary in [false, true]) {
+        test('required check saves main=$main auxiliary=$auxiliary independently', () {
+          final loaded = _column(7, 'TEST').copyWith(
+            useMissingKeywordCheck: auxiliary,
+            persistedMissingKeywordCheck: auxiliary,
+            persistedMainMissingKeywordCheck: main,
+          );
+          loaded.useMissingKeywordCheck = !auxiliary;
+          var session = LabelColumnEditSession.fromColumns(
+            labelSizeId: 10,
+            columns: [loaded],
+          ).beginPropertyEdit();
+          session = session.updatePropertyDraft(session.propertyDraft!.copyWith(
+            column: session.propertyDraft!.column.copyWith(
+              useMissingKeywordCheck: auxiliary,
+            ),
+          )).applyProperty();
+          final command = session.toSaveCommand();
+          final statement = LabelColumnSaveDao.buildSaveStatement(
+            command,
+            const LabelColumnSchemaCapabilities(
+              hasCoreSchema: true,
+              hasMainMissingKeywordCheck: true,
+              hasContentEditable: false,
+              hasUpdateContent: false,
+              hasStatusData: false,
+            ),
+          );
+          final xml = statement.params['commandXml'] as String;
+          final original = RegExp(
+            r'<originalColumns>(.*?)</originalColumns>', dotAll: true,
+          ).firstMatch(xml)!.group(1)!;
+          final updated = RegExp(
+            r'<updatedColumns>(.*?)</updatedColumns>', dotAll: true,
+          ).firstMatch(xml)!.group(1)!;
+          expect(original, contains('<mainCheck>${main ? 1 : 0}</mainCheck>'));
+          expect(original, contains('<check>${auxiliary ? 1 : 0}</check>'));
+          expect(updated, contains('<check>${auxiliary ? 1 : 0}</check>'));
+          expect(command.changedKeysByColumnId[7], {'check'});
+          expect(statement.sql, contains('UPDATE C SET RICH_USE_MISSING_KEYWORD_CHECK=U.RICH_CHECK_YN'));
+          expect(statement.sql, contains('T.RICH_CHECK_YN=S.RICH_CHECK_YN'));
+          expect(statement.sql, contains('COALESCE(O.MAIN_CHECK_YN, 0)'));
+          expect(statement.sql, contains('COALESCE(K.RICH_CHECK_YN, 0)'));
+        });
+      }
+    }
+
+    test('main required-check guard uses its own loaded baseline', () {
+      final statement = LabelColumnSaveDao.buildSaveStatement(
+        _command(),
+        const LabelColumnSchemaCapabilities(
+          hasCoreSchema: true,
+          hasMainMissingKeywordCheck: true,
+          hasContentEditable: false,
+          hasUpdateContent: false,
+          hasStatusData: false,
+        ),
+      );
+      expect(statement.params['commandXml'], contains('<mainCheck>0</mainCheck>'));
+      expect(statement.sql, contains("N.value('(mainCheck/text())[1]', 'BIT')"));
+      expect(
+        statement.sql,
+        contains('COALESCE(C.RICH_USE_MISSING_KEYWORD_CHECK, 0)<>COALESCE(O.MAIN_CHECK_YN, 0)'),
+      );
+      expect(statement.sql, contains("THROW 51115,"));
+      expect(statement.sql, contains("THROW 51116,"));
+    });
+
     test('capability query is read-only metadata only', () {
       final sql = LabelColumnSaveDao.capabilitySql.toUpperCase();
 

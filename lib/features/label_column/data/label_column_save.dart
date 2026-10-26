@@ -313,7 +313,7 @@ DECLARE @OriginalColumns TABLE (
   RICH_BARCODE_LINE INT, RICH_BARCODE_LINE_SIZE INT, RICH_BARCODE_ROTATE INT,
   RICH_AUTO_INC_UPDATE BIT, RICH_USE_DATERANGE BIT, RICH_DATERANGE NVARCHAR(12),
   RICH_CHECK_YN BIT, COLUMN_GS1_CODE NVARCHAR(100),
-  COLUMN_GS1_FORMAT_OPTION INT, COLUMN_SHOW_GS1CODE BIT
+  COLUMN_GS1_FORMAT_OPTION INT, COLUMN_SHOW_GS1CODE BIT, MAIN_CHECK_YN BIT
 );
 INSERT @OriginalColumns
 SELECT
@@ -346,7 +346,8 @@ SELECT
   N.value('(check/text())[1]', 'BIT'),
   N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)'),
   N.value('(formatOption/text())[1]', 'INT'),
-  N.value('(showGs1/text())[1]', 'BIT')
+  N.value('(showGs1/text())[1]', 'BIT'),
+  N.value('(mainCheck/text())[1]', 'BIT')
 FROM @CommandDocument.nodes('/command/originalColumns/column') X(N);
 DECLARE @OriginalContainValues TABLE (
   RICH_COLUMN_ID INT NOT NULL, CONTAIN_COLUMN_ID INT NOT NULL
@@ -518,7 +519,7 @@ IF EXISTS (
   JOIN @OriginalColumns O ON O.RICH_COLUMN_ID=C.RICH_COLUMN_ID
   JOIN @UpdatedColumns U ON U.RICH_COLUMN_ID=C.RICH_COLUMN_ID
   WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="check"]')=1
-    AND COALESCE(C.RICH_USE_MISSING_KEYWORD_CHECK, 0)<>COALESCE(O.RICH_CHECK_YN, 0)
+    AND COALESCE(C.RICH_USE_MISSING_KEYWORD_CHECK, 0)<>COALESCE(O.MAIN_CHECK_YN, 0)
 )
   THROW 51116, 'Main missing-keyword value changed after editing started.', 1;
 '''
@@ -998,6 +999,11 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
       'columnId="${draft.column.columnId}">',
     );
     xml.write('<draftKey>${_labelColumnXmlText(draft.key)}</draftKey>');
+    if (section == 'originalColumns') {
+      xml.write(
+        '<mainCheck>${draft.column.persistedMainMissingKeywordCheck ? 1 : 0}</mainCheck>',
+      );
+    }
     for (final entry in draft.persistedValues.entries) {
       final value = entry.value is bool ? (entry.value as bool ? 1 : 0) : entry.value;
       xml.write('<${entry.key}>${_labelColumnXmlText(value)}</${entry.key}>');
