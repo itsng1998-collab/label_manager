@@ -3,11 +3,11 @@
 ## 현재 작업: 공용라벨 필수등록 체크 후 항목편집 해제 저장 오류
 - 제출 `.tmp\1.8.9로그\공용라벨_키워드_필수등록저장오류.log` 버전1.8.9 확인. 첨부 화면51115, 제출 로그의 실제 실패는51116(Main missing-keyword value changed).
 - TEST 원본/수정 XML의 check는 모두0이며 changedKeys는check. 현재 DAO는 보조 BM_RICH_CHECK_COLUMNS 값만 읽는데51116은 본 BM_RICH_COLUMN의 값을 같은 원본과 비교한다. 본/보조 값이 다른 기존 데이터에서도 잘못 충돌할 수 있는 경로 확인.
-- 구현 완료, 커밋 전: TColumn에 persistedMainMissingKeywordCheck 분리. DAO에서 COL_LENGTH로 선택 컬럼 확인 후 같은 항목 조회에 본/보조 값을 함께 읽는다. original XML mainCheck 및 SQL MAIN_CHECK_YN으로51116을 본 원본과 비교하며51115/잠금/롤백/기존 두 테이블 갱신 유지. 공용라벨 저장은 보조 원본만 승격한다.
+- **구현·검증·커밋 완료(1.8.10): `14dbc25`**, push 없음. TColumn에 persistedMainMissingKeywordCheck 분리. DAO에서 COL_LENGTH로 선택 컬럼 확인 후 같은 항목 조회에 본/보조 값을 함께 읽는다. original XML mainCheck 및 SQL MAIN_CHECK_YN으로51116을 본 원본과 비교하며51115/잠금/롤백/기존 두 테이블 갱신 유지. 공용라벨 저장은 보조 원본만 승격한다.
 - 수정 전 신규회귀 실패 확인 후 관련5파일103/103통과(매핑/저장SQL/도메인/실제UI/공용저장 snapshot). 본/보조4조합 및 UI 본false/true의 체크→해제→적용→저장, 선택 컬럼 없는 쿼리 계약 확인. 최초 compiler invalidation 안내 후 핵심9건 재실행도9/9통과, 안내 재발 없음. 변경7 Dart analyzer `No issues found`, diff --check 통과.
 - 버전1.8.9→1.8.10 PATCH: 기존 저장 충돌 판정 버그 수정, 스키마/저장 포맷 변경 없음. README 갱신. 운영DB 접속·변경/실제 인쇄 없음. 사용자 `lib/core/app.dart` 변경 보존.
 - DTD 발견·연결 완료, 연결된 실행 앱 없음. hot reload 시도는 No active app connection으로 미적용. 앱 임의 실행/DB접속 없음.
-- 다음: 관련 변경만 커밋. 사용자 확인은1.8.10에서 해당 브랜드/라벨을 다시 불러온 뒤 제출 재현순서 수행. 실제 운영DB 저장은 미검증이며 본/보조 현재 실제값은 조회하지 않아 추정하지 않는다.
+- 다음 사용자 확인:1.8.10에서 해당 브랜드/라벨을 다시 불러온 뒤 제출 재현순서 수행. 실제 운영DB 저장은 미검증이며 본/보조 현재 실제값은 조회하지 않아 추정하지 않는다.
 
 ## 최근 완료: GoDEX 외 프린터의 검정 배경 누락
 - **구현·검증·커밋 완료(1.8.9): `23f40a8`**. push 없음. 제출 두 이미지에서 G500은 검정 제목행/흰 글자, D420·ZM410은 흰 제목행/검정 글자로 반전됨.
