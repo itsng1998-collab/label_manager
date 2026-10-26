@@ -6,7 +6,7 @@
 - 구현: Windows 출력은 같은행/같은투영값의 연속unit만 묶어 한 드라이버요청에 실제매수 전달. 자동증가/다른품목/크기/순서 보존, DEVMODE signed short 32767매 초과는분할. 그룹 구성은 내부list에append후immutable반환하여대량매수분할시반복전체복사방지. PDF/RAW/저울출력 별도흐름은 유지. 기존 캡처/역상PRN변환 및 드라이버환경설정 변경 없음.
 - 회귀작성후 수정전2건 실패(투영값/품목구분 없이5개한그룹), 수정후pipeline/bitmap테스트 통과. 3매동일라벨/장별자동증가/다른행/동일map별도인스턴스/연속순서/32768→32767+1분할 및 드라이버요청copies3·GoDEX단일RAW전달 검사.
 - 공유groupAdjacent는 저울도 사용하므로 기존 물리크기그룹 계약 유지, 라벨발행 전용groupLabelPrintUnitsForDispatch에서만 동일내용 다매수분할 적용. README갱신, 버전1.8.19→1.8.20 PATCH(기존Windows 다매수전달/배치수정, 저장형식·스키마변경없음).
-- 검증 완료, 기능커밋 예정: pipeline/bitmap/autoIncrement/persistence/session/dispatcher/GoDEX inverse/scale 8파일101/101 통과. 다매수PRN(^P3) 역상변환 후에도매수보존, GoDEX한RAW제출 및 BIXOLON/일반드라이버copies3 전달, 동일라벨이력count3/자동증가이력개별count1, immutable그룹과저울기존그룹계약 확인. 변경5 Dart analyzer No issues found, diff --check통과.
+- **구현·검증·커밋 완료: `ba13348`**, push 없음. pipeline/bitmap/autoIncrement/persistence/session/dispatcher/GoDEX inverse/scale 8파일101/101 통과. 다매수PRN(^P3) 역상변환 후에도매수보존, GoDEX한RAW제출 및 BIXOLON/일반드라이버copies3 전달, 동일라벨이력count3/자동증가이력개별count1, immutable그룹과저울기존그룹계약 확인. 변경5 Dart analyzer No issues found, diff --check통과.
 - DTD발견·기존연결확인/앱목록/hot reload시도했으나 실행앱없음. DB접속 방지를 위해 앱자동실행하지않음. 운영DB/실제발행 없음, lib/core/app.dart 사용자변경 보존.
 - 다음 사용자확인: 1.8.20에서 같은첫품목3매→GoDEX gdiDispatch units=3/copies=3 및실물3장확인. 기존로그의별도3작업이실물1장이된하드웨어원인은확정불가, 변경후에도발생하면새로그와같이생성된bitmap_print_requests의 .bin/.prn을확인(실제출력전송기록/명령수량대조). 자동증가설정있는품목은장별값순서별도확인.
 
