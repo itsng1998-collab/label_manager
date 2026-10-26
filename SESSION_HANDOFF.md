@@ -4,7 +4,7 @@
 - 제출1.8.9 로그에는 적용 당시 품목별 useLinefeed/linefeed 결과값이 없어 해당 화면의100% 유지 원인은 미확정. 기존 spacing/settings/session36건 통과.
 - 사용자 지시: 레거시 동작 우선, 없으면 기존 우선순위 유지. 매뉴얼v2의 발행목록/프린터설정/품목별 줄간격 설명과 실제 LabelPrintModel::ChangePrintSetup 대조: !bUseLinefeed 행은 목록 직접편집 여부와 무관하게 설정 적용 시 새 기본값으로 갱신. 현재 sessionEdited 보존은 이 부분과 다름.
 - 구현: 줄간격만 레거시 조건(!item.useLinefeed)으로 적용하고 출처를 preferenceFallback으로 복귀. 품목별 사용ON(설정안함 포함)과 그 행의 직접편집은 보존. 여백 등 다른 필드 정책 변경 없음. 300/null/80 및 baseline재동기화, 설정창→목록→미리보기/Windows인쇄준비 회귀 추가. 수정 전2건 모두300기대/100실제로 실패, 수정 후focused4건 통과.
-- 검증 완료, 기능커밋 예정: session/settings/lineSpacing/previewPush 4파일41/41 통과. 새 UI회귀는 실제 설정dialog의300선택 callback/적용을 거쳐 행300, 미리보기 문단행10→30, Windows인쇄준비 행30, zoom·원본시트·품목DB설정 불변 확인. 기존 표115%/고정행높이 및 capture/여백/밀기 회귀 유지. 변경2 Dart analyzer No issues found, diff --check통과.
+- **구현·검증·커밋 완료: `a182326`**, push 없음. session/settings/lineSpacing/previewPush 4파일41/41 통과. 새 UI회귀는 실제 설정dialog의300선택 callback/적용을 거쳐 행300, 미리보기 문단행10→30, Windows인쇄준비 행30, zoom·원본시트·품목DB설정 불변 확인. 기존 표115%/고정행높이 및 capture/여백/밀기 회귀 유지. 변경2 Dart analyzer No issues found, diff --check통과.
 - README 정책 정정, 버전1.8.18→1.8.19 PATCH(국소 줄간격 적용조건 수정, 저장형식/스키마 변경 없음). DTD발견/기존연결확인·앱목록/hot reload시도했으나 실행앱 없음. 운영DB 접속 방지를 위해 앱자동실행하지 않음. 운영DB/실제인쇄 없음, lib/core/app.dart 사용자변경 보존.
 - 다음 사용자확인: 1.8.19에서 해당 첫품목을 발행목록에 올려 프린터설정300% 적용 후 목록/미리보기 확인. 품목별 줄간격 사용ON이면 기존값 유지가 레거시 동작이므로300% 일괄강제하지 않음. 제출로그 당시 실제 useLinefeed 값과 운영라벨에서의 재현은 사용자확인 필요.
 
