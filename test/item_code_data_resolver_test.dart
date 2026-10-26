@@ -7,6 +7,153 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 
 void main() {
+  for (final format in [
+    BarcodeType.QrCode,
+    BarcodeType.MicroQrCode,
+    BarcodeType.DataMatrix,
+  ]) {
+    for (final createType in [
+      QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+      QRCodeCreateType.QRCODE_TYPE_NATRIUM,
+    ]) {
+      test(
+        'empty QR configuration uses item data with warning for $format/$createType',
+        () {
+          final column = _column(
+            id: 141679,
+            keyword: '2DBARCODE',
+            name: '2D 바코드',
+            type: TColumnType.TYPE_QR_CODE,
+            barcodeType: format,
+            createType: createType,
+          );
+          final resolver = ItemCodeDataResolver(
+            itemName: 'TEST1',
+            columns: [column],
+            columnValue: (_) => '001234567891',
+          );
+          final result = resolver.resolveObject('#2DBARCODE')!;
+          expect(result.data, '001234567891');
+          expect(result.error, isNull);
+          expect(result.warning, contains('품목의 2D 바코드 값'));
+          expect(resolver.resolveViewerData().single.data, result.data);
+          expect(resolver.resolveViewerData().single.warning, result.warning);
+          expect(result.barcodeFormatId, switch (format) {
+            BarcodeType.QrCode => 'qrCode',
+            BarcodeType.MicroQrCode => 'microQRCode',
+            _ => 'dataMatrix',
+          });
+        },
+      );
+    }
+  }
+
+  test('QR raw-data fallback keeps an explicitly configured display text', () {
+    final column = _column(
+      id: 1,
+      keyword: 'QR',
+      name: 'QR',
+      type: TColumnType.TYPE_QR_CODE,
+      createType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+      text: '#품목',
+    );
+    final result = ItemCodeDataResolver(
+      itemName: 'TEST1',
+      columns: [column],
+      columnValue: (_) => '1234567891',
+    ).resolve(column);
+    expect(result.data, '1234567891');
+    expect(result.displayText, 'TEST1');
+    final metadata = itemCodeBarcodeMetadata(
+      {'itemCodeError': 'old error'},
+      result,
+      preserveTemplateBarcodeFormat: false,
+    );
+    expect(metadata['itemCodeError'], isNull);
+    expect(metadata['itemCodeWarning'], result.warning);
+  });
+
+  test(
+    'configured whitespace QR payload is not replaced and clears stale warning',
+    () {
+      final column = _column(
+        id: 1,
+        keyword: 'QR',
+        name: 'QR',
+        type: TColumnType.TYPE_QR_CODE,
+        createType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+        data: ' ',
+      );
+      final result = ItemCodeDataResolver(
+        itemName: '',
+        columns: [column],
+        columnValue: (_) => '1234567891',
+      ).resolve(column);
+      expect(result.data, ' ');
+      expect(result.warning, isNull);
+      final metadata = itemCodeBarcodeMetadata(
+        {'itemCodeWarning': 'old warning', 'itemCodeError': 'old error'},
+        result,
+        preserveTemplateBarcodeFormat: false,
+      );
+      expect(metadata.containsKey('itemCodeWarning'), isFalse);
+      expect(metadata.containsKey('itemCodeError'), isFalse);
+    },
+  );
+
+  test('empty QR configuration never claims to use missing item data', () {
+    final column = _column(
+      id: 1,
+      keyword: 'QR',
+      name: '2D 바코드',
+      type: TColumnType.TYPE_QR_CODE,
+      createType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+    );
+    final result = ItemCodeDataResolver(
+      itemName: '',
+      columns: [column],
+      columnValue: (_) => '',
+    ).resolve(column);
+    expect(result.error, isNotNull);
+    expect(result.warning, isNull);
+  });
+
+  test(
+    'configured QR templates and invalid sodium settings never fall back to raw item data',
+    () {
+      for (final column in [
+        _column(
+          id: 1,
+          keyword: 'QR',
+          name: 'QR',
+          type: TColumnType.TYPE_QR_CODE,
+          createType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+          data: '#EMPTY',
+        ),
+        _column(
+          id: 1,
+          keyword: 'QR',
+          name: 'QR',
+          type: TColumnType.TYPE_QR_CODE,
+          createType: QRCodeCreateType.QRCODE_TYPE_NATRIUM,
+          natrium: 'invalid',
+        ),
+      ]) {
+        final result = ItemCodeDataResolver(
+          itemName: '',
+          columns: [
+            column,
+            _column(id: 2, keyword: 'EMPTY', name: '빈값'),
+          ],
+          columnValue: (id) => id == 1 ? '1234567891' : '',
+        ).resolve(column);
+        expect(result.data, isEmpty);
+        expect(result.error, isNotNull);
+        expect(result.warning, isNull);
+      }
+    },
+  );
+
   test('barcode custom caption uses current item values without changing scan data', () {
     final barcode = _column(
       id: 1, keyword: 'BARCODE', name: '바코드',

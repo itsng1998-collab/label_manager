@@ -50,6 +50,7 @@ import 'package:label_manager/features/label_sheet/presentation/label_sheet_sett
 import 'package:label_manager/widgets/label_sheet_zoom.dart';
 import 'package:label_manager/widgets/snackbar.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
+import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
@@ -805,6 +806,118 @@ void main() {
     }
     expect(labelSheetDecodeWorkbookSave(encoded).activeSheet.images.single.extraFields['barcodeText'], 'template');
   });
+
+  for (final format in [BarcodeType.QrCode, BarcodeType.MicroQrCode, BarcodeType.DataMatrix]) {
+    for (final mode in [
+      QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+      QRCodeCreateType.QRCODE_TYPE_NATRIUM,
+    ]) {
+      test('linked 2D barcode preview and print preparation for $format/$mode', () async {
+        const native = bool.fromEnvironment('BARCODE_2D_NATIVE');
+        final previousColumns = TColumn.datas;
+        addTearDown(() => TColumn.datas = previousColumns);
+        final column = _testColumn(141679, '2DBARCODE').copyWith(
+          columnType: const TColumnType(code: TColumnType.TYPE_QR_CODE, name: '2D 바코드', order: 1),
+          barcodeType: format, qrCodeCreateType: mode,
+          userDefineQRData: '', userDefineQRText: '', natriumJoinString: '',
+        );
+        TColumn.datas = [column];
+        final inserted = FortuneImage(
+          id: 'insert-linked', src: 'data:image/png;base64,OLD=',
+          left: 10, top: 10, width: 120, height: 120,
+          extraFields: {
+            'fortuneBarcode': true,
+            fortuneBarcodeObjectIdExtraKey: '#2DBARCODE',
+            'barcodeText': '1234', 'barcodeFormatId': 'qrCode',
+            'barcodeShowText': false,
+          },
+        );
+        final source = FortuneWorkbook(sheets: [
+          FortuneSheet(id: 'label', name: 'Label', images: [
+            inserted,
+            inserted.copyWith(id: 'property-relinked', left: 140, extraFields: {
+              ...inserted.extraFields, 'barcodeFormatId': 'code128',
+            }),
+          ]),
+        ]);
+        final saved = labelSheetEncodeWorkbookSave(source);
+        final formatId = switch (format) {
+          BarcodeType.QrCode => 'qrCode',
+          BarcodeType.MicroQrCode => 'microQRCode',
+          _ => 'dataMatrix',
+        };
+        for (final data in ['1234567891', '001234567891']) {
+          final preview = debugItemOutputPreviewForTesting(
+            labelSize: _testLabelSizeWithFormData(saved),
+            item: _testItemOfMarket(), elementText: '',
+            projectedColumnValues: {141679: data},
+          ).workbook!;
+          expect(debugItemCodePreviewMessagesForTesting(preview), [
+            (text: '${column.columnName}의 ${mode == QRCodeCreateType.QRCODE_TYPE_USER_DEFINE ? '사용자 정의 QR data 설정' : '나트륨 조합 설정'}이 비어 있어 품목의 2D 바코드 값을 사용합니다. 항목 편집의 생성 방식을 확인하세요.',
+             error: false),
+          ]);
+          final requests = <FortuneBarcodeRequest>[];
+          final rendered = await debugRenderItemOutputPreviewBarcodesForTesting(
+            preview, renderer: (request) async {
+              requests.add(request);
+              if (native) {
+                return labelSheetBarcodeRenderer(request);
+              }
+              return FortuneBarcodeRenderResult(bytes: Uint8List.fromList([1, 2, 3]));
+            },
+          );
+          expect(requests, hasLength(2));
+          for (final request in requests) {
+            expect(request.text, data);
+            expect(request.formatId, formatId);
+          }
+          if (native && format == BarcodeType.MicroQrCode) {
+            // The bundled ZXing MultiFormatWriter does not encode Micro QR.
+            expect(rendered.activeSheet.images.every((image) =>
+              image.extraFields['itemCodeError'] != null &&
+              image.extraFields['barcodeFormatId'] == 'microQRCode' &&
+              image.src == debugItemCodeErrorPlaceholderForTesting()), isTrue);
+            expect(debugItemCodePreviewMessagesForTesting(rendered).any((message) => message.error), isTrue);
+            continue;
+          }
+          for (final image in rendered.activeSheet.images) {
+            expect(image.extraFields['barcodeText'], data);
+            expect(image.extraFields['barcodeFormatId'], formatId);
+            expect(image.extraFields['itemCodeError'], isNull);
+            expect(image.src, startsWith('data:image/png;base64,'));
+            expect(image.src, isNot(inserted.src));
+            if (native) {
+              final bytes = base64Decode(image.src.split(',').last);
+              final png = imglib.decodePng(bytes)!;
+              expect(png.any((pixel) => pixel.a > 0 && pixel.r < 128), isTrue);
+              final page = prepareLabelSheetWindowsDriverPage(
+                pngBytes: bytes,
+                metrics: const LabelSheetPrintPageMetrics(labelWidthMm: 30, labelHeightMm: 30, dpi: 203.2),
+                options: const LabelSheetPrintOptions(
+                  copies: 1, leftMarginMm: 0, topMarginMm: 0, extraAreaMm: 0,
+                  autoSpacingPercent: null, orientation: LabelSheetPrintOrientation.horizontal,
+                ),
+              );
+              expect(page.inkPixels, greaterThan(0));
+            }
+          }
+        }
+        final empty = debugItemOutputPreviewForTesting(
+          labelSize: _testLabelSizeWithFormData(saved),
+          item: _testItemOfMarket(), elementText: '',
+          projectedColumnValues: {141679: ''},
+        ).workbook!;
+        expect(debugItemCodePreviewMessagesForTesting(empty).every((message) => message.error), isTrue);
+        expect(empty.activeSheet.images.every((image) => image.extraFields['itemCodeError'] != null), isTrue);
+        expect(TColumn.datas?.single, same(column));
+        expect(column.userDefineQRData, isEmpty);
+        expect(column.natriumJoinString, isEmpty);
+        expect(column.qrCodeCreateType, mode);
+        expect(labelSheetDecodeWorkbookSave(saved).activeSheet.images.first.extraFields['barcodeText'], '1234');
+        expect(labelSheetDecodeWorkbookSave(saved).activeSheet.images.last.extraFields['barcodeFormatId'], 'code128');
+      });
+    }
+  }
 
   test('item output preview renders resolved barcode image source', () async {
     FortuneBarcodeRequest? request;

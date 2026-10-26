@@ -177,7 +177,26 @@ class ItemCodeDataResolver {
     if (column.typeCode == TColumnType.TYPE_GS1_BARCODE) {
       return _resolveGs1(column, templateFormatId: templateFormatId);
     }
-    final payload = _payload(column);
+    final missingConfiguration = _missingQrConfiguration(column);
+    final raw = missingConfiguration == null
+        ? ''
+        : columnValue(column.columnId);
+    final payload = missingConfiguration == null
+        ? _payload(column)
+        : (
+            data: raw,
+            text:
+                column.createType == QRCodeCreateType.QRCODE_TYPE_USER_DEFINE &&
+                    column.userDefineText.isNotEmpty
+                ? _replaceTokens(column.userDefineText)
+                : raw,
+          );
+    final sourceWarning = missingConfiguration != null && raw.isNotEmpty
+        ? '${column.columnName}의 $missingConfiguration이 비어 있어 품목의 2D 바코드 값을 사용합니다. 항목 편집의 생성 방식을 확인하세요.'
+        : null;
+    final sourceError = missingConfiguration != null && raw.isEmpty
+        ? '${column.columnName}의 $missingConfiguration과 품목의 2D 바코드 값이 모두 비어 있습니다.'
+        : null;
     final requestedFormat = preserveTemplateBarcodeFormat
         ? templateFormatId ?? _formatId(column)
         : _formatId(column);
@@ -188,6 +207,7 @@ class ItemCodeDataResolver {
         data: normalized,
         displayText: payload.text,
         formatId: requestedFormat,
+        warning: sourceWarning,
       );
     }
     if (preserveTemplateBarcodeFormat ||
@@ -197,22 +217,30 @@ class ItemCodeDataResolver {
         data: payload.data,
         displayText: payload.text,
         formatId: requestedFormat,
-        error: '${column.columnName} 데이터를 $requestedFormat 형식으로 표시할 수 없습니다.',
+        warning: sourceWarning,
+        error:
+            sourceError ??
+            '${column.columnName} 데이터를 $requestedFormat 형식으로 표시할 수 없습니다.',
       );
     }
     final fallback = _isQrColumn(column) ? 'qrCode' : 'code128';
     final fallbackValue = _normalize(fallback, payload.data);
+    final warnings = [
+      ?sourceWarning,
+      if (fallbackValue != null)
+        '${column.columnName}은 선택 형식에 맞지 않아 $fallback 형식을 사용합니다.',
+    ];
     return _result(
       column,
       data: fallbackValue ?? payload.data,
       displayText: payload.text,
       formatId: fallback,
-      warning: fallbackValue == null
-          ? null
-          : '${column.columnName}은 선택 형식에 맞지 않아 $fallback 형식을 사용합니다.',
-      error: fallbackValue == null
-          ? '${column.columnName} 바코드 데이터가 비어 있습니다.'
-          : null,
+      warning: warnings.isEmpty ? null : warnings.join('\n'),
+      error:
+          sourceError ??
+          (fallbackValue == null
+              ? '${column.columnName} 바코드 데이터가 비어 있습니다.'
+              : null),
     );
   }
 
@@ -319,6 +347,19 @@ class ItemCodeDataResolver {
     error: error,
   );
 
+  String? _missingQrConfiguration(ItemCodeColumnSpec column) {
+    if (!_isQrColumn(column)) return null;
+    return switch (column.createType) {
+      QRCodeCreateType.QRCODE_TYPE_USER_DEFINE
+          when column.userDefineData.isEmpty =>
+        '사용자 정의 QR data 설정',
+      QRCodeCreateType.QRCODE_TYPE_NATRIUM
+          when column.natriumJoinString.isEmpty =>
+        '나트륨 조합 설정',
+      _ => null,
+    };
+  }
+
   ({String data, String text}) _payload(ItemCodeColumnSpec column) {
     final raw = columnValue(column.columnId);
     final payload = switch (column.createType) {
@@ -417,6 +458,9 @@ Map<String, Object?> itemCodeBarcodeMetadata(
       ..['barcodeFormatLabel'] = result.barcodeFormatLabel
       ..['barcodeShowText'] = result.showText;
   }
+  next
+    ..remove('itemCodeWarning')
+    ..remove('itemCodeError');
   if (result.warning != null) next['itemCodeWarning'] = result.warning;
   if (result.error != null) next['itemCodeError'] = result.error;
   return next;

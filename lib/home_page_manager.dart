@@ -2677,6 +2677,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         'columns': columns.length,
         'results': results.length,
         'errors': results.where((result) => result.error != null).length,
+        'warnings': results.map((result) => result.warning).whereType<String>().toList(),
       },
     );
     if (!mounted) return;
@@ -2708,6 +2709,10 @@ class _HomePageManagerState extends State<HomePageManager> {
                             result.error ??
                                 (result.data.isEmpty ? '데이터 없음' : result.data),
                           ),
+                          if (result.warning != null) ...[
+                            const SizedBox(height: 4),
+                            Text(result.warning!),
+                          ],
                         ],
                       );
                     },
@@ -9720,6 +9725,7 @@ Future<fs.FortuneWorkbook> _renderItemOutputPreviewBarcodes(
           'objectId': objectId,
           'text': text,
           'caption': extra['barcodeDisplayText'],
+          'warning': extra['itemCodeWarning'],
           'format': formatId,
           'width': image.width,
           'height': image.height,
