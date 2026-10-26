@@ -1261,6 +1261,31 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         : fortuneLogicalPixelsToMillimeters(logicalPixels);
   }
 
+  void _handleImageSizeChanged(String field) {
+    _lastImageSizeField = field;
+    if (field == 'width' && !_imageAspectLocked) return;
+    _syncBarcodeBarHeight();
+  }
+
+  void _syncBarcodeBarHeight() {
+    if (widget.snapshot.activeKey?.kind != FortuneSheetObjectKind.barcode ||
+        fortuneBarcodeIsTwoDimensional(_fields['barcodeFormatId']?.text)) {
+      return;
+    }
+    var height = _number('height');
+    if (_lastImageSizeField == 'width' && _imageAspectLocked) {
+      final width = _number('width');
+      final ratio = _imageAspectRatio;
+      if (width == null || width <= 0 ||
+          ratio == null || !ratio.isFinite || ratio <= 0) {
+        return;
+      }
+      height = width / ratio;
+    }
+    if (height == null || !height.isFinite || height <= 0) return;
+    _fields['barHeight']!.text = _formatNumber(height);
+  }
+
   bool _apply({bool forCommand = false}) {
     if (_draftFinalized && !forCommand) return false;
     if (_fieldsMatchInitialText()) {
@@ -1556,13 +1581,13 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           '폭',
           'width',
           suffix: unit,
-          onChanged: (_) => _lastImageSizeField = 'width',
+          onChanged: (_) => _handleImageSizeChanged('width'),
         ),
         _field(
           '높이',
           'height',
           suffix: unit,
-          onChanged: (_) => _lastImageSizeField = 'height',
+          onChanged: (_) => _handleImageSizeChanged('height'),
         ),
         CheckboxListTile(
             key: const ValueKey('fortune-object-property-aspect-lock'),
@@ -1573,6 +1598,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             onChanged: canMutate
                 ? (value) {
                     setState(() => _imageAspectLocked = value ?? true);
+                    if (_lastImageSizeField == 'width') {
+                      _syncBarcodeBarHeight();
+                    }
                   }
                 : null,
           ),

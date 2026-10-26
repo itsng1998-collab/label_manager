@@ -201,6 +201,11 @@ const String _fortuneUnlinkedObjectValue = '__unlinked__';
 const String _fortuneLinkedImagePlaceholder =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
+bool fortuneBarcodeIsTwoDimensional(String? formatId) {
+  final id = formatId?.toLowerCase();
+  return id?.contains('qr') == true || id?.contains('matrix') == true;
+}
+
 class FortuneBarcodeFormatOption {
   const FortuneBarcodeFormatOption({
     required this.id,
@@ -25145,7 +25150,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 ? _selectedBarcodeObjectOption?.formatId
                 : _selectedBarcodeFormat.id)
             ?.toLowerCase();
-    return id?.contains('qr') == true || id?.contains('matrix') == true;
+    return fortuneBarcodeIsTwoDimensional(id);
   }
 
   int _barcodeFormatIndexForMetadata(String? id, String? label) {

@@ -210,6 +210,93 @@ Future<void> _applyProperties(WidgetTester tester, FortuneSheetController contro
 }
 
 void main() {
+  for (final millimeters in [true, false]) {
+    testWidgets('property height sync keeps explicit overrides in ${millimeters ? 'mm' : 'px'}', (tester) async {
+      final requests = <FortuneBarcodeRequest>[];
+      final controller = await _pumpCanvas(
+        tester, requests, millimeters: millimeters, withPanel: true,
+      );
+      await _openDialog(tester);
+      await _tapDialog(tester, fortuneBarcodeLinkButtonRect);
+      await _enter(tester, 'width', '20');
+      await _enter(tester, 'height', '10');
+      await _confirm(tester);
+      final original = controller.getSheet(id: 'label')!.images.single;
+      controller.selectObject(FortuneSheetObjectKey(
+        FortuneSheetObjectKind.barcode, original.id,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('선택한 개체 복제'));
+      await tester.pumpAndSettle();
+      final lock = find.byKey(const ValueKey('fortune-object-property-aspect-lock'));
+      await _revealProperty(tester, lock);
+      await tester.tap(lock);
+      await tester.pumpAndSettle();
+
+      Finder field(String name) => find.byKey(
+        ValueKey('fortune-object-property-$name'),
+      );
+      Future<void> enter(String name, String value) async {
+        await _revealProperty(tester, field(name));
+        await tester.enterText(field(name), value);
+        await tester.pumpAndSettle();
+      }
+      Future<void> expectBarText(String value) async {
+        await _revealProperty(tester, field('barHeight'));
+        expect(tester.widget<TextField>(field('barHeight')).controller!.text, value);
+      }
+      double pixels(double value) =>
+          millimeters ? fortuneMillimetersToLogicalPixels(value) : value;
+      void expectRendered(double width, double height, double bars) {
+        final updated = controller.objectSelection.activeImage!;
+        expect(updated.width, closeTo(pixels(width), 0.005));
+        expect(updated.height, closeTo(pixels(height), 0.005));
+        expect(requests.last.barHeight, closeTo(pixels(bars), 0.005));
+        expect(updated.extraFields['barcodeBarHeight'], bars);
+        expect(_inkHeight(updated), pixels(bars).round());
+        expect(controller.getSheet(id: 'label')!.images.first.src, original.src);
+      }
+
+      await enter('height', '15');
+      await expectBarText('15');
+      await _applyProperties(tester, controller);
+      expectRendered(20, 15, 15);
+      await enter('height', '20');
+      await enter('barHeight', '7');
+      await _applyProperties(tester, controller);
+      expectRendered(20, 20, 7);
+      for (final invalid in ['', '0', '-1', 'NaN']) {
+        await enter('height', invalid);
+        await expectBarText('7');
+      }
+      await enter('height', '25');
+      await expectBarText('25');
+      await enter('barHeight', '8');
+      await _applyProperties(tester, controller);
+      expectRendered(20, 25, 8);
+      await enter('width', '40');
+      await expectBarText('8');
+      await _applyProperties(tester, controller);
+      expectRendered(40, 25, 8);
+
+      await enter('width', '60');
+      await _revealProperty(tester, lock);
+      await tester.tap(lock);
+      await tester.pumpAndSettle();
+      await expectBarText('37.5');
+      await _revealProperty(tester, lock);
+      await tester.tap(lock);
+      await tester.pumpAndSettle();
+      await expectBarText('25');
+      await _revealProperty(tester, lock);
+      await tester.tap(lock);
+      await tester.pumpAndSettle();
+      await enter('barHeight', '9');
+      await _applyProperties(tester, controller);
+      expectRendered(60, 37.5, 9);
+    });
+  }
+
   for (final format in ['code128', 'qrCode']) {
     for (final millimeters in [true, false]) {
       testWidgets('barcode property aspect lock supports $format in ${millimeters ? 'mm' : 'px'}', (tester) async {
@@ -245,7 +332,9 @@ void main() {
           expect(updated.height, closeTo(pixels(height), 0.005));
           expect(requests.last.width, closeTo(pixels(width), 0.005));
           expect(requests.last.height, closeTo(pixels(height), 0.005));
-          expect(updated.extraFields['barcodeBarHeight'], 10);
+          expect(updated.extraFields['barcodeBarHeight'],
+              format == 'code128' ? height : 10);
+          expect(requests.last.moduleScale, 3);
           expect(updated.extraFields['barcodeFormatId'], format);
         }
 
@@ -337,7 +426,7 @@ void main() {
   }
 
   for (final mode in ['mm', 'px', 'rtf']) {
-    testWidgets('duplicated barcode rotation preserves ink height in $mode', (tester) async {
+    testWidgets('duplicated barcode rotation preserves ink and resize updates it in $mode', (tester) async {
       final millimeters = mode != 'px';
       final requests = <FortuneBarcodeRequest>[];
       final initialImages = <FortuneImage>[];
@@ -426,6 +515,36 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.objectSelection.activeImage!.extraFields['rotation'], 2);
       expect(_inkHeight(controller.objectSelection.activeImage!), _inkHeight(original));
+      final heightField = find.byKey(
+        const ValueKey('fortune-object-property-height'),
+      );
+      await _revealProperty(tester, heightField);
+      await tester.enterText(heightField, '15');
+      await tester.pumpAndSettle();
+      await _applyProperties(tester, controller);
+      final resized = controller.objectSelection.activeImage!;
+      final expectedHeight = millimeters
+          ? fortuneMillimetersToLogicalPixels(15) : 15.0;
+      expect(requests.last.barHeight, closeTo(expectedHeight, 0.005));
+      expect(resized.height, closeTo(expectedHeight, 0.005));
+      expect(resized.width, closeTo(expectedHeight * 2, 0.005));
+      expect(resized.extraFields['barcodeBarHeight'],
+          closeTo(mode == 'rtf' ? expectedHeight : 15, 0.005));
+      final unrotated = image.decodePng(base64Decode(resized.src.split(',').last))!;
+      expect(unrotated.height, expectedHeight.round());
+      expect(_inkHeight(resized), expectedHeight.round());
+      expect(resized.extraFields['rotation'], 2);
+      final savedResize = labelSheetDecodeWorkbookSave(
+        labelSheetBuildSavePayload(_painter(tester).workbook).encodedWorkbook,
+      );
+      expect(_inkHeight(savedResize.activeSheet.images.last), expectedHeight.round());
+      expect(savedResize.activeSheet.images.first.src, original.src);
+      controller.handleUndo();
+      await tester.pumpAndSettle();
+      expect(_inkHeight(controller.objectSelection.activeImage!), _inkHeight(original));
+      controller.handleRedo();
+      await tester.pumpAndSettle();
+      expect(_inkHeight(controller.objectSelection.activeImage!), expectedHeight.round());
       expect(tester.takeException(), isNull);
     });
   }
