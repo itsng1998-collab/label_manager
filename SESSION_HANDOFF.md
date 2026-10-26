@@ -4,7 +4,7 @@
 - 제출1.8.9 로그/이미지: #2DBARCODE 품목값1234567891이 존재하나 생성data가 비어 출력차단. 같은라벨8243의 제출XML 로그에서 column141679의 qrCreateType=1(10/22)/2(10/26 11:03), userQrData/natrium 모두빈값 확인. 현재로그10/26 10:57에는 열설정 실제행이 없어 직전/직후 로그로 대조.
 - 레거시 TableRowRTFMaker::GetQRCodeData는 기본=품목값, 사용자정의=조합, 나트륨=URL이며 빈조합 대체처리 없음. 사용자 지시: 레거시대조, 없으면 제시1번(raw-with-warning). 따라서 QR 사용자정의/나트륨의 조합설정 자체가 빈경우만 품목값 사용+명시적경고, DB설정 변경없음으로 보완.
 - 설정된조합의 결과가빈경우/비어있지않은 잘못된나트륨설정은 대체하지 않고 기존오류유지. 실제품목값도없으면 계속차단. 명시적인 QR text/공백payload는 보존. 출력 재해석 시 오래된경고/오류 제거.
-- 구현후 resolver+toolbar QR/barcode focused43/43 통과. QR데이터보기에도 경고표시/진단 연결. 저장재읽기/삽입연결과 code128→2D속성연결의 동등한 품목별payload/포맷, 3종2D×2가지빈설정, 품목값비어있음차단 확인. native6/6 통과(QR/DataMatrix4건 PNG/Windows인쇄이미지 준비, Micro QR2건 기존명시적실패유지). 변경4 Dart analyzer No issues found, diff --check통과. 관련변경만 커밋예정.
+- **구현·검증·커밋 완료(1.8.17): `3655161`**, push 없음. resolver+toolbar QR/barcode focused43/43 통과. QR데이터보기에도 경고표시/진단 연결. 저장재읽기/삽입연결과 code128→2D속성연결의 동등한 품목별payload/포맷, 3종2D×2가지빈설정, 품목값비어있음차단 확인. native6/6 통과(QR/DataMatrix4건 PNG/Windows인쇄이미지 준비, Micro QR2건 기존명시적실패유지). 변경4 Dart analyzer No issues found, diff --check통과. 범위밖 포맷변경 제거후 resolver24/24 재통과.
 - 운영DB/실제인쇄 없음, 사용자 lib/core/app.dart 보존. 버전1.8.16→1.8.17 PATCH: 기존2D 데이터원본 선택의 빈설정 처리 보완, 저장형식/DB변경 없음. README갱신. DTD발견/기존연결확인후 hot reload시도했으나 실행앱 없음.
 - 주의: flutter_zxing2.4.0/src/zxing/core/src/MultiFormatWriter.cpp에 MicroQRCode writer branch 없음 확인. 이번데이터원본수정과별개인 기존한계로 명시적실패/오류placeholder/형식유지 계약을 테스트하고 README제한사항 기록. 인코더교체/형식임의대체 안함.
 - 다음 사용자확인:1.8.17에서 기존라벨의 #2DBARCODE 삽입/속성재연결→저장→품목 선택→품목값1234567891의 이미지 및 빈설정대체 경고 확인. 실제 운영 발행은 사용자확인 필요. 다른2D형식의 속성테스트는 QR/DataMatrix로 진행, Micro QR 생성지원은 별도작업 필요.
