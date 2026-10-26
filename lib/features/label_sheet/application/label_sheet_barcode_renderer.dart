@@ -173,7 +173,7 @@ imglib.Image labelSheetDecodeEncodedBarcodeImage(
 }
 
 String _labelSheetBarcodeDisplayText(FortuneBarcodeRequest request) {
-  return '${request.leadingText}${request.text}${request.trailingText}';
+  return '${request.leadingText}${request.humanReadableText ?? request.text}${request.trailingText}';
 }
 
 Future<Uint8List> _labelSheetComposeBarcodePng(

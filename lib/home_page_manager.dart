@@ -3280,6 +3280,17 @@ class _HomePageManagerState extends State<HomePageManager> {
           initialColumns: List<TColumn>.unmodifiable(
             TColumn.datas ?? const <TColumn>[],
           ),
+          barcodePreviewItems: [
+            for (final row in _itemDraftController?.rows ?? <ItemManagerDraftRow>[])
+              (
+                name: row.itemName,
+                values: {
+                  for (final column in TColumn.datas ?? const <TColumn>[])
+                    column.columnId:
+                        _itemDraftController!.columnValue(row, column.columnId),
+                },
+              ),
+          ],
           canSave: () async =>
               mounted &&
               _effectiveLabelSize?.labelSizeId == targetLabelSizeId &&
@@ -9708,6 +9719,7 @@ Future<fs.FortuneWorkbook> _renderItemOutputPreviewBarcodes(
         fields: {
           'objectId': objectId,
           'text': text,
+          'caption': extra['barcodeDisplayText'],
           'format': formatId,
           'width': image.width,
           'height': image.height,
@@ -9734,6 +9746,7 @@ Future<fs.FortuneWorkbook> _renderItemOutputPreviewBarcodes(
             ),
             leadingText: '${extra['barcodeLeadingText'] ?? ''}',
             trailingText: '${extra['barcodeTrailingText'] ?? ''}',
+            humanReadableText: extra['barcodeDisplayText']?.toString(),
             showHumanReadableText: extra['barcodeShowText'] == true,
             humanReadableFontFamily:
                 extra['barcodeHumanReadableFontFamily']?.toString(),

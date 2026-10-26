@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fortune_sheet/fortune_sheet.dart' hide Image;
+import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/label_column/data/label_column_candidates.dart';
 import 'package:label_manager/features/label_column/domain/label_column_candidates.dart';
@@ -49,6 +52,17 @@ const labelColumnTextReferenceColor = Color(0xFFF3D9F5);
 const _labelColumnEditingColor = Color(0xFFE3F2FD);
 
 typedef _TextKeyword = ({String keyword, String name, String typeName});
+typedef LabelColumnBarcodePreviewItem = ({
+  String name,
+  Map<int, String> values,
+});
+typedef _BarcodePreviewResolver = ItemCodeDataResult Function(
+  String template, LabelColumnBarcodePreviewItem item,
+);
+typedef _BarcodePreviewImage = ({
+  FortuneBarcodeRenderResult? image,
+  bool failed,
+});
 
 @visibleForTesting
 double labelColumnEditDialogWidth(double screenWidth) =>
@@ -74,6 +88,8 @@ class LabelColumnEditDialog extends StatefulWidget {
     this.loadFixedTypes = FixedColumnDAO.selectTypes,
     this.loadFixedCandidates = FixedColumnDAO.selectCandidates,
     this.loadCustomerCandidates = CustomerColumnDAO.selectByCustomerId,
+    this.barcodePreviewItems = const [],
+    this.barcodePreviewRenderer = labelSheetBarcodeRenderer,
   });
 
   final int labelSizeId;
@@ -85,6 +101,8 @@ class LabelColumnEditDialog extends StatefulWidget {
   final FixedColumnTypesLoader loadFixedTypes;
   final FixedColumnCandidatesLoader loadFixedCandidates;
   final CustomerColumnCandidatesLoader loadCustomerCandidates;
+  final List<LabelColumnBarcodePreviewItem> barcodePreviewItems;
+  final FortuneBarcodeRenderer barcodePreviewRenderer;
 
   @override
   State<LabelColumnEditDialog> createState() => _LabelColumnEditDialogState();
@@ -1342,6 +1360,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                     child: _PropertyFields(
                       key: ValueKey('property:${draft.key}:$_propertyRevision'),
                       column: draft.column,
+                      previewColumns: [
+                        for (final row in _session.workingColumns) row.column,
+                      ],
+                      barcodePreviewItems: widget.barcodePreviewItems,
+                      barcodePreviewRenderer: widget.barcodePreviewRenderer,
                       textKeywords: [
                         (keyword: 'ITEMNAME', name: '품명', typeName: '고정'),
                         for (final row in _session.workingColumns)
@@ -1391,12 +1414,18 @@ class _BasicTextTemplateField extends StatefulWidget {
     required this.keywords,
     required this.enabled,
     required this.onChanged,
+    this.resolveBarcode,
+    this.previewItems = const [],
+    this.previewRenderer = labelSheetBarcodeRenderer,
   });
 
   final String value;
   final List<_TextKeyword> keywords;
   final bool enabled;
   final ValueChanged<String> onChanged;
+  final _BarcodePreviewResolver? resolveBarcode;
+  final List<LabelColumnBarcodePreviewItem> previewItems;
+  final FortuneBarcodeRenderer previewRenderer;
 
   @override
   State<_BasicTextTemplateField> createState() => _BasicTextTemplateFieldState();
@@ -1430,6 +1459,9 @@ class _BasicTextTemplateFieldState extends State<_BasicTextTemplateField> {
         initialValue: _controller.text,
         keywords: widget.keywords,
         close: close,
+        resolveBarcode: widget.resolveBarcode,
+        previewItems: widget.previewItems,
+        previewRenderer: widget.previewRenderer,
       ),
     );
     if (!mounted || value == null) return;
@@ -1468,11 +1500,17 @@ class _BasicTextTemplateEditor extends StatefulWidget {
     required this.initialValue,
     required this.keywords,
     required this.close,
+    this.resolveBarcode,
+    this.previewItems = const [],
+    this.previewRenderer = labelSheetBarcodeRenderer,
   });
 
   final String initialValue;
   final List<_TextKeyword> keywords;
   final ValueChanged<String?> close;
+  final _BarcodePreviewResolver? resolveBarcode;
+  final List<LabelColumnBarcodePreviewItem> previewItems;
+  final FortuneBarcodeRenderer previewRenderer;
 
   @override
   State<_BasicTextTemplateEditor> createState() => _BasicTextTemplateEditorState();
@@ -1520,7 +1558,7 @@ class _BasicTextTemplateEditorState extends State<_BasicTextTemplateEditor> {
     return AlertDialog(
       title: const Text('사용자 정의 text'),
       content: SizedBox(
-        width: 760,
+        width: widget.resolveBarcode == null ? 760 : 1060,
         height: 380,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1595,6 +1633,17 @@ class _BasicTextTemplateEditorState extends State<_BasicTextTemplateEditor> {
                       ),
                     ),
                   ),
+                  if (widget.resolveBarcode != null) ...[
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _BarcodeTextPreview(
+                        template: _controller.text,
+                        items: widget.previewItems,
+                        resolve: widget.resolveBarcode!,
+                        renderer: widget.previewRenderer,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1613,6 +1662,118 @@ class _BasicTextTemplateEditorState extends State<_BasicTextTemplateEditor> {
   }
 }
 
+class _BarcodeTextPreview extends StatefulWidget {
+  const _BarcodeTextPreview({
+    required this.template,
+    required this.items,
+    required this.resolve,
+    required this.renderer,
+  });
+
+  final String template;
+  final List<LabelColumnBarcodePreviewItem> items;
+  final _BarcodePreviewResolver resolve;
+  final FortuneBarcodeRenderer renderer;
+
+  @override
+  State<_BarcodeTextPreview> createState() => _BarcodeTextPreviewState();
+}
+
+class _BarcodeTextPreviewState extends State<_BarcodeTextPreview> {
+  int? _selectedIndex;
+  ItemCodeDataResult? _result;
+  Future<_BarcodePreviewImage>? _image;
+
+  @override
+  void didUpdateWidget(covariant _BarcodeTextPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.template != widget.template) _refresh();
+  }
+
+  void _refresh() {
+    final index = _selectedIndex;
+    if (index == null) return;
+    final result = widget.resolve(widget.template, widget.items[index]);
+    _result = result;
+    _image = result.error == null ? _render(result) : null;
+  }
+
+  Future<_BarcodePreviewImage> _render(ItemCodeDataResult result) async {
+    try {
+      final image = await widget.renderer(FortuneBarcodeRequest(
+        text: result.data,
+        formatId: result.barcodeFormatId,
+        width: 300, height: 150, rotation: 0, barHeight: 100,
+        showHumanReadableText: result.showText,
+        humanReadableText:
+            result.column.barcodeCaption.isEmpty ? null : result.displayText,
+      ));
+      if (image == null) {
+        RegressionDebugLog.event('barcodeCustomText', 'previewRenderFailed');
+      }
+      return (image: image, failed: image == null);
+    } on Object catch (error) {
+      RegressionDebugLog.event('barcodeCustomText', 'previewRenderFailed',
+        fields: {'error': error.runtimeType});
+      return (image: null, failed: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Text('이미지 미리보기', style: TextStyle(fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      _DialogDropdown<int>(
+        key: const Key('label-column-barcode-preview-item'),
+        value: _selectedIndex,
+        label: '미리보기 품목',
+        entries: [
+          for (var index = 0; index < widget.items.length; index++)
+            DropdownMenuEntry(value: index, label: widget.items[index].name),
+        ],
+        onChanged: widget.items.isEmpty ? null : (index) => setState(() {
+          _selectedIndex = index;
+          _refresh();
+        }),
+      ),
+      const SizedBox(height: 8),
+      Expanded(
+        child: _result == null
+            ? Center(child: Text(widget.items.isEmpty
+                ? '미리보기할 품목이 없습니다.'
+                : '품목을 선택하면 실제 값으로 표시합니다.'))
+            : _result!.error != null
+                ? Center(child: Text(_result!.error!))
+                : FutureBuilder<_BarcodePreviewImage>(
+                    key: ObjectKey(_image),
+                    future: _image,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final image = snapshot.data?.image;
+                      if (snapshot.hasError || snapshot.data?.failed == true || image == null) {
+                        return const Center(child: Text('바코드 이미지를 생성하지 못했습니다.'));
+                      }
+                      return Image.memory(image.bytes, fit: BoxFit.contain,
+                        key: const Key('label-column-barcode-preview-image'));
+                    },
+                  ),
+      ),
+      if (_result != null) ...[
+        Text('스캔값: ${_result!.data}',
+          key: const Key('label-column-barcode-preview-data')),
+        Text('하단 text: ${_result!.column.barcodeCaption.isEmpty ? _result!.data : _result!.displayText}',
+          key: const Key('label-column-barcode-preview-caption')),
+        if (_result!.warning != null) Text(_result!.warning!),
+      ],
+      const Text('사용자 정의 text는 하단 글자만 바꾸며 스캔값은 유지합니다.'),
+    ],
+  );
+}
+
 class _PropertyFields extends StatelessWidget {
   const _PropertyFields({
     super.key,
@@ -1622,6 +1783,9 @@ class _PropertyFields extends StatelessWidget {
     required this.columnTypes,
     required this.enabled,
     required this.onChanged,
+    required this.previewColumns,
+    required this.barcodePreviewItems,
+    required this.barcodePreviewRenderer,
   });
 
   final TColumn column;
@@ -1630,6 +1794,31 @@ class _PropertyFields extends StatelessWidget {
   final List<TColumnType> columnTypes;
   final bool enabled;
   final ValueChanged<TColumn> onChanged;
+  final List<TColumn> previewColumns;
+  final List<LabelColumnBarcodePreviewItem> barcodePreviewItems;
+  final FortuneBarcodeRenderer barcodePreviewRenderer;
+
+  ItemCodeDataResult _resolveBarcodePreview(
+    String template, LabelColumnBarcodePreviewItem item,
+  ) {
+    final specs = [
+      for (final source in previewColumns) ItemCodeColumnSpec.fromColumn(source),
+    ];
+    final spec = ItemCodeColumnSpec.fromColumn(
+      column.copyWith(userDefineBarcodeText: template),
+    );
+    String value(int id) => item.values[id] ?? '';
+    final referenceAt = DateTime.now();
+    return ItemCodeDataResolver(
+      itemName: item.name,
+      columns: specs,
+      columnValue: value,
+      tokenColumnValue: (source) => itemCodeTokenColumnValue(
+        column: source, columns: specs, columnValue: value,
+        referenceAt: referenceAt,
+      ),
+    ).resolve(spec);
+  }
 
   Widget _field(Widget child, {double height = 40}) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
@@ -1741,7 +1930,15 @@ class _PropertyFields extends StatelessWidget {
           _integer('비율', column.qrTextFontSize, (value) => onChanged(column.copyWith(qrTextFontSize: value))),
           _timeBarcodeDropdown(),
           ..._autoFields(),
-          _text('사용자 정의 text', column.userDefineBarcodeText, (value) => onChanged(column.copyWith(userDefineBarcodeText: value))),
+          _BasicTextTemplateField(
+            value: column.userDefineBarcodeText,
+            keywords: textKeywords,
+            enabled: enabled,
+            onChanged: (value) => onChanged(column.copyWith(userDefineBarcodeText: value)),
+            resolveBarcode: _resolveBarcodePreview,
+            previewItems: barcodePreviewItems,
+            previewRenderer: barcodePreviewRenderer,
+          ),
           _integer('Line check', column.lineCheck, (value) => onChanged(column.copyWith(lineCheck: value))),
           _integer('Line size', column.lineSize, (value) => onChanged(column.copyWith(lineSize: value))),
           _integer('회전', column.rotate, (value) => onChanged(column.copyWith(rotate: value))),

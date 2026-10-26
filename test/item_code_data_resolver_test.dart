@@ -7,6 +7,66 @@ import 'package:label_manager/features/label_column/domain/column_type.dart';
 import 'package:label_manager/features/label_print/domain/item_code_data_resolver.dart';
 
 void main() {
+  test('barcode custom caption uses current item values without changing scan data', () {
+    final barcode = _column(
+      id: 1, keyword: 'BARCODE', name: '바코드',
+      type: TColumnType.TYPE_BARCODE,
+      caption: '#TEXT1/#TEXT10/#ITEMNAME',
+    );
+    final columns = [
+      barcode,
+      _column(id: 2, keyword: 'TEXT1', name: '테스트1'),
+      _column(id: 3, keyword: 'TEXT10', name: '테스트10'),
+    ];
+    var values = {1: '12345679123', 2: '2345', 3: '0010'};
+    final resolver = ItemCodeDataResolver(
+      itemName: 'TEST1', columns: columns,
+      columnValue: (id) => values[id] ?? '',
+    );
+    final first = resolver.resolveObject('#BARCODE')!;
+    expect(first.data, '12345679123');
+    expect(first.displayText, '2345/0010/TEST1');
+    final metadata = itemCodeBarcodeMetadata(
+      {'rotation': 90, 'barcodeDisplayText': 'stale'},
+      first, preserveTemplateBarcodeFormat: true,
+    );
+    expect(metadata['barcodeText'], '12345679123');
+    expect(metadata['barcodeDisplayText'], '2345/0010/TEST1');
+    expect(metadata['rotation'], 90);
+    values = {1: '12345679123', 2: '', 3: '#TEXT1'};
+    expect(resolver.resolve(barcode).displayText, '/#TEXT1/TEST1');
+  });
+
+  test('barcode caption supports literals and token boundaries', () {
+    final barcode = _column(
+      id: 1, keyword: 'BARCODE', name: '바코드',
+      type: TColumnType.TYPE_BARCODE,
+      caption: 'LOT #TEXT1 #TEXT100',
+    );
+    final result = ItemCodeDataResolver(
+      itemName: '', columns: [
+        barcode, _column(id: 2, keyword: 'TEXT1', name: '테스트1'),
+      ],
+      columnValue: (id) => id == 1 ? '1234' : '0012',
+    ).resolve(barcode);
+    expect(result.data, '1234');
+    expect(result.displayText, 'LOT 0012 #TEXT100');
+  });
+  test('removing custom caption clears stale output override', () {
+    final barcode = _column(
+      id: 1, keyword: 'BARCODE', name: '바코드',
+      type: TColumnType.TYPE_BARCODE, barcodeType: BarcodeType.CodeEAN8,
+    );
+    final result = ItemCodeDataResolver(
+      itemName: '', columns: [barcode], columnValue: (_) => '1234567',
+    ).resolve(barcode);
+    final metadata = itemCodeBarcodeMetadata(
+      {'barcodeDisplayText': 'old'}, result,
+      preserveTemplateBarcodeFormat: false,
+    );
+    expect(metadata.containsKey('barcodeDisplayText'), isFalse);
+    expect(metadata['barcodeText'], BarcodeDataHelper.ean8('1234567'));
+  });
   group('[QR viewer][barcode/output preview]', () {
     test('maps GS1 AI database flags from string values', () {
       final definition = gs1AiDefinitionFromRow(const {
@@ -378,6 +438,7 @@ ItemCodeColumnSpec _column({
   bool useGs1 = false,
   List<int> containIds = const [],
   bool showGs1 = false,
+  String caption = '',
 }) => ItemCodeColumnSpec(
   columnId: id,
   keyword: keyword,
@@ -395,4 +456,5 @@ ItemCodeColumnSpec _column({
   useGs1Code: useGs1,
   containColumnIds: containIds,
   showGs1Code: showGs1,
+  barcodeCaption: caption,
 );

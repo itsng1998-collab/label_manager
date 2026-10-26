@@ -750,6 +750,62 @@ void main() {
     expect(labelSheetDecodeWorkbookSave(encoded).activeSheet.images.last.src, original.src);
   });
 
+  test('item output preview resolves saved barcode caption per item and preserves scan value', () async {
+    final previousColumns = TColumn.datas;
+    final previousContents = TColumnContent.datas;
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+      TColumnContent.setDatas(previousContents);
+    });
+    TColumn.datas = [
+      _testColumn(7, 'BARCODE').copyWith(
+        columnType: const TColumnType(code: TColumnType.TYPE_BARCODE, name: '바코드', order: 1),
+        userDefineBarcodeText: '#TEST',
+        showBarcodeNum: true,
+      ),
+      _testColumn(8, 'TEST'),
+    ];
+    final source = FortuneWorkbook(sheets: [
+      FortuneSheet(id: 'label', name: 'Label', images: const [
+        FortuneImage(id: 'barcode', src: 'data:image/png;base64,OLD=',
+          left: 10, top: 20, width: 120, height: 60,
+          extraFields: {
+            'fortuneBarcode': true,
+            fortuneBarcodeObjectIdExtraKey: '#BARCODE',
+            'barcodeText': 'template', 'barcodeFormatId': 'code128',
+            'barcodeShowText': true,
+          }),
+      ]),
+    ]);
+    final encoded = labelSheetEncodeWorkbookSave(source);
+    final labelSize = _testLabelSizeWithFormData(encoded);
+    for (final value in ['2345', '0012', '']) {
+      TColumnContent.setDatas({
+        for (final entry in {7: '12345679123', 8: value}.entries)
+          ColumnItemKey(columnId: entry.key, itemId: 10): TColumnContent(
+            colContentId: entry.key, columnId: entry.key, itemId: 10,
+            editable: true, dataString: entry.value),
+      });
+      final preview = debugItemOutputPreviewForTesting(
+        item: _testItemOfMarket(), labelSize: labelSize, elementText: '',
+      ).workbook!;
+      final metadata = preview.activeSheet.images.single.extraFields;
+      expect(metadata['barcodeText'], '12345679123');
+      expect(metadata['barcodeDisplayText'], value);
+      final restored = labelSheetDecodeWorkbookSave(labelSheetEncodeWorkbookSave(preview));
+      expect(restored.activeSheet.images.single.extraFields['barcodeDisplayText'], value);
+      FortuneBarcodeRequest? request;
+      await debugRenderItemOutputPreviewBarcodesForTesting(preview, renderer: (input) async {
+        request = input;
+        return FortuneBarcodeRenderResult(bytes: Uint8List.fromList([1, 2, 3]));
+      });
+      expect(request!.text, '12345679123');
+      expect(request!.humanReadableText, value);
+      expect(request!.showHumanReadableText, isTrue);
+    }
+    expect(labelSheetDecodeWorkbookSave(encoded).activeSheet.images.single.extraFields['barcodeText'], 'template');
+  });
+
   test('item output preview renders resolved barcode image source', () async {
     FortuneBarcodeRequest? request;
     final workbook = FortuneWorkbook(
@@ -770,6 +826,7 @@ void main() {
                 'itemCodePreviewResolved': true,
                 fortuneBarcodeObjectIdExtraKey: '#BARCODE',
                 'barcodeText': '88123456789012',
+                'barcodeDisplayText': '2345',
                 'barcodeFormatId': 'code128',
                 'barcodeModuleScale': 3,
                 'barcodeBarHeight': 10,
@@ -799,6 +856,7 @@ void main() {
     );
 
     expect(request?.text, '88123456789012');
+    expect(request?.humanReadableText, '2345');
     expect(request?.formatId, 'code128');
     expect(rendered.activeSheet.images.single.src, 'data:image/png;base64,AQID');
     expect(

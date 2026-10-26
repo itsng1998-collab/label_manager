@@ -375,6 +375,7 @@ class FortuneBarcodeRequest {
     this.showHumanReadableText = false,
     this.humanReadableFontFamily,
     this.humanReadableFontSize = 14,
+    this.humanReadableText,
   });
 
   final String text;
@@ -389,6 +390,7 @@ class FortuneBarcodeRequest {
   final bool showHumanReadableText;
   final String? humanReadableFontFamily;
   final double humanReadableFontSize;
+  final String? humanReadableText;
 }
 
 class FortuneBarcodeRenderResult {

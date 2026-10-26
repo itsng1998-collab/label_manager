@@ -3,6 +3,7 @@ import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/core/barcode.dart';
 import 'package:label_manager/features/label_column/domain/column.dart';
 import 'package:label_manager/features/label_column/domain/column_type.dart';
+import 'package:label_manager/features/label_column/domain/column_text_template.dart';
 
 @immutable
 class ItemCodeColumnSpec {
@@ -23,6 +24,7 @@ class ItemCodeColumnSpec {
     this.useGs1Code = false,
     this.containColumnIds = const [],
     this.showGs1Code = false,
+    this.barcodeCaption = '',
   });
 
   factory ItemCodeColumnSpec.fromColumn(TColumn column) => ItemCodeColumnSpec(
@@ -42,6 +44,7 @@ class ItemCodeColumnSpec {
     useGs1Code: column.useGS1Code,
     containColumnIds: _parseColumnIds(column.containColumns),
     showGs1Code: column.showGS1Code,
+    barcodeCaption: column.userDefineBarcodeText,
   );
 
   final int columnId;
@@ -60,6 +63,7 @@ class ItemCodeColumnSpec {
   final bool useGs1Code;
   final List<int> containColumnIds;
   final bool showGs1Code;
+  final String barcodeCaption;
 }
 
 @immutable
@@ -317,7 +321,7 @@ class ItemCodeDataResolver {
 
   ({String data, String text}) _payload(ItemCodeColumnSpec column) {
     final raw = columnValue(column.columnId);
-    return switch (column.createType) {
+    final payload = switch (column.createType) {
       QRCodeCreateType.QRCODE_TYPE_USER_DEFINE => (
         data: _replaceTokens(column.userDefineData),
         text: _replaceTokens(column.userDefineText),
@@ -332,22 +336,21 @@ class ItemCodeDataResolver {
       ),
       QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT => (data: raw, text: raw),
     };
+    return column.typeCode == TColumnType.TYPE_BARCODE &&
+            column.barcodeCaption.isNotEmpty
+        ? (data: payload.data, text: _replaceTokens(column.barcodeCaption))
+        : payload;
   }
 
   String _replaceTokens(String template) {
-    var value = template
-        .replaceAll('#품목', itemName)
-        .replaceAll('#ITEMNAME', itemName);
-    for (final column in columns) {
-      final keyword = column.keyword.trim();
-      if (keyword.isEmpty) continue;
-      final token = keyword.startsWith('#') ? keyword : '#$keyword';
-      value = value.replaceAll(
-        token,
-        tokenColumnValue?.call(column) ?? columnValue(column.columnId),
-      );
-    }
-    return value;
+    return replaceLabelColumnTextTokens(template, {
+      for (final column in columns)
+        if (column.keyword.trim().isNotEmpty)
+          column.keyword:
+              tokenColumnValue?.call(column) ?? columnValue(column.columnId),
+      '품목': itemName,
+      'ITEMNAME': itemName,
+    });
   }
 
   String _natriumUrl(String serialized) {
@@ -402,6 +405,12 @@ Map<String, Object?> itemCodeBarcodeMetadata(
 }) {
   final next = Map<String, Object?>.from(current)
     ..['barcodeText'] = result.data;
+  if (result.column.typeCode == TColumnType.TYPE_BARCODE &&
+      result.column.barcodeCaption.isNotEmpty) {
+    next['barcodeDisplayText'] = result.displayText;
+  } else {
+    next.remove('barcodeDisplayText');
+  }
   if (!preserveTemplateBarcodeFormat) {
     next
       ..['barcodeFormatId'] = result.barcodeFormatId

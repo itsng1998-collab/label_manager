@@ -210,6 +210,36 @@ Future<void> _applyProperties(WidgetTester tester, FortuneSheetController contro
 }
 
 void main() {
+  testWidgets('custom caption changes PNG text but not barcode ink or payload', (tester) async {
+    FortuneBarcodeRequest request(String? caption) => FortuneBarcodeRequest(
+      text: '12345679123', formatId: 'code128',
+      width: 300, height: 150, rotation: 0, barHeight: 100,
+      showHumanReadableText: true, humanReadableText: caption,
+    );
+    await tester.runAsync(() async {
+      final original = await _renderBarcode(request(null));
+      final custom = await _renderBarcode(request('2345'));
+      final before = image.decodePng(original!.bytes)!;
+      final after = image.decodePng(custom!.bytes)!;
+      expect(after.width, before.width);
+      expect(after.height, before.height);
+      expect(custom.bodyHeight, original.bodyHeight);
+      var captionDifferences = 0;
+      for (var y = 0; y < after.height; y++) {
+        for (var x = 0; x < after.width; x++) {
+          final changed = after.getPixel(x, y).r != before.getPixel(x, y).r ||
+              after.getPixel(x, y).a != before.getPixel(x, y).a;
+          if (y < 100) {
+            expect(changed, isFalse, reason: 'barcode body pixel $x,$y');
+          } else if (changed) {
+            captionDifferences++;
+          }
+        }
+      }
+      expect(captionDifferences, greaterThan(0));
+    });
+  });
+
   for (final millimeters in [true, false]) {
     testWidgets('property height sync keeps explicit overrides in ${millimeters ? 'mm' : 'px'}', (tester) async {
       final requests = <FortuneBarcodeRequest>[];

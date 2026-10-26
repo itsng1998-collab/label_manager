@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:label_manager/features/label_column/application/special_columns.dart';
 import 'package:label_manager/features/label_size/domain/label_size.dart';
 import 'package:label_manager/features/label_sheet/application/label_sheet_save_codec.dart';
+import 'package:label_manager/features/label_sheet/application/label_sheet_barcode_renderer.dart';
 import 'package:label_manager/features/gs1/application/gs1_ai_definitions.dart';
 import 'package:label_manager/features/gs1/domain/gs1_ai_definition.dart';
 import 'package:label_manager/features/label_column/data/label_column_save.dart';
@@ -143,6 +145,8 @@ Future<void> _pumpDialog(
   Future<List<CustomerColumnCandidate>> Function(int customerId)? loadCustomer,
   VoidCallback? onClose,
   bool settle = true,
+  List<LabelColumnBarcodePreviewItem> barcodePreviewItems = const [],
+  FortuneBarcodeRenderer barcodePreviewRenderer = labelSheetBarcodeRenderer,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -152,6 +156,8 @@ Future<void> _pumpDialog(
           customerId: 7,
           initialColumns: columns ?? [_column(1, 'BASE_A')],
           canSave: () async => true,
+          barcodePreviewItems: barcodePreviewItems,
+          barcodePreviewRenderer: barcodePreviewRenderer,
           onSave: (command) async {
             if (onDialogSave != null) {
               await onDialogSave(command);
@@ -724,6 +730,108 @@ void main() {
     );
     expect(tester.widget<EditableText>(editor).controller.text, '바코드');
   });
+
+  testWidgets('barcode caption picker previews selected item values and saves caption only', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final requests = <FortuneBarcodeRequest>[];
+    LabelColumnSaveCommand? saved;
+    await _pumpDialog(tester,
+      columns: [
+        _column(1, 'BARCODE').copyWith(columnType: barcodeColumnType),
+        _column(2, 'TEXT1', order: 2),
+      ],
+      barcodePreviewItems: [
+        (name: '품목A', values: {1: '12345679123', 2: '2345'}),
+        (name: '품목B', values: {1: '77778888', 2: '0012'}),
+      ],
+      barcodePreviewRenderer: (request) async {
+        requests.add(request);
+        return FortuneBarcodeRenderResult(bytes: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ioAAAAASUVORK5CYII=',
+        ));
+      },
+      onSave: (command) async => saved = command,
+    );
+    await _tapVisible(tester, find.byKey(const Key('label-column-text-keywords')));
+    expect(find.text('품목을 선택하면 실제 값으로 표시합니다.'), findsOneWidget);
+    final table = find.byKey(const Key('label-column-text-keyword-table'));
+    final keyword = find.descendant(of: table, matching: find.text('TEXT1')).first;
+    await tester.tap(keyword);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(keyword);
+    await tester.pump();
+    final input = find.byKey(const Key('label-column-text-template-input'));
+    expect(tester.widget<TextField>(input).controller!.text, '#TEXT1');
+    final select = find.byKey(const Key('label-column-barcode-preview-item'));
+    await tester.tap(select);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('품목A').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.text, '12345679123');
+    expect(requests.last.humanReadableText, '2345');
+    expect(find.text('하단 text: 2345'), findsOneWidget);
+    expect(find.byKey(const Key('label-column-barcode-preview-image')), findsOneWidget);
+    await tester.tap(select);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('품목B').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.text, '77778888');
+    expect(requests.last.humanReadableText, '0012');
+    await tester.enterText(input, 'LOT #TEXT1');
+    await tester.pumpAndSettle();
+    expect(requests.last.humanReadableText, 'LOT 0012');
+    await tester.tap(find.byKey(const Key('label-column-text-template-apply')));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('label-column-property-apply')));
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+    expect(saved!.updatedColumns.single.column.userDefineBarcodeText, 'LOT #TEXT1');
+    expect(saved!.changedKeysByColumnId[1], {'barcodeText'});
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final failure in ['no-items', 'null-render', 'throw-render']) {
+    testWidgets('barcode caption editor handles $failure and cancel at 900x600', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpDialog(tester,
+        columns: [
+          _column(1, 'BARCODE').copyWith(
+            columnType: barcodeColumnType, userDefineBarcodeText: '#TEXT1'),
+          _column(2, 'TEXT1', order: 2),
+        ],
+        barcodePreviewItems: failure == 'no-items' ? [] : [
+          (name: '품목A', values: {1: '12345679123', 2: '2345'}),
+        ],
+        barcodePreviewRenderer: (_) async {
+          if (failure == 'throw-render') throw StateError('test encoder failure');
+          return null;
+        },
+      );
+      await _tapVisible(tester, find.byKey(const Key('label-column-text-keywords')));
+      if (failure == 'no-items') {
+        expect(find.text('미리보기할 품목이 없습니다.'), findsOneWidget);
+      } else {
+        await tester.tap(find.byKey(const Key('label-column-barcode-preview-item')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(MenuItemButton, '품목A').last);
+        await tester.pumpAndSettle();
+        expect(find.text('바코드 이미지를 생성하지 못했습니다.'), findsOneWidget);
+        expect(find.text('하단 text: 2345'), findsOneWidget);
+      }
+      await tester.enterText(find.byKey(const Key('label-column-text-template-input')), 'discard');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextFormField>(
+        find.byKey(const Key('label-column-user-define-text'))).controller!.text, '#TEXT1');
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('basic text keyword editor inserts by double click and drag then saves', (
     tester,
