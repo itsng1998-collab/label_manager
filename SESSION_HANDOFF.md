@@ -1,10 +1,10 @@
 # SESSION HANDOFF
 
-## 현재 진행: 바코드 사용자 정의 text 및 키워드 미리보기
+## 최근 완료: 바코드 사용자 정의 text 및 키워드 미리보기
 - 제출1.8.9 로그/이미지 확인. 사용자 확정: caption-only(하단 글자만 치환, 스캔값 유지), select-item(항목편집에서 품목 선택 후 실제값 이미지 미리보기).
 - 원인: ItemCodeColumnSpec가 userDefineBarcodeText를 읽지 않고 출력 metadata/renderer도 data만 하단에 표시. 기존 기본항목 키워드 편집기를 바코드에도 재사용, 품목 선택·실제값 이미지·오류 안내 추가 완료. 품목 데이터 snapshot은 기존 로드된 draft에서 제공하며 새DB조회 없음.
 - 레거시 TableRowRTFMaker는 바코드 데이터와 사용자 text를 별도 GetBarcodeRTF 인자로 전달. 매뉴얼v2 확인했으나 해당 사용자 text 상세 설명 없음. 운영DB/실제인쇄 없이 회귀 검증 예정.
-- 구현·검증 완료/커밋 예정. 관련3파일79건/editor+resolver+height, toolbar 출력/자동영양18건, column save/edit34건으로 회귀131건 통과. native PNG추가1건은 기존 Debug DLL 디렉터리를 PATH에 추가해 통과(최초 DLL탐색실패 해결). 잘못 지정한 codec test 파일은 존재하지 않아 제외 후 실제 저장2파일34/34 재실행 통과.
+- **구현·검증·커밋 완료(1.8.14): `5ae2623`**, push 없음. 관련3파일79건/editor+resolver+height, toolbar 출력/자동영양18건, column save/edit34건으로 회귀131건 통과. native PNG추가1건은 기존 Debug DLL 디렉터리를 PATH에 추가해 통과(최초 DLL탐색실패 해결). 잘못 지정한 codec test 파일은 존재하지 않아 제외 후 실제 저장2파일34/34 재실행 통과.
 - 미리보기 encoder오류는 로그+명시적 실패결과/UI 처리, 비동기 미처리예외 없음. native 인코더로 scan data와 caption 분리, PNG body전체픽셀동일/text영역차이 확인. 출력 mapping·저장재읽기·품목변경·빈값·이전caption제거·200자/취소·900x600 계약 유지.
 - 변경9 Dart analyzer No issues found, canvas는 기존 unused10건만 존재. diff --check통과. DTD발견·기존연결 및앱목록 확인/hot reload 시도했으나 실행 앱 없음으로 미적용. 운영DB 접속·변경/실제인쇄 없음.
 - 사용자 lib/core/app.dart 변경 보존. 버전1.8.13→1.8.14 PATCH: 기존 바코드 하단text 누락 수정 및 같은 필드의 키워드선택/미리보기 보완. README에 caption-only/품목선택/번호표시/빈값/별도저장 안내.
