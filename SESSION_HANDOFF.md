@@ -5,7 +5,7 @@
 - 구현: 공통 출력용 formatter에서만 여백에 맞게 열 폭과 문단 줄바꿈을 재계산. 80mm 라벨의 좌여백10=본문70mm, 좌10+우5=65mm. 밀기10은 본문80mm를 유지한 위치 이동. 위여백은 시작점과 사용 가능 높이를 제한하며 회전 시 본문 축도 반영. 유효하지 않은 여백/빈 인쇄 영역은 명시적 오류.
 - 미리보기·Windows·EZPL·래스터/PDF에 같은 계산 적용. 원본 workbook과 미리보기 변환본을 분리해 캡처 시 중복 적용 방지. 글꼴 크기, 표 고정행 높이, 절대좌표 이미지/도형/바코드 크기 보존; RTF 흐름 이미지는 문단 높이 변화만큼 세로 이동. 원본 시트/품목 DB 변경 없음.
 - 검증 중 해결: 좁아진 본문을 다시 확대하지 않도록 여백 출력은 원래 물리 크기 캔버스로 padding. 기존 일반 capture 기본 동작 보존. push-only/no-options 전환은 불필요한 Workbench 재생성을 피해 zoom 보존. 미리보기 우측/하단 clip도 출력 영역과 일치.
-- **구현·검증 완료, 기능 커밋 예정.** margin/printJob/lineSpacing/previewPush/session/pipeline/scale/Fortune capture/hybrid 9파일 **126/126 통과**. 실제 미리보기 픽셀 클립, 70/65mm 폭, push-only PNG 동일성, 여백 PNG 변화, PDF 생성, 줌150% 및 기존100/200%, 표 고정행·RTF 이미지 흐름, 원본 불변 검증.
+- **구현·검증·커밋 완료: `cdb2831`**, push 없음. margin/printJob/lineSpacing/previewPush/session/pipeline/scale/Fortune capture/hybrid 9파일 **126/126 통과**. 실제 미리보기 픽셀 클립, 70/65mm 폭, push-only PNG 동일성, 여백 PNG 변화, PDF 생성, 줌150% 및 기존100/200%, 표 고정행·RTF 이미지 흐름, 원본 불변 검증.
 - 변경 7파일 analyzer No issues found. 전체 변경 Dart 분석은 기존 unused 경고12건(인쇄 helper2/Canvas10)만 남음. diff --check 통과. README 갱신, 버전1.8.20→1.8.21 PATCH(기존 출력 레이아웃 수정, 저장형식/스키마 변경 없음).
 - DTD 발견·기존 연결 확인 및 hot reload 시도했으나 실행 앱 없음. 운영 DB 접속 방지를 위해 앱 자동 실행하지 않음. 운영DB/실물인쇄 없음, 사용자 lib/core/app.dart 변경 보존.
 - 다음 사용자 확인: 1.8.21에서 TEST 8*6의 첫 품목으로 여백/밀기0 기준, 좌여백10, 좌밀기10을 각각 비교. 여백은 좁아진 폭에서 줄바꿈/잘림, 밀기는 원래 폭의 위치 이동인지 미리보기와 실물 확인. 운영 라벨/프린터 결과는 사용자 확인 필요.
