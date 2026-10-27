@@ -9,7 +9,7 @@
 - 스크립트7개 AST/공백검사 통과. 기존 ZXing/csc 빌드경고만 존재. 편집기의 과거 args 경고는 디스크 AST에서 제거 확인, windows_build_tools의 기존 args/unapproved verb 경고는 유지.
 - 버전1.8.21→1.8.22 PATCH(배포 오류/환경 자동준비 수정). 앱/DB/실물인쇄 미실행. 임시 테스트 폴더 자동정리, 검증 로그와 실제EXE/ZIP은 보존하되 Git 제외.
 - 미검증/다음 확인: 새PC 실제설치·업데이트·제거/서명/프린터. ODBC Driver17+ 및 프린터드라이버 별도설치. 이전배포판의 잘못된 AppId 등록키와 새GUID가 다른 경우 기존판 제거 후 재설치 필요.
-- 커밋 대상: 배포스크립트/ISS, flutter.ps1, tools의 기존build helper+신규3 helper/test, README/pubspec/이문서. 사용자 lib/core/app.dart 및 루트/third_party pubspec.lock4개는 보존·제외. 관련파일만 stage 후 cached stat/check 확인 예정.
+- **구현·검증·커밋 완료: `a6bba00`**, push 없음. 배포스크립트/ISS/flutter, tools의 기존build helper+신규3 helper/test, README/pubspec/이문서 등11파일만 분리커밋, cached stat/check 통과. 사용자 lib/core/app.dart 및 루트/third_party pubspec.lock4개 보존·제외. 이 해시 기록은 후속 문서 전용 커밋이며 버전 재증가 없음.
 
 ## 최근 완료: 라벨출력 여백과 밀기 분리 (1.8.21)
 - 제출 1.8.9 로그/이미지 확인: 실제 발행 기록은 없고 미리보기 비교. 기존 코드는 margin+push를 같은 시작점에 더하면서 본문 폭을 유지해 두 기능이 동일하게 보였음. 레거시 매뉴얼v2와 PrintManager의 FormatRange/별도 push 좌표 대조.
