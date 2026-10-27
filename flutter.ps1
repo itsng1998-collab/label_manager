@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [switch] $RootOnly,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $FlutterArgs
 )
@@ -131,7 +132,7 @@ function Invoke-FlutterCommand {
     Write-Host "Command: $preview"
     Push-Location -LiteralPath $WorkingDirectory
     try {
-        & $Executable @Arguments
+        & $Executable @Arguments | Out-Host
         $exitCode = $LASTEXITCODE
         Write-Host "== Finished $DisplayName with exit code $exitCode =="
         return $exitCode
@@ -155,7 +156,7 @@ Write-Host "Flutter launcher: $flutter"
 Write-Host "Command: $commandPreview"
 
 $firstFailure = 0
-$thirdPartyPackages = @(Get-ThirdPartyPackageDirectories)
+$thirdPartyPackages = @(if (-not $RootOnly) { Get-ThirdPartyPackageDirectories })
 $totalTargets = $thirdPartyPackages.Count + 1
 $targetIndex = 0
 

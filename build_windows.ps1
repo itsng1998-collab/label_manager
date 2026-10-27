@@ -6,18 +6,21 @@ if (-not (Test-Path -LiteralPath $buildToolsScript -PathType Leaf)) {
 	throw "Windows build tools helper not found: $buildToolsScript"
 }
 . $buildToolsScript
-Ensure-WindowsBuildTools -IssPath (Join-Path $ScriptRoot 'inno_setup_installer.iss') -InstallIfMissing $true | Out-Null
+$installation = Ensure-WindowsBuildTools -IssPath (Join-Path $ScriptRoot 'inno_setup_installer.iss') -InstallIfMissing $true
+. (Join-Path $ScriptRoot 'tools\windows_release.ps1')
+$version = Get-WindowsReleaseVersion -ProjectRoot $ScriptRoot
 
 Push-Location -LiteralPath $ScriptRoot
 try {
-	#flutter pub run pub_version_plus:main build
-	dart run (Join-Path $ScriptRoot 'lib\utils\generate_version.dart')
-	if ($LASTEXITCODE -ne 0) {
-		$buildExitCode = $LASTEXITCODE
-	} else {
-		$flutterScript = Join-Path $ScriptRoot 'flutter.ps1'
-		& $flutterScript build windows
-		$buildExitCode = $LASTEXITCODE
+	$flutterScript = Join-Path $ScriptRoot 'flutter.ps1'
+	& $flutterScript -RootOnly build windows --release
+	$buildExitCode = $LASTEXITCODE
+	if ($buildExitCode -eq 0) {
+		$releaseDir = Join-Path $ScriptRoot 'build\windows\x64\runner\Release'
+		Copy-WindowsReleaseRuntime -InstallationPath $installation.InstallationPath -ReleaseDir $releaseDir
+		Assert-WindowsReleaseBundle -ReleaseDir $releaseDir -Version $version
+		[System.IO.File]::WriteAllText((Join-Path $ScriptRoot 'version.txt'), $version)
+		Write-Host "[OK] Windows x64 Release ready: version=$version path=$releaseDir"
 	}
 } finally {
 	Pop-Location

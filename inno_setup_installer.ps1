@@ -3,7 +3,7 @@
   - Resolve-Path로 안전 실행(Method A)
   - /Qp -> /Q -> (없음) 자동 폴백
   - ISCC 출력 로그는 Tee-Object로 캡처(/L 미지원 대응)
-  - 성공 시 .log / .sha256 파일 삭제
+    - Release 버전/필수 파일 확인, 컴파일 로그 및 SHA256 보존
 #>
 
 [CmdletBinding()]
@@ -45,51 +45,33 @@ function Get-FirstNonEmptyLine {
     return $line.Trim()
 }
 
-function Get-PubspecVersion {
+function Resolve-ProjectPath {
     param([string]$Path)
-    if (-not (Test-Path -LiteralPath $Path)) { throw "File not found: $Path" }
-    $line = Get-Content -LiteralPath $Path | Where-Object { $_ -match '^\s*version\s*:\s*(\S+)\s*$' } | Select-Object -First 1
-    if (-not $line) { throw "No version entry in $Path" }
-    return ($line -replace '^\s*version\s*:\s*', '').Trim()
-}
-
-function Find-Iscc {
-    param([string]$UserProvided)
-    if ($UserProvided) {
-        if (Test-Path -LiteralPath $UserProvided) { return (Resolve-Path -LiteralPath $UserProvided).Path }
-        throw "ISCC.exe not found at user-provided path: $UserProvided"
-    }
-    $candidates = @(
-        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
-        "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
-        "${env:ProgramFiles}\Inno Setup 5\ISCC.exe"
-    ) | Where-Object { $_ -and $_.Trim() -ne '' }
-    foreach ($c in $candidates) {
-        if (Test-Path -LiteralPath $c) { return (Resolve-Path -LiteralPath $c).Path }
-    }
-    $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
-    throw "ISCC.exe not found. Please install Inno Setup or specify -IsccPath."
+    if ([System.IO.Path]::IsPathRooted($Path)) { return $Path }
+    return Join-Path $scriptDir $Path
 }
 
 # ----- 2) 버전/파일명 확정 -----
-$versionPath  = Join-Path $scriptDir $VersionFile
+. (Join-Path $scriptDir 'tools\windows_release.ps1')
+$XAPP_VERSION = Get-WindowsReleaseVersion -ProjectRoot $scriptDir
+$versionPath = Resolve-ProjectPath $VersionFile
 if (Test-Path -LiteralPath $versionPath) {
-    $XAPP_VERSION = Get-FirstNonEmptyLine -Path $versionPath
-    Write-Host "[INFO] Version source: $versionPath"
+    $builtVersion = Get-FirstNonEmptyLine -Path $versionPath
+    if ($builtVersion -ne $XAPP_VERSION) {
+        throw "Version mismatch: version.txt=$builtVersion pubspec=$XAPP_VERSION. Rerun build_windows.ps1."
+    }
 } else {
-    $pubspecPath = Join-Path $scriptDir 'pubspec.yaml'
-    $XAPP_VERSION = Get-PubspecVersion -Path $pubspecPath
-    Write-Host "[INFO] Version file not found. Using pubspec.yaml: $pubspecPath"
+    throw "Build version file not found: $versionPath. Run build_windows.ps1 successfully first."
 }
+Assert-WindowsReleaseBundle -ReleaseDir (Join-Path $scriptDir 'build\windows\x64\runner\Release') -Version $XAPP_VERSION
 $baseName     = "Setup_LabelManager_v$XAPP_VERSION"
 Write-Host "[INFO] Loaded version: $XAPP_VERSION"
 Write-Host "[INFO] Output base name: $baseName"
 
 # ----- 3) ISCC 경로 확정 -----
 try {
-    $resolved = Find-Iscc -UserProvided $IsccPath
+    . (Join-Path $scriptDir 'tools\inno_setup_tools.ps1')
+    $resolved = Ensure-InnoSetup -UserProvided $IsccPath
     $ISCC     = (Resolve-Path -LiteralPath $resolved).Path
 } catch {
     Write-Error "ISCC.exe not found or not accessible. $($_.Exception.Message)"
@@ -100,7 +82,7 @@ Write-Host "[INFO] ISCC: $ISCC"
 
 # ----- 4) .ISS 경로 확정 -----
 if ([string]::IsNullOrWhiteSpace($IssFile)) { Write-Error "IssFile is empty."; exit 1 }
-$issPathCandidate = Join-Path $scriptDir $IssFile
+$issPathCandidate = Resolve-ProjectPath $IssFile
 if (-not (Test-Path -LiteralPath $issPathCandidate)) {
     Write-Error "ISS file not found: $issPathCandidate"
     exit 1
@@ -109,7 +91,7 @@ $absIss = (Resolve-Path -LiteralPath $issPathCandidate).Path
 Write-Host "[INFO] ISS: $absIss"
 
 # ----- 5) 출력 폴더/로그 경로 준비 -----
-$absOut = Join-Path -Path $scriptDir -ChildPath $OutputDir
+$absOut = Resolve-ProjectPath $OutputDir
 if (-not (Test-Path -LiteralPath $absOut)) { New-Item -ItemType Directory -Path $absOut | Out-Null }
 $absOut  = (Resolve-Path -LiteralPath $absOut).Path
 $logPath = Join-Path $absOut "build_$($XAPP_VERSION)_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
@@ -123,13 +105,15 @@ $compileSucceeded = $false
 $exitCode         = 1
 
 Write-Host "[INFO] Compiling..."
+$exePath = Join-Path $absOut "$baseName.exe"
+if (Test-Path -LiteralPath $exePath) { Remove-Item -LiteralPath $exePath -Force }
 foreach ($q in $quietCandidates) {
-    $args = @()
-    if ($q) { $args += $q }
-    $args += $commonArgs
+    $compilerArgs = @()
+    if ($q) { $compilerArgs += $q }
+    $compilerArgs += $commonArgs
 
     Add-Content -LiteralPath $logPath -Value "`n--- Attempt with quiet flag: '$q' ---"
-    $compileOutput = & $ISCC @args 2>&1 | Tee-Object -FilePath $logPath -Append
+    $compileOutput = & $ISCC @compilerArgs 2>&1 | Tee-Object -FilePath $logPath -Append
     $exitCode = $LASTEXITCODE
     if ($exitCode -eq 0) { $compileSucceeded = $true; break }
 
@@ -144,15 +128,9 @@ Write-Host "[OK] Compile success."
 
 # ----- 7) 산출물 확인 -----
 $exePath = Join-Path $absOut "$baseName.exe"
-if (-not (Test-Path -LiteralPath $exePath)) {
-    $latest = Get-ChildItem -LiteralPath $absOut -Filter '*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if ($latest) {
-        Write-Host "[WARN] Expected EXE not found. Using latest: $($latest.FullName)"
-        $exePath = $latest.FullName
-    } else {
-        Write-Error "Compiled EXE not found in output dir: $absOut"
-        exit 1
-    }
+if (-not (Test-Path -LiteralPath $exePath -PathType Leaf) -or
+    (Get-Item -LiteralPath $exePath).Length -eq 0) {
+    throw "Expected compiled EXE not found or empty: $exePath (see log: $logPath)"
 }
 Write-Host "[INFO] EXE: $exePath"
 
@@ -176,12 +154,8 @@ if (-not $NoZip) {
     }
 }
 
-# ----- 9) 성공 시 log / sha256 삭제 -----
-if ($compileSucceeded) {
-    if ($logPath -and (Test-Path -LiteralPath $logPath)) { Remove-Item -LiteralPath $logPath -Force }
-    if ($shaPath -and (Test-Path -LiteralPath $shaPath)) { Remove-Item -LiteralPath $shaPath -Force }
-    Write-Host "[CLEANUP] Removed log and sha256 files after success."
-}
+# ----- 9) 재현 및 배포 무결성 확인을 위해 로그/해시 보존 -----
+Write-Host "[INFO] Compile log retained: $logPath"
 
 Write-Host "[DONE] Build pipeline completed successfully."
 exit 0

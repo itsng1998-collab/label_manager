@@ -12,11 +12,6 @@ function Get-RequiredWindowsBuildTools {
         throw "Inno Setup script not found: $IssPath"
     }
 
-    $content = Get-Content -LiteralPath $IssPath -Raw
-    if ($content -notmatch 'vcruntime140_1\.dll' -and $content -notmatch 'msvcp140_2\.dll') {
-        throw "Unable to determine Microsoft C++ runtime version from: $IssPath"
-    }
-
     [pscustomobject]@{
         RuntimeLabel = 'Microsoft Visual C++ 2015-2022'
         ToolsetYear = '2022'

@@ -1,5 +1,16 @@
 # SESSION HANDOFF
 
+## 완료: Windows 배포 및 Inno 자동 설치 (1.8.22)
+- 순서 유지: build_windows.ps1 성공 후 inno_setup_installer.ps1. 루트 전용 Release 빌드, 공식 VS2022 CRT10 DLL 수집, EXE버전/AMD64/필수파일 검사 성공 후 version.txt 기록. Flutter stdout과 종료 코드 분리, 현재SDK 미지원 --target-platform 미사용.
+- ISS: 고정 AppId 형식 수정, Windows10+/x64compatible, Release 폴더 단일 소스. 대상PC의 System32에서 런타임을 읽던 external 제거. 패키징은 pubspec/버전파일/EXE 버전 일치 필수, 과거EXE 대체 금지, 로그/ZIP SHA256 보존.
+- Inno 미설치 시 공식6.5.4를 HTTPS로 받고 고정SHA256 검증 후 CURRENTUSER 무인설치/완료대기/재탐색/패키징 자동재개. winget 불필요, 기존설치/IsccPath 사용 시 설치생략. 잘못된 명시경로/해시/설치실패/설치후컴파일러누락은 중단.
+- 검증 완료: tools/test_windows_release.ps1 **PowerShell7 26/26 + Windows PowerShell5.1 26/26**. 실제 ISCC 문법컴파일, 정상/실패/ZIP/해시/루트전용빌드/CRT/버전/아키텍처와 자동설치8회귀 포함. 자동설치 자체는 모의검증(기존Inno 제거/재설치 없음).
+- 실제 `pwsh -NoProfile -File build_windows.ps1` 성공(163.3s), EXE1.8.22/AMD64 및 번들검사 통과. `pwsh -NoProfile -File inno_setup_installer.ps1` 성공. installer/Setup_LabelManager_v1.8.22.exe 18,295,170bytes, ZIP17,758,095bytes/해시검사 통과. 로그: tmp/windows_release_{build,packaging,tests,tests_ps51}.log 및 installer/build_1.8.22_20261027_160308.log.
+- 스크립트7개 AST/공백검사 통과. 기존 ZXing/csc 빌드경고만 존재. 편집기의 과거 args 경고는 디스크 AST에서 제거 확인, windows_build_tools의 기존 args/unapproved verb 경고는 유지.
+- 버전1.8.21→1.8.22 PATCH(배포 오류/환경 자동준비 수정). 앱/DB/실물인쇄 미실행. 임시 테스트 폴더 자동정리, 검증 로그와 실제EXE/ZIP은 보존하되 Git 제외.
+- 미검증/다음 확인: 새PC 실제설치·업데이트·제거/서명/프린터. ODBC Driver17+ 및 프린터드라이버 별도설치. 이전배포판의 잘못된 AppId 등록키와 새GUID가 다른 경우 기존판 제거 후 재설치 필요.
+- 커밋 대상: 배포스크립트/ISS, flutter.ps1, tools의 기존build helper+신규3 helper/test, README/pubspec/이문서. 사용자 lib/core/app.dart 및 루트/third_party pubspec.lock4개는 보존·제외. 관련파일만 stage 후 cached stat/check 확인 예정.
+
 ## 최근 완료: 라벨출력 여백과 밀기 분리 (1.8.21)
 - 제출 1.8.9 로그/이미지 확인: 실제 발행 기록은 없고 미리보기 비교. 기존 코드는 margin+push를 같은 시작점에 더하면서 본문 폭을 유지해 두 기능이 동일하게 보였음. 레거시 매뉴얼v2와 PrintManager의 FormatRange/별도 push 좌표 대조.
 - 구현: 공통 출력용 formatter에서만 여백에 맞게 열 폭과 문단 줄바꿈을 재계산. 80mm 라벨의 좌여백10=본문70mm, 좌10+우5=65mm. 밀기10은 본문80mm를 유지한 위치 이동. 위여백은 시작점과 사용 가능 높이를 제한하며 회전 시 본문 축도 반영. 유효하지 않은 여백/빈 인쇄 영역은 명시적 오류.

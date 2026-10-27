@@ -116,7 +116,7 @@ Flutter 기반 레이블 관리 도구입니다. Windows 환경에서 실행되�
 ## 시작하기
 1. Windows 10/11 환경에서 PowerShell 5.1 이상과 winget 사용 가능 여부를 확인합니다.
 2. Windows ODBC Driver를 설치합니다.
-3. https://jrsoftware.org/isdl.php/Inno-Setup-Downloads을 다운로드 받아 설치 합니다. (배포 작성)
+3. 배포 작성 시 Inno Setup은 패키징 스크립트가 미설치를 감지하여 자동 설치합니다. 수동 설치는 https://jrsoftware.org/isdl.php 에서 할 수 있습니다.
 4. Flutter SDK를 설치하고 Flutter doctor로 환경을 확인합니다.
 5. flutter.ps1 pub get으로 의존성을 받습니다. 이때 Windows용 MSBuild가 없으면 winget으로 Visual Studio Build Tools 2022(C++ workload) 설치를 시도합니다.
 6. Flutter run을 실행하여 애플리케이션을 구동합니다.
@@ -128,8 +128,21 @@ Flutter 기반 레이블 관리 도구입니다. Windows 환경에서 실행되�
 - winget이 없는 PC에서는 자동 설치가 중단됩니다. Microsoft App Installer가 포함된 Windows 10/11 환경에서 다시 `flutter.ps1 pub get`을 실행하거나, Visual Studio Build Tools 2022의 Desktop development with C++ workload를 수동 설치한 뒤 다시 실행합니다.
 
 ## 배포 작성 (Windows)
-1. build_windows.ps1
-2. inno_setup_installer.ps1
+PowerShell에서 아래 순서로 실행하고, **1단계가 성공한 경우에만** 2단계를 실행합니다.
+
+```powershell
+.\build_windows.ps1
+if ($LASTEXITCODE -eq 0) { .\inno_setup_installer.ps1 }
+```
+
+- 1단계는 루트 앱만 **Release / Windows x64**로 빌드하고 VS2022의 공식 Microsoft C++ x64 재배포 DLL을 Release 폴더에 수집합니다. 필수 파일·EXE 버전·아키텍처 검증이 성공한 뒤에만 `version.txt`를 갱신합니다. `third_party`는 앱 의존성으로 빌드되며 별도 Windows 앱 빌드를 실행하지 않습니다.
+- 2단계는 프로젝트·버전 파일·Release EXE의 버전 일치를 검사하고 **Inno Setup 6.3 이상**으로 설치 프로그램을 만듭니다. 미설치 시 공식 **6.5.4** 설치 파일을 HTTPS로 내려받아 고정 SHA256을 확인한 뒤 `%LOCALAPPDATA%\Programs\Inno Setup 6`에 현재 사용자 전용 무인 설치하고 패키징을 자동 재개합니다. `winget`은 필요 없으며 최초 다운로드에는 인터넷이 필요합니다. 다운로드·해시·설치 실패 또는 설치 후 컴파일러 누락 시 중단합니다. `-IsccPath`를 명시하면 해당 경로만 사용하며 잘못된 경로를 자동 설치로 대체하지 않습니다.
+- `installer` 폴더에 `Setup_LabelManager_v<버전>.exe`, ZIP, ZIP의 SHA256, 컴파일 로그를 보존합니다. `-NoZip`은 ZIP 생성을 생략합니다. 예상 EXE가 없으면 과거 EXE를 대신 배포하지 않고 실패합니다.
+- 앱 설치 대상은 **Windows 10/11 x64 호환 환경**이며, 관리자 권한 없이 `%LOCALAPPDATA%\Label Manager`에 사용자별 설치합니다. 같은 AppId와 사용자 계정으로 업데이트하며 시작 메뉴·바탕화면 바로가기를 생성합니다. 제거 시 사용자 설정/데이터를 강제로 삭제하지 않습니다.
+- 이전 설치 스크립트는 AppId에 여분의 닫는 괄호와 인라인 주석이 있었습니다. 이미 배포한 설치본은 제거 레지스트리 키가 수정된 GUID와 같은지 먼저 확인해야 하며, 다르면 기존 버전을 제거한 뒤 새 버전을 설치합니다. 기존 배포판에 대한 실제 업데이트는 별도 검증 대상입니다.
+- 대상 PC에 **Microsoft ODBC Driver 17 이상**을 별도로 설치해야 합니다. 프린터 드라이버, DB 연결 정보와 접근 권한도 별도 준비 대상이며 설치 프로그램에 포함되지 않습니다. CRT DLL은 설치 프로그램에 포함하므로 대상 PC의 System32에서 복사하지 않습니다.
+- 자동 검증: `pwsh -NoProfile -File tools/test_windows_release.ps1`. Windows PowerShell 5.1에서는 `powershell -NoProfile -File tools/test_windows_release.ps1`을 사용합니다. 격리 폴더에서 빌드/패키징 실패 처리와 ZIP/해시, 실제 Inno 컴파일, Inno 자동 설치의 모의 오류·재개 흐름을 검사하며 앱 실행·DB 접속·설치를 수행하지 않습니다.
+- EXE 코드 서명은 구성되어 있지 않습니다. 외부 배포 시 SmartScreen 경고가 발생할 수 있으며, 클린 PC의 설치·업데이트·제거와 실제 프린터 출력은 별도 확인이 필요합니다.
 
 ## 배포 작성 (Android) - 현재 미지원 (추후 지원 예정)
 1. build_android.ps1
