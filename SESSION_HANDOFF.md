@@ -8,7 +8,7 @@
 - 실제 `pwsh -NoProfile -File tools/prepare_build.ps1 -Target Windows` 성공(exit0), 설치된VC/SDK/CMake/FreeType 재사용·모든pub get완료. 로그 tmp/build_environment_windows.log. 변경파일 진단오류없음, diff공백검사통과. SDK조회로그 .tmp/sdk_prepare.log.
 - 버전1.8.22→1.8.23 PATCH(개발/빌드환경설정). 임시fixture 자동정리, 검증로그는Git제외. 실제앱/DB/프린터/Release빌드·새배포산출물 미실행. 새PC실제도구설치/AndroidSDK대량설치/F5앱구동은 미검증(다운로드/설치 분기는 격리모의).
 - 권한/지원한계: VS/SDK설치는 사용자가 관리자PowerShell에서 WindowsTools 프로필 실행 필요(자동UAC없음), Android라이선스는 사용자가수락후재실행, Git/VS미설치+winget없으면선행설치안내. Windows호스트만지원, iOS는macOS/Xcode/CocoaPods필요오류. 에뮬레이터/USB/DB/ODBC/프린터는 자동설치범위밖. README에 절차/제약기록.
-- stage/commit 예정: .vscode3개, README/이문서/pubspec, 루트4 PS, tools helper/native/test 관련파일만. 사용자 lib/core/app.dart 보존·제외. 기능commit확정후해시를별도문서commit으로기록예정.
+- **구현·검증·커밋 완료: `044c594`**, push 없음. .vscode3개/README/이문서/pubspec/루트4 PS/tools helper·native·test 등19개파일만 분리커밋, cached stat/check 통과. 사용자 lib/core/app.dart 보존·제외. 이 해시 기록은 별도문서commit이며 버전재증가 없음.
 
 ## 완료: Windows 배포 및 Inno 자동 설치 (1.8.22)
 - 순서 유지: build_windows.ps1 성공 후 inno_setup_installer.ps1. 루트 전용 Release 빌드, 공식 VS2022 CRT10 DLL 수집, EXE버전/AMD64/필수파일 검사 성공 후 version.txt 기록. Flutter stdout과 종료 코드 분리, 현재SDK 미지원 --target-platform 미사용.
