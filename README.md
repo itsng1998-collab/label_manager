@@ -131,7 +131,7 @@ Flutter 기반 레이블 관리 도구입니다. Windows 환경에서 실행되�
 ## VS Code 공통 환경 준비
 - 공통 구현은 `tools/build_environment.ps1`, 실행 진입점은 `tools/prepare_build.ps1`입니다. F5의 `preLaunchTask`, Windows/Android 빌드, Inno 패키징, 네이티브 FreeType/RTF XLSX 빌드 및 `flutter.ps1 build/run`이 같은 준비 계층을 호출합니다. 실패하면 빌드로 넘어가지 않습니다.
 - `Windows`는 VC++/CMake/Windows SDK/필수 FreeType과 pub 패키지, `Android`는 JDK17+/Google SDK command-line tools/platform-tools/build-tools/CMake 및 현재 Flutter에 맞는 SDK platform/NDK와 pub 패키지, `Installer`는 Inno Setup만 준비합니다. 선택 기능인 네이티브 RTF XLSX는 `Native: RTF XLSX` 작업으로 따로 빌드합니다.
-- Flutter/JDK/Android 도구는 기존 설치를 우선 사용하고 누락 시 `.tmp/toolchains`에 SDK를 받거나 기존 경로를 연결합니다. 공식 HTTPS 배포 메타데이터의 체크섬을 검증하며, Dart SDK가 프로젝트의 최저 버전보다 낮으면 프로젝트 전용 Flutter SDK를 설치합니다. 시스템의 기존 SDK를 업그레이드하거나 삭제하지 않습니다.
+- Flutter가 없거나 포함된 Dart SDK가 프로젝트의 최저 버전보다 낮으면 `%LOCALAPPDATA%\Programs\Flutter`에 공식 SDK를 체크섬 검증 후 설치합니다. 이 사용자별 SDK는 다음 실행과 다른 작업영역에서도 우선 재사용하며, 해당 경로의 구버전은 같은 위치에 갱신합니다. `C:\Flutter` 등 다른 위치의 기존 SDK는 변경하지 않습니다. JDK/Android 도구는 기존 설치를 사용하거나 `.tmp/toolchains`에 설치/연결합니다. 선택된 Flutter SDK의 `bin` 경로는 현재 작업 프로세스에 즉시 적용하고 현재 사용자 PATH에도 중복 없이 영구 등록합니다(관리자 권한 불필요, 시스템 전체 PATH는 변경하지 않음). 기존 VS Code와 터미널에는 이전 환경이 남을 수 있으므로 재시작 후 사용합니다.
 - `dart.getFlutterSdkCommand`로 SDK 탐색/설치를 Dart 확장과 공유합니다. 경로 외 출력은 `.tmp/sdk_prepare.log`에 남깁니다. 최초 SDK 다운로드가 오래 걸려 확장 탐색이 시간 초과되면 `Flutter: Prepare SDK and Packages` 작업을 완료한 뒤 VS Code 창을 다시 로드합니다.
 - Android 라이선스는 자동 동의하지 않습니다. 안내된 `sdkmanager --licenses` 명령으로 사용자가 동의한 뒤 작업을 다시 실행하면 이어서 설치합니다. 에뮬레이터 이미지/가상 장치 생성, USB 드라이버, DB/ODBC/프린터 드라이버는 빌드 의존성 자동 설치에 포함하지 않습니다. Android 배포 서명 및 앱 지원 여부도 별도입니다.
 - 이 자동 준비는 Windows 호스트용입니다. iOS는 Windows에서 준비/빌드할 수 없으며 macOS의 Xcode/CocoaPods가 필요하다는 오류로 중단합니다.

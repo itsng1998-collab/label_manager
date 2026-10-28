@@ -8,7 +8,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $helper = Join-Path $PSScriptRoot 'build_environment.ps1'
 $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("label_environment_test_" + [guid]::NewGuid())
 $savedEnvironment = @{}
-foreach ($name in @('PATH', 'JAVA_HOME', 'ANDROID_HOME', 'ANDROID_SDK_ROOT', 'FLUTTER_ROOT', 'FLUTTER_HOME')) {
+foreach ($name in @('PATH', 'LOCALAPPDATA', 'JAVA_HOME', 'ANDROID_HOME', 'ANDROID_SDK_ROOT', 'FLUTTER_ROOT', 'FLUTTER_HOME')) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
 }
 $script:passed = 0
@@ -25,6 +25,7 @@ function Write-Fixture {
 }
 try {
     [void](New-Item $temp -ItemType Directory)
+    $env:LOCALAPPDATA = Join-Path $temp 'local app data'
     . $helper
     function Test-Success { $global:LASTEXITCODE = 0 }
     function Test-Failure { $global:LASTEXITCODE = 19 }
@@ -39,6 +40,28 @@ try {
     Write-Fixture "$temp\bin\10.0.26100.0\x64\rc.exe"
     Assert-Test (Test-WindowsSdk -KitsRoot $temp) 'complete Windows SDK accepted'
     Assert-Test ((Find-BuildTool 'nonexistent' @("$temp\bin\10.0.26100.0\x64\rc.exe")) -like '*rc.exe') 'explicit tool candidate detected'
+    & {
+        . $helper
+        $script:userPathFixture = '%LOCALAPPDATA%\Existing;C:\Other'
+        $script:userPathWrites = 0
+        function Get-BuildUserPath { return $script:userPathFixture }
+        function Set-BuildUserPath { param($Value) $script:userPathFixture = $Value; $script:userPathWrites++ }
+        $directory = "$env:LOCALAPPDATA\Programs\Flutter\bin"
+        Register-FlutterUserPath $directory
+        Assert-Test ($script:userPathFixture -eq "%LOCALAPPDATA%\Existing;C:\Other;$directory") 'user PATH registration preserves existing entries and variables'
+        Register-FlutterUserPath $directory
+        Assert-Test ($script:userPathWrites -eq 1) 'user PATH registration is idempotent'
+        $script:userPathFixture = '%LOCALAPPDATA%\Programs\Flutter\bin\'
+        Register-FlutterUserPath $directory.ToUpperInvariant()
+        Assert-Test ($script:userPathWrites -eq 1) 'PATH duplicate check expands variables and ignores case and trailing separator'
+        $script:userPathFixture = ''
+        Register-FlutterUserPath $directory
+        Assert-Test ($script:userPathFixture -eq $directory -and $script:userPathWrites -eq 2) 'empty user PATH accepts Flutter directory'
+        function Set-BuildUserPath { param($Value) throw 'user PATH write failure fixture' }
+        $script:userPathFixture = ''
+        try { Register-FlutterUserPath $directory; throw 'accepted PATH failure' }
+        catch { Assert-Test ($_.Exception.Message -eq 'user PATH write failure fixture') 'user PATH registration failure is propagated' }
+    }
     & {
         . $helper
         $protocol = [Net.ServicePointManager]::SecurityProtocol
@@ -102,7 +125,9 @@ try {
         . $helper
         $script:downloadHash = $null
         $script:flutterDownloadCount = 0
+        $script:registeredFlutterPath = $null
         function Initialize-BuildGit {}
+        function Register-FlutterUserPath { param($Directory) $script:registeredFlutterPath = $Directory }
         function Find-BuildTool {
             param($Name, $Candidates)
             foreach ($candidate in $Candidates) { if (Test-Path $candidate) { return $candidate } }
@@ -129,10 +154,34 @@ try {
         Write-Fixture "$env:FLUTTER_ROOT\bin\cache\dart-sdk\version" '3.10.0'
         $launcher = Initialize-FlutterSdk $sdkRoot
         Assert-Test ((Test-Path $launcher) -and $script:downloadHash -eq 'expected-sha') 'missing Flutter downloads hash-verified official archive'
+        Assert-Test ($launcher -eq "$env:LOCALAPPDATA\Programs\Flutter\bin\flutter.bat") 'outdated Flutter installs in per-user Programs outside workspace'
+        Assert-Test ($script:registeredFlutterPath -eq (Split-Path -Parent $launcher)) 'installed Flutter bin is registered in user PATH'
         Assert-Test ((Get-Content "$sdkRoot\.tmp\flutter_launcher_path.txt" -Raw) -eq $launcher) 'downloaded Flutter is cached for following build'
         Assert-Test ((Get-Content "$env:FLUTTER_ROOT\bin\cache\dart-sdk\version" -Raw) -eq '3.10.0') 'old system SDK is not modified'
         $reused = Initialize-FlutterSdk $sdkRoot
-        Assert-Test ($reused -eq $launcher -and $script:flutterDownloadCount -eq 1) 'project SDK wins over old environment SDK without redownloading'
+        Assert-Test ($reused -eq $launcher -and $script:flutterDownloadCount -eq 1) 'per-user SDK wins over old environment SDK without redownloading'
+        Remove-Item "$env:LOCALAPPDATA\Programs\Flutter" -Recurse -Force
+        function Find-BuildTool {
+            param($Name, $Candidates)
+            foreach ($candidate in $Candidates) {
+                if ($candidate -eq "$env:LOCALAPPDATA\Programs\Flutter\bin\flutter.bat" -and (Test-Path $candidate)) { return $candidate }
+            }
+            return $null
+        }
+        $missingProject = Join-Path $temp 'missing-flutter-project'
+        Write-Fixture "$missingProject\pubspec.yaml" "name: fixture`nenvironment:`n  sdk: ^3.11.5`n"
+        $installed = Initialize-FlutterSdk $missingProject
+        Assert-Test ($installed -eq $launcher -and $script:flutterDownloadCount -eq 2) 'absent Flutter installs in per-user Programs'
+        Assert-Test (-not (Test-Path "$missingProject\.tmp\toolchains\flutter")) 'new Flutter installation does not create workspace SDK'
+        Assert-Test (-not (Test-Path "$env:LOCALAPPDATA\Programs\flutter.zip")) 'download archive is removed after installation'
+        $sharedProject = Join-Path $temp 'shared-flutter-project'
+        Write-Fixture "$sharedProject\pubspec.yaml" "name: fixture`nenvironment:`n  sdk: ^3.11.5`n"
+        $shared = Initialize-FlutterSdk $sharedProject
+        Assert-Test ($shared -eq $launcher -and $script:flutterDownloadCount -eq 2) 'another workspace reuses per-user SDK without redownloading'
+        Write-Fixture "$env:LOCALAPPDATA\Programs\Flutter\bin\cache\dart-sdk\version" '3.10.0'
+        $updated = Initialize-FlutterSdk $sharedProject
+        Assert-Test ($updated -eq $launcher -and $script:flutterDownloadCount -eq 3 -and
+            (Get-Content "$env:LOCALAPPDATA\Programs\Flutter\bin\cache\dart-sdk\version" -Raw) -eq '3.11.5') 'outdated per-user SDK is updated at the same location'
     }
     & {
         . $helper

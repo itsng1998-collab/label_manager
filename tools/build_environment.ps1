@@ -21,6 +21,32 @@ function Add-BuildToolPath {
     }
 }
 
+function Get-BuildUserPath {
+    return [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+
+function Set-BuildUserPath {
+    param([string]$Value)
+
+    [Environment]::SetEnvironmentVariable('Path', $Value, 'User')
+}
+
+function Register-FlutterUserPath {
+    param([string]$Directory)
+
+    $userPath = [string](Get-BuildUserPath)
+    $entries = @($userPath -split ';' | ForEach-Object {
+        [Environment]::ExpandEnvironmentVariables($_.Trim()).TrimEnd('\')
+    })
+    if ($entries -notcontains $Directory.TrimEnd('\')) {
+        $updatedPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $Directory } else { "$userPath;$Directory" }
+        Set-BuildUserPath $updatedPath
+        Write-Host "[SETUP] Registered Flutter in user PATH: $Directory"
+    } else {
+        Write-Host "[READY] Flutter already registered in user PATH: $Directory"
+    }
+}
+
 function Find-BuildTool {
     param([string]$Name, [string[]]$Candidates = @())
 
@@ -96,13 +122,15 @@ function Initialize-FlutterSdk {
 
     Initialize-BuildGit
     $cache = Join-Path $ProjectRoot '.tmp\flutter_launcher_path.txt'
+    $programs = Join-Path $env:LOCALAPPDATA 'Programs'
+    $userFlutter = Join-Path $programs 'Flutter\bin\flutter.bat'
     $candidates = @("$ProjectRoot\.tmp\toolchains\flutter\bin\flutter.bat", 'C:\Flutter\bin\flutter.bat')
     if (Test-Path $cache) { $candidates = @((Get-Content $cache -Raw).Trim()) + $candidates }
     foreach ($name in @('FLUTTER_ROOT', 'FLUTTER_HOME')) {
         $root = [Environment]::GetEnvironmentVariable($name)
         if ($root) { $candidates = @((Join-Path $root 'bin\flutter.bat')) + $candidates }
     }
-    $candidates = @("$ProjectRoot\.tmp\toolchains\flutter\bin\flutter.bat") + $candidates
+    $candidates = @($userFlutter, "$ProjectRoot\.tmp\toolchains\flutter\bin\flutter.bat") + $candidates
     $flutter = Find-BuildTool 'flutter.bat' $candidates
     $minimumDart = $null
     $pubspecPath = Join-Path $ProjectRoot 'pubspec.yaml'
@@ -114,27 +142,27 @@ function Initialize-FlutterSdk {
         if (Test-Path $dartVersionFile) {
             $dartVersion = (Get-Content $dartVersionFile -Raw).Trim().Split('-')[0]
             if ([version]$dartVersion -lt $minimumDart) {
-                Write-Host "[SETUP] Existing Flutter Dart $dartVersion is below required $minimumDart; installing a project-local SDK."
+                Write-Host "[SETUP] Existing Flutter Dart $dartVersion is below required $minimumDart; installing SDK at $userFlutter."
                 $flutter = $null
             }
         }
     }
     if (-not $flutter) {
-        Write-Host '[SETUP] Flutter SDK missing; downloading official stable SDK.'
+        Write-Host "[SETUP] Flutter SDK missing or outdated; downloading official stable SDK to $userFlutter."
         $metadata = Read-BuildMetadata 'https://storage.googleapis.com/flutter_infra_release/flutter/releases/releases_windows.json'
         $release = $metadata.releases | Where-Object { $_.hash -eq $metadata.current_release.stable -and $_.dart_sdk_arch -eq 'x64' } | Select-Object -First 1
         if (-not $release) { throw 'Official Flutter stable x64 SDK metadata was not found.' }
-        $toolchains = Join-Path $ProjectRoot '.tmp\toolchains'
-        [void](New-Item $toolchains -ItemType Directory -Force)
-        $archive = Join-Path $toolchains 'flutter.zip'
+        [void](New-Item $programs -ItemType Directory -Force)
+        $archive = Join-Path $programs 'flutter.zip'
         try {
             Save-BuildDownload "$($metadata.base_url)/$($release.archive)" $archive $release.sha256
-            Expand-Archive -LiteralPath $archive -DestinationPath $toolchains -Force
+            Expand-Archive -LiteralPath $archive -DestinationPath $programs -Force
         } finally { Remove-Item $archive -Force -ErrorAction SilentlyContinue }
-        $flutter = Join-Path $toolchains 'flutter\bin\flutter.bat'
+        $flutter = $userFlutter
         Invoke-BuildTool $flutter @('--version')
     }
     Add-BuildToolPath (Split-Path -Parent $flutter)
+    Register-FlutterUserPath (Split-Path -Parent $flutter)
     [void](New-Item (Split-Path -Parent $cache) -ItemType Directory -Force)
     [System.IO.File]::WriteAllText($cache, $flutter)
     Write-Host "[READY] Flutter: $flutter"
