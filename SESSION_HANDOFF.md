@@ -5,7 +5,7 @@
 - 추가 요청의 등록범위는 사용자 질문도구로 확인 완료: 시스템 전체가 아닌 현재 사용자 PATH 선택. Get/Set-BuildUserPath와 Register-FlutterUserPath로 기존값 보존/환경변수·대소문자·끝구분자 기준 중복 방지 및 실패전파. 선택된 SDK bin을 작업프로세스와 사용자 PATH에 적용. 관리자권한 불필요, 시스템 PATH 변경 없음.
 - tools/test_build_environment.ps1: LOCALAPPDATA 임시경로 격리, 설치/ZIP정리/작업영역미설치/다른작업영역 재사용/구버전갱신 및 PATH 저장소 모의 회귀. PS5.1/PS7 각각 환경62/62 통과(명령 `-NoProfile -File tools/test_build_environment.ps1`, 로그 tmp/test_flutter_user_path_{ps51,ps7}.log). 설치경로 변경 시 배포26/26도 양Shell 통과. 실제 사용자 PATH/SDK는 테스트에서 변경하지 않음.
 - README 설치/재사용/PATH정책 및 기존 VSCode/터미널 재시작 안내 갱신. pubspec 1.8.23→1.8.24 PATCH(호환유지 설치경로·사용자환경설정 조정). 실제 SDK 설치·앱·배포빌드 미실행.
-- 최종검증 완료: PS5.1/PS7 각각 환경62/62+배포26/26, 변경파일진단 오류없음 및 `git diff --check` 통과. 배포 명령 `-NoProfile -File tools/test_windows_release.ps1`, 로그 tmp/test_release_flutter_user_path_{ps51,ps7}.log. 임시fixture 자동정리, 로그Git제외. helper/test/README/pubspec/이문서 5개만 stage/commit 예정. 사용자 lib/core/app.dart 보존·커밋 제외.
+- 최종검증 완료: PS5.1/PS7 각각 환경62/62+배포26/26, 변경파일진단 오류없음 및 `git diff --check` 통과. 배포 명령 `-NoProfile -File tools/test_windows_release.ps1`, 로그 tmp/test_release_flutter_user_path_{ps51,ps7}.log. 임시fixture 자동정리, 로그Git제외. **기능 커밋 `ea278f9`**, helper/test/README/pubspec/이문서 5개만 분리커밋, cached stat/check 통과. 사용자 lib/core/app.dart 보존·커밋 제외, push 없음. 이 해시 기록은 별도문서커밋이며 버전재증가 없음.
 
 ## 완료: VS Code 공통 환경 준비 및 PowerShell 호환 (1.8.23)
 - tools/build_environment.ps1 공통 구현 + prepare_build.ps1 진입점. VS Code F5/preLaunch, Windows/Android Release/Package, 루트flutter/build/Inno, native FreeType/RTF XLSX가 공통 준비 사용. 선택RTF는 해당native작업에서만 준비. 존재하지 않는WebView2 파일을 호출하던 낡은task 제거.
