@@ -1,6 +1,8 @@
+#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [switch] $RootOnly,
+    [switch] $SkipEnvironment,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $FlutterArgs
 )
@@ -141,22 +143,27 @@ function Invoke-FlutterCommand {
     }
 }
 
-$flutter = Resolve-FlutterLauncher
-if (Test-IsPubGetCommand $FlutterArgs) {
-    $buildToolsScript = Join-Path $ScriptRoot 'tools\windows_build_tools.ps1'
-    if (Test-Path -LiteralPath $buildToolsScript -PathType Leaf) {
-        . $buildToolsScript
-        Ensure-WindowsBuildTools -IssPath (Join-Path $ScriptRoot 'inno_setup_installer.iss') -InstallIfMissing $true | Out-Null
+$isBuildOrRun = $FlutterArgs.Count -gt 0 -and $FlutterArgs[0] -in @('build', 'run')
+if (-not $SkipEnvironment) {
+    . (Join-Path $ScriptRoot 'tools\build_environment.ps1')
+    if ($isBuildOrRun) {
+        $target = if ($FlutterArgs -contains 'ios' -or $FlutterArgs -contains 'ipa') { 'iOS' }
+            elseif ($FlutterArgs -contains 'windows' -or ($FlutterArgs[0] -eq 'run' -and $FlutterArgs.Count -eq 1)) { 'Windows' }
+            else { 'Android' }
+        $configuration = if ($FlutterArgs -contains '--debug' -or
+            ($FlutterArgs[0] -eq 'run' -and $FlutterArgs -notcontains '--release' -and $FlutterArgs -notcontains '--profile')) { 'Debug' } else { 'Release' }
+        Initialize-BuildEnvironment -ProjectRoot $ScriptRoot -Target $target -Configuration $configuration | Out-Null
     } else {
-        throw "Windows build tools helper not found: $buildToolsScript"
+        Initialize-FlutterSdk -ProjectRoot $ScriptRoot | Out-Null
     }
 }
+$flutter = Resolve-FlutterLauncher
 $commandPreview = Format-CommandPreview -Executable $flutter -Arguments $FlutterArgs
 Write-Host "Flutter launcher: $flutter"
 Write-Host "Command: $commandPreview"
 
 $firstFailure = 0
-$thirdPartyPackages = @(if (-not $RootOnly) { Get-ThirdPartyPackageDirectories })
+$thirdPartyPackages = @(if (-not $RootOnly -and -not $isBuildOrRun) { Get-ThirdPartyPackageDirectories })
 $totalTargets = $thirdPartyPackages.Count + 1
 $targetIndex = 0
 

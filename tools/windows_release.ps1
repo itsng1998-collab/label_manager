@@ -1,4 +1,5 @@
-﻿Set-StrictMode -Version Latest
+﻿#Requires -Version 5.1
+Set-StrictMode -Version Latest
 
 function Get-WindowsReleaseVersion {
     param([Parameter(Mandatory = $true)][string]$ProjectRoot)

@@ -14,4 +14,5 @@
 	"workbench.commandPalette.showAskInChat": false,
 	"cmake.sourceDirectory": "${workspaceFolder}/windows",
 	"cmake.autoDetectSourceDirectory": false,
+	"dart.getFlutterSdkCommand": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}/tools/prepare_build.ps1\" -Target Sdk -SdkPathOnly",
 }

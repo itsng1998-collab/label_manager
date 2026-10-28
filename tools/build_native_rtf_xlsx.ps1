@@ -1,10 +1,13 @@
-﻿param(
+﻿#Requires -Version 5.1
+param(
     [switch]$SkipClone
 )
 
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'build_environment.ps1')
+Initialize-BuildEnvironment -ProjectRoot $root -Target WindowsTools | Out-Null
 $nativeRoot = Join-Path $root 'third_party/native'
 $buildRoot = Join-Path $nativeRoot 'build'
 $installRoot = Join-Path $nativeRoot 'install'
@@ -70,7 +73,7 @@ function Ensure-Repo($name, $url) {
     if ($SkipClone) {
         throw "Missing $name source at $path and archive at $(Join-Path $nativeRoot "$name.zip")"
     }
-    git clone $url $path
+    Invoke-BuildTool 'git' @('clone', $url, $path)
     New-NativeArchive $name $path
     return $path
 }
@@ -108,22 +111,22 @@ New-NativeArchive 'libxlsxwriter' $xlsxSource
 New-NativeArchive 'rtf2html' $rtfSource
 
 $zlibInstall = Join-Path $installRoot 'zlib'
-cmake -S $zlibSource -B (Join-Path $buildRoot 'zlib') -A x64 "-DCMAKE_INSTALL_PREFIX=$zlibInstall"
-cmake --build (Join-Path $buildRoot 'zlib') --config Release --target install
-cmake --build (Join-Path $buildRoot 'zlib') --config Debug --target zlibstatic
+Invoke-BuildTool 'cmake' @('-S', $zlibSource, '-B', (Join-Path $buildRoot 'zlib'), '-A', 'x64', "-DCMAKE_INSTALL_PREFIX=$zlibInstall")
+Invoke-BuildTool 'cmake' @('--build', (Join-Path $buildRoot 'zlib'), '--config', 'Release', '--target', 'install')
+Invoke-BuildTool 'cmake' @('--build', (Join-Path $buildRoot 'zlib'), '--config', 'Debug', '--target', 'zlibstatic')
 
 $zlibInclude = Join-Path $zlibInstall 'include'
 $zlibRelease = Join-Path $buildRoot 'zlib/Release/libzs.lib'
 $zlibDebug = Join-Path $buildRoot 'zlib/Debug/libzsd.lib'
 
-cmake -S $xlsxSource -B (Join-Path $buildRoot 'libxlsxwriter') -A x64 -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DUSE_NO_MD5=ON "-DZLIB_INCLUDE_DIR=$zlibInclude" "-DZLIB_LIBRARY=$zlibRelease"
-cmake --build (Join-Path $buildRoot 'libxlsxwriter') --config Release --target xlsxwriter
+Invoke-BuildTool 'cmake' @('-S', $xlsxSource, '-B', (Join-Path $buildRoot 'libxlsxwriter'), '-A', 'x64', '-DBUILD_TESTS=OFF', '-DBUILD_EXAMPLES=OFF', '-DUSE_NO_MD5=ON', "-DZLIB_INCLUDE_DIR=$zlibInclude", "-DZLIB_LIBRARY=$zlibRelease")
+Invoke-BuildTool 'cmake' @('--build', (Join-Path $buildRoot 'libxlsxwriter'), '--config', 'Release', '--target', 'xlsxwriter')
 
-cmake -S $xlsxSource -B (Join-Path $buildRoot 'libxlsxwriter_debug') -A x64 -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DUSE_NO_MD5=ON "-DZLIB_INCLUDE_DIR=$zlibInclude" "-DZLIB_LIBRARY=$zlibDebug"
-cmake --build (Join-Path $buildRoot 'libxlsxwriter_debug') --config Debug --target xlsxwriter
+Invoke-BuildTool 'cmake' @('-S', $xlsxSource, '-B', (Join-Path $buildRoot 'libxlsxwriter_debug'), '-A', 'x64', '-DBUILD_TESTS=OFF', '-DBUILD_EXAMPLES=OFF', '-DUSE_NO_MD5=ON', "-DZLIB_INCLUDE_DIR=$zlibInclude", "-DZLIB_LIBRARY=$zlibDebug")
+Invoke-BuildTool 'cmake' @('--build', (Join-Path $buildRoot 'libxlsxwriter_debug'), '--config', 'Debug', '--target', 'xlsxwriter')
 
-cmake -S $rtfSource -B (Join-Path $buildRoot 'rtf2html') -A x64
-cmake --build (Join-Path $buildRoot 'rtf2html') --config Release --target rtf2html
+Invoke-BuildTool 'cmake' @('-S', $rtfSource, '-B', (Join-Path $buildRoot 'rtf2html'), '-A', 'x64')
+Invoke-BuildTool 'cmake' @('--build', (Join-Path $buildRoot 'rtf2html'), '--config', 'Release', '--target', 'rtf2html')
 
 Write-Host 'Native RTF XLSX dependencies are ready:'
 Write-Host "  rtf2html:      $(Join-Path $buildRoot 'rtf2html/Release/rtf2html.exe')"

@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 <#
   inno_setup_installer.ps1
   - Resolve-Path로 안전 실행(Method A)
@@ -70,8 +71,13 @@ Write-Host "[INFO] Output base name: $baseName"
 
 # ----- 3) ISCC 경로 확정 -----
 try {
-    . (Join-Path $scriptDir 'tools\inno_setup_tools.ps1')
-    $resolved = Ensure-InnoSetup -UserProvided $IsccPath
+    if ($IsccPath) {
+        . (Join-Path $scriptDir 'tools\inno_setup_tools.ps1')
+        $resolved = Ensure-InnoSetup -UserProvided $IsccPath
+    } else {
+        . (Join-Path $scriptDir 'tools\build_environment.ps1')
+        $resolved = Initialize-BuildEnvironment -ProjectRoot $scriptDir -Target Installer
+    }
     $ISCC     = (Resolve-Path -LiteralPath $resolved).Path
 } catch {
     Write-Error "ISCC.exe not found or not accessible. $($_.Exception.Message)"

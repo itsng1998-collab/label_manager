@@ -1,4 +1,5 @@
-﻿[CmdletBinding()]
+﻿#Requires -Version 5.1
+[CmdletBinding()]
 param()
 
 Set-StrictMode -Version Latest
@@ -24,9 +25,10 @@ function Get-RequiredWindowsBuildTools {
             'Microsoft.VisualStudio.Product.Enterprise'
         )
         RequiredComponents = @(
-            'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+            'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+            'Microsoft.VisualStudio.Component.VC.CMake.Project'
         )
-        WingetOverride = '--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --norestart'
+        WingetOverride = '--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --add Microsoft.VisualStudio.Component.Windows11SDK.26100 --includeRecommended --norestart'
     }
 }
 
@@ -108,6 +110,11 @@ function Install-WindowsBuildTools {
         [pscustomobject]$Requirement
     )
 
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Visual Studio/Windows SDK installation requires administrator rights. Open an elevated PowerShell yourself and run tools/prepare_build.ps1 -Target WindowsTools, then rerun the VS Code task.'
+    }
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
     if (-not $winget) {
         throw @"
@@ -127,7 +134,7 @@ or
     }
 
     Write-Host "[INFO] Installing Visual Studio Build Tools $($Requirement.ToolsetYear) with C++ workload..."
-    & $winget.Source install --id $Requirement.WingetId --exact --source winget --accept-package-agreements --accept-source-agreements --override $Requirement.WingetOverride
+    & $winget.Source install --id $Requirement.WingetId --exact --force --source winget --accept-package-agreements --accept-source-agreements --override $Requirement.WingetOverride | Out-Host
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         throw "winget failed to install $($Requirement.WingetId). ExitCode=$exitCode"

@@ -1,4 +1,5 @@
-﻿Set-StrictMode -Version Latest
+﻿#Requires -Version 5.1
+Set-StrictMode -Version Latest
 
 function Find-Iscc {
     param([string]$UserProvided)

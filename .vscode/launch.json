@@ -6,7 +6,12 @@
       "type": "dart",
       "request": "launch",
       "flutterMode": "debug",
-      "preLaunchTask": "ADB: Silence MESA log"
+      "preLaunchTask": "ADB: Silence MESA log",
+      "env": {
+        "JAVA_HOME": "${workspaceFolder}/.tmp/toolchains/jdk",
+        "ANDROID_HOME": "${workspaceFolder}/.tmp/toolchains/android-sdk",
+        "ANDROID_SDK_ROOT": "${workspaceFolder}/.tmp/toolchains/android-sdk"
+      }
     },
     {
       "name": "Flutter (Windows) Debug",
@@ -21,7 +26,8 @@
       "type": "dart",
       "request": "launch",
       "flutterMode": "debug",
-      "deviceId": "ios"
+      "deviceId": "ios",
+      "preLaunchTask": "iOS: Prepare Environment"
     }
   ]
 }

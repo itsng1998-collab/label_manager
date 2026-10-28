@@ -117,15 +117,26 @@ Flutter 기반 레이블 관리 도구입니다. Windows 환경에서 실행되�
 1. Windows 10/11 환경에서 PowerShell 5.1 이상과 winget 사용 가능 여부를 확인합니다.
 2. Windows ODBC Driver를 설치합니다.
 3. 배포 작성 시 Inno Setup은 패키징 스크립트가 미설치를 감지하여 자동 설치합니다. 수동 설치는 https://jrsoftware.org/isdl.php 에서 할 수 있습니다.
-4. Flutter SDK를 설치하고 Flutter doctor로 환경을 확인합니다.
-5. flutter.ps1 pub get으로 의존성을 받습니다. 이때 Windows용 MSBuild가 없으면 winget으로 Visual Studio Build Tools 2022(C++ workload) 설치를 시도합니다.
+4. VS Code에서 `Flutter: Prepare SDK and Packages` 작업을 실행하면 Git/Flutter SDK/패키지를 감지하고 누락분을 준비합니다.
+5. Windows F5 실행 또는 빌드 시 C++/CMake/Windows SDK/FreeType 등 해당 작업에 필요한 의존성을 준비합니다.
 6. Flutter run을 실행하여 애플리케이션을 구동합니다.
 7. Visual Studio Code에 최적화 되어 있습니다. (프로젝트 개발)
 
 ### Windows Build Tools 자동 설치 지원 환경
-- 지원: Windows 10/11, PowerShell 5.1 이상, winget 사용 가능 환경.
+- 지원: Windows 10/11, Windows PowerShell **5.1** 또는 PowerShell **7.x**, winget 사용 가능 환경. PowerShell 7 설치는 필수가 아닙니다.
 - 확인: PowerShell에서 `winget --version`이 버전을 출력해야 합니다.
-- winget이 없는 PC에서는 자동 설치가 중단됩니다. Microsoft App Installer가 포함된 Windows 10/11 환경에서 다시 `flutter.ps1 pub get`을 실행하거나, Visual Studio Build Tools 2022의 Desktop development with C++ workload를 수동 설치한 뒤 다시 실행합니다.
+- Visual Studio/Windows SDK 설치에는 관리자 권한이 필요합니다. 일반 권한에서는 자동 승격하지 않고 안내와 함께 중단하므로 사용자가 관리자 PowerShell을 열어 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/prepare_build.ps1 -Target WindowsTools`를 실행한 뒤 기존 작업을 재실행합니다. 이미 필요한 도구가 있으면 설치하지 않습니다.
+- winget이 없고 Git/Visual Studio가 필요한 경우 Microsoft App Installer 또는 해당 도구를 먼저 설치해야 합니다. Flutter/JDK/Android 도구/Inno 다운로드에는 winget이 필요하지 않습니다.
+
+## VS Code 공통 환경 준비
+- 공통 구현은 `tools/build_environment.ps1`, 실행 진입점은 `tools/prepare_build.ps1`입니다. F5의 `preLaunchTask`, Windows/Android 빌드, Inno 패키징, 네이티브 FreeType/RTF XLSX 빌드 및 `flutter.ps1 build/run`이 같은 준비 계층을 호출합니다. 실패하면 빌드로 넘어가지 않습니다.
+- `Windows`는 VC++/CMake/Windows SDK/필수 FreeType과 pub 패키지, `Android`는 JDK17+/Google SDK command-line tools/platform-tools/build-tools/CMake 및 현재 Flutter에 맞는 SDK platform/NDK와 pub 패키지, `Installer`는 Inno Setup만 준비합니다. 선택 기능인 네이티브 RTF XLSX는 `Native: RTF XLSX` 작업으로 따로 빌드합니다.
+- Flutter/JDK/Android 도구는 기존 설치를 우선 사용하고 누락 시 `.tmp/toolchains`에 SDK를 받거나 기존 경로를 연결합니다. 공식 HTTPS 배포 메타데이터의 체크섬을 검증하며, Dart SDK가 프로젝트의 최저 버전보다 낮으면 프로젝트 전용 Flutter SDK를 설치합니다. 시스템의 기존 SDK를 업그레이드하거나 삭제하지 않습니다.
+- `dart.getFlutterSdkCommand`로 SDK 탐색/설치를 Dart 확장과 공유합니다. 경로 외 출력은 `.tmp/sdk_prepare.log`에 남깁니다. 최초 SDK 다운로드가 오래 걸려 확장 탐색이 시간 초과되면 `Flutter: Prepare SDK and Packages` 작업을 완료한 뒤 VS Code 창을 다시 로드합니다.
+- Android 라이선스는 자동 동의하지 않습니다. 안내된 `sdkmanager --licenses` 명령으로 사용자가 동의한 뒤 작업을 다시 실행하면 이어서 설치합니다. 에뮬레이터 이미지/가상 장치 생성, USB 드라이버, DB/ODBC/프린터 드라이버는 빌드 의존성 자동 설치에 포함하지 않습니다. Android 배포 서명 및 앱 지원 여부도 별도입니다.
+- 이 자동 준비는 Windows 호스트용입니다. iOS는 Windows에서 준비/빌드할 수 없으며 macOS의 Xcode/CocoaPods가 필요하다는 오류로 중단합니다.
+- 모든 관리 대상 빌드 스크립트의 최소 버전은 **Windows PowerShell 5.1**입니다. PowerShell 7 전용 구문/명령에 의존하지 않으며, 5.1 미만은 시작 시 요구 버전을 안내하고 중단합니다. Windows PowerShell 5.0/4.0/2.0은 지원하지 않습니다.
+- 검증: `powershell -NoProfile -File tools/test_build_environment.ps1` 및 `powershell -NoProfile -File tools/test_windows_release.ps1`. PowerShell 7에서는 실행기만 `pwsh`로 바꿉니다. 격리 테스트이므로 실제 도구 설치나 앱/DB 실행은 하지 않습니다.
 
 ## 배포 작성 (Windows)
 PowerShell에서 아래 순서로 실행하고, **1단계가 성공한 경우에만** 2단계를 실행합니다.

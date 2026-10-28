@@ -1,4 +1,5 @@
-﻿[CmdletBinding()]
+﻿#Requires -Version 5.1
+[CmdletBinding()]
 param([string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")
 
 Set-StrictMode -Version Latest
@@ -30,7 +31,7 @@ function Invoke-Packaging {
 try {
     [void](New-Item (Join-Path $temp 'tools') -ItemType Directory -Force)
     foreach ($relative in @('build_windows.ps1', 'flutter.ps1', 'inno_setup_installer.ps1',
-        'inno_setup_installer.iss', 'tools\windows_release.ps1', 'tools\inno_setup_tools.ps1')) {
+        'inno_setup_installer.iss', 'tools\windows_release.ps1', 'tools\inno_setup_tools.ps1', 'tools\build_environment.ps1')) {
         Copy-Item (Join-Path $projectRoot $relative) (Join-Path $temp $relative)
     }
     . (Join-Path $temp 'tools\windows_release.ps1')
@@ -133,6 +134,12 @@ function Ensure-WindowsBuildTools {
     [void](New-Item (Join-Path $temp 'third_party\example') -ItemType Directory -Force)
     [System.IO.File]::WriteAllText((Join-Path $temp 'third_party\example\pubspec.yaml'), 'name: example', $utf8)
     $launcher = Join-Path $temp 'flutter.bat'
+    [System.IO.File]::WriteAllText((Join-Path $temp 'tools\build_environment.ps1'), @'
+function Initialize-BuildEnvironment {
+    param($ProjectRoot, $Target, $Configuration)
+    return Join-Path $ProjectRoot 'flutter.bat'
+}
+'@, $utf8)
     [System.IO.File]::WriteAllText($launcher, "@echo off`r`necho args=%*`r`nexit /b 0`r`n", $utf8)
     [void](New-Item (Join-Path $temp '.tmp') -ItemType Directory -Force)
     [System.IO.File]::WriteAllText((Join-Path $temp '.tmp\flutter_launcher_path.txt'), $launcher, $utf8)

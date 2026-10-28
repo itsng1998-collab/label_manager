@@ -3,6 +3,8 @@
   "tasks": [
     {
       "label": "ADB: Silence MESA log",
+      "dependsOn": "Android: Prepare Environment",
+      "options": {"env": {"PATH": "${workspaceFolder}/.tmp/toolchains/android-sdk/platform-tools;${env:PATH}"}},
       "type": "shell",
       "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
       "args": [
@@ -25,8 +27,10 @@
         "-NoProfile",
         "-ExecutionPolicy",
         "Bypass",
-        "-Command",
-        ". '${workspaceFolder}/tools/windows_build_tools.ps1'; Ensure-WindowsBuildTools -IssPath '${workspaceFolder}/inno_setup_installer.iss' -InstallIfMissing $true"
+        "-File",
+        "${workspaceFolder}/tools/prepare_build.ps1",
+        "-Target",
+        "Windows"
       ],
       "presentation": {
         "reveal": "always",
@@ -35,21 +39,61 @@
       "problemMatcher": []
     },
     {
-      "label": "WebView2: Clear userDataFolder (label_manager)",
-      "type": "shell",
-      "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
-      "args": [
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/.vscode/clear_webview2_userdata.ps1",
-        "-AppId",
-        "label_manager"
-      ],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      },
+      "label": "Android: Prepare Environment",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/prepare_build.ps1", "-Target", "Android"],
+      "problemMatcher": []
+    },
+    {
+      "label": "iOS: Prepare Environment",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/prepare_build.ps1", "-Target", "iOS"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Prepare SDK and Packages",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/prepare_build.ps1", "-Target", "Packages"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Build: Windows Release",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/build_windows.ps1"],
+      "group": {"kind": "build", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "Package: Windows",
+      "dependsOn": "Build: Windows Release",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/inno_setup_installer.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Build: Android Release",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/build_android.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Native: FreeType",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/build_native_freetype.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Native: RTF XLSX",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/build_native_rtf_xlsx.ps1"],
       "problemMatcher": []
     }
   ]

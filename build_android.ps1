@@ -1,5 +1,9 @@
-# 1. build apk
-flutter build apk --release --target-platform=android-arm64
+#Requires -Version 5.1
+$ErrorActionPreference = 'Stop'
+Push-Location $PSScriptRoot
+try {
+  & (Join-Path $PSScriptRoot 'flutter.ps1') -RootOnly build apk --release --target-platform=android-arm64
+  if ($LASTEXITCODE -ne 0) { throw "Android build failed: exit=$LASTEXITCODE" }
 
 # 1. pubspec.yaml 에서 version 줄을 찾아서 순수 버전 문자열(예: 1.2.3)만 추출
 $version = (Get-Content .\pubspec.yaml |
@@ -14,6 +18,10 @@ $destName  = "LabelManager.v$version.apk"
 $destPath  = Join-Path $destDir $destName
 
 # 3. 복사 실행
+[void](New-Item $destDir -ItemType Directory -Force)
 Copy-Item -Path $sourceApk -Destination $destPath
 
 Write-Host "Copied APK to '$destPath'."
+} finally {
+  Pop-Location
+}

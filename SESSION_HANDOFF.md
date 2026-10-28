@@ -1,5 +1,15 @@
 # SESSION HANDOFF
 
+## 완료: VS Code 공통 환경 준비 및 PowerShell 호환 (1.8.23)
+- tools/build_environment.ps1 공통 구현 + prepare_build.ps1 진입점. VS Code F5/preLaunch, Windows/Android Release/Package, 루트flutter/build/Inno, native FreeType/RTF XLSX가 공통 준비 사용. 선택RTF는 해당native작업에서만 준비. 존재하지 않는WebView2 파일을 호출하던 낡은task 제거.
+- 프로필별 Git/Flutter/VC++/CMake/Windows SDK/필수FreeType/pub, Android JDK17+/Google SDK명령도구/platform-tools/build-tools/CMake/현재Flutter기준platform+NDK, Inno 준비. 기존설치 재사용, 공식SDK/도구다운로드 체크섬 검증, 구Dart환경보다 새프로젝트SDK 우선/구SDK불변/반복다운로드 방지. Dart getFlutterSdkCommand로 SDK경로 공유.
+- 호환성: Windows PowerShell5.1 및 PowerShell7.x, 관리진입점11개 Requires5.1/각Shell AST검사. 5.1미만은 시작시명확히중단. HTTPS메타데이터/다운로드는 TLS1.2 명시 및 설정복구, 네이티브실패코드 전파.
+- **검증완료: PS5.1 환경50/50+배포26/26, PS7 환경50/50+배포26/26**. 명령: 각shell `-NoProfile -File tools/test_build_environment.ps1`, `-NoProfile -File tools/test_windows_release.ps1`. 로그 tmp/test_{build_environment,windows_release}_{ps51,ps7}.log. VSCode참조/JSON/SDK출력/구SDK재사용/TLS성공·실패 및 실패전파 확인.
+- 실제 `pwsh -NoProfile -File tools/prepare_build.ps1 -Target Windows` 성공(exit0), 설치된VC/SDK/CMake/FreeType 재사용·모든pub get완료. 로그 tmp/build_environment_windows.log. 변경파일 진단오류없음, diff공백검사통과. SDK조회로그 .tmp/sdk_prepare.log.
+- 버전1.8.22→1.8.23 PATCH(개발/빌드환경설정). 임시fixture 자동정리, 검증로그는Git제외. 실제앱/DB/프린터/Release빌드·새배포산출물 미실행. 새PC실제도구설치/AndroidSDK대량설치/F5앱구동은 미검증(다운로드/설치 분기는 격리모의).
+- 권한/지원한계: VS/SDK설치는 사용자가 관리자PowerShell에서 WindowsTools 프로필 실행 필요(자동UAC없음), Android라이선스는 사용자가수락후재실행, Git/VS미설치+winget없으면선행설치안내. Windows호스트만지원, iOS는macOS/Xcode/CocoaPods필요오류. 에뮬레이터/USB/DB/ODBC/프린터는 자동설치범위밖. README에 절차/제약기록.
+- stage/commit 예정: .vscode3개, README/이문서/pubspec, 루트4 PS, tools helper/native/test 관련파일만. 사용자 lib/core/app.dart 보존·제외. 기능commit확정후해시를별도문서commit으로기록예정.
+
 ## 완료: Windows 배포 및 Inno 자동 설치 (1.8.22)
 - 순서 유지: build_windows.ps1 성공 후 inno_setup_installer.ps1. 루트 전용 Release 빌드, 공식 VS2022 CRT10 DLL 수집, EXE버전/AMD64/필수파일 검사 성공 후 version.txt 기록. Flutter stdout과 종료 코드 분리, 현재SDK 미지원 --target-platform 미사용.
 - ISS: 고정 AppId 형식 수정, Windows10+/x64compatible, Release 폴더 단일 소스. 대상PC의 System32에서 런타임을 읽던 external 제거. 패키징은 pubspec/버전파일/EXE 버전 일치 필수, 과거EXE 대체 금지, 로그/ZIP SHA256 보존.
